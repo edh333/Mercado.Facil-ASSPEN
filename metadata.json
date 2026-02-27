@@ -1,0 +1,5 @@
+{
+  "name": "Sistema de Gestão Prisional MT",
+  "description": "Sistema completo de gestão de pedidos e controle financeiro para unidades prisionais, com módulos para familiares e administradores.",
+  "requestFramePermissions": []
+}
