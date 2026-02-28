@@ -4,12 +4,12 @@ import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDTgZcrRlJODOGwO5uAtpx6lOwxaU0jFWE",
-  authDomain: "mercadofacilasspen.firebaseapp.com",
-  projectId: "mercadofacilasspen",
-  storageBucket: "mercadofacilasspen.firebasestorage.app",
-  messagingSenderId: "922222973022",
-  appId: "1:922222973022:web:85b3eb72fc41c0fbb5a4cf"
+  apiKey: "AIzaSyCa3QnGwbTyldoPqYeVO-L24iftVm7lsT8",
+  authDomain: "mercado-facil-mt.firebaseapp.com",
+  projectId: "mercado-facil-mt",
+  storageBucket: "mercado-facil-mt.firebasestorage.app",
+  messagingSenderId: "714788107870",
+  appId: "1:714788107870:web:ee371b5398d060544ca6cf"
 };
 
 const app = initializeApp(firebaseConfig);

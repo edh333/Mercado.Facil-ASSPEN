@@ -97,8 +97,8 @@ const DEFAULT_CONFIG: AppConfig = {
   contactAddress: 'Peixoto de Azevedo - MT',
   adminPassword: 'admin',
   pixKeys: [ASSPEN_INFO.defaultPix],
-  systemName: 'JUMBO FÁCIL',
-  theme: ThemeOption.POLICE_MT,
+  systemName: 'MERCADO FÁCIL',
+  theme: ThemeOption.MODERN_GREEN,
   customReceiptText: 'Conferir os itens no ato da entrega. Não aceitamos reclamações posteriores.',
   customReceiptTitle: 'ASSPEN - Gestão',
   customReceiptSubtitle: 'CDP Peixoto de Azevedo - MT',
@@ -192,9 +192,9 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     let unsubSup: Unsubscribe | null = null;
 
     const startListeners = async () => {
-        unsubConfig = onSnapshot(doc(db, 'settings', 'general'), (doc) => {
-            if (doc.exists()) setAppConfig({ ...DEFAULT_CONFIG, ...doc.data() as AppConfig });
-            else setDoc(doc.ref, DEFAULT_CONFIG);
+        unsubConfig = onSnapshot(doc(db, 'settings', 'general'), (docSnap: any) => {
+            if (docSnap.exists()) setAppConfig({ ...DEFAULT_CONFIG, ...docSnap.data() as AppConfig });
+            else setDoc(docSnap.ref, DEFAULT_CONFIG);
         });
 
         unsubProducts = onSnapshot(collection(db, 'products'), (snapshot) => {
@@ -304,19 +304,13 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const cleanId = identifier.replace(/\D/g, ''); // Remove tudo que não for número
     const cleanPass = pass.trim();
     
-    // Admin Master Check (CPF 000... ou 'admin')
-    if ((cleanId === '00000000000' || identifier.trim() === 'admin') && (cleanPass === '102030' || cleanPass === 'admin' || cleanPass === appConfig.adminPassword)) {
-         const admin: User = { id: 'master', name: 'Administrador Master', role: UserRole.ADMIN, email: 'admin@admin.com', cpf: '000.000.000-00', status: 'active', approved: true, password: cleanPass, permissions: ['all'] };
-         setCurrentUser(admin);
-         return { success: true };
-    }
     try {
         // Tenta buscar pelo CPF limpo (apenas números)
         let q = query(collection(db, 'users'), where('cpf', '==', cleanId));
         let snapshot = await getDocs(q);
         
         // Fallback: Tenta buscar pelo CPF formatado (XXX.XXX.XXX-XX) caso o banco tenha dados antigos
-        if (snapshot.empty) {
+        if (snapshot.empty && cleanId.length === 11) {
             const formattedCpf = cleanId.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
             q = query(collection(db, 'users'), where('cpf', '==', formattedCpf));
             snapshot = await getDocs(q);
@@ -329,7 +323,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         }
         
         if (snapshot.empty) return { success: false, message: 'Usuário não encontrado.' };
-        const user = snapshot.docs[0].data() as User;
+        const user = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as User;
         if (user.password !== cleanPass) return { success: false, message: 'Senha incorreta.' };
         if (user.status === 'pending') return { success: false, message: 'Cadastro em análise.' };
         if (user.status === 'suspended') return { success: false, message: 'Conta suspensa.' };
@@ -338,68 +332,59 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     } catch (e: any) { return { success: false, message: 'Erro de conexão.' }; }
   };
 
-  const loginAdmin = async (pass: string) => {
+  const loginAdmin = async (email: string, pass: string) => {
       const qAdmins = query(collection(db, 'users'), where('role', '==', UserRole.ADMIN));
       const snapshotAdmins = await getDocs(qAdmins);
 
       if (snapshotAdmins.empty) {
-          // First access: no admins in DB. Allow blank password.
-          if (pass === '') {
+          // First access: no admins in DB. Allow default admin login and save it.
+          if (email === 'admin@mercado.com' && pass === 'admin123') {
+              const newAdminRef = doc(collection(db, 'users'));
               const masterAdmin: User = { 
-                  id: 'master', 
+                  id: newAdminRef.id, 
                   name: 'Administrador Master', 
                   role: UserRole.ADMIN, 
-                  email: 'admin@admin.com', 
+                  email: 'admin@mercado.com', 
                   cpf: '00000000000', 
                   status: 'active', 
                   approved: true, 
-                  password: '', 
+                  password: 'admin123', 
                   permissions: ['all'] 
               };
+              await setDoc(newAdminRef, masterAdmin);
               setCurrentUser(masterAdmin);
               return;
           } else {
-              throw new Error("Primeiro acesso do sistema: deixe a senha em branco para entrar.");
+              throw new Error("Primeiro acesso do sistema: use admin@mercado.com e senha admin123 para entrar.");
           }
       }
 
-      // Admins exist. Check if password matches any admin.
-      const adminDoc = snapshotAdmins.docs.find(doc => doc.data().password === pass);
+      // Admins exist. Check if email and password match any admin.
+      const adminDoc = snapshotAdmins.docs.find(doc => doc.data().email === email && doc.data().password === pass);
       
       if (adminDoc) {
           setCurrentUser({ id: adminDoc.id, ...adminDoc.data() } as User);
           return;
       }
       
-      // Fallback for legacy hardcoded password if needed
-      if (pass === appConfig.adminPassword) {
-          const legacyAdmin: User = { id: 'master', name: 'Administrador Master', role: UserRole.ADMIN, email: 'admin@admin.com', cpf: '000.000.000-00', status: 'active', approved: true, password: pass, permissions: ['all'] };
+      // Fallback for legacy hardcoded password if needed, but ONLY if the admin@mercado.com user doesn't exist in DB yet
+      const masterExists = snapshotAdmins.docs.some(doc => doc.data().email === 'admin@mercado.com');
+      if (!masterExists && email === 'admin@mercado.com' && pass === 'admin123') {
+          const legacyAdmin: User = { id: 'master', name: 'Administrador Master', role: UserRole.ADMIN, email: 'admin@mercado.com', cpf: '000.000.000-00', status: 'active', approved: true, password: pass, permissions: ['all'] };
           setCurrentUser(legacyAdmin);
           return;
       }
 
-      throw new Error("Senha de administrador incorreta.");
+      throw new Error("E-mail ou senha de administrador incorretos.");
   };
 
   const updateAdminPassword = async (newPass: string) => {
       if (!currentUser || currentUser.role !== UserRole.ADMIN) throw new Error("Acesso negado.");
       
-      if (currentUser.id === 'master') {
-          // First time saving the master admin to DB
-          const newAdminRef = doc(collection(db, 'users'));
-          const newAdminData: User = {
-              ...currentUser,
-              id: newAdminRef.id,
-              password: newPass
-          };
-          await setDoc(newAdminRef, newAdminData);
-          setCurrentUser(newAdminData);
-      } else {
-          // Update existing admin
-          const adminRef = doc(db, 'users', currentUser.id);
-          await updateDoc(adminRef, { password: newPass });
-          setCurrentUser({ ...currentUser, password: newPass });
-      }
+      // Update existing admin
+      const adminRef = doc(db, 'users', currentUser.id);
+      await updateDoc(adminRef, { password: newPass });
+      setCurrentUser({ ...currentUser, password: newPass });
       showNotification("Senha de administrador atualizada com sucesso!", "success");
   };
   

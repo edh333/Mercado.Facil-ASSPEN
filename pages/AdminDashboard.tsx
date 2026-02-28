@@ -5,7 +5,7 @@ import { THEME_COLORS } from '../constants';
 import { cleanProductName, normalizeName, validateCPF } from '../utils';
 import { 
   Users, Package, ShoppingCart, DollarSign, LogOut, AlertTriangle, 
-  Landmark, Trash2, Edit, Upload, FileText, Settings, X, Printer, Search, CheckCircle, BarChart3, Image as ImageIcon, Lock, Home, Eye, FileWarning, ArrowDownCircle, AlertCircle, ClipboardList, Briefcase, FileBarChart, UserCheck, Unlock, Plus, Key, Save, Database, HardDrive, Download, Maximize2, Truck, Box, RefreshCw, Zap, Phone, ArrowRight, Grid, List, MapPin, Mail, Filter, TrendingUp, ArrowUpDown, ChevronDown, ChevronUp, Contact, Ban, ToggleLeft, ToggleRight, FileInput, Shield, Loader2, KeyRound, XCircle, MessageSquareX, Send, UserCog, Menu
+  Landmark, Trash2, Edit, Upload, FileText, Settings, X, Printer, Search, CheckCircle, BarChart3, Image as ImageIcon, Lock, Home, Eye, EyeOff, FileWarning, ArrowDownCircle, AlertCircle, ClipboardList, Briefcase, FileBarChart, UserCheck, Unlock, Plus, Key, Save, Database, HardDrive, Download, Maximize2, Truck, Box, RefreshCw, Zap, Phone, ArrowRight, Grid, List, MapPin, Mail, Filter, TrendingUp, ArrowUpDown, ChevronDown, ChevronUp, Contact, Ban, ToggleLeft, ToggleRight, FileInput, Shield, Loader2, KeyRound, XCircle, MessageSquareX, Send, UserCog, Menu
 } from 'lucide-react';
 import { CupomEntrega } from '../components/CupomEntrega';
 import { ReciboA4 } from '../components/ReciboA4';
@@ -150,6 +150,27 @@ export const AdminDashboard: React.FC = () => {
   const [pixKeyInput, setPixKeyInput] = useState('');
   const [newAdminForm, setNewAdminForm] = useState({ name: '', cpf: '', password: '', email: '' });
   const [adminPermissions, setAdminPermissions] = useState<string[]>([]);
+  const [newAdminPassword, setNewAdminPassword] = useState('');
+  const [confirmAdminPassword, setConfirmAdminPassword] = useState('');
+
+  const handleChangeAdminPassword = async () => {
+      if (newAdminPassword !== confirmAdminPassword) {
+          showNotification('As senhas não coincidem.', 'error');
+          return;
+      }
+      if (newAdminPassword.length < 6) {
+          showNotification('A senha deve ter pelo menos 6 caracteres.', 'error');
+          return;
+      }
+      try {
+          await updateAdminPassword(newAdminPassword);
+          setNewAdminPassword('');
+          setConfirmAdminPassword('');
+          showNotification('Senha do administrador atualizada com sucesso!', 'success');
+      } catch (error: any) {
+          showNotification(error.message || 'Erro ao atualizar senha.', 'error');
+      }
+  };
 
   // Report Logic
   const [reportConfig, setReportConfig] = useState({
@@ -177,7 +198,7 @@ export const AdminDashboard: React.FC = () => {
   const [sortConfig, setSortConfig] = useState<{ key: keyof Product, direction: 'asc' | 'desc' }>({ key: 'name', direction: 'asc' });
 
   const themeColors = THEME_COLORS[settings?.theme] || THEME_COLORS[ThemeOption.POLICE_MT];
-  const isMaster = currentUser?.id === 'master' || currentUser?.id === 'admin' || currentUser?.email === 'admin@admin.com';
+  const isMaster = currentUser?.id === 'master' || currentUser?.id === 'admin' || currentUser?.email === 'admin@mercado.com';
 
   useEffect(() => {
       if(activeTab === 'settings' && settings) setConfigForm(settings);
@@ -217,9 +238,8 @@ export const AdminDashboard: React.FC = () => {
   const confirmAuth = (e: React.FormEvent) => {
       e.preventDefault();
       const inputPass = authPass.trim();
-      const validPasswords = [settings?.adminPassword, 'admin', '102030'].filter(Boolean);
       
-      if (validPasswords.includes(inputPass)) {
+      if (currentUser?.password === inputPass || (currentUser?.id === 'master' && inputPass === 'admin123')) {
           if (authAction === 'FILTER' && pendingFilter) {
               setFilterType(pendingFilter);
               showNotification(`Visualização alterada: ${pendingFilter === 'week' ? 'Semana' : 'Mês'}`, 'success');
@@ -1306,12 +1326,12 @@ export const AdminDashboard: React.FC = () => {
             {/* MODAL DE PRODUTO */}
             {showProductModal && (
                 <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn">
-                    <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden">
-                        <div className="p-6 border-b border-gray-200 flex justify-between items-center bg-slate-50">
-                            <h3 className="font-bold text-xl text-slate-800">{editingProduct ? 'Editar Produto' : 'Novo Produto'}</h3>
-                            <button onClick={() => setShowProductModal(false)} className="bg-gray-200 p-2 rounded-full hover:bg-gray-300"><X size={20}/></button>
+                    <div className="bg-white w-full max-w-2xl max-h-[95vh] flex flex-col rounded-2xl shadow-2xl overflow-hidden">
+                        <div className="p-4 md:p-6 border-b border-gray-200 flex justify-between items-center bg-slate-50 shrink-0">
+                            <h3 className="font-bold text-lg md:text-xl text-slate-800">{editingProduct ? 'Editar Produto' : 'Novo Produto'}</h3>
+                            <button onClick={() => setShowProductModal(false)} className="bg-gray-200 p-2 rounded-full hover:bg-gray-300 transition-colors"><X size={20}/></button>
                         </div>
-                        <div className="p-6">
+                        <div className="p-4 md:p-6 overflow-y-auto">
                             <form onSubmit={handleProductSubmit} className="space-y-4">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="md:col-span-2">

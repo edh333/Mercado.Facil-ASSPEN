@@ -6,22 +6,25 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "react-dom": "^19.2.3",
-    "react": "^19.2.3",
-    "jspdf": "^3.0.4",
-    "recharts": "^3.6.0",
     "@google/genai": "^1.35.0",
-    "lucide-react": "^0.562.0",
-    "xlsx": "^0.18.5",
     "firebase": "^12.7.0",
-    "react-qr-code": "^2.0.15"
+    "jspdf": "^3.0.4",
+    "lucide-react": "^0.562.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "react-qr-code": "^2.0.15",
+    "recharts": "^3.6.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.2.1",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "tailwindcss": "^4.2.1",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
   }

@@ -17,6 +17,7 @@ export const Login: React.FC = () => {
   
   const [cpf, setCpf] = useState('');
   const [password, setPassword] = useState('');
+  const [adminEmail, setAdminEmail] = useState('');
   const [registerConfirmPassword, setRegisterConfirmPassword] = useState(''); // Estado para confirmar senha no cadastro
   
   // States para Recuperação de Senha
@@ -47,7 +48,7 @@ export const Login: React.FC = () => {
   const isRecovery = activeTab === 'recovery';
 
   useEffect(() => {
-      setCpf(''); setPassword(''); setRegisterConfirmPassword('');
+      setCpf(''); setPassword(''); setRegisterConfirmPassword(''); setAdminEmail('');
       setRegData({ name: '', phone: '', prisonerName: '', prisonerCpf: '', kinship: '', kinshipOther: '', unitId: '1' });
       setFileObject(null);
       setLegalTermAccepted(false);
@@ -71,7 +72,7 @@ export const Login: React.FC = () => {
     try {
         if (isAdmin) {
             setLoadingMessage('Autenticando...');
-            await loginAdmin(password);
+            await loginAdmin(adminEmail, password);
         } else if (isRegister) {
             // 1. Limpeza dos dados para validação
             const cleanUserCpf = cpf.replace(/\D/g, '');
@@ -182,10 +183,10 @@ export const Login: React.FC = () => {
                     <Shield size={32} className="text-white" />
                 </div>
                 <h2 className="text-white text-xs font-bold tracking-[0.2em] uppercase opacity-90 mb-1 drop-shadow-md">
-                    {settings.institutionName.split('-')[0] || 'SISTEMA PENAL'}
+                    PORTAL DA FAMÍLIA
                 </h2>
                 <h1 className="text-2xl font-black text-white tracking-tight drop-shadow-md">
-                    {isAdmin ? 'Acesso Administrativo' : isRecovery ? 'Nova Senha' : settings.systemName || 'JUMBO FÁCIL'}
+                    {isAdmin ? 'Acesso Administrativo' : isRecovery ? 'Nova Senha' : 'MERCADO FÁCIL'}
                 </h1>
             </div>
         </div>
@@ -221,7 +222,7 @@ export const Login: React.FC = () => {
 
             {isAdmin && (
                 <div className="text-center mb-6">
-                    <p className="text-slate-700 text-sm font-bold">Informe a senha mestre para gerenciar o sistema.</p>
+                    <p className="text-slate-700 text-sm font-bold">Informe o e-mail e senha para gerenciar o sistema.</p>
                 </div>
             )}
 
@@ -310,6 +311,13 @@ export const Login: React.FC = () => {
                     </div>
                 )}
 
+                {/* Campo de Email Admin */}
+                {isAdmin && (
+                    <div className="animate-fadeIn mb-3">
+                        <SimpleInput icon={User} label="E-mail do Administrador" value={adminEmail} onChange={(e:any) => setAdminEmail(e.target.value)} type="email" />
+                    </div>
+                )}
+
                 {/* MENSAGEM DE ERRO FIXA NO FORMULÁRIO */}
                 {formError && (
                     <div className="bg-red-50 border-l-4 border-red-500 p-3 rounded-r animate-fadeIn flex items-start gap-3">
@@ -339,7 +347,7 @@ export const Login: React.FC = () => {
                         <input 
                             type={showPassword ? "text" : "password"} 
                             className="w-full pl-10 pr-10 py-3.5 bg-slate-50 border border-slate-400 rounded-lg focus:bg-white focus:border-slate-600 focus:ring-2 focus:ring-slate-300 outline-none transition-all text-sm font-bold text-slate-900 placeholder:text-slate-600"
-                            placeholder={isAdmin ? "Senha Master (Deixe em branco no 1º acesso)" : (isRegister ? "Crie sua Senha" : "Sua Senha")}
+                            placeholder={isAdmin ? "Senha do Administrador" : (isRegister ? "Crie sua Senha" : "Sua Senha")}
                             value={password}
                             onChange={e => setPassword(e.target.value)}
                             required={!isAdmin}
@@ -410,9 +418,9 @@ export const Login: React.FC = () => {
       
       <div className="mt-8 text-center px-4">
           <p className="text-xs text-slate-700 font-bold">
-              &copy; {new Date().getFullYear()} {settings.institutionName || "ASSPEN"}
+              &copy; {new Date().getFullYear()} Portal da Família
           </p>
-          <p className="text-[10px] text-slate-600 mt-1 uppercase tracking-wide font-semibold">Todos os direitos reservados.</p>
+          <p className="text-[10px] text-slate-600 mt-1 uppercase tracking-wide font-semibold">TODOS OS DIREITOS RESERVADOS.</p>
           <p className="text-[10px] text-slate-500 mt-2 font-mono">
               Dev: Edevaldo de Lima Almeida
           </p>
