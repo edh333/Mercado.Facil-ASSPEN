@@ -67,16 +67,18 @@ export const ReciboA4: React.FC<ReciboA4Props> = ({ data, type, config, printerN
                 <span className="text-xl font-mono font-bold text-red-700">#{docId.slice(0,8).toUpperCase()}</span>
             </div>
             <div className="text-right">
-                <h2 className="text-3xl font-black uppercase text-black tracking-tight">RECIBO DE {isOrder ? 'VENDA' : 'PAGAMENTO'}</h2>
+                <h2 className="text-3xl font-black uppercase text-black tracking-tight">{isOrder ? (config.receiptMainTitleOrder || 'RECIBO DE VENDA') : (config.receiptMainTitleExpense || 'RECIBO DE PAGAMENTO')}</h2>
                 <p className="text-sm font-bold text-slate-900 mt-1">{dateStr}</p>
             </div>
+
         </div>
 
         {/* VALOR EM DESTAQUE */}
         <div className="bg-slate-50 border-2 border-slate-800 p-6 rounded-lg flex items-center justify-between mb-10 shadow-sm">
-            <span className="text-lg font-bold uppercase tracking-wide text-slate-900">Valor Líquido</span>
+            <span className="text-lg font-bold uppercase tracking-wide text-slate-900">{config.receiptLabelValue || 'Valor Líquido'}</span>
             <span className="text-4xl font-black text-black">{valorFormatado}</span>
         </div>
+
 
         {/* CORPO DO RECIBO */}
         <div className="flex-1 space-y-8 text-base text-slate-900 font-medium">
@@ -84,31 +86,32 @@ export const ReciboA4: React.FC<ReciboA4Props> = ({ data, type, config, printerN
             {/* DADOS DAS PARTES */}
             <div className="grid grid-cols-2 gap-10">
                 <div className="border-l-4 border-slate-900 pl-4">
-                    <p className="text-xs font-bold uppercase text-slate-600 mb-1">Pagador</p>
+                    <p className="text-xs font-bold uppercase text-slate-600 mb-1">{config.receiptLabelPayer || 'Pagador'}</p>
                     <p className="font-bold text-lg uppercase text-black">{pagadorNome}</p>
                     <p className="text-sm font-mono text-slate-800">{pagadorDoc || 'Documento N/I'}</p>
                 </div>
                 <div className="border-l-4 border-slate-900 pl-4">
-                    <p className="text-xs font-bold uppercase text-slate-600 mb-1">Beneficiário</p>
+                    <p className="text-xs font-bold uppercase text-slate-600 mb-1">{config.receiptLabelBeneficiary || 'Beneficiário'}</p>
                     <p className="font-bold text-lg uppercase text-black">{beneficiarioNome}</p>
                     <p className="text-sm font-mono text-slate-800">{beneficiarioDoc || 'Documento N/I'}</p>
                 </div>
             </div>
 
+
             {/* DESCRIÇÃO COMPLETA */}
             <div className="mt-8">
-                <p className="font-bold uppercase text-black mb-3 border-b border-slate-400 pb-1">Histórico / Discriminação</p>
+                <p className="font-bold uppercase text-black mb-3 border-b border-slate-400 pb-1">{config.receiptLabelHistory || 'Histórico / Discriminação'}</p>
                 <div className="text-justify leading-7 bg-white p-6 rounded border border-slate-300 min-h-[150px] shadow-inner text-slate-900">
                     {description}
                     {expense?.observation && (
                         <div className="mt-4 pt-4 border-t border-dashed border-slate-400">
-                            <span className="font-bold block text-sm uppercase text-slate-700 mb-1">Observações Adicionais:</span> 
+                            <span className="font-bold block text-sm uppercase text-slate-700 mb-1">{config.receiptLabelObservations || 'Observações Adicionais:'}</span> 
                             {expense.observation}
                         </div>
                     )}
                     {isOrder && order?.items && (
                         <div className="mt-4 pt-4 border-t border-dashed border-slate-400">
-                            <span className="font-bold block text-sm uppercase text-slate-700 mb-2">Itens do Pedido:</span>
+                            <span className="font-bold block text-sm uppercase text-slate-700 mb-2">{config.receiptLabelItems || 'Itens do Pedido:'}</span>
                             <ul className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm font-mono text-slate-900">
                                 {order.items.map((item, idx) => (
                                     <li key={idx}>• {item.quantity}x {item.name}</li>
@@ -119,9 +122,11 @@ export const ReciboA4: React.FC<ReciboA4Props> = ({ data, type, config, printerN
                 </div>
             </div>
 
+
             <p className="mt-6 text-justify text-sm italic text-slate-800 font-medium">
-                Declaramos para os devidos fins que recebemos a importância supra, dando plena, rasa e geral quitação.
+                {config.receiptDeclaration || 'Declaramos para os devidos fins que recebemos a importância supra, dando plena, rasa e geral quitação.'}
             </p>
+
         </div>
 
         {/* RODAPÉ E ASSINATURA */}
@@ -129,8 +134,9 @@ export const ReciboA4: React.FC<ReciboA4Props> = ({ data, type, config, printerN
             <div className="flex flex-col items-center justify-center">
                 <div className="w-2/3 border-t-2 border-slate-900 pt-3 text-center">
                     <p className="font-bold uppercase text-lg text-black">{beneficiarioNome}</p>
-                    <p className="text-xs font-bold text-slate-600 uppercase tracking-widest">Assinatura do Recebedor</p>
+                    <p className="text-xs font-bold text-slate-600 uppercase tracking-widest">{config.receiptSignatureLabel || 'Assinatura do Recebedor'}</p>
                 </div>
+
             </div>
             
             <div className="mt-12 flex justify-between items-end border-t border-slate-200 pt-2">

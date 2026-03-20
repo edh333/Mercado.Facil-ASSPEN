@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StoreProvider, useApp } from './context/StoreContext';
 import { Login } from './pages/Login';
 import { UserDashboard } from './pages/UserDashboard';
@@ -7,7 +7,17 @@ import { Layout } from './components/Layout';
 import { UserRole } from './types';
 
 const MainApp: React.FC = () => {
-  const { currentUser } = useApp();
+  const { currentUser, showNotification } = useApp();
+
+  useEffect(() => {
+    const handleSessionExpired = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      showNotification(customEvent.detail.message, 'warning');
+    };
+
+    window.addEventListener('session-expired', handleSessionExpired);
+    return () => window.removeEventListener('session-expired', handleSessionExpired);
+  }, [showNotification]);
 
   if (!currentUser) {
     return <Login />;

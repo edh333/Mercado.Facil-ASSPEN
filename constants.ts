@@ -9,62 +9,88 @@ export const ASSPEN_INFO = {
 };
 
 // Cores Profissionais, Vibrantes e de Alto Contraste
-export const THEME_COLORS: Record<string, { primary: string; secondary: string; accent: string; bg: string; text: string }> = {
-  [ThemeOption.POLICE_MT]: { 
-    primary: 'bg-slate-900', 
-    secondary: 'bg-slate-800', 
-    accent: 'text-yellow-500', 
-    bg: 'bg-slate-100',
-    text: 'text-white'
+export const THEME_COLORS: Record<string, {
+  primary: string;
+  secondary: string;
+  accent: string;
+  bg: string;
+  text: string;
+  price: string;
+  card: string;
+}> = {
+  [ThemeOption.POLICE_MT]: {
+    primary: 'bg-[#0f172a]', // Slate 950 (Professional Navy)
+    secondary: 'bg-[#1e293b]', // Slate 800
+    accent: 'text-[#38bdf8]', // Sky 400
+    bg: 'bg-slate-50',
+    text: 'text-slate-900',
+    price: 'text-[#0f172a]',
+    card: 'bg-white'
   },
-  [ThemeOption.PROFESSIONAL_BLUE]: { 
-    primary: 'bg-blue-900', 
-    secondary: 'bg-blue-800', 
-    accent: 'text-blue-400', 
+
+  [ThemeOption.PROFESSIONAL_BLUE]: {
+    primary: 'bg-blue-700',
+    secondary: 'bg-blue-600',
+    accent: 'text-blue-500',
     bg: 'bg-blue-50',
-    text: 'text-white'
+    text: 'text-blue-900',
+    price: 'text-blue-700',
+    card: 'bg-white'
   },
-  [ThemeOption.MODERN_GREEN]: { 
-    primary: 'bg-emerald-800', 
-    secondary: 'bg-emerald-700', 
-    accent: 'text-emerald-300', 
+  [ThemeOption.MODERN_GREEN]: {
+    primary: 'bg-[#064e3b]', // Emerald 900 (Deep Forest)
+    secondary: 'bg-[#065f46]', // Emerald 800
+    accent: 'text-[#10b981]', // Emerald 500
     bg: 'bg-emerald-50',
-    text: 'text-white'
+    text: 'text-emerald-900',
+    price: 'text-[#064e3b]',
+    card: 'bg-white'
   },
-  [ThemeOption.ELEGANT_PURPLE]: { 
-    primary: 'bg-purple-900', 
-    secondary: 'bg-purple-800', 
-    accent: 'text-purple-300', 
+
+  [ThemeOption.ELEGANT_PURPLE]: {
+    primary: 'bg-purple-700',
+    secondary: 'bg-purple-600',
+    accent: 'text-purple-500',
     bg: 'bg-purple-50',
-    text: 'text-white'
+    text: 'text-purple-900',
+    price: 'text-purple-700',
+    card: 'bg-white'
   },
-  [ThemeOption.VIBRANT_ORANGE]: { 
-    primary: 'bg-orange-700', 
-    secondary: 'bg-orange-600', 
-    accent: 'text-white', 
+  [ThemeOption.VIBRANT_ORANGE]: {
+    primary: 'bg-orange-600',
+    secondary: 'bg-orange-500',
+    accent: 'text-orange-600',
     bg: 'bg-orange-50',
-    text: 'text-white'
+    text: 'text-orange-950',
+    price: 'text-orange-700',
+    card: 'bg-white'
   },
-  [ThemeOption.HIGH_CONTRAST]: { 
-    primary: 'bg-black', 
-    secondary: 'bg-neutral-900', 
-    accent: 'text-yellow-400', 
+  [ThemeOption.HIGH_CONTRAST]: {
+    primary: 'bg-black',
+    secondary: 'bg-zinc-800',
+    accent: 'text-black',
     bg: 'bg-white',
-    text: 'text-white'
+    text: 'text-black',
+    price: 'text-black',
+    card: 'bg-white'
   },
-  [ThemeOption.CYBER_DARK]: { 
-    primary: 'bg-zinc-950', 
-    secondary: 'bg-zinc-900', 
-    accent: 'text-cyan-400', 
+  [ThemeOption.CYBER_DARK]: {
+    primary: 'bg-zinc-950',
+    secondary: 'bg-zinc-900',
+    accent: 'text-cyan-400',
     bg: 'bg-zinc-900',
-    text: 'text-cyan-400'
+    text: 'text-white',
+    price: 'text-cyan-400',
+    card: 'bg-zinc-900'
   },
-  [ThemeOption.SOFT_PASTEL]: { 
-    primary: 'bg-teal-700', // Substituído por Teal Forte para contraste
-    secondary: 'bg-teal-600', 
-    accent: 'text-teal-100', 
+  [ThemeOption.SOFT_PASTEL]: {
+    primary: 'bg-teal-700',
+    secondary: 'bg-teal-600',
+    accent: 'text-teal-500',
     bg: 'bg-teal-50',
-    text: 'text-white'
+    text: 'text-teal-900',
+    price: 'text-teal-700',
+    card: 'bg-white'
   },
 };
 

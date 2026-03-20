@@ -48,6 +48,7 @@ export interface Product {
   available: boolean;
   weight?: string;
   supplierId?: string;
+  promoPrice?: number;
 }
 
 export interface CartItem extends Product {
@@ -82,7 +83,12 @@ export interface User {
   documentUrl?: string;
   createdAt?: string;
   permissions?: string[]; // New: Granular permissions for secondary admins
+  showFinanceEntries?: boolean; // New: Toggle for Principal Admin to hide/show entries
+  walletBalance?: number; // New: Dynamic Credit for Inmate
+  weeklySpent?: number; // New: Tracks spend against limit
+  lastSpentReset?: string; // New: ISO date of last limit reset
 }
+
 
 export interface InmateLocation {
   raio: string; // Alias ray
@@ -113,6 +119,8 @@ export interface Order {
   printCount?: number;
   inmateName?: string; // Snapshot
   inmateCpf?: string; // Snapshot
+  paymentMethod?: 'PIX' | 'WALLET'; // New
+  walletBalanceAfter?: number;
 }
 
 export interface Supplier {
@@ -158,7 +166,45 @@ export interface AppConfig {
   customReceiptTitle?: string; // Novo: Título do Cupom (ASSPEN - Gestão)
   customReceiptSubtitle?: string; // Novo: Subtítulo (CDP Peixoto...)
   customReceiptDocName?: string; // Novo: Nome do Doc (CUPOM DE ENTREGA)
+  loginBgUrl?: string;
+  loginBgType?: 'none' | 'color' | 'image';
+  userDashboardBgUrl?: string;
+  userDashboardBgType?: 'none' | 'color' | 'image';
+
+  // Professional Receipt Customization
+  receiptMainTitleOrder?: string;
+  receiptMainTitleExpense?: string;
+  receiptLabelValue?: string;
+  receiptLabelPayer?: string;
+  receiptLabelBeneficiary?: string;
+  receiptLabelHistory?: string;
+  receiptLabelObservations?: string;
+  receiptLabelItems?: string;
+  receiptDeclaration?: string;
+  receiptSignatureLabel?: string;
+
+  // Wallet & Limits
+  enablePrisonerWallet?: boolean;
+  weeklyWalletLimit?: number;
+  autoArchiveEnabled?: boolean;
+  autoArchiveDays?: number;
 }
+
+export interface CashierSession {
+  id: string; // Date string 'YYYY-MM-DD'
+  date: string;
+  openedAt: string;
+  closedAt?: string;
+  openedBy: string; // Admin User ID
+  closedBy?: string;
+  status: 'OPEN' | 'CLOSED' | 'AUTO_CLOSED';
+  initialBalance: number;
+  finalBalance?: number;
+  totalEntries: number; // Sales/Orders
+  totalExits: number; // Expenses
+  totalWithdrawals: number; // Specific exits
+}
+
 
 export interface AuditLog {
   id: string;
@@ -166,6 +212,20 @@ export interface AuditLog {
   user: string;
   timestamp: string;
   details?: string;
+}
+
+export interface WalletTransaction {
+  id: string;
+  userId: string;
+  inmateCpf: string;
+  amount: number;
+  proofUrl: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+  type: 'deposit' | 'purchase' | 'withdrawal' | 'correction';
+  description?: string;
+  payerName?: string; // Snapshot for history
+  payerId?: string; // ID of the person who made the deposit
 }
 
 export interface PrisonUnit {
@@ -181,7 +241,7 @@ export interface SystemMessage {
   title: string;
   content: string;
   type: 'info' | 'warning' | 'error' | 'success';
-  targetUserId?: string; 
+  targetUserId?: string;
   createdAt: string;
   expiresAt: string;
   read?: boolean;

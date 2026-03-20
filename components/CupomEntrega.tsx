@@ -7,8 +7,9 @@ export const CupomEntrega: React.FC<{
     customText?: string,
     title?: string,
     subtitle?: string,
-    docName?: string
-}> = ({ order, printerName, customText, title, subtitle, docName }) => {
+    docName?: string,
+    remainingBalance?: number
+}> = ({ order, printerName, customText, title, subtitle, docName, remainingBalance }) => {
   if (!order) return null;
 
   // Safe data mapping
@@ -157,6 +158,12 @@ export const CupomEntrega: React.FC<{
             <span>TOTAL</span>
             <span>R$ {total.toFixed(2)}</span>
         </div>
+        {remainingBalance !== undefined && (
+          <div style={{ fontWeight: "bold", fontSize: "14px", marginTop: "4px", display: "flex", justifyContent: "space-between", borderTop: "1px dashed #000", paddingTop: "4px" }}>
+              <span>SALDO RESTANTE</span>
+              <span>R$ {remainingBalance.toFixed(2)}</span>
+          </div>
+        )}
       </div>
 
       {/* Status */}

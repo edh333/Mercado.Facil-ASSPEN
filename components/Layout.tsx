@@ -3,6 +3,7 @@ import { useApp } from '../context/StoreContext';
 import { LogOut, Menu, User as UserIcon, Shield, Phone, Mail, MapPin, Download } from 'lucide-react';
 import { THEME_COLORS } from '../constants';
 import { ThemeOption, UserRole } from '../types';
+import { NotificationSystem } from './NotificationSystem';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -26,6 +27,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       className="min-h-screen flex flex-col font-sans transition-colors duration-500"
       style={{ backgroundColor: appConfig.backgroundColor || '#f8fafc' }}
     >
+      <NotificationSystem />
       {/* Header with Dynamic Theme Colors */}
       <header 
         className={`shadow-lg sticky top-0 z-50 border-b-4 transition-colors duration-300 ${theme.text}`}

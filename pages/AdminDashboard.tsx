@@ -787,6 +787,9 @@ export const AdminDashboard: React.FC = () => {
                                         <button onClick={() => setViewingUser(u)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg" title="Ver Detalhes/Documento">
                                             <FileText size={16} />
                                         </button>
+                                        <button onClick={() => { setWithdrawalAmount(''); setWithdrawalReason('Retirada administrativa'); setShowWithdrawalModal({ userId: u.id, userName: u.name }); }} className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg" title="Retirar Crédito">
+                                            <MinusCircle size={16} />
+                                        </button>
                                         {u.status === 'pending' && <button onClick={() => approveUser(u.id)} className="bg-green-100 text-green-700 px-4 py-2 rounded-lg text-xs font-bold hover:bg-green-200 flex items-center gap-1"><CheckCircle size={14}/> Aprovar</button>}
                                         {u.status !== 'suspended' ? <button onClick={() => suspendUser(u.id, true)} className="bg-red-100 text-red-700 px-4 py-2 rounded-lg text-xs font-bold hover:bg-red-200 flex items-center gap-1"><Ban size={14}/> Bloquear</button> : <button onClick={() => suspendUser(u.id, false)} className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-xs font-bold hover:bg-gray-200">Desbloquear</button>}
                                         <button onClick={() => { if(confirm('Excluir usuário permanentemente?')) deleteUser(u.id); }} className="p-2 text-gray-400 hover:text-red-600 hover:bg-gray-50 rounded-lg"><Trash2 size={16}/></button>
@@ -794,6 +797,91 @@ export const AdminDashboard: React.FC = () => {
                                 </div>
                             ))}
                             {getFilteredUsers().length === 0 && <p className="text-center text-gray-400 py-10">Nenhum usuário encontrado.</p>}
+                        </div>
+                    </div>
+                )}
+
+                {/* --- CARTEIRA (NOVO) --- */}
+                {activeTab === 'wallet' && (
+                    <div className="animate-fadeIn space-y-6">
+                        <div className="flex justify-between items-center">
+                            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><CreditCard size={28} className="text-slate-400"/> Carteira e Créditos</h2>
+                            <div className="text-xs text-gray-400 font-bold uppercase">Gestão de Saldos</div>
+                        </div>
+
+                        <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
+                            <div className="flex flex-col md:flex-row gap-4">
+                                <div className="flex-1 relative">
+                                    <Search className="absolute left-4 top-3.5 text-gray-400" size={18}/>
+                                    <input className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 outline-none focus:border-slate-400" placeholder="Buscar por nome ou CPF..." value={userSearch} onChange={e => setUserSearch(e.target.value)}/>
+                                </div>
+                                <div className="flex gap-2">
+                                    <input type="date" className="p-3 border rounded-xl text-sm font-bold text-slate-600" value={financeFilters.start} onChange={e => setFinanceFilters({...financeFilters, start: e.target.value})} />
+                                    <input type="date" className="p-3 border rounded-xl text-sm font-bold text-slate-600" value={financeFilters.end} onChange={e => setFinanceFilters({...financeFilters, end: e.target.value})} />
+                                </div>
+                            </div>
+
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-gray-50 border-b border-gray-100 text-left text-xs font-bold text-gray-500 uppercase">
+                                        <tr>
+                                            <th className="p-4">Data</th>
+                                            <th className="p-4">Usuário/Interno</th>
+                                            <th className="p-4 text-center">Tipo</th>
+                                            <th className="p-4 text-right">Valor</th>
+                                            <th className="p-4 text-center">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100">
+                                        {loadingWallet ? (
+                                            <tr><td colSpan={5} className="p-8 text-center text-gray-400">Carregando transações...</td></tr>
+                                        ) : walletTx.length === 0 ? (
+                                            <tr><td colSpan={5} className="p-8 text-center text-gray-400">Nenhuma transação encontrada.</td></tr>
+                                        ) : walletTx.filter(tx => {
+                                            const matchSearch = String(tx.userName || '').toLowerCase().includes(userSearch.toLowerCase()) || 
+                                                               String(tx.inmateCpf || '').includes(userSearch) || 
+                                                               String(tx.payerName || '').toLowerCase().includes(userSearch.toLowerCase());
+                                            
+                                            const d = new Date(tx.createdAt);
+                                            const txDateStr = d.toISOString().split('T')[0];
+                                            const matchDate = txDateStr >= financeFilters.start && txDateStr <= financeFilters.end;
+                                            
+                                            return matchSearch && matchDate;
+                                        }).sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map(tx => (
+                                            <tr key={tx.id} className="hover:bg-slate-50 transition-colors">
+                                                <td className="p-4">
+                                                    <div className="text-[10px] text-gray-400 font-mono uppercase leading-tight">
+                                                        {new Date(tx.createdAt).toLocaleDateString()}<br/>
+                                                        {new Date(tx.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                                    </div>
+                                                </td>
+                                                <td className="p-4">
+                                                    <div className="font-bold text-slate-700">{tx.userName || tx.payerName || 'Pendente'}</div>
+                                                    <div className="text-[10px] text-gray-500 flex items-center gap-2">
+                                                        <span className="font-mono">{tx.inmateCpf || tx.cpf || 'S/ CPF'}</span>
+                                                        {tx.description && <span className="opacity-50 italic">• {tx.description}</span>}
+                                                    </div>
+                                                </td>
+                                                <td className="p-4 text-center">
+                                                    <span className={`px-2 py-1 rounded-full text-[9px] font-black uppercase ${tx.type === 'deposit' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                        {tx.type === 'deposit' ? 'Depósito' : 'Retirada'}
+                                                    </span>
+                                                </td>
+                                                <td className="p-4 text-right font-black">
+                                                    <span className={tx.amount > 0 ? 'text-green-600' : 'text-red-600'}>
+                                                        {tx.amount > 0 ? '+' : '-'} R$ {Math.abs(tx.amount).toFixed(2)}
+                                                    </span>
+                                                </td>
+                                                <td className="p-4 text-center">
+                                                    <div className={`px-3 py-1 rounded-full text-[9px] font-bold uppercase border ${getStatusColor(tx.status)}`}>
+                                                        {translateStatus(tx.status)}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -980,6 +1068,36 @@ export const AdminDashboard: React.FC = () => {
                                         ))
                                     )}
                                 </div>
+                            </div>
+                        </div>
+
+                        {/* INTERNOS PRÉ-CADASTRADOS (NOVO) */}
+                        <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm border-l-4 border-l-orange-500">
+                            <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2 uppercase tracking-tight text-sm"><Users size={20} className="text-orange-600"/> Gestão de Internos (Pré-cadastro)</h3>
+                            <p className="text-[10px] text-gray-500 mb-4 font-black uppercase">Cadastre no banco os nomes que podem receber crédito.</p>
+                            
+                            <div className="bg-orange-50 p-4 rounded-xl border border-orange-100 mb-6 font-bold">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                    <div><label className="text-[10px] uppercase text-gray-500 mb-1 block">Nome do Interno (Fiel ao SISDEP)</label><input className="w-full p-3 border rounded-xl bg-white uppercase" value={newInmate.name} onChange={e => setNewInmate({...newInmate, name: e.target.value})} placeholder="NOME DO PRESO"/></div>
+                                    <div><label className="text-[10px] uppercase text-gray-500 mb-1 block">CPF do Interno</label><input className="w-full p-3 border rounded-xl bg-white" value={newInmate.cpf} onChange={e => setNewInmate({...newInmate, cpf: e.target.value})} placeholder="000.000.000-00"/></div>
+                                </div>
+                                <button onClick={handleAddInmate} className="w-full bg-slate-900 text-white p-3 rounded-xl font-black hover:bg-black flex items-center justify-center gap-2 transition-transform active:scale-95 shadow-lg"><PlusCircle size={18}/> CADASTRAR NO SISTEMA</button>
+                            </div>
+
+                            <div className="max-h-60 overflow-y-auto space-y-2 pr-2">
+                                {preRegisteredInmates.length === 0 ? (
+                                    <p className="text-[11px] text-gray-400 italic text-center py-4">Nenhum interno cadastrado para validação.</p>
+                                ) : (
+                                    preRegisteredInmates.sort((a,b) => a.name.localeCompare(b.name)).map(inmate => (
+                                        <div key={inmate.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-xl border border-gray-200 hover:bg-white transition-all shadow-sm group">
+                                            <div>
+                                                <p className="font-black text-xs text-slate-800 uppercase tracking-tight">{inmate.name}</p>
+                                                <p className="text-[10px] text-gray-500 font-mono font-bold">CPF: {inmate.cpf}</p>
+                                            </div>
+                                            <button onClick={() => { if(confirm(`Excluir ${inmate.name} do banco de dados?`)) deletePreRegisteredInmate(inmate.id); }} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={16}/></button>
+                                        </div>
+                                    ))
+                                )}
                             </div>
                         </div>
 
@@ -1605,6 +1723,43 @@ export const AdminDashboard: React.FC = () => {
                         </div>
                     </div>
                 </div> 
+            )}
+
+            {/* MODAL: RETIRADA DE CRÉDITO (ADMIN) */}
+            {showWithdrawalModal && (
+                <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fadeIn">
+                    <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.3)]">
+                        <div className="p-4 bg-orange-600 text-white flex justify-between items-center">
+                            <h3 className="font-bold flex items-center gap-2 uppercase tracking-wide"><MinusCircle size={20}/> Retirar Créditos</h3>
+                            <button onClick={() => setShowWithdrawalModal(null)} className="hover:bg-black/10 p-1 rounded-full"><X size={24}/></button>
+                        </div>
+                        <div className="p-8 space-y-6">
+                            <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
+                                <p className="text-[10px] font-black uppercase text-orange-700 mb-1">Usuário Beneficiário</p>
+                                <p className="font-bold text-slate-800 text-lg">{showWithdrawalModal.userName}</p>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">Valor da Retirada (R$)</label>
+                                    <div className="relative">
+                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400">R$</span>
+                                        <input type="number" step="0.01" className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-100 rounded-2xl font-black text-2xl text-slate-900 focus:border-orange-500 outline-none" placeholder="0,00" value={withdrawalAmount} onChange={e => setWithdrawalAmount(e.target.value)} autoFocus />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">Motivo / Observação</label>
+                                    <textarea className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold text-sm text-slate-700 focus:border-orange-500 outline-none h-24 resize-none" placeholder="Ex: Devolução, Erro no depósito..." value={withdrawalReason} onChange={e => setWithdrawalReason(e.target.value)}></textarea>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 pt-2">
+                                <button onClick={() => setShowWithdrawalModal(null)} className="flex-1 py-4 bg-gray-100 text-gray-500 font-bold rounded-2xl hover:bg-gray-200 uppercase text-xs tracking-widest">Cancelar</button>
+                                <button onClick={handleWithdrawal} disabled={!withdrawalAmount || Number(withdrawalAmount) <= 0} className="flex-1 py-4 bg-orange-600 text-white font-black rounded-2xl hover:bg-orange-700 shadow-lg shadow-orange-200 flex items-center justify-center gap-2 uppercase text-xs tracking-widest disabled:opacity-50"><Check size={20}/> Confirmar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             )}
         </main>
     </div>
