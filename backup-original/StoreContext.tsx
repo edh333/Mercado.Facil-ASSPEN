@@ -13,7 +13,7 @@ interface StoreContextType {
     currentUser: User | null;
     users: User[];
     products: Product[];
-    orders: Order[];
+    orders: Order[]; // Admin view (recent orders)
     units: PrisonUnit[];
     cart: CartItem[];
     suppliers: Supplier[];
@@ -30,8 +30,9 @@ interface StoreContextType {
     cashierSessions: CashierSession[];
     currentCashier: CashierSession | null;
 
+
     login: (cpf: string, pass: string, targetRole?: UserRole) => Promise<{ success: boolean; message?: string }>;
-    loginAdmin: (email: string, pass: string) => Promise<void>;
+    loginAdmin: (pass: string) => Promise<void>;
     loginFamiliar: (cpf: string, pass: string) => Promise<void>;
     logout: () => void;
     registerUser: (userData: Partial<User>, docFile: File | null) => Promise<{ success: boolean; message: string }>;
@@ -44,6 +45,7 @@ interface StoreContextType {
     clearCart: () => void;
     createOrder: (data: Partial<Order> | File | null, location?: InmateLocation) => Promise<boolean>;
 
+    // New: Server-side search for admin
     searchOrders: (term: string) => Promise<Order[]>;
 
     updateOrderStatus: (orderId: string, status: string) => void;
@@ -52,6 +54,7 @@ interface StoreContextType {
     updateProduct: (product: Product) => Promise<void>;
     deleteProduct: (productId: string) => void;
     
+    // Archiving
     archiveData: (orderIds: string[], expenseIds: string[]) => Promise<void>;
     deleteOrder: (orderId: string) => void;
     approveUser: (userId: string) => void;
@@ -87,6 +90,7 @@ interface StoreContextType {
     showNotification: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
     removeNotification: (id: string) => void;
 
+    // Wallet System
     depositToWallet: (amount: number, proofFile: File) => Promise<void>;
     approveWalletTransaction: (transactionId: string) => Promise<void>;
     rejectWalletTransaction: (transactionId: string) => Promise<void>;
@@ -96,17 +100,16 @@ interface StoreContextType {
     checkPermission: (permission: string) => boolean;
     validateMasterPassword: (password: string) => Promise<boolean>;
     
+    // Inmate Management
     preRegisteredInmates: { id: string, name: string, cpf: string }[];
     addPreRegisteredInmate: (inmate: { name: string, cpf: string }) => Promise<void>;
     deletePreRegisteredInmate: (id: string) => Promise<void>;
-    
-    creditoCliente: number;
-    realizarSaque: (valor: number) => Promise<boolean>;
-    verificarCredito: (valor: number) => boolean;
-    finalizarVendaComCredito: () => Promise<boolean>;
 }
 
-const StoreContext = createContext<StoreContextType | undefined>(undefined);const DEFAULT_CONFIG: AppConfig = {
+
+const StoreContext = createContext<StoreContextType | undefined>(undefined);
+
+const DEFAULT_CONFIG: AppConfig = {
     appName: 'JUMBO FÁCIL',
     institutionName: 'ASSOCIAÇÃO DOS SERVIDORES DO SISTEMA PENAL DE PEIXOTO DE AZEVEDO / MT - ASSPEN',
     cnpj: '00.000.000/0001-00',
@@ -127,6 +130,7 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);cons
     loginBgType: 'none',
     userDashboardBgUrl: '',
     userDashboardBgType: 'none',
+    // New Defaults requested by user
     receiptMainTitleOrder: 'RECIBO DE VENDA',
     receiptMainTitleExpense: 'RECIBO DE PAGAMENTO',
     receiptLabelValue: 'Valor Líquido',
@@ -138,6 +142,7 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);cons
     receiptDeclaration: 'Declaramos para os devidos fins que recebemos a importância supra, dando plena, rasa e geral quitação.',
     receiptSignatureLabel: 'Assinatura do Recebedor',
     
+    // Wallet & Credits Defaults
     enablePrisonerWallet: true,
     weeklyWalletLimit: 300
 };
@@ -164,27 +169,34 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const [currentCashier, setCurrentCashier] = useState<CashierSession | null>(null);
     const [walletTransactions, setWalletTransactions] = useState<WalletTransaction[]>([]);
     const [preRegisteredInmates, setPreRegisteredInmates] = useState<{ id: string, name: string, cpf: string }[]>([]);
-    
-    const [creditoCliente, setCreditoCliente] = useState<number>(0);
 
+
+    // --- AUTO LOGOUT TIMER ---
     const logoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const logout = () => {
         setCurrentUser(null);
         setCart([]);
         if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
+        // Reset any sensitive global state here if needed
     };
 
     const resetInactivityTimer = () => {
         if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
         if (currentUser) {
+            // 15 minutos = 15 * 60 * 1000 ms
             logoutTimerRef.current = setTimeout(() => {
                 logout();
+                // A notificação precisa ser despachada pelo componente que renderiza, 
+                // no nível de store precisaremos emitir um evento para que o app possa capturar
+                // caso não possamos usar useNotification aqui
                 const event = new CustomEvent('session-expired', { detail: { message: "Sessão encerrada por inatividade." } });
                 window.dispatchEvent(event);
             }, 15 * 60 * 1000);
         }
-    };    useEffect(() => {
+    };
+
+    useEffect(() => {
         if (currentUser) {
             window.addEventListener('mousemove', resetInactivityTimer);
             window.addEventListener('keydown', resetInactivityTimer);
@@ -204,141 +216,213 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             window.removeEventListener('scroll', resetInactivityTimer);
         };
     }, [currentUser]);
-
-    const atualizarCreditoCliente = async () => {
-        if (currentUser) {
-            const walletBalance = currentUser.walletBalance || 0;
-            setCreditoCliente(walletBalance);
-        }
-    };
-
+    // --- DYNAMIC BRANDING & TITLE ---
     useEffect(() => {
-        atualizarCreditoCliente();
-    }, [currentUser?.walletBalance]);
+        if (appConfig?.systemName) {
+            const titleSuffix = currentUser?.role === UserRole.ADMIN ? ' - Administração' : ' - Pedidos';
+            document.title = `${appConfig.systemName}${titleSuffix}`;
+        }
+    }, [appConfig?.systemName, currentUser?.role]);
 
-    const verificarCredito = (valor: number): boolean => {
-        if (creditoCliente <= 0) return false;
-        if (valor > creditoCliente) return false;
-        return true;
+    // --- WALLET WEEKLY LIMIT RESET ---
+    useEffect(() => {
+        if (currentUser && currentUser.role === UserRole.FAMILY) {
+            const now = new Date();
+            const lastReset = currentUser.lastSpentReset ? new Date(currentUser.lastSpentReset) : null;
+            
+            // Check if 7 days passed since last reset
+            if (!lastReset || (now.getTime() - lastReset.getTime()) > 7 * 24 * 60 * 60 * 1000) {
+                const userRef = doc(db, 'users', currentUser.id);
+                updateDoc(userRef, {
+                    weeklySpent: 0,
+                    lastSpentReset: now.toISOString()
+                });
+                setCurrentUser({ ...currentUser, weeklySpent: 0, lastSpentReset: now.toISOString() });
+            }
+        }
+    }, [currentUser?.id]);
+
+    // --- AUTO-CLEANUP ---
+    const performAutoCleanup = async () => {
+        if (currentUser?.role !== UserRole.ADMIN) return;
+        const ninetyDaysAgo = new Date();
+        ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+        const isoDate = ninetyDaysAgo.toISOString();
+        try {
+            const oldOrdersQuery = query(collection(db, 'orders'), where('createdAt', '<', isoDate), limit(50));
+            const snapshot = await getDocs(oldOrdersQuery);
+            if (!snapshot.empty) {
+                const batch = writeBatch(db);
+                snapshot.docs.forEach(doc => batch.delete(doc.ref));
+                await batch.commit();
+                console.log(`[Auto-Cleanup] ${snapshot.size} pedidos antigos removidos.`);
+            }
+        } catch (e) { console.warn("[Auto-Cleanup] Falha:", e); }
     };
 
-    const realizarSaque = async (valor: number): Promise<boolean> => {
-        if (!currentUser) {
-            showNotification('Usuário não autenticado', 'error');
-            return false;
-        }
-        
-        if (valor <= 0) {
-            showNotification('Valor inválido para saque', 'error');
-            return false;
-        }
-        
-        if (!verificarCredito(valor)) {
-            showNotification(`Saldo insuficiente! Disponível: R$ ${creditoCliente.toFixed(2)}`, 'error');
-            return false;
-        }
-        
-        try {
-            const novoCredito = creditoCliente - valor;
-            const userRef = doc(db, 'users', currentUser.id);
-            await updateDoc(userRef, { walletBalance: novoCredito });
-            
-            const transaction: WalletTransaction = {
-                id: crypto.randomUUID(),
-                userId: currentUser.id,
-                inmateCpf: currentUser.inmateCpf || currentUser.prisonerCpf || '',
-                amount: -valor,
-                proofUrl: '',
-                status: 'approved',
-                createdAt: new Date().toISOString(),
-                type: 'withdrawal',
-                description: `Saque realizado pelo usuário`,
-                payerName: currentUser.name,
-                payerId: currentUser.id
+    // --- LISTENERS ---
+    useEffect(() => {
+        let unsubUsers: Unsubscribe | null = null;
+        let unsubOrders: Unsubscribe | null = null;
+        let unsubProducts: Unsubscribe | null = null;
+        let unsubConfig: Unsubscribe | null = null;
+        let unsubExpenses: Unsubscribe | null = null;
+        let unsubMsg: Unsubscribe | null = null;
+        let unsubSup: Unsubscribe | null = null;
+
+        const onErr = (label: string) => (err: Error) => console.warn(`[Firebase:${label}]`, err.message);
+
+        const startListeners = async () => {
+            unsubConfig = onSnapshot(
+                doc(db, 'settings', 'general'),
+                (docSnap: any) => {
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        setAppConfig({ 
+                            ...DEFAULT_CONFIG, 
+                            ...data,
+                            institutionName: data.institutionName || 'ASSOCIAÇÃO DOS SERVIDORES DO SISTEMA PENAL DE PEIXOTO DE AZEVEDO / MT - ASSPEN',
+                            systemName: data.systemName || 'JUMBO FÁCIL'
+                        } as AppConfig);
+                    } else {
+                        setDoc(docSnap.ref, {
+                            ...DEFAULT_CONFIG,
+                            institutionName: 'ASSOCIAÇÃO DOS SERVIDORES DO SISTEMA PENAL DE PEIXOTO DE AZEVEDO / MT - ASSPEN',
+                            systemName: 'JUMBO FÁCIL'
+                        });
+                    }
+                },
+                onErr('config')
+            );
+
+
+            unsubProducts = onSnapshot(
+                collection(db, 'products'),
+                (snapshot) => setProducts(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Product))),
+                onErr('products')
+            );
+
+            // USERS: Admin loads all, Family loads self only.
+            if (currentUser?.role === UserRole.ADMIN) {
+                unsubUsers = onSnapshot(
+                    query(collection(db, 'users')),
+                    (snapshot) => setUsers(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as User))),
+                    onErr('users-admin')
+                );
+                performAutoCleanup();
+
+                // ORDERS: Admin loads recent 300 globally
+                unsubOrders = onSnapshot(
+                    query(collection(db, 'orders'), orderBy('createdAt', 'desc'), limit(300)),
+                    (snapshot) => setOrders(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Order))),
+                    onErr('orders-admin')
+                );
+
+            } else if (currentUser) {
+                unsubUsers = onSnapshot(
+                    doc(db, 'users', currentUser.id),
+                    (docSnap) => {
+                        if (docSnap.exists()) {
+                            const updatedUser = docSnap.data() as User;
+                            setCurrentUser(prev => ({ ...prev, ...updatedUser }));
+                            if (updatedUser.status === 'suspended') logout();
+                        }
+                    },
+                    onErr('user-self')
+                );
+
+                // NOTE: Family orders are NOT loaded globally here to save bandwidth.
+                // They are loaded in UserDashboard via a specific query.
+                setOrders([]); // Clear global orders for family to save memory
+            }
+
+            unsubExpenses = onSnapshot(
+                query(collection(db, 'expenses'), orderBy('date', 'desc'), limit(200)),
+                (snapshot) => setExpenses(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Expense))),
+                onErr('expenses')
+            );
+            unsubMsg = onSnapshot(
+                collection(db, 'messages'),
+                (s) => setMessages(s.docs.map(d => ({ ...d.data(), id: d.id } as Message))),
+                onErr('messages')
+            );
+            unsubSup = onSnapshot(
+                collection(db, 'suppliers'),
+                (snapshot) => setSuppliers(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Supplier))),
+                onErr('suppliers')
+            );
+
+            unsubCashier = onSnapshot(
+                collection(db, 'cashier'),
+                (snapshot) => {
+                    const sessions = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as CashierSession));
+                    setCashierSessions(sessions);
+                    const today = new Date().toISOString().split('T')[0];
+                    const active = sessions.find(s => s.date === today && s.status === 'OPEN');
+                    setCurrentCashier(active || null);
+                },
+                onErr('cashier')
+            );
+
+
+            setIsLoading(false);
+        };
+
+        startListeners();
+
+        return () => {
+            if (unsubUsers) unsubUsers();
+            if (unsubOrders) unsubOrders();
+            if (unsubProducts) unsubProducts();
+            if (unsubConfig) unsubConfig();
+            if (unsubExpenses) unsubExpenses();
+            if (unsubMsg) unsubMsg();
+            if (unsubSup) unsubSup();
+            if (unsubCashier) unsubCashier();
+
+            const unsubInmates = onSnapshot(
+                collection(db, 'pre_registered_inmates'),
+                (snapshot) => setPreRegisteredInmates(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as any))),
+                onErr('pre-inmates')
+            );
+            return () => {
+                if (unsubInmates) unsubInmates();
             };
-            await setDoc(doc(db, 'wallet_transactions', transaction.id), transaction);
-            
-            setCreditoCliente(novoCredito);
-            setCurrentUser({ ...currentUser, walletBalance: novoCredito });
-            
-            showNotification(`✅ Saque de R$ ${valor.toFixed(2)} realizado com sucesso! Saldo: R$ ${novoCredito.toFixed(2)}`, 'success');
-            return true;
-        } catch (error) {
-            console.error('Erro ao realizar saque:', error);
-            showNotification('❌ Erro ao processar saque', 'error');
-            return false;
-        }
+        };
+    }, [currentUser?.id, currentUser?.role]);
+
+    let unsubCashier: Unsubscribe | null = null;
+
+
+    // --- ACTIONS ---
+
+    // Enhanced Search for Admin (Server-side)
+    const searchOrders = async (term: string): Promise<Order[]> => {
+        if (!term) return [];
+
+        // Try by ID
+        try {
+            const docRef = doc(db, 'orders', term);
+            const docSnap = await getDoc(docRef); // Requires getDoc import
+            if (docSnap.exists()) return [docSnap.data() as Order];
+        } catch (e) { }
+
+        // Try by CPF or Name (Requires exact match or dedicated search service like Algolia, but simple 'where' works for exact)
+        // Firestore doesn't support native "LIKE %term%" queries easily.
+        // We'll try finding by CPF exact match.
+        const qCpf = query(collection(db, 'orders'), where('userCpf', '==', term), orderBy('createdAt', 'desc'), limit(50));
+        const snapCpf = await getDocs(qCpf);
+        if (!snapCpf.empty) return snapCpf.docs.map(d => d.data() as Order);
+
+        // Try by Inmate Name (approximate not possible, so we try exact or rely on client side if loaded)
+        // This function allows the AdminDashboard to request more data if local filter is insufficient.
+
+        return [];
     };
 
-    const finalizarVendaComCredito = async (): Promise<boolean> => {
-        if (cart.length === 0) {
-            showNotification('❌ Carrinho vazio!', 'error');
-            return false;
-        }
-        
-        const total = cart.reduce((sum, item) => sum + (item.priceAtPurchase * item.quantity), 0);
-        
-        if (!verificarCredito(total)) {
-            showNotification(`❌ Crédito insuficiente! Disponível: R$ ${creditoCliente.toFixed(2)}`, 'error');
-            return false;
-        }
-        
-        try {
-            for (const item of cart) {
-                const produto = products.find(p => p.id === item.productId);
-                if (!produto) {
-                    showNotification(`❌ Produto não encontrado: ${item.name}`, 'error');
-                    return false;
-                }
-                if ((produto.stock || 0) < item.quantity) {
-                    showNotification(`❌ Estoque insuficiente para ${item.name}. Disponível: ${produto.stock}`, 'error');
-                    return false;
-                }
-            }
-            
-            for (const item of cart) {
-                const produto = products.find(p => p.id === item.productId);
-                if (produto) {
-                    const productRef = doc(db, 'products', item.productId);
-                    await updateDoc(productRef, { stock: Math.max(0, (produto.stock || 0) - item.quantity) });
-                }
-            }
-            
-            const novoCredito = creditoCliente - total;
-            const userRef = doc(db, 'users', currentUser!.id);
-            await updateDoc(userRef, { walletBalance: novoCredito });
-            
-            const newOrder: Order = {
-                id: Date.now().toString(),
-                userId: currentUser!.id,
-                userName: currentUser!.name,
-                userCpf: currentUser!.cpf,
-                unitId: currentUser!.selectedUnitId || '1',
-                unitName: 'Unidade Prisional',
-                status: OrderStatus.PAID,
-                createdAt: new Date().toISOString(),
-                date: new Date().toISOString(),
-                items: cart.map(item => ({ ...item, productId: item.productId, name: item.name, priceAtPurchase: item.priceAtPurchase, quantity: item.quantity })),
-                total: total,
-                paymentMethod: 'WALLET',
-                inmateName: currentUser!.inmateName || currentUser!.prisonerName,
-                inmateCpf: currentUser!.inmateCpf || currentUser!.prisonerCpf,
-                walletBalanceAfter: novoCredito
-            };
-            await setDoc(doc(db, 'orders', newOrder.id), newOrder);
-            
-            setCreditoCliente(novoCredito);
-            setCurrentUser({ ...currentUser!, walletBalance: novoCredito });
-            setCart([]);
-            
-            showNotification(`✅ Venda realizada! Total: R$ ${total.toFixed(2)}\nCrédito restante: R$ ${novoCredito.toFixed(2)}`, 'success');
-            return true;
-        } catch (error) {
-            console.error('Erro ao finalizar venda:', error);
-            showNotification('❌ Erro ao processar venda', 'error');
-            return false;
-        }
-    };    const uploadFile = async (file: File, path: string): Promise<string> => {
+    // ... (Rest of the functions: login, uploadFile, etc. keep identical to previous optimized version) ...
+    // [Re-including essential functions for context validity]
+    const uploadFile = async (file: File, path: string): Promise<string> => {
         try {
             let fileToUpload: File | Blob = file;
             if (file.type.startsWith('image/')) {
@@ -364,19 +448,22 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     };
 
     const login = async (identifier: string, pass: string, expectedRole?: UserRole) => {
-        const cleanId = identifier.replace(/\D/g, '');
+        const cleanId = identifier.replace(/\D/g, ''); // Remove tudo que não for número
         const cleanPass = pass.trim();
 
         try {
+            // Tenta buscar pelo CPF limpo (apenas números)
             let q = query(collection(db, 'users'), where('cpf', '==', cleanId));
             let snapshot = await getDocs(q);
 
+            // Fallback: Tenta buscar pelo CPF formatado (XXX.XXX.XXX-XX) caso o banco tenha dados antigos
             if (snapshot.empty && cleanId.length === 11) {
                 const formattedCpf = cleanId.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
                 q = query(collection(db, 'users'), where('cpf', '==', formattedCpf));
                 snapshot = await getDocs(q);
             }
 
+            // Se não achar e tiver @, tenta por email
             if (snapshot.empty && identifier.includes('@')) {
                 q = query(collection(db, 'users'), where('email', '==', identifier.trim()));
                 snapshot = await getDocs(q);
@@ -385,16 +472,18 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             if (snapshot.empty) return { success: false, message: 'Usuário não encontrado.' };
             const user = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as User;
 
+            // Validação Profissional de Papel (Role)
             if (expectedRole === UserRole.FAMILY && user.role === UserRole.ADMIN) {
-                return { success: false, message: 'Acesso Administrativo detectado. Por favor, utilize a aba Área Administrativa para entrar.' };
+                return {
+                    success: false,
+                    message: 'Acesso Administrativo detectado. Por favor, utilize a aba Área Administrativa para entrar.'
+                };
             }
 
             if (user.password !== cleanPass) return { success: false, message: 'Senha incorreta.' };
             if (user.status === 'pending') return { success: false, message: 'Cadastro em análise.' };
             if (user.status === 'suspended') return { success: false, message: 'Conta suspensa.' };
-            
             setCurrentUser(user);
-            setCreditoCliente(user.walletBalance || 0);
             return { success: true };
         } catch (e: any) { return { success: false, message: 'Erro de conexão.' }; }
     };
@@ -404,6 +493,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         const snapshotAdmins = await getDocs(qAdmins);
 
         if (snapshotAdmins.empty) {
+            // First access: no admins in DB. Allow default admin login and save it.
             if (email === 'admin@mercado.com' && pass === 'admin123') {
                 const newAdminRef = doc(collection(db, 'users'));
                 const masterAdmin: User = {
@@ -425,6 +515,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             }
         }
 
+        // Admins exist. Check if email and password match any admin.
         const adminDoc = snapshotAdmins.docs.find(doc => doc.data().email === email && doc.data().password === pass);
 
         if (adminDoc) {
@@ -432,6 +523,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             return;
         }
 
+        // Fallback for legacy hardcoded password if needed, but ONLY if the admin@mercado.com user doesn't exist in DB yet
         const masterExists = snapshotAdmins.docs.some(doc => doc.data().email === 'admin@mercado.com');
         if (!masterExists && email === 'admin@mercado.com' && pass === 'admin123') {
             const legacyAdmin: User = { id: 'master', name: 'Administrador Master', role: UserRole.ADMIN, email: 'admin@mercado.com', cpf: '000.000.000-00', status: 'active', approved: true, password: pass, permissions: ['all'] };
@@ -440,6 +532,16 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         }
 
         throw new Error("E-mail ou senha de administrador incorretos.");
+    };
+
+    const updateAdminPassword = async (newPass: string) => {
+        if (!currentUser || currentUser.role !== UserRole.ADMIN) throw new Error("Acesso negado.");
+
+        // Update existing admin
+        const adminRef = doc(db, 'users', currentUser.id);
+        await updateDoc(adminRef, { password: newPass });
+        setCurrentUser({ ...currentUser, password: newPass });
+        showNotification("Senha de administrador atualizada com sucesso!", "success");
     };
 
     const loginFamiliar = async (cpf: string, pass: string) => {
@@ -461,7 +563,6 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             return [...prev, { ...product, productId: product.id, quantity, priceAtPurchase: product.price }];
         });
     };
-    
     const removeFromCart = (pid: string) => setCart(prev => prev.filter(p => p.productId !== pid));
     const clearCart = () => setCart([]);
 
@@ -478,6 +579,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
             const totalAmount = orderData.total || cart.reduce((acc, i) => acc + (i.priceAtPurchase * i.quantity), 0);
             
+            // Wallet Deduction Logic
             if (orderData.paymentMethod === 'WALLET') {
                 if (!currentUser.walletBalance || currentUser.walletBalance < totalAmount) {
                     throw new Error("Saldo insuficiente na carteira do interno.");
@@ -490,6 +592,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                     throw new Error(`Limite semanal excedido. Disponível: R$ ${(limit - spent).toFixed(2)}`);
                 }
 
+                // Deduct from user
                 const userRef = doc(db, 'users', currentUser.id);
                 const newBalance = (currentUser.walletBalance || 0) - totalAmount;
                 const newWeeklySpent = (currentUser.weeklySpent || 0) + totalAmount;
@@ -499,7 +602,6 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                     weeklySpent: newWeeklySpent
                 });
                 setCurrentUser({ ...currentUser, walletBalance: newBalance, weeklySpent: newWeeklySpent });
-                setCreditoCliente(newBalance);
                 orderData.walletBalanceAfter = newBalance;
             }
 
@@ -548,7 +650,6 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             showNotification("Erro ao excluir: " + e.message, "error");
         }
     };
-    
     const approveUser = (uid: string) => updateDoc(doc(db, 'users', uid), { status: 'active', approved: true });
     const suspendUser = (uid: string, status: boolean) => updateDoc(doc(db, 'users', uid), { status: status ? 'suspended' : 'active', suspended: status });
     const deleteUser = async (uid: string) => await deleteDoc(doc(db, 'users', uid));
@@ -562,8 +663,10 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                 const ex = suppliers.find(s => s.name.toLowerCase() === data.supplier!.name.toLowerCase());
                 if (ex) {
                     supplierId = ex.id;
+                    console.log("Fornecedor existente encontrado:", ex.name);
                 } else {
                     supplierId = typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : Date.now().toString();
+                    console.log("Criando novo fornecedor:", data.supplier.name);
                     await setDoc(doc(db, 'suppliers', supplierId), {
                         id: supplierId,
                         name: data.supplier.name,
@@ -574,6 +677,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                 }
             }
 
+            console.log(`Processando ${data.items.length} itens do XML...`);
             for (const item of data.items) {
                 const clean = cleanProductName(item.name);
                 if (!clean) continue;
@@ -583,6 +687,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                 const qty = Number(item.quantity) || 0;
                 const price = cost + (cost * (profitMargin / 100));
 
+                // Busca por EAN primeiro (se disponível), depois por nome normalizado
                 const ex = products.find(p => (item.ean && p.ean === item.ean) || normalizeName(p.name) === key);
 
                 if (ex) {
@@ -591,7 +696,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                         costPrice: cost,
                         price: Math.max(parseFloat(price.toFixed(2)), ex.price),
                         supplierId,
-                        ean: item.ean || ex.ean || ''
+                        ean: item.ean || ex.ean || '' // Atualiza EAN se estiver vindo do XML e não existir no banco
                     });
                 } else {
                     const id = crypto.randomUUID();
@@ -615,12 +720,12 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             }
             showNotification('Importação concluída com sucesso!', 'success');
         } catch (e: any) {
+            console.error(e);
             showNotification('Falha ao processar importação: ' + e.message, 'error');
         } finally {
             setIsLoading(false);
         }
     };
-    
     const importXmlProduct = async (file: File, margin: number) => { const text = await file.text(); const data = parseInvoiceXML(text); if (data) await processInvoiceImport(data, margin); else throw new Error("Erro no XML"); };
     const importLegacyData = async (nu: User[], no: Order[]) => { };
     const updateAppConfig = async (c: AppConfig) => { await setDoc(doc(db, 'settings', 'general'), c, { merge: true }); setAppConfig(c); };
@@ -629,10 +734,11 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const resetSystem = () => { };
     const resetStock = async () => { setIsLoading(true); await Promise.all(products.map(p => updateDoc(doc(db, 'products', p.id), { stock: 0 }))); setIsLoading(false); showNotification('Estoque zerado', 'success'); };
     const resetFinance = async () => { setIsLoading(true); await Promise.all(expenses.map(e => deleteDoc(doc(db, 'expenses', e.id)))); setIsLoading(false); showNotification('Financeiro zerado', 'success'); };
-    const clearOldData = async () => { };
+    const clearOldData = async () => { await performAutoCleanup(); showNotification('Limpeza concluída', 'success'); };
     const registerUser = async (d: Partial<User>, f: File | null) => {
         setIsLoading(true);
         try {
+            // Validação contra nomes pré-cadastrados (Requisito: os nomes já ficam cadastrados no banco)
             const cleanInmateCpf = (d.prisonerCpf || d.inmateCpf || '').replace(/\D/g, '');
             const isPreRegistered = preRegisteredInmates.some(inmate => inmate.cpf.replace(/\D/g, '') === cleanInmateCpf);
             
@@ -649,7 +755,6 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             await setDoc(doc(db, 'users', u.id), u); return { success: true, message: 'Cadastrado' };
         } catch (e: any) { throw new Error(e.message); } finally { setIsLoading(false); }
     };
-    
     const createAdminUser = async (d: Partial<User>) => { const u = { ...d, id: crypto.randomUUID(), role: UserRole.ADMIN, status: 'active', approved: true, createdAt: new Date().toISOString() }; await setDoc(doc(db, 'users', u.id), u); showNotification('Admin criado', 'success'); };
     const validateRecovery = async (userCpf: string, prisonerCpf: string): Promise<User> => {
         setIsLoading(true);
@@ -673,13 +778,11 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             showNotification("Senha alterada com sucesso!", "success");
         } catch (e: any) { throw new Error(e.message); } finally { setIsLoading(false); }
     };
-    
     const sendSystemMessage = async (msg: Partial<SystemMessage>) => { await addDoc(collection(db, 'systemMessages'), { id: crypto.randomUUID(), createdAt: new Date().toISOString(), type: 'info', ...msg }); };
     const sendMessage = async (m: Message) => { await addDoc(collection(db, 'messages'), m); };
     const markMessageRead = (id: string) => { };
-    const searchOrders = async (term: string): Promise<Order[]> => { return []; };
-    const archiveData = async (orderIds: string[], expenseIds: string[]) => { };
 
+    // WALLET FUNCTIONS
     const depositToWallet = async (amount: number, proofFile: File) => {
         if (!currentUser) return;
         const proofUrl = await uploadFile(proofFile, 'wallet_proofs');
@@ -706,13 +809,17 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         const t = tSnap.data() as WalletTransaction;
         if (t.status !== 'pending') return;
 
+        // Update Transaction
         await updateDoc(doc(db, 'wallet_transactions', tid), { status: 'approved' });
 
+        // Update User Balance
         const userRef = doc(db, 'users', t.userId);
         const userSnap = await getDoc(userRef);
         if (userSnap.exists()) {
             const userData = userSnap.data() as User;
-            await updateDoc(userRef, { walletBalance: (userData.walletBalance || 0) + t.amount });
+            await updateDoc(userRef, {
+                walletBalance: (userData.walletBalance || 0) + t.amount
+            });
         }
         showNotification("Depósito aprovado e crédito adicionado!", "success");
     };
@@ -773,9 +880,12 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         const id = crypto.randomUUID();
         await setDoc(doc(db, 'expenses', id), { ...e, id });
         
+        // Se houver caixa aberto, atualizar totais
         if (currentCashier) {
             const cashierRef = doc(db, 'cashier', currentCashier.id);
-            await updateDoc(cashierRef, { totalExits: (currentCashier.totalExits || 0) + Number(e.amount) });
+            await updateDoc(cashierRef, {
+                totalExits: (currentCashier.totalExits || 0) + Number(e.amount)
+            });
         }
     };
 
@@ -797,7 +907,9 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         
         if (currentCashier) {
             const cashierRef = doc(db, 'cashier', currentCashier.id);
-            await updateDoc(cashierRef, { totalWithdrawals: (currentCashier.totalWithdrawals || 0) + amount });
+            await updateDoc(cashierRef, {
+                totalWithdrawals: (currentCashier.totalWithdrawals || 0) + amount
+            });
         }
         showNotification("Retirada registrada com sucesso!", "success");
     };
@@ -806,10 +918,13 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         if (!currentUser) return;
         const today = new Date().toISOString().split('T')[0];
         
+        // Auto-close any previous open session
         const openSessions = cashierSessions.filter(s => s.status === 'OPEN' && s.date !== today);
         if (openSessions.length > 0) {
             const batch = writeBatch(db);
-            openSessions.forEach(s => { batch.update(doc(db, 'cashier', s.id), { status: 'AUTO_CLOSED', closedAt: new Date().toISOString() }); });
+            openSessions.forEach(s => {
+                batch.update(doc(db, 'cashier', s.id), { status: 'AUTO_CLOSED', closedAt: new Date().toISOString() });
+            });
             await batch.commit();
         }
 
@@ -852,8 +967,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     };
 
     const checkPermission = () => true;
+
     const navigateTo = () => { };
-    
     const showNotification = (message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info') => {
         const id = Math.random().toString(36).substring(2, 9);
         setNotifications(prev => [...prev.slice(-4), { id, message, type }]);
@@ -863,17 +978,14 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         setNotifications(prev => prev.filter(n => n.id !== id));
     };
 
-    const compressImage = async (file: File): Promise<string> => {
-        return uploadFile(file, 'temp');
-    };
-
     const validateMasterPassword = async (pass: string) => {
+        // Try to find the master admin in DB. If not found, check default.
         const q = query(collection(db, 'users'), where('email', '==', 'admin@mercado.com'), where('role', '==', UserRole.ADMIN));
         const snap = await getDocs(q);
         if (!snap.empty) {
             return snap.docs[0].data().password === pass;
         }
-        return pass === 'admin123';
+        return pass === 'admin123'; // Default fallback
     };
 
     const addPreRegisteredInmate = async (inmate: { name: string, cpf: string }) => {
@@ -887,87 +999,21 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         showNotification("Interno removido da lista.", "info");
     };
 
-    useEffect(() => {
-        let unsubUsers: Unsubscribe | null = null;
-        let unsubOrders: Unsubscribe | null = null;
-        let unsubProducts: Unsubscribe | null = null;
-        let unsubConfig: Unsubscribe | null = null;
-        let unsubExpenses: Unsubscribe | null = null;
-        let unsubMsg: Unsubscribe | null = null;
-        let unsubSup: Unsubscribe | null = null;
-        let unsubCashier: Unsubscribe | null = null;
-
-        const onErr = (label: string) => (err: Error) => console.warn(`[Firebase:${label}]`, err.message);
-
-        const startListeners = async () => {
-            unsubConfig = onSnapshot(doc(db, 'settings', 'general'), (docSnap: any) => {
-                if (docSnap.exists()) { const data = docSnap.data(); setAppConfig({ ...DEFAULT_CONFIG, ...data }); }
-                else { setDoc(docSnap.ref, DEFAULT_CONFIG); }
-            }, onErr('config'));
-
-            unsubProducts = onSnapshot(collection(db, 'products'), (snapshot) => setProducts(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Product))), onErr('products'));
-
-            if (currentUser?.role === UserRole.ADMIN) {
-                unsubUsers = onSnapshot(query(collection(db, 'users')), (snapshot) => setUsers(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as User))), onErr('users-admin'));
-                unsubOrders = onSnapshot(query(collection(db, 'orders'), orderBy('createdAt', 'desc'), limit(300)), (snapshot) => setOrders(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Order))), onErr('orders-admin'));
-            } else if (currentUser) {
-                unsubUsers = onSnapshot(doc(db, 'users', currentUser.id), (docSnap) => {
-                    if (docSnap.exists()) {
-                        const updatedUser = docSnap.data() as User;
-                        setCurrentUser(prev => ({ ...prev, ...updatedUser }));
-                        setCreditoCliente(updatedUser.walletBalance || 0);
-                        if (updatedUser.status === 'suspended') logout();
-                    }
-                }, onErr('user-self'));
-                setOrders([]);
-            }
-
-            unsubExpenses = onSnapshot(query(collection(db, 'expenses'), orderBy('date', 'desc'), limit(200)), (snapshot) => setExpenses(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Expense))), onErr('expenses'));
-            unsubMsg = onSnapshot(collection(db, 'messages'), (s) => setMessages(s.docs.map(d => ({ ...d.data(), id: d.id } as Message))), onErr('messages'));
-            unsubSup = onSnapshot(collection(db, 'suppliers'), (snapshot) => setSuppliers(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Supplier))), onErr('suppliers'));
-            unsubCashier = onSnapshot(collection(db, 'cashier'), (snapshot) => {
-                const sessions = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as CashierSession));
-                setCashierSessions(sessions);
-                const today = new Date().toISOString().split('T')[0];
-                const active = sessions.find(s => s.date === today && s.status === 'OPEN');
-                setCurrentCashier(active || null);
-            }, onErr('cashier'));
-
-            setIsLoading(false);
-        };
-
-        startListeners();
-
-        const unsubInmates = onSnapshot(collection(db, 'pre_registered_inmates'), (snapshot) => setPreRegisteredInmates(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as any))), onErr('pre-inmates'));
-
-        return () => {
-            if (unsubUsers) unsubUsers();
-            if (unsubOrders) unsubOrders();
-            if (unsubProducts) unsubProducts();
-            if (unsubConfig) unsubConfig();
-            if (unsubExpenses) unsubExpenses();
-            if (unsubMsg) unsubMsg();
-            if (unsubSup) unsubSup();
-            if (unsubCashier) unsubCashier();
-            if (unsubInmates) unsubInmates();
-        };
-    }, [currentUser?.id, currentUser?.role]);
-
     return (
         <StoreContext.Provider value={{
             currentUser, users, products, orders, units: INITIAL_UNITS, cart, appConfig, suppliers, expenses, logs, isLoading, authLoading: isLoading, systemMessages, messages, notifications, settings: appConfig, storageUsage,
             cashierSessions, currentCashier,
-            creditoCliente, realizarSaque, verificarCredito, finalizarVendaComCredito,
             login, loginAdmin, loginFamiliar, logout, registerUser, recoverPassword, validateRecovery, createAdminUser, resetUserPassword,
             addToCart, removeFromCart, clearCart, createOrder, searchOrders,
             updateOrderStatus, markOrderAsPrinted, deleteOrder, addProduct, updateProduct, deleteProduct,
             approveUser, updateUserStatus, deleteUser, suspendUser,
             addSupplier, removeSupplier, addExpense, addWithdrawal, openCashier, closeCashier, toggleFinanceEntries,
-            processInvoiceImport, importXmlProduct, importLegacyData, updateAppConfig, updateSettings: updateAppConfig, navigateTo, compressImage,
-            downloadBackup, backupSystem: downloadBackup, resetSystem, resetStock, resetFinance, clearOldData, archiveData, checkPermission, sendSystemMessage, sendMessage, markMessageRead, showNotification, removeNotification,
+            processInvoiceImport, importXmlProduct, importLegacyData, updateAppConfig, updateSettings: updateAppConfig, navigateTo, compressImage: uploadFile,
+            downloadBackup, backupSystem: downloadBackup, resetSystem, resetStock, resetFinance, clearOldData, checkPermission, sendSystemMessage, sendMessage, markMessageRead, showNotification, removeNotification,
             depositToWallet, approveWalletTransaction, rejectWalletTransaction, getWalletTransactions, withdrawWalletCredit,
-            validateMasterPassword, addPreRegisteredInmate, deletePreRegisteredInmate, preRegisteredInmates
+            validateMasterPassword, addPreRegisteredInmate, deletePreRegisteredInmate
         }}>
+
             {children}
         </StoreContext.Provider>
     );
