@@ -865,6 +865,7 @@ export function AdminDashboard() {
                   users={users}
                   handleOpenReport={handleOpenReport}
                   handleExportExcel={handleExportExcel}
+                  settings={settings}
                 />
               )}
 

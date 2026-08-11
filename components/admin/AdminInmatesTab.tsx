@@ -20,9 +20,14 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
 
   const consolidatedData = React.useMemo(() => {
     return (preRegisteredInmates || []).map(inmate => {
-        const linkedUsers = (users || []).filter(u => u.assignedInmate?.id === inmate.id || u.assignedInmate === inmate.id);
-        const totalBalance = linkedUsers.reduce((sum, u) => sum + (u.walletBalance || 0), 0);
-        return { ...inmate, linkedUsers, totalBalance };
+        const cpfInmate = String(inmate.cpf || '').replace(/\D/g, '');
+        const linkedUsers = (users || []).filter(u =>
+            (u.assignedInmate?.id === inmate.id || u.assignedInmate === inmate.id) ||
+            (cpfInmate && String(u.inmateCpf || u.prisonerCpf || '').replace(/\D/g, '') === cpfInmate)
+        );
+        const totalBalance = linkedUsers.reduce((sum, u) => sum + Number(u.walletBalance || 0), 0);
+        const totalSpentWeekly = linkedUsers.reduce((sum, u) => sum + Number(u.weeklySpent || 0), 0);
+        return { ...inmate, linkedUsers, totalBalance, totalSpentWeekly };
     });
   }, [preRegisteredInmates, users]);
 
@@ -30,6 +35,9 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
     (i.name || '').toLowerCase().includes((searchTerm || '').toLowerCase()) ||
     (i.cpf || '').includes(searchTerm || '')
   ).sort((a,b) => b.totalBalance - a.totalBalance);
+
+  const totalInmates = consolidatedData.length;
+  const withFamily = consolidatedData.filter(i => i.linkedUsers.length > 0).length;
 
   return (
     <div className="animate-slideUp space-y-8 pb-20">
@@ -43,7 +51,10 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
                 <input type="file" accept=".csv,.txt" className="hidden" onChange={e => e.target.files?.[0] && importInmatesCsv?.(e.target.files[0])} />
             </label>
             <div className="text-[10px] font-black uppercase text-[var(--text-main)] border-2 border-[var(--border-color)] px-4 py-2 rounded-xl bg-[var(--bg-main)]">
-                Total: {preRegisteredInmates.length}
+                Total: {totalInmates}
+            </div>
+            <div className="text-[10px] font-black uppercase text-sky-500 border-2 border-sky-500/20 px-4 py-2 rounded-xl bg-sky-500/5 shadow-sm" title="Internos que já possuem ao menos um familiar com conta cadastrada">
+                {withFamily}/{totalInmates} com família ({totalInmates ? Math.round((withFamily / totalInmates) * 100) : 0}%)
             </div>
             <button
                 onClick={() => setViewMode(viewMode === 'table' ? 'cards' : 'table')}

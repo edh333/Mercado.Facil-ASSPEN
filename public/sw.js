@@ -1,5 +1,5 @@
-const CACHE_NAME = 'mercado-facil-v4';
-const ASSETS_TO_CACHE = [
+const CACHE_NAME = 'mercado-facil-v5';
+const CORE_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
@@ -12,7 +12,7 @@ const ASSETS_TO_CACHE = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE).catch(() => {
+      return cache.addAll(CORE_ASSETS).catch(() => {
         console.warn('[SW] Alguns assets não puderam ser cacheados');
       });
     }).catch(() => {
@@ -30,35 +30,73 @@ self.addEventListener('activate', (event) => {
           .filter((name) => name !== CACHE_NAME)
           .map((name) => caches.delete(name))
       );
-    })
+    }).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
+
+function isAssetRequest(request) {
+  return /\.(js|css|png|jpg|jpeg|webp|svg|woff2?)$/i.test(new URL(request.url).pathname);
+}
+
+function isHtml(response) {
+  const type = String(response.headers.get('content-type') || '');
+  return type.includes('text/html');
+}
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
+  const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin) return;
+
+  // Navegação: sempre rede primeiro; cache apenas como fallback offline.
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).catch(() =>
-        caches.match('/index.html').then((cached) => cached || caches.match('/'))
-      )
+      fetch(event.request)
+        .then((response) => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', clone));
+          return response;
+        })
+        .catch(() => caches.match('/index.html').then((cached) => cached || caches.match('/')))
     );
     return;
   }
 
+  // Assets hasheados (js/css/img): serve cache imediato e revalida em segundo plano.
+  if (isAssetRequest(event.request)) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        const network = fetch(event.request)
+          .then((response) => {
+            // Nunca tratar index.html (fallback SPA) como se fosse o asset.
+            if (response && response.status === 200 && response.type === 'basic' && !isHtml(response)) {
+              const clone = response.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+              return response;
+            }
+            return cached || response;
+          })
+          .catch(() => cached);
+        return cached || network;
+      })
+    );
+    return;
+  }
+
+  // Demais recursos: cache-first com atualização de fundo.
   event.respondWith(
     caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request).then((response) => {
-        if (response && response.status === 200 && response.type === 'basic') {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, clone);
-          });
-        }
-        return response;
-      }).catch(() => caches.match('/index.html'));
+      const network = fetch(event.request)
+        .then((response) => {
+          if (response && response.status === 200 && response.type === 'basic') {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return response;
+        })
+        .catch(() => undefined);
+      return cached || network.then((r) => r || Response.error());
     })
   );
 });

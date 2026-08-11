@@ -300,6 +300,11 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
     );
   }, [customerAccounts, customerAccountSearch]);
 
+  const estaCancelado = (o: Order) => {
+    const s = String(o?.status || '').toUpperCase();
+    return s.startsWith('CANCEL') || s === 'REFUNDED' || s === 'RETURNED' || s === 'ESTORNADO';
+  };
+
   const refundResults = useMemo(() => {
     const term = (refundSearch || '').trim().toLowerCase();
     const base = (orders || []).filter(o => o && !estaCancelado(o));
@@ -452,11 +457,6 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
       setClienteSelecionado('');
       setBuscaCliente('');
     }
-  };
-
-  const estaCancelado = (o: Order) => {
-    const s = String(o?.status || '').toUpperCase();
-    return s.startsWith('CANCEL') || s === 'REFUNDED' || s === 'RETURNED' || s === 'ESTORNADO';
   };
 
   const abrirEstorno = () => {

@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { User } from '../../types';
 import { useTheme } from '../../context/ThemeContext';
-import { gerarRelatorioCredito, imprimirCupom } from '../../utils/printUtils';
+import { gerarRelatorioCredito, imprimirCupom, imprimirRelatorioCreditoA4 } from '../../utils/printUtils';
 
 interface AdminReportsTabProps {
   reportConfig: any;
@@ -14,6 +14,7 @@ interface AdminReportsTabProps {
   users: User[];
   handleOpenReport: () => void;
   handleExportExcel: () => void;
+  settings?: any;
 }
 
 const getQuickDateRange = (period?: string): { start: Date; end: Date } => {
@@ -38,16 +39,19 @@ const getQuickDateRange = (period?: string): { start: Date; end: Date } => {
 };
 
 export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
-  reportConfig, setReportConfig, users, handleOpenReport, handleExportExcel
+  reportConfig, setReportConfig, users, handleOpenReport, handleExportExcel, settings
 }) => {
   const { colors } = useTheme();
   const [showUserDropdown, setShowUserDropdown] = React.useState(false);
   const [creditSearch, setCreditSearch] = React.useState('');
 
   const apenasComSaldo = reportConfig.type === 'CREDITS_POSITIVE';
+  const apenasSemSaldo = reportConfig.type === 'CREDITS_ZERO';
+  const creditModeLabel = apenasComSaldo ? 'com crédito' : apenasSemSaldo ? 'sem crédito' : 'todos os registros';
   const termo = (creditSearch || '').trim().toLowerCase();
   const digitosTermo = termo.replace(/\D/g, '');
   const creditList = (users || []).filter(u => {
+    if (u.role === 'ADMIN' || u.role === 'MASTER' || u.role === 'master') return false;
     if (termo) {
       const nomeOk = (u.name || '').toLowerCase().includes(termo);
       const cpfOk = digitosTermo.length > 0 && (u.cpf || '').replace(/\D/g, '').includes(digitosTermo);
@@ -55,13 +59,35 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
       if (!nomeOk && !cpfOk && !uidOk) return false;
     }
     const saldo = Number(u.walletBalance || 0);
-    return apenasComSaldo ? saldo > 0 : saldo <= 0;
+    if (apenasComSaldo) return saldo > 0;
+    if (apenasSemSaldo) return saldo <= 0;
+    return true;
   });
   const creditTotal = creditList.reduce((s, u) => s + Number(u.walletBalance || 0), 0);
+  const creditComSaldo = creditList.filter(u => Number(u.walletBalance || 0) > 0).length;
+  const creditSemSaldo = creditList.length - creditComSaldo;
+
+  const creditTitle = apenasComSaldo
+    ? `FAMILIARES COM CRÉDITO EM CONTA (${creditList.length})`
+    : apenasSemSaldo
+      ? `FAMILIARES SEM CRÉDITO EM CONTA (${creditList.length})`
+      : `RELATÓRIO GERAL DE CRÉDITOS (${creditList.length})`;
 
   const handlePrintCredits = () => {
     if (creditList.length === 0) return;
     imprimirCupom(gerarRelatorioCredito(creditList as any, apenasComSaldo, termo ? `CONSULTA INDIVIDUAL (${creditList.length} REGISTRO(S))` : undefined));
+  };
+
+  const handlePrintCreditsA4 = () => {
+    if (creditList.length === 0) return;
+    const subtitulo = termo
+      ? `Consulta individual — ${creditModeLabel} (${creditList.length} resultado(s))`
+      : apenasComSaldo
+        ? 'Somente familiares com saldo em conta maior que R$ 0,00'
+        : apenasSemSaldo
+          ? 'Somente familiares sem saldo em conta (R$ 0,00 ou negativo)'
+          : 'Todos os familiares cadastrados, com e sem saldo';
+    imprimirRelatorioCreditoA4(creditList as any, creditTitle, settings, subtitulo);
   };
 
   const reportOptions = [
@@ -70,6 +96,7 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
     { id: 'ACCOUNTABILITY', name: 'Prestação de Contas', desc: 'Relatório para auditoria e associados.', icon: <ClipboardList className="text-purple-500" size={24}/> },
     { id: 'PRODUCTS_ALL', name: 'Catálogo de Produtos', desc: 'Lista completa de itens, preços e estoque.', icon: <Package className="text-blue-400" size={24}/> },
     { id: 'USERS_CREDITS', name: 'Usuários e Saldos', desc: 'Relatório de familiares e créditos em conta.', icon: <Users className="text-indigo-600" size={24}/> },
+    { id: 'CREDITS_ALL', name: 'Todos os Créditos', desc: 'Listagem completa com filtro por com/sem crédito, individual e em lote.', icon: <Wallet className="text-emerald-500" size={24}/> },
     { id: 'CREDITS_POSITIVE', name: 'Créditos Ativos (com Saldo)', desc: 'Familiários com crédito em conta > R$ 0, consulta individual e em lote.', icon: <Wallet className="text-emerald-500" size={24}/> },
     { id: 'CREDITS_ZERO', name: 'Créditos Zerados (sem Saldo)', desc: 'Familiários sem crédito em conta, consulta individual e em lote.', icon: <Coins className="text-slate-500" size={24}/> },
     { id: 'INDIVIDUAL', name: 'Extrato Individual', desc: 'Movimentações completas de um familiar.', icon: <Users className="text-orange-500" size={24}/> },
@@ -152,7 +179,7 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
                             </div>
                         )}
 
-                        {reportConfig.type !== 'STOCK_LOW' && reportConfig.type !== 'CREDITS_POSITIVE' && reportConfig.type !== 'CREDITS_ZERO' && (
+                        {reportConfig.type !== 'STOCK_LOW' && reportConfig.type !== 'CREDITS_ALL' && reportConfig.type !== 'CREDITS_POSITIVE' && reportConfig.type !== 'CREDITS_ZERO' && (
                             <div>
                                 <label className="text-[var(--text-main)] font-black text-[10px] uppercase tracking-widest mb-2 block ml-1">Período de Análise</label>
                                 <div className="flex flex-wrap gap-2 mb-4">
@@ -197,10 +224,10 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
                         )}
 
                         <div className="pt-4 space-y-3">
-                            {reportConfig.type === 'CREDITS_POSITIVE' || reportConfig.type === 'CREDITS_ZERO' ? (
+                            {reportConfig.type === 'CREDITS_ALL' || reportConfig.type === 'CREDITS_POSITIVE' || reportConfig.type === 'CREDITS_ZERO' ? (
                                 <div className="p-5 rounded-2xl bg-emerald-600/10 border border-emerald-600/30 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] leading-relaxed text-center">
                                     <Wallet size={18} className="mx-auto mb-2 text-emerald-500"/>
-                                    Consulta de créditos disponível abaixo com impressão térmica direta (bobina 80mm).
+                                    Consulta de créditos disponível abaixo: filtro com/sem saldo, impressão A4 profissional ou bobina 80mm.
                                 </div>
                             ) : (<>
                             <button onClick={handleOpenReport} className="w-full bg-emerald-600 text-white py-5 rounded-[2rem] font-black hover:opacity-90 shadow-[0_20px_40px_-10px_rgba(16,185,129,0.3)] flex items-center justify-center gap-3 uppercase text-[10px] tracking-[0.2em] transition-all transform active:scale-95 group">
@@ -225,22 +252,45 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
             </div>
         </div>
 
-        {(reportConfig.type === 'CREDITS_POSITIVE' || reportConfig.type === 'CREDITS_ZERO') && (
+        {(reportConfig.type === 'CREDITS_ALL' || reportConfig.type === 'CREDITS_POSITIVE' || reportConfig.type === 'CREDITS_ZERO') && (
             <div className="bg-[var(--bg-card)] p-8 rounded-[2.5rem] border border-[var(--border-color)] shadow-2xl space-y-6 relative overflow-hidden animate-slideDown">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
                         <h3 className="text-[var(--text-main)] font-black text-sm uppercase tracking-tight flex items-center gap-2">
-                            {apenasComSaldo ? <Wallet className="text-emerald-500" size={20}/> : <Coins className="text-slate-500" size={20}/>}
-                            {apenasComSaldo ? 'Créditos Ativos (com Saldo)' : 'Créditos Zerados (sem Saldo)'}
+                            {apenasComSaldo ? <Wallet className="text-emerald-500" size={20}/> : apenasSemSaldo ? <Coins className="text-slate-500" size={20}/> : <Wallet className="text-emerald-500" size={20}/>}
+                            {apenasComSaldo ? 'Créditos Ativos (com Saldo)' : apenasSemSaldo ? 'Créditos Zerados (sem Saldo)' : 'Todos os Créditos'}
                         </h3>
                         <p className="text-[var(--text-muted)] text-[10px] font-bold uppercase tracking-widest mt-1">
-                            {creditList.length} registro(s) · Total em créditos: R$ {creditTotal.toFixed(2).replace('.', ',')}
+                            {creditList.length} registro(s) · {creditComSaldo} com saldo · {creditSemSaldo} sem saldo · Total: R$ {creditTotal.toFixed(2).replace('.', ',')}
                         </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                        <button onClick={handlePrintCredits} disabled={creditList.length === 0} className="bg-emerald-600 text-white px-5 py-3 rounded-2xl font-black hover:bg-emerald-700 shadow-lg flex items-center gap-2 uppercase text-[9px] tracking-[0.2em] transition-all transform active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed">
+                        <button onClick={handlePrintCredits} disabled={creditList.length === 0} className="bg-slate-700 text-white px-5 py-3 rounded-2xl font-black hover:bg-slate-800 shadow-lg flex items-center gap-2 uppercase text-[9px] tracking-[0.2em] transition-all transform active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed">
                             <Printer size={16}/> {termo ? 'IMPRIMIR CONSULTA (BOBINA)' : 'IMPRIMIR LISTA (BOBINA)'}
                         </button>
+                        <button onClick={handlePrintCreditsA4} disabled={creditList.length === 0} className="bg-emerald-600 text-white px-5 py-3 rounded-2xl font-black hover:bg-emerald-700 shadow-lg flex items-center gap-2 uppercase text-[9px] tracking-[0.2em] transition-all transform active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed">
+                            <FileText size={16}/> IMPRIMIR A4 PROFISSIONAL
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <label className="text-[var(--text-main)] font-black text-[10px] uppercase tracking-widest mb-2 block ml-1">Filtro: quem deve aparecer?</label>
+                    <div className="grid grid-cols-3 gap-2">
+                        {[
+                            { id: 'CREDITS_ALL', label: 'Todos', desc: 'Com e sem saldo' },
+                            { id: 'CREDITS_POSITIVE', label: 'Com Crédito', desc: 'Saldo > R$ 0' },
+                            { id: 'CREDITS_ZERO', label: 'Sem Crédito', desc: 'Saldo ≤ R$ 0' }
+                        ].map(f => (
+                            <button
+                                key={f.id}
+                                onClick={() => setReportConfig({ ...reportConfig, type: f.id })}
+                                className={`py-3 px-2 rounded-2xl font-black text-[9px] uppercase tracking-wider transition-all text-center ${reportConfig.type === f.id ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20' : 'bg-[var(--bg-card)] text-[var(--text-muted)] border border-[var(--border-color)] hover:bg-[var(--bg-main)]'}`}
+                            >
+                                <span className="block">{f.label}</span>
+                                <span className={`block text-[8px] mt-0.5 tracking-widest ${reportConfig.type === f.id ? 'text-white/60' : 'opacity-50'}`}>{f.desc}</span>
+                            </button>
+                        ))}
                     </div>
                 </div>
 
@@ -286,7 +336,7 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
                 {creditList.length > 0 && (
                     <div className="flex flex-col md:flex-row justify-between items-center gap-2 px-1 text-[10px] font-black uppercase tracking-widest">
                         <span className="text-[var(--text-muted)]">
-                            {termo ? `Consulta individual: ${creditList.length} resultado(s) para "${termo}"` : `Listagem em lote: ${creditList.length} usuário(s)`}
+                            {termo ? `Consulta individual: ${creditList.length} resultado(s) para "${termo}"` : `Listagem em lote (${creditModeLabel}): ${creditList.length} usuário(s)`}
                         </span>
                         <span className={apenasComSaldo ? 'text-emerald-500' : 'text-[var(--text-muted)]'}>
                             TOTAL: R$ {creditTotal.toFixed(2).replace('.', ',')}

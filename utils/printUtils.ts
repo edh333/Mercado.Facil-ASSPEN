@@ -117,8 +117,7 @@ export function gerarListaReposicao(produtos: { nome: string; estoque: number; m
  * @param apenasComSaldo true → relatório de ativos com saldo; false → zerados/inativos
  * @param titulo Título customizado (ex.: consulta individual por CPF/UID)
  */
-export function gerarRelatorioCredito(usuarios: { name: string; cpf: string; id: string; walletBalance: number; status: string }[], apenasComSaldo: boolean, titulo?: string): string {
-  const divisor = "-".repeat(40);
+export function gerarRelatorioCredito(usuarios: { name: string; cpf: string; id: string; walletBalance: number; status: string }[], apenasComSaldo: boolean, titulo?: string): string {  const divisor = "-".repeat(40);
   const tituloFinal = titulo || (apenasComSaldo ? "CREDITOS ATIVOS (COM SALDO)" : "CREDITOS ZERADOS (SEM SALDO)");
 
   let texto = "";
@@ -152,6 +151,115 @@ export function gerarRelatorioCredito(usuarios: { name: string; cpf: string; id:
   texto += `${adicionarFeed()}`;
 
   return texto;
+}
+
+/**
+ * Impressão A4 profissional do relatório de créditos (lista já filtrada pela tela).
+ * Abre uma janela de impressão com cabeçalho institucional, resumo, tabela
+ * numerada com totais, rodapé e campos de assinatura.
+ */
+export function imprimirRelatorioCreditoA4(
+  usuarios: { name: string; cpf: string; id: string; walletBalance: number; status: string }[],
+  titulo: string,
+  settings?: any,
+  subtitulo?: string
+): void {
+  const instituicao = settings?.institutionName || settings?.appName || 'MERCADO FÁCIL';
+  const documento = settings?.customReceiptDocName || 'RELATÓRIO DE CRÉDITOS — NÃO FISCAL';
+  const hoje = new Date().toLocaleDateString('pt-BR');
+  const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+  const lista = [...usuarios].sort((a, b) => Number(b.walletBalance || 0) - Number(a.walletBalance || 0));
+  const comSaldo = lista.filter(x => Number(x.walletBalance || 0) > 0).length;
+  const semSaldo = lista.filter(x => Number(x.walletBalance || 0) <= 0).length;
+  const totalSaldo = lista.reduce((s, x) => s + Number(x.walletBalance || 0), 0);
+
+  const linha = lista.map((x, i) => `
+            <tr>
+                <td style="text-align:center;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;">${String(i + 1).padStart(2, '0')}</td>
+                <td style="padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;font-weight:700;text-transform:uppercase;">${String(x.name || '—').replace(/</g, '&lt;')}</td>
+                <td style="text-align:center;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;font-family:monospace;">${String(x.cpf || '—').replace(/</g, '&lt;')}</td>
+                <td style="text-align:center;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:11px;">${x.status === 'active' ? 'Ativo' : x.status === 'pending' ? 'Pendente' : 'Suspenso'}</td>
+                <td style="text-align:right;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;font-weight:800;color:${Number(x.walletBalance || 0) > 0 ? '#059669' : '#94a3b8'};">R$ ${Number(x.walletBalance || 0).toFixed(2).replace('.', ',')}</td>
+            </tr>`).join('');
+
+  const printWindow = window.open('', '_blank', 'width=900,height=700');
+  if (!printWindow) return;
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<title>${titulo}</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; color:#0f172a; padding:32px; background:#fff; }
+    .cabecalho { border-bottom:3px solid #059669; padding-bottom:16px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:flex-end; }
+    .cabecalho h1 { font-size:20px; text-transform:uppercase; letter-spacing:1px; color:#059669; }
+    .cabecalho p { font-size:12px; color:#64748b; margin-top:4px; }
+    .meta { text-align:right; font-size:11px; color:#64748b; }
+    .cards { display:flex; gap:12px; margin-bottom:22px; }
+    .card { flex:1; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:14px 16px; }
+    .card p.titulo { font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:1.5px; color:#94a3b8; margin-bottom:4px; }
+    .card p.valor { font-size:18px; font-weight:800; color:#059669; }
+    .card p.valor.slate { color:#0f172a; }
+    table { width:100%; border-collapse:collapse; }
+    thead th { background:#0f172a; color:#fff; padding:10px; font-size:10px; text-transform:uppercase; letter-spacing:1px; text-align:left; }
+    tfoot td { padding:10px; font-weight:800; font-size:12px; background:#f8fafc; border-top:2px solid #0f172a; }
+    .criterio { margin-top:14px; padding:10px 14px; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:10px; font-size:10px; color:#047857; text-transform:uppercase; letter-spacing:1px; font-weight:700; }
+    .rodape { margin-top:22px; text-align:center; font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:1px; }
+    .assinatura { margin-top:56px; display:flex; justify-content:space-between; }
+    .assinatura div { width:40%; border-top:1px solid #64748b; padding-top:8px; font-size:10px; text-transform:uppercase; text-align:center; color:#475569; }
+    @media print { body { padding:16px; } }
+</style>
+</head>
+<body>
+    <div class="cabecalho">
+        <div>
+            <h1>${titulo}</h1>
+            <p>${instituicao} — ${documento}</p>
+            <p style="font-size:11px;color:#94a3b8;margin-top:6px;">${subtitulo || 'Gestão de créditos dos familiares'}</p>
+        </div>
+        <div class="meta">
+            <p>Emitido em: <b>${hoje} às ${hora}</b></p>
+            <p>${lista.length} registro(s) na listagem</p>
+        </div>
+    </div>
+    <div class="cards">
+        <div class="card"><p class="titulo">Total em Créditos</p><p class="valor">R$ ${totalSaldo.toFixed(2).replace('.', ',')}</p></div>
+        <div class="card"><p class="titulo">Com Saldo</p><p class="valor">${comSaldo}</p></div>
+        <div class="card"><p class="titulo">Sem Saldo</p><p class="valor slate">${semSaldo}</p></div>
+        <div class="card"><p class="titulo">Saldo Médio</p><p class="valor">R$ ${lista.length ? (totalSaldo / lista.length).toFixed(2).replace('.', ',') : '0,00'}</p></div>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th style="width:36px;">#</th>
+                <th>Familiar</th>
+                <th style="width:140px;text-align:center;">CPF</th>
+                <th style="width:90px;text-align:center;">Status</th>
+                <th style="width:120px;text-align:right;">Saldo Disponível</th>
+            </tr>
+        </thead>
+        <tbody>${linha}</tbody>
+        <tfoot>
+            <tr>
+                <td colspan="4" style="text-align:right;">TOTAL DE ${lista.length} FAMILIARES</td>
+                <td style="text-align:right;color:#059669;">R$ ${totalSaldo.toFixed(2).replace('.', ',')}</td>
+            </tr>
+        </tfoot>
+    </table>
+    <div class="criterio">Critério da listagem: ${subtitulo || 'todos os familiares cadastrados'}</div>
+    <div class="rodape">Documento emitido pelo sistema Mercado Fácil — não é comprovante fiscal.</div>
+    <div class="assinatura">
+        <div>Responsável pela Emissão</div>
+        <div>Direção / Administração</div>
+    </div>
+</body>
+</html>`;
+  printWindow.document.write(html);
+  printWindow.document.close();
+  printWindow.focus();
+  setTimeout(() => { try { printWindow.print(); } catch { /* janela fechada */ } }, 500);
 }
 
 /**
