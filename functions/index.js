@@ -1030,9 +1030,13 @@ exports.processarVendaAdmin = onCall(async (request) => {
 
     debitarEstoque(t, itensComPreco);
 
-    let walletBalanceAfter;
+let walletBalanceAfter;
+    if (userData) {
+      walletBalanceAfter = walletPortion > 0
+        ? arredondar((userData.walletBalance || 0) - walletPortion)
+        : arredondar(userData.walletBalance || 0);
+    }
     if (walletPortion > 0 && userData) {
-      walletBalanceAfter = arredondar((userData.walletBalance || 0) - walletPortion);
       t.update(db.collection("users").doc(targetUserId), {
         walletBalance: walletBalanceAfter,
         weeklySpent: arredondar((userData.weeklySpent || 0) + walletPortion),
@@ -1196,10 +1200,11 @@ exports.registrarPedidoPix = onCall(async (request) => {
   const inmateLocation = request.data?.inmateLocation || null;
   const deliveryLocation = request.data?.deliveryLocation || inmateLocation || null;
 
-  if (!paymentProofUrl || paymentProofUrl === "PENDENTE_UPLOAD_LOCAL_CACHE") {
+  if (!paymentProofUrl) {
     throw new HttpsError("invalid-argument", "Envie o comprovante do PIX antes de confirmar o pedido.");
   }
-  if (!paymentProofUrl.startsWith("https://firebasestorage.googleapis.com")) {
+  // Comprovante pendente (upload offline, será reenviado pelo app) ou URL do Storage.
+  if (paymentProofUrl !== "PENDENTE_UPLOAD_LOCAL_CACHE" && !paymentProofUrl.startsWith("https://firebasestorage.googleapis.com")) {
     throw new HttpsError("invalid-argument", "Comprovante inválido. Envie a imagem do comprovante pelo aplicativo.");
   }
 
@@ -1224,8 +1229,9 @@ exports.registrarPedidoPix = onCall(async (request) => {
       date: new Date().toISOString(),
       items: itensComPreco,
       total,
-      paymentMethod: "PIX",
+paymentMethod: "PIX",
       paymentProofUrl,
+      walletBalanceAfter: arredondar(ud.walletBalance || 0),
       inmateName: ud.inmateName || ud.prisonerName || "",
       inmateCpf: cleanCpf(ud.inmateCpf || ud.prisonerCpf || ""),
       ...(inmateLocation ? { inmateLocation } : {}),

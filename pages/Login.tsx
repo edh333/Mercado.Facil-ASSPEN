@@ -9,6 +9,9 @@ import { validateCPF } from '../utils';
 import { User as UserType } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { OnlineStatusIndicator } from '../components/OnlineStatusIndicator';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+
+const fnCriarPrimeiroAdmin = httpsCallable(getFunctions(), 'criarPrimeiroAdmin');
 
 export const Login: React.FC = () => {
     const { loginAdmin, loginFamiliar, registerUser, resetUserPassword, validateRecovery, showNotification, settings, preRegisteredInmates } = useApp();
@@ -36,6 +39,8 @@ export const Login: React.FC = () => {
     const [legalTermAccepted, setLegalTermAccepted] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [formSuccess, setFormSuccess] = useState<string | null>(null);
+    const [showFirstAdminSetup, setShowFirstAdminSetup] = useState(false);
+    const [firstAdminForm, setFirstAdminForm] = useState({ name: '', email: '', password: '', confirm: '' });
 
     const [regData, setRegData] = useState({
         name: '', phone: '', prisonerName: '', prisonerCpf: '', kinship: '', kinshipOther: '', unitId: '1'
@@ -132,6 +137,43 @@ export const Login: React.FC = () => {
         } catch (error: any) {
             setFormError(error.message);
             showNotification(error.message, "error");
+            if (isAdmin && String(error.message || '').includes('primeiro administrador')) {
+                setShowFirstAdminSetup(true);
+            }
+        } finally {
+            setIsLoading(false);
+            setLoadingMessage('');
+        }
+    };
+
+    const handleFirstAdminSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (firstAdminForm.name.trim().length < 3) { setFormError("Informe o nome do administrador."); return; }
+        if (!firstAdminForm.email.includes('@') || firstAdminForm.email.length < 6) { setFormError("E-mail inválido."); return; }
+        if (firstAdminForm.password.length < 6) { setFormError("Senha deve ter no mínimo 6 caracteres."); return; }
+        if (firstAdminForm.password !== firstAdminForm.confirm) { setFormError("Senhas não coincidem."); return; }
+        setIsLoading(true);
+        setLoadingMessage('Criando administrador inicial...');
+        try {
+            const res: any = await fnCriarPrimeiroAdmin({
+                nome: firstAdminForm.name.trim(),
+                email: firstAdminForm.email.trim(),
+                senha: firstAdminForm.password
+            });
+            if (res?.data?.ok) {
+                setShowFirstAdminSetup(false);
+                setAdminEmail(firstAdminForm.email.trim());
+                setPassword(firstAdminForm.password);
+                setFormError(null);
+                setFormSuccess("Administrador criado! Entre com a senha definida.");
+                showNotification('Administrador inicial criado com sucesso!', 'success');
+            } else {
+                throw new Error("Falha ao criar o administrador.");
+            }
+        } catch (err: any) {
+            const msg = err?.message || 'Erro ao criar o administrador inicial.';
+            setFormError(msg);
+            showNotification(msg, "error");
         } finally {
             setIsLoading(false);
             setLoadingMessage('');
@@ -339,28 +381,53 @@ export const Login: React.FC = () => {
                             {/* Login/Admin Fields */}
                             {!isRegister && !isRecovery && (
                                 <div className="space-y-3 animate-fadeIn">
-                                    {isAdmin ? (
-                                        <PremiumInput icon={User} label="E-mail Corporativo" value={adminEmail} onChange={(e: any) => setAdminEmail(e.target.value)} type="email" />
-                                    ) : (
-                                        <PremiumInput icon={UserCheck} label="Digite seu CPF" value={cpf} onChange={(e: any) => setCpf(e.target.value)} />
-                                    )}
-                                    <PremiumInput
-                                        icon={Lock}
-                                        label="Senha de Acesso"
-                                        value={password}
-                                        onChange={(e: any) => setPassword(e.target.value)}
-                                        type={showPassword ? "text" : "password"}
-                                        action={
-                                            <button type="button" onClick={() => setShowPassword(!showPassword)} className="p-1.5 text-slate-400 hover:text-emerald-600 transition-colors cursor-pointer" aria-label="Mostrar senha">
-                                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                    {isAdmin && showFirstAdminSetup ? (
+                                        <>
+                                            <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800">
+                                                <p className="text-[10px] font-black uppercase tracking-widest text-center">
+                                                    Primeiro acesso detectado — crie o administrador inicial do sistema.
+                                                </p>
+                                            </div>
+                                            <PremiumInput icon={User} label="Nome do Administrador" value={firstAdminForm.name} onChange={(e: any) => setFirstAdminForm({ ...firstAdminForm, name: e.target.value })} type="text" />
+                                            <PremiumInput icon={UserCheck} label="E-mail Corporativo" value={firstAdminForm.email} onChange={(e: any) => setFirstAdminForm({ ...firstAdminForm, email: e.target.value })} type="email" />
+                                            <PremiumInput icon={Lock} label="Senha (mín. 6)" value={firstAdminForm.password} onChange={(e: any) => setFirstAdminForm({ ...firstAdminForm, password: e.target.value })} type="password" />
+                                            <PremiumInput icon={CheckCircle} label="Confirmar Senha" value={firstAdminForm.confirm} onChange={(e: any) => setFirstAdminForm({ ...firstAdminForm, confirm: e.target.value })} type="password" />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowFirstAdminSetup(false)}
+                                                className="text-[11px] font-bold text-slate-500 hover:text-slate-900 uppercase tracking-widest mx-auto block transition-all cursor-pointer"
+                                            >
+                                                Já existem administradores? Clique aqui
                                             </button>
-                                        }
-                                    />
+                                        </>
+                                    ) : (
+                                        <>
+                                            {isAdmin ? (
+                                                <PremiumInput icon={User} label="E-mail Corporativo" value={adminEmail} onChange={(e: any) => setAdminEmail(e.target.value)} type="email" />
+                                            ) : (
+                                                <PremiumInput icon={UserCheck} label="Digite seu CPF" value={cpf} onChange={(e: any) => setCpf(e.target.value)} />
+                                            )}
+                                            <PremiumInput
+                                                icon={Lock}
+                                                label="Senha de Acesso"
+                                                value={password}
+                                                onChange={(e: any) => setPassword(e.target.value)}
+                                                type={showPassword ? "text" : "password"}
+                                                action={
+                                                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="p-1.5 text-slate-400 hover:text-emerald-600 transition-colors cursor-pointer" aria-label="Mostrar senha">
+                                                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                                    </button>
+                                                }
+                                            />
+                                        </>
+                                    )}
                                 </div>
                             )}
 
                             {/* Main Button */}
                             <button
+                                type="button"
+                                onClick={isAdmin && showFirstAdminSetup ? handleFirstAdminSubmit : handleSubmit}
                                 disabled={isLoading}
                                 className={`w-full py-4 rounded-2xl font-black text-sm uppercase tracking-[0.25em] transition-all active:scale-[0.98] flex items-center justify-center gap-3 relative overflow-hidden group bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white hover:shadow-[0_18px_40px_rgba(16,185,129,0.4)] disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer`}
                             >
@@ -374,7 +441,7 @@ export const Login: React.FC = () => {
                                     <>
                                         <Sparkles size={18} className="relative z-10" />
                                         <span className="relative z-10">
-                                            {isAdmin ? 'Entrar no Painel' : isRegister ? 'Confirmar Cadastro' : isRecovery ? (recoveryStep === 1 ? 'Prosseguir' : 'Salvar e Voltar') : 'Acessar Sistema'}
+                                            {isAdmin && showFirstAdminSetup ? 'Criar Administrador' : isAdmin ? 'Entrar no Painel' : isRegister ? 'Confirmar Cadastro' : isRecovery ? (recoveryStep === 1 ? 'Prosseguir' : 'Salvar e Voltar') : 'Acessar Sistema'}
                                         </span>
                                     </>
                                 )}

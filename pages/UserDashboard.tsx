@@ -11,7 +11,7 @@ import {
 import { CupomEntrega } from '../components/CupomEntrega';
 import { NotificationSystem } from '../components/NotificationSystem';
 
-import { generatePixPayload, formatarMoeda, compressImageFile, fileToBase64 } from '../utils';
+import { generatePixPayload, formatarMoeda, compressImageFile } from '../utils';
 import { abrirJanelaImpressao } from '../utils/printUtils';
 import { collection, query, where, onSnapshot, orderBy, limit, getDocs, getDocsFromServer } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -390,34 +390,6 @@ export const UserDashboard: React.FC = () => {
 
         setIsSubmitting(true);
         try {
-            let paymentProofUrl = '';
-            if (!isWalletPayment && proofFile) {
-                try {
-                    if (proofFile.type === 'application/pdf') {
-                        const b64 = await fileToBase64(proofFile);
-                        paymentProofUrl = b64.length > 800_000 ? 'PENDENTE_UPLOAD_LOCAL_CACHE' : b64;
-                    } else {
-                        const compressedBlob = await compressImageFile(proofFile, 0.3, 600);
-                        const compressedFile = new File([compressedBlob], proofFile.name.replace(/\.[^/.]+$/, '') + '.jpg', { type: 'image/jpeg' });
-                        paymentProofUrl = await fileToBase64(compressedFile);
-                    }
-                } catch (e: any) {
-                    console.warn("Conversão comprovante falhou, usando fallback. Motivo:", e?.message || e);
-                    paymentProofUrl = "PENDENTE_UPLOAD_LOCAL_CACHE";
-                }
-            }
-
-            const items = cart.map(i => {
-                const p = safeProducts.find(prod => String(prod.id) === String(i.productId));
-                return {
-                    productId: i.productId,
-                    quantity: i.quantity,
-                    priceAtPurchase: p ? p.price : (i.price || 0),
-                    name: p ? (p?.name || 'Item Removido') : (i.name || 'Item Removido'),
-                    imageUrl: p ? p.imageUrl : ''
-                };
-            });
-
             const formattedLocation = {
                 raio: location.ray, ala: location.wing, cela: location.cell,
                 ray: location.ray, wing: location.wing, cell: location.cell,
@@ -425,19 +397,47 @@ export const UserDashboard: React.FC = () => {
                 deliveryFreeText: deliveryType === 'worker' ? deliveryFreeText : ''
             };
 
-            await createOrder({
-                id: Date.now().toString(),
-                userId: currentUser!.id,
-                items,
-                total: cartTotal,
-                status: isWalletPayment ? OrderStatus.PAID : OrderStatus.PENDING,
-                date: new Date().toISOString(),
-                unitId: currentUser!.unitId || '1',
-                deliveryLocation: formattedLocation,
-                inmateLocation: formattedLocation,
-                paymentProofUrl,
-                paymentMethod: isWalletPayment ? 'WALLET' : 'PIX'
-            });
+            if (isWalletPayment) {
+                const items = cart.map(i => {
+                    const p = safeProducts.find(prod => String(prod.id) === String(i.productId));
+                    return {
+                        productId: i.productId,
+                        quantity: i.quantity,
+                        priceAtPurchase: p ? p.price : (i.price || 0),
+                        name: p ? (p?.name || 'Item Removido') : (i.name || 'Item Removido'),
+                        imageUrl: p ? p.imageUrl : ''
+                    };
+                });
+
+                await createOrder({
+                    id: Date.now().toString(),
+                    userId: currentUser!.id,
+                    items,
+                    total: cartTotal,
+                    status: OrderStatus.PAID,
+                    date: new Date().toISOString(),
+                    unitId: currentUser!.unitId || '1',
+                    deliveryLocation: formattedLocation,
+                    inmateLocation: formattedLocation,
+                    paymentProofUrl: '',
+                    paymentMethod: 'WALLET'
+                });
+            } else {
+                try {
+                    const original = proofFile!;
+                    const arquivo = original.type === 'application/pdf'
+                        ? original
+                        : new File(
+                            [await compressImageFile(original, 0.3, 600)],
+                            original.name.replace(/\.[^/.]+$/, '') + '.jpg',
+                            { type: 'image/jpeg' }
+                        );
+                    await createOrder(arquivo, formattedLocation);
+                } catch (err: any) {
+                    console.warn("Compressão do comprovante falhou, enviando original. Motivo:", err?.message || err);
+                    await createOrder(proofFile!, formattedLocation);
+                }
+            }
 
             setCart([]);
             setProofFile(null);

@@ -634,7 +634,7 @@ export function AdminDashboard() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center text-white">
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center text-slate-900">
         <div className="w-16 h-16 border-4 border-[var(--primary-color)] border-t-transparent rounded-full animate-spin mb-4"></div>
         <p className="text-sm font-black tracking-widest uppercase text-blue-600">Carregando painel...</p>
       </div>
@@ -642,7 +642,7 @@ export function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-100 flex font-sans overflow-x-hidden">
+    <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex font-sans overflow-x-hidden">
       
       {/* Sidebar Integration */}
       <AdminSidebar

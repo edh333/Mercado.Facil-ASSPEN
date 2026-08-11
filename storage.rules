@@ -2,7 +2,7 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
-    // Imagens de produtos — qualquer usuário autenticado pode ler;
+    // Imagens de produtos â€” qualquer usuÃ¡rio autenticado pode ler;
     // escrita apenas por administradores (role 'admin' no Firestore).
     function isAdmin() {
       return request.auth != null &&
@@ -21,46 +21,46 @@ service firebase.storage {
       allow delete: if isAdmin();
     }
 
-    // Arquivos privados por usuário — estrutura {pasta}/{uid}/{arquivo}:
+    // Arquivos privados por usuÃ¡rio â€” estrutura {pasta}/{uid}/{arquivo}:
     // leitura apenas do dono (ou admin); escrita apenas do dono.
 
-    // Comprovantes de depósito (wallet_proofs) — até 8MB
+    // Comprovantes de depÃ³sito (wallet_proofs) â€” atÃ© 8MB
     match /wallet_proofs/{uid}/{fileName} {
       allow read: if isOwner(uid) || isAdmin();
       allow write: if isOwner(uid)
         && request.resource.size < 8 * 1024 * 1024
-        && (request.resource.contentType.matches('image/(png|jpeg|jpg)') || request.resource.contentType.matches('application/pdf'));
+        && (request.resource.contentType.matches('image/(png|jpeg|jpg|heic|heif)') || request.resource.contentType.matches('application/pdf'));
       allow delete: if false;
     }
 
-    // Documentos de identidade (cadastro) — até 8MB
+    // Documentos de identidade (cadastro) â€” atÃ© 8MB
     match /docs/{uid}/{fileName} {
       allow read: if isOwner(uid) || isAdmin();
       allow write: if isOwner(uid)
         && request.resource.size < 8 * 1024 * 1024
-        && (request.resource.contentType.matches('image/(png|jpeg|jpg)') || request.resource.contentType.matches('application/pdf'));
+        && (request.resource.contentType.matches('image/(png|jpeg|jpg|heic|heif)') || request.resource.contentType.matches('application/pdf'));
       allow delete: if isAdmin();
     }
 
-    // Comprovantes de pagamento PIX (pedidos) — até 8MB
+    // Comprovantes de pagamento PIX (pedidos) â€” atÃ© 8MB
     match /comprovantes_pix/{uid}/{fileName} {
       allow read: if isOwner(uid) || isAdmin();
       allow write: if isOwner(uid)
         && request.resource.size < 8 * 1024 * 1024
-        && (request.resource.contentType.matches('image/(png|jpeg|jpg)') || request.resource.contentType.matches('application/pdf'));
+        && (request.resource.contentType.matches('image/(png|jpeg|jpg|heic|heif)') || request.resource.contentType.matches('application/pdf'));
       allow delete: if false;
     }
 
-    // Comprovantes diversos — 5MB max (apenas imagens/PDF)
+    // Comprovantes diversos â€” 5MB max (apenas imagens/PDF)
     match /receipts/{uid}/{fileName} {
       allow read: if isOwner(uid) || isAdmin();
       allow write: if isOwner(uid)
         && request.resource.size < 5 * 1024 * 1024
-        && (request.resource.contentType.matches('image/(png|jpeg|jpg)') || request.resource.contentType.matches('application/pdf'));
+        && (request.resource.contentType.matches('image/(png|jpeg|jpg|heic|heif)') || request.resource.contentType.matches('application/pdf'));
       allow delete: if false;
     }
 
-    // Regra de segurança (Fallback): bloqueia qualquer pasta não listada acima
+    // Regra de seguranÃ§a (Fallback): bloqueia qualquer pasta nÃ£o listada acima
     match /{allPaths=**} {
       allow read, write: if false;
     }

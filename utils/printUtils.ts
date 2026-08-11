@@ -354,7 +354,7 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
   cupom += formatarLinhaDupla("PAGAMENTO:", pagamento, 48) + "\n";
 
   const saldo = data.walletBalanceAfter;
-  if (saldo !== undefined && saldo !== total) {
+  if (saldo !== undefined && saldo !== null) {
     cupom += formatarLinhaDupla("SALDO ATUAL:", `R$ ${Math.abs(saldo).toFixed(2).replace('.', ',')}`, 48) + "\n";
   }
 

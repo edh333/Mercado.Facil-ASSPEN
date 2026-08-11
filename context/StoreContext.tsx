@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode, useRef } from 'react';
 import { User, Product, Order, PrisonUnit, UserRole, CartItem, OrderStatus, AppConfig, Supplier, Expense, AuditLog, InmateLocation, SystemMessage, ThemeOption, Message, Notification, WalletTransaction, toUserRole } from '../types';
 import { cleanProductName, normalizeName, stringSimilarity, compressImageFile, fileToBase64, formatarMoeda, getNetworkTime } from '../utils';
+import { queuePendingUpload, listPendingUploads, removePendingUpload, attachPendingUploadDoc } from '../services/localStorageService';
 import { ASSPEN_INFO, INITIAL_UNITS } from '../constants';
 import { db, auth, storage } from '../firebase';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
@@ -829,13 +830,13 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         }
     };
 
-    const uploadFile = async (file: File, path: string): Promise<string> => {
+    const uploadFile = async (file: File, path: string, meta?: { kind?: string; docId?: string }): Promise<string> => {
         if (!file || file.size === 0) {
             return "PENDENTE_UPLOAD_LOCAL_CACHE";
         }
 
         const MAX_FILE_SIZE = 8 * 1024 * 1024;
-        const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.pdf'];
+        const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.pdf', '.heic', '.heif'];
 
         if (file.size > MAX_FILE_SIZE) {
             showNotification('Arquivo muito grande (máx. 8 MB).', 'error');
@@ -857,10 +858,60 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             return await getDownloadURL(fileRef);
         } catch (error: any) {
             console.warn("[uploadFile] Falha no upload para Storage:", error?.message || error);
-            showNotification('Falha ao enviar o arquivo. Tente novamente.', 'error');
+            try {
+                const id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+                await queuePendingUpload({
+                    id,
+                    folder: (path || 'uploads').replace(/^\/+|\/+$/g, ''),
+                    fileName: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`,
+                    kind: meta?.kind,
+                    docId: meta?.docId,
+                    blob: file,
+                });
+                showNotification('Conexão instável: o comprovante foi guardado e será enviado automaticamente quando a internet voltar.', 'info');
+            } catch (e2) {
+                showNotification('Falha ao enviar o arquivo. Tente novamente.', 'error');
+            }
             return "PENDENTE_UPLOAD_LOCAL_CACHE";
         }
     };
+
+    const retryPendingProofs = async (): Promise<void> => {
+        try {
+            const pendentes = await listPendingUploads();
+            if (!pendentes.length) return;
+            const uid = currentUser?.id || 'anonimo';
+            let reenviados = 0;
+            for (const p of pendentes) {
+                try {
+                    const file = new File([p.blob], p.fileName, { type: p.blob.type });
+                    const fileRef = storageRef(storage, `${p.folder}/${uid}/${p.fileName}`);
+                    await uploadBytes(fileRef, file);
+                    const url = await getDownloadURL(fileRef);
+                    if (p.kind && p.docId) {
+                        await updateDoc(doc(db, p.kind, p.docId), { proofUrl: url });
+                    }
+                    await removePendingUpload(p.id);
+                    reenviados += 1;
+                } catch (e: any) {
+                    console.warn("[retryPendingProofs] item falhou:", e?.message || e);
+                }
+            }
+            if (reenviados > 0) {
+                showNotification(`Comprovante${reenviados > 1 ? 's' : ''} enviado${reenviados > 1 ? 's' : ''} automaticamente!`, 'success');
+            }
+        } catch (e: any) {
+            console.warn("[retryPendingProofs]", e?.message || e);
+        }
+    };
+
+    useEffect(() => {
+        if (!currentUser?.id) return;
+        retryPendingProofs();
+        const onOnline = () => retryPendingProofs();
+        window.addEventListener('online', onOnline);
+        return () => window.removeEventListener('online', onOnline);
+    }, [currentUser?.id]);
 
     const login = async (identifier: string, pass: string, expectedRole?: UserRole) => {
         const cleanPass = pass.trim();
@@ -991,10 +1042,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             let orderData: Partial<Order>;
             let proofUrl = '';
             if (arg1 instanceof File || arg1 === null) {
-                proofUrl = (arg1 instanceof File) ? await uploadFile(arg1, 'comprovantes_pix') : '';
-                if (arg1 instanceof File && (!proofUrl || proofUrl === "PENDENTE_UPLOAD_LOCAL_CACHE")) {
-                    throw new Error("Falha no envio do comprovante. Confira a imagem e tente novamente.");
-                }
+                proofUrl = (arg1 instanceof File) ? await uploadFile(arg1, 'comprovantes_pix', { kind: 'orders' }) : '';
                 orderData = { items: [...cart], total: totalCarrinho, paymentProofUrl: proofUrl, inmateLocation: arg2, deliveryLocation: arg2, paymentMethod: 'PIX' };
             } else { orderData = arg1; }
 
@@ -1014,12 +1062,17 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                 setCreditoCliente(novoSaldo);
             } else {
                 // Pedido PIX processado NO SERVIDOR (preços e estoque validados)
-                await fnRegistrarPedidoPix({
+                const resPix = await fnRegistrarPedidoPix({
                     items,
                     paymentProofUrl: proofUrl || orderData.paymentProofUrl || '',
                     inmateLocation: orderData.inmateLocation || undefined,
                     deliveryLocation: orderData.deliveryLocation || undefined
                 });
+                // Comprovante em cache local (upload offline): vincula ao pedido criado para reenvio automático
+                if (proofUrl === "PENDENTE_UPLOAD_LOCAL_CACHE") {
+                    const orderId = (resPix?.data as any)?.order?.id;
+                    if (orderId) await attachPendingUploadDoc('comprovantes_pix', orderId);
+                }
             }
 
             setCart([]);
@@ -1637,16 +1690,12 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         if (!currentUser) throw new Error('Usuário não autenticado');
         if (!(Number(amount) > 0)) throw new Error('Valor do depósito deve ser maior que zero.');
         try {
-            const proofUrl = await uploadFile(proofFile, 'wallet_proofs');
-            if (!proofUrl || proofUrl === "PENDENTE_UPLOAD_LOCAL_CACHE") {
-                throw new Error("Falha no envio do comprovante. Confira a imagem e tente novamente.");
-            }
             const transaction: WalletTransaction = {
                 id: crypto.randomUUID(),
                 userId: currentUser.id,
                 inmateCpf: currentUser.inmateCpf || currentUser.prisonerCpf || '',
                 amount,
-                proofUrl,
+                proofUrl: '',
                 status: 'pending',
                 createdAt: new Date().toISOString(),
                 type: 'deposit',
@@ -1654,6 +1703,11 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                 payerName: currentUser?.name || '',
                 payerId: currentUser?.id || ''
             };
+            const proofUrl = await uploadFile(proofFile, 'wallet_proofs', { kind: 'wallet_transactions', docId: transaction.id });
+            transaction.proofUrl = proofUrl;
+            if (proofUrl === "PENDENTE_UPLOAD_LOCAL_CACHE") {
+                showNotification('Conexão instável: seu comprovante foi guardado e será enviado automaticamente quando a internet voltar.', 'info');
+            }
             await setDoc(doc(db, 'wallet_transactions', transaction.id), transaction);
         } catch (e: any) {
             showNotification("Erro ao enviar comprovante: " + e.message, "error");
