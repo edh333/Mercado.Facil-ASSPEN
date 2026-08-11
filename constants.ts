@@ -23,8 +23,8 @@ export const THEME_COLORS: Record<string, {
     secondary: 'bg-[#1e293b]', // Slate 800
     accent: 'text-[#38bdf8]', // Sky 400
     bg: 'bg-slate-50',
-    text: 'text-slate-900',
-    price: 'text-[#0f172a]',
+    text: 'text-slate-950', // Quase preto para máximo contraste
+    price: 'text-black',
     card: 'bg-white'
   },
 
@@ -78,10 +78,28 @@ export const THEME_COLORS: Record<string, {
     primary: 'bg-zinc-950',
     secondary: 'bg-zinc-900',
     accent: 'text-cyan-400',
-    bg: 'bg-zinc-900',
+    bg: 'bg-zinc-950',
     text: 'text-white',
     price: 'text-cyan-400',
-    card: 'bg-zinc-900'
+    card: 'bg-zinc-900 shadow-cyan-900/10'
+  },
+  'ECOSENTARU': {
+    primary: 'bg-[#1a2e35]', // Deep Navy Green
+    secondary: 'bg-[#253d44]',
+    accent: 'text-[#e67e22]', // Carrot Orange
+    bg: 'bg-[#f4f7f6]',
+    text: 'text-slate-800',
+    price: 'text-[#1a2e35]',
+    card: 'bg-white shadow-sm border-t-4 border-t-[#e67e22]'
+  },
+  'POLICE_DARK': {
+    primary: 'bg-black',
+    secondary: 'bg-slate-900',
+    accent: 'text-yellow-500',
+    bg: 'bg-[#0f172a]',
+    text: 'text-slate-100',
+    price: 'text-yellow-500',
+    card: 'bg-slate-800 border border-slate-700'
   },
   [ThemeOption.SOFT_PASTEL]: {
     primary: 'bg-teal-700',
@@ -90,6 +108,15 @@ export const THEME_COLORS: Record<string, {
     bg: 'bg-teal-50',
     text: 'text-teal-900',
     price: 'text-teal-700',
+    card: 'bg-white'
+  },
+  [ThemeOption.WINDOWS_BLUE]: {
+    primary: 'bg-[#0078D4]',
+    secondary: 'bg-[#005A9E]',
+    accent: 'text-[#60CDFF]',
+    bg: 'bg-slate-50',
+    text: 'text-slate-900',
+    price: 'text-[#0078D4]',
     card: 'bg-white'
   },
 };

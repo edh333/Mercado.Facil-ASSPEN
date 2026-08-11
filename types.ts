@@ -4,6 +4,14 @@ export enum UserRole {
   FAMILY = 'FAMILY'
 }
 
+/** Normaliza o role salvo no Firestore (pode vir como 'admin' minúsculo ou 'ADMIN') para o enum do app. */
+export function toUserRole(role?: string | null | undefined): UserRole {
+  const r = String(role || '').toLowerCase();
+  return r === 'admin' || r === 'master' ? UserRole.ADMIN : UserRole.FAMILY;
+}
+
+export type SystemRole = 'admin' | 'manager' | 'operator' | 'user';
+
 export enum OrderStatus {
   PENDING = 'Pendente',
   PENDING_PAYMENT = 'pending_payment',
@@ -22,7 +30,8 @@ export enum ThemeOption {
   VIBRANT_ORANGE = 'vibrant_orange',
   HIGH_CONTRAST = 'high_contrast',
   CYBER_DARK = 'cyber_dark',
-  SOFT_PASTEL = 'soft_pastel'
+  SOFT_PASTEL = 'soft_pastel',
+  WINDOWS_BLUE = 'windows_blue'
 }
 
 export interface Message {
@@ -35,6 +44,10 @@ export interface Message {
 }
 
 export interface Product {
+  brand?: string;
+  barcode?: string;
+  dynamicPrice?: boolean;
+  ean?: string;
   id: string;
   name: string;
   description: string;
@@ -49,6 +62,9 @@ export interface Product {
   weight?: string;
   supplierId?: string;
   promoPrice?: number;
+  minStock?: number;
+  lastSoldAt?: string;
+  supplier?: string;
 }
 
 export interface CartItem extends Product {
@@ -62,7 +78,7 @@ export interface User {
   name: string;
   email: string;
   role: string;
-  password?: string;
+  authUid?: string;
   cpf?: string;
   rg?: string;
   phone?: string;
@@ -87,6 +103,8 @@ export interface User {
   walletBalance?: number; // New: Dynamic Credit for Inmate
   weeklySpent?: number; // New: Tracks spend against limit
   lastSpentReset?: string; // New: ISO date of last limit reset
+  autorizacaoExcepcional?: boolean; // Admin override for weekly limit
+  allowCredit?: boolean; // New: Master toggle for UI/UX credit buttons
 }
 
 
@@ -119,8 +137,12 @@ export interface Order {
   printCount?: number;
   inmateName?: string; // Snapshot
   inmateCpf?: string; // Snapshot
-  paymentMethod?: 'PIX' | 'WALLET'; // New
+  operatorName?: string; // Snapshot do operador PDV
+  paymentMethod?: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO';
+  payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO'; amount: number }[];
+  change?: number;
   walletBalanceAfter?: number;
+  deleted?: boolean;
 }
 
 export interface Supplier {
@@ -138,13 +160,32 @@ export interface Expense {
   date: string;
   recipientName: string;
   recipientDoc: string;
+  recipientCpf?: string;
   status?: 'PENDING' | 'PAID';
   category?: string;
   type?: 'SUPPLIER' | 'OPERATIONAL';
   observation?: string; // Novo campo para detalhes
+  debitAccount?: 'CAIXA' | 'BANCO' | 'PIX';
+  deleted?: boolean;
 }
 
 export interface AppConfig {
+  activationDate?: string;
+  activationKey?: string;
+  activationDaysLeft?: number;
+  expirationDate?: string; // Data ISO final da licença
+  receiptFooter?: string;
+  isTrial?: boolean;
+  enablePrisonerWallet?: boolean;
+  allow_user_purchases?: boolean;
+  allow_balance_purchases?: boolean;
+  developerEmail?: string;
+  developerName?: string;
+  developerPhone?: string;
+  dev_name?: string;
+  dev_email?: string;
+  dev_phone?: string;
+  logoUrl?: string;
   appName: string;
   institutionName: string;
   cnpj: string;
@@ -153,15 +194,17 @@ export interface AppConfig {
   backgroundColor: string;
   footerText: string;
   contactPhone: string;
-  contactEmail: string;
-  contactAddress: string;
+  contactEmail?: string;
+  contactAddress?: string;
   adminPassword?: string;
+  secondaryPassword?: string;
   pixKeys: string[];
   loginImageUrl?: string;
   loginTitle?: string;
   systemName?: string;
   theme: ThemeOption;
   customWelcomeMessage?: string;
+  lowStockThreshold?: number;
   customReceiptText?: string; // Campo novo para texto do cupom
   customReceiptTitle?: string; // Novo: Título do Cupom (ASSPEN - Gestão)
   customReceiptSubtitle?: string; // Novo: Subtítulo (CDP Peixoto...)
@@ -170,6 +213,8 @@ export interface AppConfig {
   loginBgType?: 'none' | 'color' | 'image';
   userDashboardBgUrl?: string;
   userDashboardBgType?: 'none' | 'color' | 'image';
+  userDashboardBgBlur?: number; // Novo: Controle de desfoque
+  userDashboardBgOpacity?: number; // Novo: Opacidade da máscara Escura/Clara
 
   // Professional Receipt Customization
   receiptMainTitleOrder?: string;
@@ -184,25 +229,14 @@ export interface AppConfig {
   receiptSignatureLabel?: string;
 
   // Wallet & Limits
-  enablePrisonerWallet?: boolean;
   weeklyWalletLimit?: number;
+  limiteSemanal?: number;
   autoArchiveEnabled?: boolean;
   autoArchiveDays?: number;
-}
-
-export interface CashierSession {
-  id: string; // Date string 'YYYY-MM-DD'
-  date: string;
-  openedAt: string;
-  closedAt?: string;
-  openedBy: string; // Admin User ID
-  closedBy?: string;
-  status: 'OPEN' | 'CLOSED' | 'AUTO_CLOSED';
-  initialBalance: number;
-  finalBalance?: number;
-  totalEntries: number; // Sales/Orders
-  totalExits: number; // Expenses
-  totalWithdrawals: number; // Specific exits
+  receiptFontSize?: number;
+  showUserCredits?: boolean;
+  pdvColor?: string;
+  autoPrint?: boolean;
 }
 
 
@@ -220,6 +254,8 @@ export interface WalletTransaction {
   inmateCpf: string;
   amount: number;
   proofUrl: string;
+  inmateName?: string;
+  prisonerCpf?: string;
   status: 'pending' | 'approved' | 'rejected';
   createdAt: string;
   type: 'deposit' | 'purchase' | 'withdrawal' | 'correction';
@@ -250,5 +286,25 @@ export interface SystemMessage {
 export interface Notification {
   id: string;
   message: string;
-  type: 'success' | 'error' | 'info';
+  type: 'success' | 'error' | 'info' | 'warning';
 }
+
+export interface CustomerAccountTransaction {
+  type: 'debt' | 'payment';
+  amount: number;
+  orderId?: string;
+  timestamp: any;
+}
+
+export interface CustomerAccount {
+  id: string;
+  nome: string;
+  cpf?: string;
+  telefone: string;
+  creditLimit: number;
+  currentDebt: number;
+  weeklySpent: number;
+  status: 'active' | 'blocked';
+  transactions: CustomerAccountTransaction[];
+  createdAt?: string;
+}

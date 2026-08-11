@@ -1,0 +1,168 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ── Funções utilitárias ──
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Admin = documento do usuário autenticado (id == UID do Auth) com role 'admin'
+    function isAdmin() {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // O usuário é dono de um registro quando: id == UID autenticado,
+    // OU o documento do usuário naquele id possui authUid == UID autenticado
+    // (cobre usuários legados que ainda têm id antigo).
+    function userMatch(userId) {
+      return isAuthenticated() && (
+        userId == request.auth.uid ||
+        (exists(/databases/$(database)/documents/users/$(userId)) &&
+         get(/databases/$(database)/documents/users/$(userId)).data.authUid == request.auth.uid)
+      );
+    }
+
+    // ── USUÁRIOS ──
+    // Leitura: próprio usuário ou admin. Criação: SOMENTE via Cloud Function.
+    // Atualização: admin (tudo) ou o próprio usuário APENAS em campos de perfil seguros.
+    // NUNCA é permitido ao usuário alterar role, walletBalance, weeklySpent ou authUid.
+    // diff().affectedKeys() garante que só os campos permitidos MUDAM (hasOnly no doc
+    // inteiro quebraria qualquer update, pois o doc contém campos fora da lista).
+    match /users/{userId} {
+      allow get: if isAuthenticated() && (userId == request.auth.uid || resource.data.authUid == request.auth.uid || isAdmin());
+      allow list: if isAuthenticated() && (isAdmin() || resource.data.authUid == request.auth.uid);
+      allow create: if false;
+      allow update: if isAdmin() ||
+        (userMatch(userId) &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+           'name', 'phone', 'avatarUrl', 'inmateName', 'inmateCpf',
+           'prisonerName', 'prisonerCpf', 'email', 'documentUrl',
+           'showFinanceEntries', 'selectedUnitId'
+         ]));
+      allow delete: if isAdmin();
+    }
+
+    // ── PEDIDOS ──
+    // Criação: usuário registra o próprio pedido somente como PENDENTE
+    // (pagamento por comprovante). Vendas com carteira vão via Cloud Function.
+    // Atualização/estorno: apenas admin (ou Cloud Function).
+    match /orders/{orderId} {
+      allow create: if isAuthenticated()
+        && userMatch(request.resource.data.userId)
+        && request.resource.data.status == 'PENDING';
+      allow read: if isAuthenticated() && (userMatch(resource.data.userId) || isAdmin());
+      allow update, delete: if isAdmin();
+    }
+
+    // ── TRANSAÇÕES DE CARTEIRA ──
+    // Criação: usuário só abre depósito PENDENTE próprio.
+    // Movimentação de saldo: APENAS via Cloud Functions.
+    match /wallet_transactions/{txId} {
+      allow create: if isAuthenticated()
+        && userMatch(request.resource.data.userId)
+        && request.resource.data.status == 'pending'
+        && request.resource.data.type == 'deposit'
+        && request.resource.data.amount is number
+        && request.resource.data.amount > 0;
+      allow read: if isAuthenticated() && (userMatch(resource.data.userId) || isAdmin());
+      allow update, delete: if isAdmin();
+    }
+
+    // ── PRODUTOS ──
+    match /products/{productId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ── CONFIGURAÇÕES ──
+    // Docs permitidos: 'general' (público, SEM senhas), 'private' (hash da senha mestra),
+    // 'maintenance' (controle de rotinas). Matches explícitos (regras são OR — um match
+    // genérico anularia as restrições abaixo).
+    match /settings/general {
+      allow read: if isAuthenticated();
+      allow update: if isAdmin()
+        && !request.resource.data.keys().hasAny(['secondaryPassword', 'adminPassword']);
+      allow create: if isAdmin()
+        && !request.resource.data.keys().hasAny(['secondaryPassword', 'adminPassword']);
+      allow delete: if false;
+    }
+    match /settings/private {
+      allow read, write: if isAdmin();
+      allow delete: if false;
+    }
+    match /settings/maintenance {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ── SEGREDOS DE AUTENTICAÇÃO (hash legado de senha) ──
+    // Coleção SOMENTE admin: guarda o hash bcrypt usado pela validação
+    // "provisionar" e pelas recuperações legadas. Nunca acessível ao usuário
+    // comum (o doc público users/{uid} não contém mais o campo password).
+    match /auth_secrets/{uid} {
+      allow read, write, delete: if isAdmin();
+    }
+
+    // ── SESSÕES DE CAIXA ──
+    match /cash_sessions/{sessionId} {
+      allow read: if isAuthenticated() && (userMatch(resource.data.operatorId) || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // ── CONTAS DE CLIENTES (fiado) ──
+    match /customer_accounts/{accountId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // ── DESPESAS ──
+    match /expenses/{expenseId} {
+      allow read, write: if isAdmin();
+    }
+
+    // ── MENSAGENS (comunicação admin ↔ usuário) ──
+    match /messages/{msgId} {
+      allow read: if isAuthenticated() && (isAdmin() || userMatch(resource.data.userId));
+      allow create: if isAuthenticated()
+        && userMatch(request.resource.data.userId);
+      allow update: if isAuthenticated()
+        && (isAdmin() || userMatch(resource.data.userId) && request.resource.data.keys().hasOnly(['read']));
+      allow delete: if isAdmin();
+    }
+
+    // ── MENSAGENS DO SISTEMA (avisos) ──
+    match /systemMessages/{msgId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ── LOGS DE AUDITORIA (ações sensíveis; imutáveis) ──
+    // Criação: admin (client-side p/ zerações locais; server-side via Cloud Functions).
+    // Edição: PROIBIDA (somente deletável por admin — ex.: reset total do sistema).
+    match /audit_logs/{logId} {
+      allow read, create: if isAdmin();
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    // ── CAIXA FÍSICA, FORNECEDORES E PRÉ-CADASTROS ──
+    // Matches explícitos (sem wildcard) — Firestore NEGA por padrão o que
+    // não possui regra. Isso também impede que o wildcard conceda escrita
+    // em settings/ contornando as restrições de senhas acima.
+    match /cashier/{sessionId} {
+      allow read, write: if isAdmin();
+    }
+    match /suppliers/{supplierId} {
+      allow read, write: if isAdmin();
+    }
+    match /pre_registered_inmates/{inmateId} {
+      allow read, write: if isAdmin();
+    }
+
+    // ── ARQUIVO HISTÓRICO (pedidos e registros antigos arquivados) ──
+    match /historico_geral/{recordId} {
+      allow read, write: if isAdmin();
+    }
+  }
+}

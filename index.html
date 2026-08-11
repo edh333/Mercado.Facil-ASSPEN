@@ -7,21 +7,36 @@
   <meta name="theme-color" content="#0f172a" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Mercado Fácil" />
-  <meta name="description" content="Sistema de Gestão de Pedidos - ASSPEN" />
+  <meta name="apple-mobile-web-app-title" content="ASSPEN" />
+  <meta name="description" content="Sistema de Gestao de Pedidos - ASSPEN" />
 
-  <title>Mercado Fácil - ASSPEN</title>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
 
-  <!-- Fonts -->
+  <title>Sistema de Gestao - ASSPEN</title>
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+  <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon.png" />
+  <link rel="manifest" href="/manifest.json" />
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
-    rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- QZ Tray SDK - impressão direta na impressora fiscal/bobina (via QZ Tray local) -->
+  <script src="https://qz.io/sdk/qz-tray.js" defer></script>
 </head>
 
 <body class="bg-slate-950 text-white antialiased">
   <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
+  <script>
+    window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); window.__deferredPrompt = e; });
+    window.addEventListener('appinstalled', () => { window.__deferredPrompt = null; });
+  </script>
 </body>
 
 </html>

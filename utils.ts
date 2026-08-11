@@ -39,7 +39,7 @@ export const validateCPF = (cpf: string): boolean => {
 const toTitleCase = (str: string) => {
   return str.replace(/\w\S*/g, (txt) => {
     if (['PET', 'UVA', 'COCA', 'OVO', 'USA', 'IP', 'LED', 'PVC', 'SAB', 'DET', 'YPE', 'OMO', 'QBOA', 'SP'].includes(txt.toUpperCase())) return txt.toUpperCase();
-    if (['KG', 'ML', 'L', 'G', 'M', 'UN', 'CM', 'MM'].includes(txt.toUpperCase())) return txt.toUpperCase(); 
+    if (['KG', 'ML', 'L', 'G', 'M', 'UN', 'CM', 'MM'].includes(txt.toUpperCase())) return txt.toLowerCase(); 
     if (['DE', 'DA', 'DO', 'EM', 'COM', 'E', 'POR', 'PARA', 'SEM'].includes(txt.toUpperCase())) return txt.toLowerCase();
     return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
   });
@@ -73,23 +73,20 @@ export const cleanProductName = (name: string) => {
   };
 
   cleaned = cleaned.split(/\s+/).map(word => abbrevs[word] || word).join(' ');
-  cleaned = cleaned.replace(/\s+QTD\.?\s+\d+(\.\d+)?\s*[A-Z]{2,}/gi, ''); 
-  cleaned = cleaned.replace(/\s+CX\.?\s+\d+([X]\d+)?([A-Z]+)?/gi, '');
-  cleaned = cleaned.replace(/\s+CAIXA\s+\d+([X]\d+)?([A-Z]+)?/gi, '');
-  cleaned = cleaned.replace(/\s+UNIDADE\s+\d+([X]\d+)?/gi, '');
-  cleaned = cleaned.replace(/\s+UN\.?\s+\d+([X]\d+)?/gi, '');
-  cleaned = cleaned.replace(/\s+\d+\s*[X]\s*\d+([A-Z]+)?$/gi, ''); 
 
   const trashWords = [
     'CAIXA', 'CX', 'CX.', 'FARDO', 'FDO', 'FD', 'FD.',
     'PACOTE', 'PCT', 'PCTE', 'PCT.', 'DISPLAY', 'DSP', 
-    'DUZIA', 'CARTELA', 'CART', 'UNIDADE', 'UN', 'UNI',
-    'PROMOCAO', 'OFERTA', 'GRATIS', 'L.V.', 'PAGUE', 'LEVE'
+    'DUZIA', 'CARTELA', 'CART', 
+    'PROMOCAO', 'OFERTA', 'GRATIS', 'L.V.', 'PAGUE', 'LEVE',
+    'SABORES', 'SABOR', 'SAB', 'DE', 'DA', 'DO', 'DOS', 'DAS', 'COM', 'E', 'EM', 'PARA'
   ];
 
   trashWords.forEach(word => {
       const regexEnd = new RegExp(`\\s+${word.replace('.', '\\.')}$`, 'gi');
+      const regexMid = new RegExp(`\\s+${word.replace('.', '\\.')}\\s+`, 'gi');
       cleaned = cleaned.replace(regexEnd, '');
+      cleaned = cleaned.replace(regexMid, ' ');
   });
 
   cleaned = cleaned.replace(/\s+\d+\.\d{2}$/, '');
@@ -102,7 +99,28 @@ export const normalizeName = (name: string) => {
     return cleanProductName(name).toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Z0-9]/g, "");
 };
 
-// --- HELPER BASE64 (Upload Instantâneo) ---
+export const stringSimilarity = (a: string, b: string): number => {
+  const longer = a.length >= b.length ? a : b;
+  const shorter = a.length < b.length ? a : b;
+  if (longer.length === 0) return 1.0;
+  const costs: number[] = [];
+  for (let i = 0; i <= shorter.length; i++) costs[i] = i;
+  for (let i = 1; i <= longer.length; i++) {
+    let prev = i;
+    for (let j = 1; j <= shorter.length; j++) {
+      const val = longer[i - 1] === shorter[j - 1] ? costs[j - 1] : Math.min(
+        costs[j - 1] + 1,
+        prev + 1,
+        costs[j] + 1
+      );
+      costs[j - 1] = prev;
+      prev = val;
+    }
+    costs[shorter.length] = prev;
+  }
+  return (longer.length - costs[shorter.length]) / longer.length;
+};
+
 export const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -112,7 +130,6 @@ export const fileToBase64 = (file: File): Promise<string> => {
   });
 };
 
-// --- COMPRESSÃO DE IMAGEM OTIMIZADA E RÁPIDA ---
 export const compressImageFile = async (file: File, quality = 0.6, maxWidth = 1000): Promise<Blob> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -123,7 +140,6 @@ export const compressImageFile = async (file: File, quality = 0.6, maxWidth = 10
       img.src = event.target?.result as string;
       
       img.onload = () => {
-        // Cálculo de proporção para redimensionamento
         let width = img.width;
         let height = img.height;
         
@@ -142,7 +158,6 @@ export const compressImageFile = async (file: File, quality = 0.6, maxWidth = 10
              return;
         }
 
-        // Fundo branco para caso seja PNG transparente convertido para JPEG
         ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(0, 0, width, height);
         
@@ -150,7 +165,6 @@ export const compressImageFile = async (file: File, quality = 0.6, maxWidth = 10
         
         canvas.toBlob((blob) => {
           if (blob) {
-            console.log(`Imagem comprimida: ${file.size} -> ${blob.size} bytes`);
             resolve(blob);
           } else {
             reject(new Error("Falha ao comprimir imagem."));
@@ -165,7 +179,6 @@ export const compressImageFile = async (file: File, quality = 0.6, maxWidth = 10
   });
 };
 
-// --- GERAÇÃO PIX ---
 const calculateCRC16 = (payload: string): string => {
   let crc = 0xFFFF;
   for (let i = 0; i < payload.length; i++) {
@@ -189,18 +202,43 @@ const sanitize = (str: string, maxLength: number): string => {
   return clean.substring(0, maxLength);
 };
 
-export const generatePixPayload = (key: string, name: string, city: string, amount: number, txid: string = '***'): string => {
+export const generatePixPayload = (key: string, name: string, city: string, amount: number, txid: string = 'MERCFACIL'): string => {
   let cleanKey = key.trim();
   if (!cleanKey.includes('@') && cleanKey.length < 32) cleanKey = cleanKey.replace(/[^0-9]/g, '');
+
+  const validAmount = Math.max(0.01, Math.abs(Number(amount) || 0.01));
 
   const payloadKey = formatField("00", "br.gov.bcb.pix") + formatField("01", cleanKey);
   const merchantName = sanitize(name, 25); 
   const merchantCity = sanitize(city, 15);
-  const amountStr = amount.toFixed(2);
+  const amountStr = validAmount.toFixed(2);
 
   const payloadNoCrc = `000201` + formatField("26", payloadKey) + formatField("52", "0000") + formatField("53", "986") + 
-    (amount > 0 ? formatField("54", amountStr) : "") + formatField("58", "BR") + formatField("59", merchantName) + 
-    formatField("60", merchantCity) + formatField("62", formatField("05", sanitize(txid || '***', 25))) + `6304`; 
+    formatField("54", amountStr) + formatField("58", "BR") + formatField("59", merchantName) + 
+    formatField("60", merchantCity) + formatField("62", formatField("05", sanitize(txid || 'MERCFACIL', 25))) + `6304`; 
 
   return `${payloadNoCrc}${calculateCRC16(payloadNoCrc)}`;
+};
+
+export const getNetworkTime = async (): Promise<Date> => {
+  try {
+    const functions = (await import('firebase/functions'));
+    const { getFunctions, httpsCallable } = functions;
+    const fnHoraServidor = httpsCallable(getFunctions(), 'obterHoraServidor');
+    const res = await fnHoraServidor() as any;
+    const data = res?.data || {};
+    if (data?.hora) {
+      return new Date(Number(data.hora));
+    }
+    return new Date();
+  } catch (e) {
+    console.warn("Falha ao obter horário do servidor, usando relógio local.");
+    return new Date();
+  }
+};
+
+export const formatarMoeda = (valor: number): string => {
+  const safeNumber = isNaN(valor as number) || valor === null || valor === undefined ? 0 : Number(valor);
+  const centavos = Math.round(safeNumber * 100) / 100;
+  return centavos.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };

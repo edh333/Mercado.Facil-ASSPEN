@@ -1,5 +1,15 @@
 {
   "projects": {
-    "default": "mercado-facil-asspen"
-  }
+    "default": "mercado-facil-mt"
+  },
+  "targets": {
+    "mercado-facil-mt": {
+      "storage": {
+        "main": [
+          "mercado-facil-mt.firebasestorage.app"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

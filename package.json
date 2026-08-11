@@ -1,23 +1,25 @@
 {
   "name": "sistema-de-gestao-prisional-mt",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0-STABLE",
   "main": "desktop/main.js",
   "type": "commonjs",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build-mem": "node --max-old-space-size=4096 node_modules/vite/bin/vite.js build",
     "preview": "vite preview",
     "lint": "tsc --noEmit",
-    "electron-dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && electron .\"",
+    "electron-dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5177 && electron .\"",
     "electron-build": "vite build && electron-builder"
   },
   "dependencies": {
-    "@google/genai": "^1.35.0",
+    "bcryptjs": "^3.0.3",
     "firebase": "^12.7.0",
     "framer-motion": "^12.38.0",
     "jspdf": "^3.0.4",
     "lucide-react": "^0.562.0",
+    "qrcode.react": "^4.2.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-qr-code": "^2.0.15",
@@ -26,15 +28,18 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.2.1",
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.14.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.0.0",
+    "concurrently": "^8.2.2",
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3",
     "tailwindcss": "^4.2.1",
     "typescript": "~5.8.2",
     "vite": "^6.2.0",
-    "electron": "^31.0.0",
-    "concurrently": "^8.2.2",
-    "wait-on": "^7.2.0",
-    "electron-builder": "^24.13.3"
+    "wait-on": "^7.2.0"
   },
   "build": {
     "appId": "com.asspen.mercadofacil",

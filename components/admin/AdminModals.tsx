@@ -1,0 +1,697 @@
+import React from 'react';
+import { createPortal } from 'react-dom';
+import {
+  X, Check, Upload, ImageIcon,
+  MinusCircle, RefreshCw, Loader2, Lock, Package, Key, PlusCircle, Printer
+} from 'lucide-react';
+import { Product, Expense, Order } from '../../types';
+import { compressImageFile, fileToBase64, normalizeName } from '../../utils';
+import { ModalShell } from '../ui/ModalShell';
+import { CupomEntrega } from '../CupomEntrega';
+import { ReciboA4 } from '../ReciboA4';
+import { gerarCupomEntregaRaw, baixarCupomTxt, abrirJanelaImpressao } from '../../utils/printUtils';
+
+interface AdminModalsProps {
+  showProductModal: boolean;
+  setShowProductModal: (val: boolean) => void;
+  editingProduct: Product | null;
+  setEditingProduct: (val: Product | null) => void;
+  addProduct: (product: Product) => Promise<void>;
+  updateProduct: (product: Product) => Promise<void>;
+  products: Product[];
+
+  showWithdrawalModal: any;
+  setShowWithdrawalModal: (val: any) => void;
+  withdrawalAmount: string;
+  setWithdrawalAmount: (val: string) => void;
+  withdrawalReason: string;
+  setWithdrawalReason: (val: string) => void;
+  handleWithdrawal: () => void;
+
+  showRefundModal: Order | null;
+  setShowRefundModal: (order: Order | null) => void;
+  refundReason: string;
+  setRefundReason: (val: string) => void;
+  isProcessingRefund: boolean;
+  handleRefundOrder: () => void;
+
+  showAuthModal: boolean;
+  setShowAuthModal: (val: boolean) => void;
+  authPass: string;
+  setAuthPass: (val: string) => void;
+  handleAuthConfirm: () => void;
+
+  viewingReceipt: any;
+  setViewingReceipt: (val: any) => void;
+  printOrder: Order | null;
+  setPrintOrder: (val: Order | null) => void;
+  settings: any;
+}
+
+export const AdminModals: React.FC<AdminModalsProps> = ({
+  showProductModal, setShowProductModal, editingProduct, setEditingProduct,
+  addProduct, updateProduct, products,
+  showWithdrawalModal, setShowWithdrawalModal, withdrawalAmount, setWithdrawalAmount, withdrawalReason, setWithdrawalReason, handleWithdrawal,
+  showRefundModal, setShowRefundModal, refundReason, setRefundReason, isProcessingRefund, handleRefundOrder,
+  showAuthModal, setShowAuthModal, authPass, setAuthPass, handleAuthConfirm,
+  viewingReceipt, setViewingReceipt, printOrder, setPrintOrder, settings
+}) => {
+  const [isProductLoading, setIsProductLoading] = React.useState(false);
+  const [isAuthLoading, setIsAuthLoading] = React.useState(false);
+
+  const handleRawPrint = () => {
+    if (!printOrder) return;
+    abrirJanelaImpressao({ type: 'CUPOM', data: printOrder }, settings);
+  };
+
+  const handleBaixarTxt = () => {
+    if (!printOrder) return;
+    baixarCupomTxt(gerarCupomEntregaRaw(printOrder, settings), 'cupom-pdv');
+  };
+
+  const [productForm, setProductForm] = React.useState({
+    name: '',
+    brand: '',
+    barcode: '',
+    cost: '',
+    margin: '30',
+    stock: '0',
+    minStock: '0',
+    price: '',
+    available: true,
+    dynamicPrice: false,
+    imageUrl: '',
+    category: 'Geral'
+  });
+
+  React.useEffect(() => {
+    if (showProductModal && editingProduct) {
+      const priceVal = editingProduct.price || 0;
+      const costVal = editingProduct.costPrice || 0;
+      const marginVal = editingProduct.margin || 30;
+      setProductForm({
+        name: editingProduct.name || '',
+        brand: editingProduct.brand || '',
+        barcode: editingProduct.barcode || editingProduct.ean || '',
+        cost: costVal > 0 ? costVal.toString() : '',
+        margin: marginVal.toString(),
+        stock: (editingProduct.stock ?? 0).toString(),
+        minStock: (editingProduct.minStock ?? 0).toString(),
+        price: priceVal > 0 ? priceVal.toString() : '',
+        available: editingProduct.available !== false,
+        dynamicPrice: !!editingProduct.dynamicPrice,
+        imageUrl: editingProduct.imageUrl || '',
+        category: editingProduct.category || 'Geral'
+      });
+    } else if (showProductModal && !editingProduct) {
+      setProductForm({
+        name: '',
+        brand: '',
+        barcode: '',
+        cost: '',
+        margin: '30',
+        stock: '0',
+        minStock: '0',
+        price: '',
+        available: true,
+        dynamicPrice: false,
+        imageUrl: '',
+        category: 'Geral'
+      });
+    }
+  }, [showProductModal, editingProduct]);
+
+  const handleProductSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!productForm.name.trim()) return;
+    setIsProductLoading(true);
+    try {
+      const costNum = parseFloat(productForm.cost) || 0;
+      const marginNum = parseFloat(productForm.margin) || 30;
+      const stockNum = parseInt(productForm.stock) || 0;
+      const priceNum = productForm.price
+        ? parseFloat(productForm.price)
+        : costNum + (costNum * marginNum / 100);
+
+      const productData: Product = {
+        id: editingProduct?.id || crypto.randomUUID(),
+        name: (productForm.name || '').toUpperCase().trim(),
+        brand: (productForm.brand || '').toUpperCase().trim(),
+        ean: productForm.barcode || '',
+        barcode: productForm.barcode || '',
+        category: productForm.category || 'Geral',
+        costPrice: costNum,
+        price: parseFloat(priceNum.toFixed(2)),
+        margin: marginNum,
+        stock: stockNum,
+        minStock: parseInt(productForm.minStock) || 0,
+        imageUrl: productForm.imageUrl,
+        available: productForm.available,
+        dynamicPrice: productForm.dynamicPrice,
+        supplierId: editingProduct?.supplierId || '',
+        description: editingProduct?.description || '',
+        weight: editingProduct?.weight || 'UN',
+        restricted: editingProduct?.restricted || false
+      };
+
+      if (!editingProduct) {
+        const barcode = (productForm.barcode || '').replace(/^0+/, '').trim();
+        const nameNorm = normalizeName(productData.name);
+        const duplicate = products.find(p => {
+          if (p.id === productData.id) return false;
+          const pBarcode = String(p.ean || p.barcode || '').replace(/^0+/, '').trim();
+          if (barcode && pBarcode && barcode === pBarcode) return true;
+          if (normalizeName(p.name || '') === nameNorm) return true;
+          return false;
+        });
+        if (duplicate) {
+          const reason = barcode ? `código de barras ${productForm.barcode}` : `nome "${productData.name}"`;
+          if (!window.confirm(`Já existe um produto com ${reason}:\n\n${duplicate.name} (R$ ${duplicate.price?.toFixed(2)} | Estoque: ${duplicate.stock || 0})\n\nDeseja criar mesmo assim?`)) {
+            setIsProductLoading(false);
+            return;
+          }
+        }
+      }
+
+      if (editingProduct) {
+        await updateProduct(productData);
+      } else {
+        await addProduct(productData);
+      }
+      setShowProductModal(false);
+      setEditingProduct(null);
+    } catch (error: any) {
+      console.error('Erro ao salvar produto:', error);
+    } finally {
+      setIsProductLoading(false);
+    }
+  };
+
+  const handleProductImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        if (file.type.startsWith('image/')) {
+          const compressed = await compressImageFile(file, 0.3, 600);
+          const compressedFile = new File([compressed], file.name.replace(/\.[^/.]+$/, "") + ".jpg", { type: 'image/jpeg' });
+          const base64 = await fileToBase64(compressedFile);
+          setProductForm(prev => ({ ...prev, imageUrl: base64 }));
+        } else {
+          const base64 = await fileToBase64(file);
+          setProductForm(prev => ({ ...prev, imageUrl: base64 }));
+        }
+      } catch (err) {
+        console.error('Erro ao carregar imagem:', err);
+      }
+    }
+  };
+
+  React.useEffect(() => {
+    if (!showProductModal) return;
+    let buffer = '';
+    let lastKeyTime = Date.now();
+    const handleKeyDown = (e: KeyboardEvent) => {
+        const currentTime = Date.now();
+        if (currentTime - lastKeyTime > 100) buffer = '';
+        lastKeyTime = currentTime;
+        if (e.key === 'Enter') {
+            if (buffer.length > 3) {
+                setProductForm(prev => ({ ...prev, barcode: buffer }));
+                buffer = '';
+            }
+        } else if (e.key.length === 1) {
+            buffer += e.key;
+        }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showProductModal]);
+
+  return (
+    <>
+      {/* MODAL: PRODUTO PREMIUM */}
+      {showProductModal && (
+        <ModalShell
+          open
+          onClose={() => { setShowProductModal(false); setEditingProduct(null); }}
+          title={editingProduct ? 'Editar Produto' : 'Novo Produto'}
+          subtitle={editingProduct ? 'Atualize as informações do produto' : 'Cadastre um novo item no catálogo'}
+          icon={<Package size={22} />}
+          size="lg"
+          footer={
+            <>
+              <button type="button" onClick={() => { setShowProductModal(false); setEditingProduct(null); }} className="flex-1 py-4 bg-white text-slate-700 font-bold rounded-xl hover:bg-slate-50 uppercase text-[11px] tracking-widest transition-all border border-slate-300 shadow-sm hover:shadow-md active:scale-[0.98]">Cancelar</button>
+              <button type="submit" form="product-form" disabled={isProductLoading || !productForm.name.trim()} className="flex-[2] py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md shadow-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/30 flex items-center justify-center gap-3 uppercase text-[11px] tracking-widest transition-all px-6 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">
+                {isProductLoading ? <Loader2 size={18} className="animate-spin"/> : <Check size={18} />}
+                {editingProduct ? 'Salvar Alterações' : 'Cadastrar Produto'}
+              </button>
+            </>
+          }
+        >
+          <div className="bg-gradient-to-r from-emerald-500/10 to-emerald-600/5 p-3 flex items-center justify-center gap-3 border-b border-emerald-500/20">
+            <div className="relative flex items-center gap-2">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+              </span>
+              <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider">Leitor de Código Ativo • Escaneie para Adicionar</span>
+            </div>
+          </div>
+
+            <form onSubmit={handleProductSubmit} id="product-form" className="p-6 space-y-5">
+               {/* TOP ROW: Image + Nome/Marca */}
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                   {/* IMAGE MANAGEMENT */}
+                   <div className="md:col-span-1">
+                       <div className="bg-white rounded-xl border-2 border-slate-200 p-4 space-y-3">
+                           <label className="text-slate-600 font-black text-[10px] uppercase tracking-widest block">Foto do Produto</label>
+                           <div className="w-full aspect-square rounded-lg bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center relative group">
+                               {productForm.imageUrl ? (
+                                   <>
+                                       <img src={productForm.imageUrl} className="w-full h-full object-contain p-2" alt="Preview" onError={(e) => { (e.target as HTMLImageElement).onerror = null; (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%2394a3b8%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z%22/%3E%3Cline x1=%224%22 y1=%2222%22 x2=%2220%22 y2=%222%22/%3E%3C/svg%3E'; (e.target as HTMLImageElement).classList.add('opacity-30'); }} />
+                                       <button
+                                           type="button"
+                                           onClick={() => setProductForm({...productForm, imageUrl: ''})}
+                                           className="absolute top-1 right-1 bg-white/90 hover:bg-red-500 hover:text-white rounded-lg p-1.5 shadow-sm border border-slate-200 transition-all opacity-0 group-hover:opacity-100"
+                                           title="Remover imagem"
+                                       >
+                                           <X size={14} />
+                                       </button>
+                                   </>
+                               ) : (
+                                   <ImageIcon size={36} className="text-slate-300" />
+                               )}
+                           </div>
+                           {/* URL INPUT */}
+                           <div>
+                               <label className="text-slate-400 font-bold text-[9px] uppercase tracking-widest block mb-1">Link da Imagem (URL)</label>
+                               <input
+                                   type="text"
+                                   className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-400 transition-all"
+                                   placeholder="https://..."
+                                   value={productForm.imageUrl || ''}
+                                   onChange={e => setProductForm({...productForm, imageUrl: e.target.value})}
+                               />
+                           </div>
+                           {/* UPLOAD BUTTON */}
+                           <label className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border-2 border-dashed border-slate-300 text-slate-500 hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 cursor-pointer transition-all text-[10px] font-bold uppercase tracking-widest">
+                               <Upload size={14} />
+                               Upload Arquivo
+                               <input type="file" className="hidden" accept="image/*" onChange={handleProductImageUpload} />
+                           </label>
+                       </div>
+                   </div>
+
+                   {/* NOME + MARCA / CATEGORIA */}
+                   <div className="md:col-span-2 space-y-4">
+                       <PremiumInput
+                           label="Nome do Produto"
+                           value={productForm.name}
+                           onChange={e => setProductForm({...productForm, name: e.target.value.toUpperCase()})}
+                           placeholder="EX: SABONETE DOVE 90G"
+                           required
+                       />
+                       <div className="grid grid-cols-2 gap-4">
+                           <PremiumInput
+                               label="Marca / Fabricante"
+                               value={productForm.brand}
+                               onChange={e => setProductForm({...productForm, brand: e.target.value.toUpperCase()})}
+                               placeholder="EX: NESTLÉ, COCA-COLA..."
+                           />
+                           <div className="bg-white p-4 rounded-xl border-2 border-slate-200 transition-all focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
+                               <label className="text-slate-600 font-black text-[10px] uppercase tracking-widest block mb-2">Categoria</label>
+                               <select
+                                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-900 outline-none appearance-none cursor-pointer"
+                                   value={productForm.category}
+                                   onChange={e => setProductForm({...productForm, category: e.target.value})}
+                               >
+                                   <option value="Geral">Geral</option>
+                                   <option value="Alimentos">Alimentos</option>
+                                   <option value="Bebidas">Bebidas</option>
+                                   <option value="Higiene">Higiene</option>
+                                   <option value="Limpeza">Limpeza</option>
+                                   <option value="Vestuário">Vestuário</option>
+                                   <option value="Eletrônicos">Eletrônicos</option>
+                                   <option value="Outros">Outros</option>
+                               </select>
+                           </div>
+                       </div>
+                   </div>
+               </div>
+
+               {/* MIDDLE ROW: Código EAN + Custo + Margem */}
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                   <PremiumInput
+                       label="Código EAN"
+                       value={productForm.barcode}
+                       onChange={e => setProductForm({...productForm, barcode: e.target.value})}
+                       placeholder="0000000000000"
+                   />
+                   <PremiumInput
+                       label="Custo (R$)"
+                       value={productForm.cost}
+                       onChange={e => setProductForm({...productForm, cost: e.target.value})}
+                       type="number"
+                   />
+                   <PremiumInput
+                       label="Margem (%)"
+                       value={productForm.margin}
+                       onChange={e => setProductForm({...productForm, margin: e.target.value})}
+                       type="number"
+                   />
+               </div>
+
+               {/* BOTTOM ROW: Estoque + Estoque Mínimo + Preço */}
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                   <PremiumInput
+                       label={editingProduct ? 'Estoque Atual' : 'Estoque Inicial'}
+                       value={productForm.stock}
+                       onChange={e => setProductForm({...productForm, stock: e.target.value})}
+                       type="number"
+                   />
+                   <PremiumInput
+                       label="Estoque Mínimo"
+                       value={productForm.minStock}
+                       onChange={e => setProductForm({...productForm, minStock: e.target.value})}
+                       type="number"
+                   />
+                   <PremiumInput
+                       label="Preço de Venda (R$)"
+                       value={productForm.price}
+                       onChange={e => setProductForm({...productForm, price: e.target.value})}
+                       type="number"
+                       placeholder="Deixe 0 para calcular automático"
+                   />
+               </div>
+
+               {/* TOGGLES */}
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                   <ToggleSwitch
+                       label="Produto Ativo"
+                       sublabel="Visível para vendas"
+                       checked={productForm.available !== false}
+                       onChange={e => setProductForm({...productForm, available: e.target.checked})}
+                   />
+                   <ToggleSwitch
+                       label="Preço Dinâmico"
+                       sublabel="Definir valor na hora"
+                       checked={!!productForm.dynamicPrice}
+                       onChange={e => setProductForm({...productForm, dynamicPrice: e.target.checked})}
+                   />
+               </div>
+            </form>
+        </ModalShell>
+      )}
+
+      {/* MODAL: WALLET ADJUSTMENT PREMIUM */}
+      {showWithdrawalModal && (
+        <ModalShell
+          open
+          onClose={() => setShowWithdrawalModal(null)}
+          title={showWithdrawalModal.isDeposit ? 'Adicionar Crédito' : showWithdrawalModal.isRefund ? 'Estornar Valor' : 'Retirar Saldo'}
+          subtitle={showWithdrawalModal.userName || undefined}
+          icon={showWithdrawalModal.isDeposit ? <PlusCircle size={22}/> : showWithdrawalModal.isRefund ? <RefreshCw size={22}/> : <MinusCircle size={22}/>}
+          size="sm"
+        >
+                   <div className="p-8 space-y-6">
+                      <div className="bg-slate-100 p-5 rounded-2xl border border-slate-200">
+                          <p className="text-[9px] font-black text-slate-400 uppercase mb-1 opacity-60">Beneficiário</p>
+                          <p className="font-black text-slate-900 text-base uppercase tracking-tight truncate">{showWithdrawalModal.userName}</p>
+                      </div>
+
+<div className="space-y-5">
+                            <div>
+                                <label className="text-slate-600 font-black text-[10px] uppercase tracking-widest mb-3 block">Valor (R$)</label>
+                                <div className="relative group">
+                                    <span className="absolute left-5 top-1/2 -translate-y-1/2 font-black text-slate-400 text-2xl">R$</span>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      className="w-full pl-16 pr-5 py-5 bg-slate-100 border-2 border-slate-200 group-focus-within:border-emerald-500 group-focus-within:ring-4 group-focus-within:ring-emerald-500/20 rounded-2xl font-black text-3xl text-slate-900 outline-none transition-all placeholder:text-slate-400"
+                                      placeholder="0,00"
+                                      value={withdrawalAmount}
+                                      onChange={e => setWithdrawalAmount(e.target.value)}
+                                      autoFocus
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-slate-600 font-black text-[10px] uppercase tracking-widest mb-3 block">Motivo / Observação</label>
+                                <textarea
+                                  className="w-full p-5 bg-slate-100 border-2 border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 rounded-2xl font-black text-slate-900 text-sm outline-none h-28 resize-none placeholder:text-slate-400 uppercase"
+                                  placeholder="Descreva o motivo da operação..."
+                                  value={withdrawalReason}
+                                  onChange={e => setWithdrawalReason(e.target.value)}
+                                ></textarea>
+                            </div>
+                        </div>
+
+                      <div className="flex flex-col gap-3 pt-2">
+                          <button
+                            onClick={handleWithdrawal}
+                            disabled={!withdrawalAmount || Number(withdrawalAmount) <= 0}
+                            className={`w-full py-5 font-black rounded-2xl shadow-lg flex items-center justify-center gap-3 uppercase text-[11px] tracking-widest transition-all active:scale-[0.98] touch-target ${showWithdrawalModal.isDeposit ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:brightness-110' : showWithdrawalModal.isRefund ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:brightness-110' : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:brightness-110'} disabled:opacity-40 disabled:cursor-not-allowed`}
+                          >
+                            <Check size={20}/> Confirmar Operação
+                          </button>
+                          <button
+                            onClick={() => setShowWithdrawalModal(null)}
+                            className="w-full py-4 bg-slate-100 text-slate-600 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all touch-target active:scale-[0.98]"
+                          >
+                            Cancelar
+                          </button>
+                      </div>
+                  </div>
+        </ModalShell>
+      )}
+
+      {/* MODAL: REFUND PREMIUM */}
+      {showRefundModal && (
+        <ModalShell
+          open
+          onClose={() => setShowRefundModal(null)}
+          title="Estornar Pedido"
+          subtitle={showRefundModal?.userName || undefined}
+          icon={<RefreshCw size={22}/>}
+          size="sm"
+        >
+                   <div className="p-8 space-y-6">
+                       <div className="bg-gradient-to-r from-amber-900/30 to-amber-800/30 p-5 rounded-2xl border border-amber-700 text-center">
+                          <div className="w-12 h-12 bg-amber-800/50 rounded-2xl flex items-center justify-center mx-auto mb-3 text-amber-400">
+                              <RefreshCw size={24}/>
+                          </div>
+                          <p className="text-[11px] font-black text-amber-300 uppercase tracking-tighter leading-relaxed">
+                              O valor será devolvido ao saldo do familiar e os itens retornarão ao estoque automaticamente.
+                          </p>
+                      </div>
+<div>
+                            <label className="text-slate-600 font-black text-[10px] uppercase tracking-widest mb-3 block">Motivo do Estorno</label>
+                            <textarea
+                                className="w-full p-5 bg-slate-100 border-2 border-slate-200 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 rounded-2xl font-black text-slate-900 text-sm outline-none h-32 resize-none placeholder:text-slate-400 uppercase"
+                                placeholder="EX: DESISTÊNCIA DO CLIENTE, ERRO NO PEDIDO..."
+                                value={refundReason}
+                                onChange={e => setRefundReason(e.target.value.toUpperCase())}
+                                autoFocus
+                            ></textarea>
+                        </div>
+                      <div className="flex flex-col gap-3 pt-2">
+                          <button
+                            onClick={handleRefundOrder}
+                            disabled={isProcessingRefund || !refundReason.trim()}
+                            className={`w-full py-5 font-black rounded-2xl shadow-lg flex items-center justify-center gap-3 uppercase text-[11px] tracking-widest transition-all active:scale-[0.98] touch-target ${!refundReason.trim() ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:brightness-110'} disabled:opacity-40`}
+                          >
+                            {isProcessingRefund ? (
+                                <>
+                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                    PROCESSANDO...
+                                </>
+                            ) : (
+                                <>
+                                    <Check size={20}/> Confirmar Estorno
+                                </>
+                            )}
+                          </button>
+                          <button
+                            onClick={() => setShowRefundModal(null)}
+                            className="w-full py-4 bg-slate-100 text-slate-600 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all touch-target active:scale-[0.98]"
+                          >
+                            Cancelar
+                          </button>
+                      </div>
+                  </div>
+        </ModalShell>
+      )}
+
+      {/* MODAL: MASTER AUTH PREMIUM */}
+      {showAuthModal && (
+        <div className="modal-container">
+            <form onSubmit={async (e) => { e.preventDefault(); setIsAuthLoading(true); try { await handleAuthConfirm(); } finally { setIsAuthLoading(false); } }} className="glass-card w-full max-w-sm rounded-3xl overflow-hidden border border-slate-200 animate-slideUp relative" style={{ background: 'linear-gradient(135deg, #0f172a, #1e293b, #0f172a)' }}>
+                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-emerald-500 via-blue-500 to-purple-500"></div>
+
+                <div className="p-12 text-center">
+                    <div className="w-24 h-24 bg-white rounded-[2rem] flex items-center justify-center mx-auto mb-8 border border-slate-200 shadow-inner">
+                        <div className="bg-slate-100 p-5 rounded-2xl shadow-lg border border-slate-200">
+                            <Lock size={40} strokeWidth={2.5} className="text-slate-900"/>
+                        </div>
+                    </div>
+
+                    <h2 className="text-3xl font-black text-white mb-2 uppercase tracking-tighter">Autorização</h2>
+                    <p className="text-[10px] font-black text-slate-900 uppercase tracking-[0.4em] bg-white py-3 rounded-full border border-slate-200 mx-4">Operação Restrita</p>
+
+                    <div className="relative mb-10 mt-8 group/input">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 bg-white p-3 rounded-xl border border-slate-300 group-focus-within/input:bg-emerald-600 group-focus-within/input:border-emerald-500 transition-all z-20 shadow-md">
+                            <Key className="text-slate-600 group-focus-within/input:text-white transition-colors" size={20}/>
+                        </div>
+                        <input
+                            type="password"
+                            autoCapitalize="none" autoCorrect="off" autoComplete="off" spellCheck={false}
+                            className="w-full pl-16 px-4 py-6 bg-white border-2 border-slate-300 focus:border-emerald-500 rounded-xl font-bold text-2xl text-slate-900 outline-none transition-all placeholder:text-slate-700 placeholder:tracking-[0.6em] relative z-10"
+                            placeholder="••••"
+                            value={authPass}
+                            onChange={e => setAuthPass(e.target.value)}
+                            autoFocus
+                            required
+                            disabled={isAuthLoading}
+                        />
+                    </div>
+
+                    <div className="flex flex-col gap-4">
+                        <button type="submit" disabled={isAuthLoading || !authPass.trim()} className="w-full py-5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold rounded-2xl shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-3 uppercase text-[11px] tracking-[0.2em] active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed transition-all touch-target">
+                            {isAuthLoading ? <><Loader2 size={18} className="animate-spin" /> Validando...</> : 'Confirmar Acesso'} <Check size={20} />
+                        </button>
+                        <button type="button" disabled={isAuthLoading} onClick={() => setShowAuthModal(false)} className="w-full py-4 text-slate-400 font-bold hover:text-white uppercase text-[10px] tracking-wide transition-all touch-target">Cancelar</button>
+                    </div>
+                </div>
+
+                <div className="absolute -bottom-20 -right-20 w-48 h-48 bg-emerald-500 rounded-full blur-[100px] opacity-10"></div>
+                <div className="absolute -bottom-20 -left-20 w-48 h-48 bg-blue-500 rounded-full blur-[100px] opacity-10"></div>
+            </form>
+        </div>
+      )}
+      {/* MODAL: RECIBO A4 */}
+      {viewingReceipt && (
+        <ModalShell
+          open
+          onClose={() => setViewingReceipt(null)}
+          title="Visualização de Documento"
+          subtitle="Comprovante oficial A4 — autêntico e assinado digitalmente"
+          icon={<Printer size={22} className="text-emerald-300" />}
+          size="lg"
+          actions={
+            <>
+              {viewingReceipt?.data && (
+                <button
+                  onClick={() => {
+                    abrirJanelaImpressao({ type: 'RECIBO', subType: viewingReceipt.type === 'EXPENSE' ? 'EXPENSE' : 'ORDER', data: viewingReceipt.data }, viewingReceipt.config || settings);
+                  }}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95 shadow-sm"
+                >
+                  <Printer size={16}/> Bobina 48mm
+                </button>
+              )}
+              <button onClick={() => setTimeout(() => window.print(), 350)} className="bg-slate-700 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95 shadow-sm">
+                <Printer size={16}/> Imprimir
+              </button>
+            </>
+          }
+        >
+            <div className="p-0 lg:p-4 bg-slate-100/70">
+              <div id="print-root-a4">
+                <ReciboA4 data={viewingReceipt.data} type={viewingReceipt.type || 'ORDER'} config={viewingReceipt.config || {}} embedded />
+              </div>
+            </div>
+            <style>{`
+              @media print {
+                body * { visibility: hidden !important; }
+                #print-root-a4, #print-root-a4 * { visibility: visible !important; }
+                #print-root-a4 { position: absolute !important; left: 0 !important; top: 0 !important; width: 210mm !important; }
+                @page { size: A4; margin: 8mm; }
+              }
+            `}</style>
+        </ModalShell>
+      )}
+
+      {/* MODAL: CUPOM PDV */}
+      {printOrder && (
+        <div className="fixed inset-0 z-[5000] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}>
+          <div className="w-full max-w-md mx-auto bg-white rounded-2xl shadow-xl flex flex-col overflow-hidden max-h-[90vh]">
+            <div className="toolbar-recibo-superior flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-white">
+              <div className="flex items-center gap-3">
+                <Printer size={20} className="text-emerald-600"/>
+                <span className="font-black text-sm uppercase tracking-tight text-slate-900">Cupom PDV</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={handleRawPrint} className="px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-90 bg-emerald-600 text-white hover:bg-emerald-500 shadow-sm">
+                  <Printer size={14}/> Imprimir na Fiscal
+                </button>
+                <button onClick={handleBaixarTxt} className="px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-90 bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 shadow-sm" title="Baixar .txt para impressão externa">
+                  TXT
+                </button>
+                <button onClick={() => setTimeout(() => window.print(), 350)} className="px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-90 bg-slate-900 text-white hover:bg-slate-700 shadow-sm" title="Imprimir nesta janela">
+                  <Printer size={14}/> Imprimir
+                </button>
+                <button onClick={() => setPrintOrder(null)} className="p-2 rounded-lg transition-all active:scale-90 bg-slate-100 text-slate-700 hover:bg-red-50 hover:text-red-600 border border-slate-200 shadow-sm" title="Fechar">
+                  <X size={22}/>
+                </button>
+              </div>
+            </div>
+            <div className="w-full mx-auto bg-white flex-1 overflow-y-auto p-4 md:p-6 flex justify-center shadow-inner" style={{ minHeight: '200px' }}>
+              <div className="bg-white shadow-xl origin-top" style={{ width: '80mm' }}>
+                <CupomEntrega order={printOrder} remainingBalance={printOrder.walletBalanceAfter} config={(settings as any)} />
+              </div>
+              {printOrder && createPortal(
+                <div id="print-root-modal" style={{ position: 'fixed', left: '-9999px', top: 0 }}>
+                  <CupomEntrega order={printOrder} remainingBalance={printOrder.walletBalanceAfter} config={(settings as any)} />
+                </div>,
+                document.body
+              )}
+            </div>
+            <style>{`
+              @media screen {
+                .toolbar-recibo-superior { display: flex !important; }
+              }
+              @media print {
+                .toolbar-recibo-superior { display: none !important; }
+                body { background: white !important; }
+                body * { visibility: hidden !important; }
+                #print-root-modal, #print-root-modal * { visibility: visible !important; }
+                #print-root-modal { position: absolute !important; left: 0 !important; top: 0 !important; width: 80mm !important; max-width: 80mm !important; margin: 0 !important; padding: 0 !important; }
+                @page { size: 80mm auto; margin: 0 !important; }
+              }
+            `}</style>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+const PremiumInput = ({ label, value, onChange, placeholder, type = "text", error, required }: { label: string; value: string; onChange: (e: any) => void; placeholder?: string; type?: string; error?: string; required?: boolean }) => (
+    <div className={`bg-white p-4 rounded-xl border-2 transition-all ${error ? 'border-red-500 focus-within:border-red-500 focus-within:ring-4 focus-within:ring-red-500/20' : 'border-slate-200 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20'}`}>
+       <div className="flex justify-between items-center mb-2">
+         <label className="text-slate-700 font-black text-[10px] uppercase tracking-widest">{label}</label>
+         {required && <span className="text-red-400 text-[10px] font-bold">*OBRIGATÓRIO</span>}
+       </div>
+       <input
+          type={type}
+          className={`w-full bg-slate-50 border rounded-xl font-bold text-slate-900 text-sm outline-none px-4 py-2.5 placeholder:text-slate-400 transition-all ${error ? 'border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20' : 'border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20'}`}
+          placeholder={placeholder}
+          value={value}
+          onChange={onChange}
+       />
+       {error && <p className="text-red-400 text-[9px] font-bold mt-2 uppercase">{error}</p>}
+    </div>
+);
+
+const ToggleSwitch = ({ label, sublabel, checked, onChange }: any) => (
+    <div className="bg-white p-4 rounded-xl flex items-center justify-between border-2 border-slate-200">
+        <div>
+            <p className="text-[10px] font-bold text-slate-900 uppercase tracking-widest">{label}</p>
+            <p className="text-[9px] text-slate-400 font-bold uppercase mt-0.5">{sublabel}</p>
+        </div>
+        <label className="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" className="sr-only peer" checked={checked} onChange={onChange} />
+            <div className="w-12 h-7 bg-slate-600 rounded-full peer peer-checked:bg-emerald-500 transition-all after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all after:shadow-lg peer-checked:after:translate-x-5"></div>
+        </label>
+    </div>
+);

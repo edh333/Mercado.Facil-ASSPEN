@@ -1,0 +1,117 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Application user profile",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "password": { "type": "string" },
+        "role": { "type": "string", "enum": ["ADMIN", "FAMILY"] },
+        "cpf": { "type": "string" },
+        "inmateCpf": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "suspended", "pending"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "role"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Inventory product",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "price": { "type": "number" },
+        "cost": { "type": "number" },
+        "stock": { "type": "number" },
+        "minStock": { "type": "number" },
+        "unit": { "type": "string" },
+        "barcode": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "category", "price", "stock"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Sales order",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "items": { "type": "array" },
+        "total": { "type": "number" },
+        "status": { "type": "string", "enum": ["PENDING", "COMPLETED", "CANCELLED"] },
+        "paymentMethod": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "items", "total", "status", "createdAt"]
+    },
+    "Expense": {
+      "title": "Expense",
+      "description": "Business expense",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "description": { "type": "string" },
+        "amount": { "type": "number" },
+        "category": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string" }
+      },
+      "required": ["description", "amount", "date"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "System or user message",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "text": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["text", "userId", "createdAt"]
+    },
+    "Supplier": {
+      "title": "Supplier",
+      "description": "Product supplier",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "contact": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" }
+      },
+      "required": ["name"]
+    },
+    "Settings": {
+      "title": "Settings",
+      "description": "Application settings",
+      "type": "object",
+      "properties": {
+        "storeName": { "type": "string" },
+        "currency": { "type": "string" },
+        "taxRate": { "type": "number" }
+      }
+    }
+  },
+  "firestore": {
+    "users": { "schema": "User", "description": "User profiles" },
+    "products": { "schema": "Product", "description": "Product inventory" },
+    "orders": { "schema": "Order", "description": "Sales orders" },
+    "expenses": { "schema": "Expense", "description": "Business expenses" },
+    "messages": { "schema": "Message", "description": "Chat messages" },
+    "suppliers": { "schema": "Supplier", "description": "Product suppliers" },
+    "cashier": { "description": "Cashier transactions" },
+    "transactions": { "schema": "Transaction", "description": "User credit/debit transactions" },
+    "settings/general": { "schema": "Settings", "description": "Global settings" }
+  }
+}

@@ -1,0 +1,23 @@
+# INSTRUÇÕES PARA USO VIA PENDRIVE (MODO PORTÁTIL) 🚀
+
+Este sistema foi projetado para ser 100% portátil. Para usar em qualquer computador Windows sem instalação:
+
+1. **Estrutura da Pasta:**
+   - Mantenha a pasta `dist` (que contém o sistema compilado).
+   - O arquivo `start_sistema.bat` deve estar na mesma pasta raiz.
+
+2. **Como Iniciar:**
+   - Dê um clique duplo no arquivo `start_sistema.bat`.
+   - Ele abrirá o navegador automaticamente no sistema Mercado Fácil.
+
+3. **Uso Offline:**
+   - Você pode realizar vendas e cadastros mesmo sem internet.
+   - Os dados ficarão salvos no navegador do computador/pendrive.
+   - **IMPORTANTE:** Assim que conectar à internet, abra o sistema para que ele sincronize os dados com a nuvem automaticamente.
+
+4. **Backup:**
+   - Sempre que terminar o dia, vá em **Configurações > Manutenção** e clique em **Backup Completo**.
+   - Salve o arquivo gerado dentro desta pasta no pendrive como garantia extra.
+
+---
+*Associação dos Servidores do Sistema Penal de Peixoto de Azevedo / MT - ASSPEN*
