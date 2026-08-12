@@ -783,6 +783,7 @@ export function AdminDashboard() {
                   operatorId={currentUser?.id || ''}
                   operatorName={currentUser?.name || 'Administrador'}
                   primaryColor={settings?.primaryColor || '#10b981'}
+                  settings={settings}
                 />
               )}
 

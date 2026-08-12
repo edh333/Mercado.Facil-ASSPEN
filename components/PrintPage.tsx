@@ -63,7 +63,7 @@ export const PrintPage: React.FC = () => {
             const timer = setTimeout(async () => {
                 if (!mounted) return;
                 if (isCupom) {
-                    const ok = await imprimirBobinaFiscal(rawCupomRef.current);
+                    const ok = await imprimirBobinaFiscal(rawCupomRef.current, parsedSettings);
                     if (!mounted) return;
                     if (ok) {
                         setStatus('fiscal');
@@ -109,7 +109,7 @@ export const PrintPage: React.FC = () => {
         if (isFiscalPrinting) return;
         setIsFiscalPrinting(true);
         try {
-            const ok = await imprimirBobinaFiscal(rawCupomRef.current);
+            const ok = await imprimirBobinaFiscal(rawCupomRef.current, printData?.config);
             if (ok) {
                 setStatus('fiscal');
                 setCloseCountdown(4);

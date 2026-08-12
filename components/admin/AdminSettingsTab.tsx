@@ -639,6 +639,79 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                     <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
                   </label>
                 </div>
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <p className="text-xs font-black uppercase text-slate-900 mb-2">Cópias do Cupom</p>
+                  <input
+                    type="number"
+                    min={1}
+                    max={9}
+                    className="w-full p-3 bg-white border-2 border-slate-400 rounded-xl font-black text-sm text-slate-900"
+                    value={settings?.receiptCopies || 1}
+                    onChange={e => updateSettings({ ...settings, receiptCopies: Math.max(1, Math.min(9, parseInt(e.target.value) || 1)) })}
+                  />
+                  <p className="text-[10px] text-slate-500 mt-1">1 = normal · 2+ para via de conferência</p>
+                </div>
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <p className="text-xs font-black uppercase text-slate-900 mb-2">Tamanho da Fonte do Cupom</p>
+                  <input
+                    type="number"
+                    min={8}
+                    max={14}
+                    className="w-full p-3 bg-white border-2 border-slate-400 rounded-xl font-black text-sm text-slate-900"
+                    value={settings?.receiptFontSize || 10}
+                    onChange={e => updateSettings({ ...settings, receiptFontSize: Math.max(8, Math.min(14, parseInt(e.target.value) || 10)) })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-2xl">
+              <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2 mb-4">
+                <Printer size={20} className="text-emerald-500" /> Bobina Fiscal (QZ Tray / ESC/POS)
+              </h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <div>
+                    <p className="text-xs font-black uppercase text-slate-900">Comandos ESC/POS</p>
+                    <p className="text-[10px] text-slate-500">Envia binário padrão de impressora térmica</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" className="sr-only peer" checked={settings?.escposEnabled !== false} onChange={e => updateSettings({ ...settings, escposEnabled: e.target.checked })} />
+                    <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
+                  </label>
+                </div>
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <div>
+                    <p className="text-xs font-black uppercase text-slate-900">Corte automático de papel</p>
+                    <p className="text-[10px] text-slate-500">Corta a bobina ao final do cupom</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" className="sr-only peer" checked={settings?.autoCutPaper !== false} onChange={e => updateSettings({ ...settings, autoCutPaper: e.target.checked })} />
+                    <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
+                  </label>
+                </div>
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <div>
+                    <p className="text-xs font-black uppercase text-slate-900">Abrir gaveta de dinheiro</p>
+                    <p className="text-[10px] text-slate-500">Impulso na gaveta ao imprimir (se houver)</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" className="sr-only peer" checked={!!settings?.drawerKick} onChange={e => updateSettings({ ...settings, drawerKick: e.target.checked })} />
+                    <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
+                  </label>
+                </div>
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <p className="text-xs font-black uppercase text-slate-900 mb-2">Densidade de Impressão (QZ)</p>
+                  <select
+                    className="w-full p-3 bg-white border-2 border-slate-400 rounded-xl font-black text-sm text-slate-900"
+                    value={settings?.qzDotDensity || 6}
+                    onChange={e => updateSettings({ ...settings, qzDotDensity: parseInt(e.target.value) })}
+                  >
+                    <option value={4}>4 — Leve</option>
+                    <option value={6}>6 — Normal</option>
+                    <option value={8}>8 — Escura</option>
+                  </select>
+                </div>
               </div>
             </div>
             <div className="bg-slate-900 p-10 rounded-3xl text-white flex flex-col items-center justify-center gap-4">

@@ -74,6 +74,7 @@ interface AdminCashTabProps {
   operatorId: string;
   operatorName: string;
   primaryColor?: string;
+  settings?: any;
 }
 
 type Modal = 'open' | 'supplement' | 'withdrawal' | 'close' | null;
@@ -82,6 +83,7 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
   operatorId,
   operatorName,
   primaryColor = '#10b981',
+  settings,
 }) => {
   const [session, setSession] = useState<CashSession | null>(null);
   const [history, setHistory] = useState<CashSession[]>([]);
@@ -200,7 +202,7 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
   const handlePrint = (dados?: any) => {
     const data = dados || session || closeSessionSnapshot;
     if (!data) return;
-    const content = gerarCupomFechamento(data);
+    const content = gerarCupomFechamento(data, settings);
     imprimirCupom(content);
   };
 

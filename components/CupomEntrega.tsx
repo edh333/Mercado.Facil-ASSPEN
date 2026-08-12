@@ -25,7 +25,16 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
   const itens = data.items || data.itens || [];
   const total = Math.abs(data.total || 0);
   const dataCriacao = data.createdAt || data.date || data.data;
-  const creditoRestante = data.walletBalanceAfter !== undefined ? data.walletBalanceAfter : (data.userName ? (data.userBalance || remainingBalance) : undefined);
+  const saldoExplicito = data.walletBalanceAfter !== undefined && data.walletBalanceAfter !== null;
+  const creditoRestante = saldoExplicito ? data.walletBalanceAfter : (data.userName ? (data.userBalance || remainingBalance) : undefined);
+
+  const status = String(data.status || '').toLowerCase();
+  const cancelado = ['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'rejected', 'rejeitado'].includes(status);
+  const payments = Array.isArray(data.payments) ? data.payments : [];
+  const temPagamentosMistos = payments.length > 0;
+  const nomesMetodo: any = { PIX: 'PIX', WALLET: 'CARTEIRA', CASH: 'DINHEIRO', CARD: 'CARTÃO', FIADO: 'FIADO' };
+  const pixKey = Array.isArray(config?.pixKeys) && config.pixKeys[0] ? String(config.pixKeys[0]) : '';
+  const ehPix = String(data.paymentMethod || '').toUpperCase() === 'PIX';
 
   const formatDate = (date: string | Date) => {
     if (!date) return new Date().toLocaleString('pt-BR');
@@ -60,7 +69,21 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
         </h1>
         <p className="font-black uppercase tracking-widest">{config?.appName || 'Mercado Fácil'}</p>
         <p className="font-bold uppercase mt-1 opacity-70">{subtitle || 'Cupom de Entrega - Não Fiscal'}</p>
+        {(config?.cnpj || config?.contactPhone) && (
+          <p className="font-bold mt-1 opacity-60 text-[9px]">
+            {config?.cnpj ? `CNPJ: ${config.cnpj}` : ''}
+            {config?.cnpj && config?.contactPhone ? ' · ' : ''}
+            {config?.contactPhone ? `TEL: ${config.contactPhone}` : ''}
+          </p>
+        )}
       </div>
+
+      {/* CANCELADO */}
+      {cancelado && (
+        <div className="border-2 border-black bg-black text-white p-1 mb-2 text-center">
+          <span className="font-black uppercase tracking-widest">Cupom Cancelado / Devolvido</span>
+        </div>
+      )}
 
       {/* DOCUMENT TYPE */}
       <div className="border border-black p-1 mb-3 text-center bg-black text-white">
@@ -70,16 +93,17 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
       {/* METADATA */}
       <div className="border-b border-dashed border-black pb-2 mb-2 space-y-0.5">
         <div className="flex justify-between"><span>DATA:</span> <span className="font-black">{formatDate(dataCriacao)}</span></div>
-        <div className="flex justify-between"><span>ID:</span> <span className="font-black">#{data.id?.slice(0, 10).toUpperCase() || '---'}</span></div>
+        <div className="flex justify-between"><span>ID:</span> <span className="font-black">#{data.id?.slice(0, 12).toUpperCase() || '---'}</span></div>
         <div className="flex justify-between"><span>OPER:</span> <span className="font-black uppercase">{(data.operatorName || printerName || 'ADMIN').slice(0,15)}</span></div>
+        {data.unitName && <div className="flex justify-between"><span>UNIDADE:</span> <span className="font-black uppercase">{data.unitName}</span></div>}
       </div>
 
       {/* RECEPTOR */}
-      {(data.inmateName || data.userName) && (
+      {(data.inmateName || data.userName || data.prisonerName) && (
           <div className="mb-2 border border-black p-2 rounded bg-gray-50">
               <p className="font-black uppercase opacity-60 mb-0.5">Destinatário / Interno</p>
-              <p className="font-black uppercase leading-tight">{data.inmateName || 'Não identificado'}</p>
-              {data.userName && (
+              <p className="font-black uppercase leading-tight">{data.inmateName || data.prisonerName || 'Não identificado'}</p>
+              {data.userName && (data.userName !== data.inmateName) && (
                 <p className="font-bold mt-0.5">Familiar: {data.userName}</p>
               )}
           </div>
@@ -103,8 +127,8 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
             <thead className="border-b border-black">
                 <tr>
                     <th className="text-left pb-0.5">ITEM</th>
-                    <th className="text-center pb-0.5">QTD</th>
-                    <th className="text-right pb-0.5">VALOR</th>
+                    <th className="text-center pb-0.5">QTD X UN</th>
+                    <th className="text-right pb-0.5">TOTAL</th>
                 </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -114,7 +138,7 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
                             <p className="font-black uppercase leading-tight">{item?.name || item?.nome || 'Item'}</p>
                             {item.brand && <p className="font-bold opacity-60">{item.brand}</p>}
                         </td>
-                        <td className="text-center font-black">{item.quantity || 1}</td>
+                        <td className="text-center font-black whitespace-nowrap">{item.quantity || 1} X {formatarMoeda(item.priceAtPurchase || item.price || 0)}</td>
                         <td className="text-right font-black">R$ {formatarMoeda((item.priceAtPurchase || item.price || 0) * (item.quantity || 1))}</td>
                     </tr>
                 ))}
@@ -130,14 +154,38 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
         </div>
 
         <div className="border-t border-dashed border-black pt-1 space-y-0.5 font-bold">
-            <div className="flex justify-between">
-                <span>PAGAMENTO:</span>
-                <span className="uppercase">{data.paymentMethod === 'WALLET' ? 'CARTEIRA' : data.paymentMethod === 'PIX' ? 'PIX' : 'DINHEIRO'}</span>
-            </div>
-            {creditoRestante !== undefined && (creditoRestante !== total) && (
+            {temPagamentosMistos ? (
+                <>
+                    <p className="font-black uppercase opacity-60">Formas de Pagamento</p>
+                    {payments.map((p: any, i: number) => (
+                        <div key={i} className="flex justify-between">
+                            <span className="uppercase">{nomesMetodo[p.method] || String(p.method || '?').toUpperCase()}</span>
+                            <span>R$ {formatarMoeda(Number(p.amount || 0))}</span>
+                        </div>
+                    ))}
+                    {Number(data.change || 0) > 0 && (
+                        <div className="flex justify-between">
+                            <span>TROCO</span>
+                            <span>R$ {formatarMoeda(Number(data.change))}</span>
+                        </div>
+                    )}
+                </>
+            ) : (
+                <div className="flex justify-between">
+                    <span>PAGAMENTO:</span>
+                    <span className="uppercase">{data.paymentMethod === 'WALLET' ? 'CARTEIRA' : data.paymentMethod === 'PIX' ? 'PIX' : data.paymentMethod === 'FIADO' ? 'FIADO' : 'DINHEIRO'}</span>
+                </div>
+            )}
+            {creditoRestante !== undefined && (
                 <div className="flex justify-between italic">
                     <span>SALDO ATUAL:</span>
                     <span>R$ {formatarMoeda(creditoRestante)}</span>
+                </div>
+            )}
+            {ehPix && pixKey && (
+                <div className="flex justify-between">
+                    <span>CHAVE PIX:</span>
+                    <span className="uppercase">{pixKey}</span>
                 </div>
             )}
         </div>

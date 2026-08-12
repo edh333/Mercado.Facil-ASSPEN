@@ -4,34 +4,71 @@ export function formatarLinhaDupla(esquerda: string, direita: string, larguraTot
   return esquerda + " ".repeat(espacosNecessarios) + direita;
 }
 
-const CORTE = `
-\x1B\x6D
-\x1B\x64\x34
-\x1B\x6D\x32
-\x1B\x64\x32
+/** Linha com pontilhado entre rótulo e valor (padrão de cupom fiscal). */
+export function formatarLinhaPontilhada(esquerda: string, direita: string, larguraTotal = 40): string {
+  const base = `${esquerda} ${direita}`;
+  if (base.length >= larguraTotal) return base;
+  return esquerda + " " + ".".repeat(larguraTotal - esquerda.length - direita.length - 1) + " " + direita;
+}
 
-========================================
-       CORTE AUTOMATICO DE PAPEL
-========================================
-`;
+const ESC = "\x1B";
+const GS = "\x1D";
+
+/**
+ * Gera a sequência binária ESC/POS do cupom:
+ * INIT + texto + avanço de papel + corte automático + abertura de gaveta (opcional).
+ * Retorna a string em base64 pronta para o QZ Tray (formato 'raw'/'base64').
+ */
+export function montarEscPos(texto: string, config?: any): string {
+  const cortar = config?.autoCutPaper !== false;
+  const gaveta = config?.drawerKick === true;
+  const feeds = Math.max(2, Math.min(10, Number(config?.endFeedLines || 4)));
+
+  const encoder = new TextEncoder();
+  const bytes: number[] = [];
+  const push = (s: string) => bytes.push(...Array.from(encoder.encode(s)));
+  push(ESC + "@");                                          // INIT (reset da impressora)
+  push(texto);                                              // conteúdo do cupom
+  push(ESC + "d" + String.fromCharCode(feeds));             // avança papel N linhas
+  if (cortar) push(GS + "V" + "A" + "\x00");                // corte total (GS V 65 0)
+  if (gaveta) push(ESC + "p" + "\x00" + "\x19" + "\x32");   // abre gaveta (pin 2, 25ms/50ms)
+  return btoa(String.fromCharCode(...bytes));
+}
+
 function adicionarFeed(): string {
   return "\n".repeat(8);
 }
 
-export function gerarCupomFechamento(dadosCaixa: any): string {
+export function gerarCupomFechamento(dadosCaixa: any, config?: any): string {
   const divisor = "-".repeat(40);
   const divisorDuplo = "=".repeat(40);
 
+  const inst = String(config?.institutionName || 'MERCADO FACIL PDV').slice(0, 40).toUpperCase();
+  const appName = String(config?.appName || '').slice(0, 40).toUpperCase();
+  const cnpj = String(config?.cnpj || '').trim().toUpperCase().slice(0, 18);
+
   let cupom = "";
   cupom += `========================================\n`;
-  cupom += `           MERCADO FACIL PDV            \n`;
-  cupom += `      RELATORIO GERENCIAL DE CAIXA      \n`;
+  cupom += `${inst}\n`;
+  if (appName) cupom += `${appName}\n`;
+  if (cnpj) cupom += `CNPJ: ${cnpj}\n`;
   cupom += `========================================\n\n`;
 
+  function dataCx(valor?: any): string {
+    if (!valor) return '—';
+    try {
+      const d = typeof (valor as any)?.toDate === 'function' ? (valor as any).toDate() : new Date(valor);
+      return d.toLocaleString('pt-BR');
+    } catch {
+      return '—';
+    }
+  }
+
+  cupom += `      RELATORIO GERENCIAL DE CAIXA      \n\n`;
   cupom += `Operador: ${dadosCaixa.operadorNome || dadosCaixa.operatorId}\n`;
-  cupom += `Abertura: ${dadosCaixa.openedAt?.toDate().toLocaleString("pt-BR")}\n`;
+  cupom += `Abertura: ${dataCx(dadosCaixa.openedAt)}\n`;
   if (dadosCaixa.closedAt) {
-    cupom += `Fechamento: ${dadosCaixa.closedAt.toDate().toLocaleString("pt-BR")}\n`;
+    cupom += `Fechamento: ${dataCx(dadosCaixa.closedAt)}\n`;
   }
   cupom += `${divisor}\n`;
 
@@ -49,6 +86,10 @@ export function gerarCupomFechamento(dadosCaixa: any): string {
     cupom += formatarLinhaDupla("SOBRA DE CAIXA:", `R$ ${Math.abs(diferenca).toFixed(2)}`) + "\n";
   }
 
+  const hora = new Date().toLocaleString("pt-BR");
+  cupom += `${divisor}\n`;
+  cupom += `Emissao: ${hora}\n`;
+  if (cnpj) cupom += `CNPJ: ${cnpj}\n`;
   cupom += `${divisorDuplo}\n`;
   cupom += `${adicionarFeed()}`;
   return cupom;
@@ -300,7 +341,9 @@ export function gerarRelatorioInadimplentes(contas: any[]): string {
 /**
  * Gera o texto cru (raw) do cupom de entrega em 48 colunas,
  * pronto para impressora térmica bobina (Tectoy/ESC/POS ou QZ Tray).
- * Espelha o CupomEntrega visual em formato texto para impressão direta.
+ * Layout profissional: cabeçalho institucional (CNPJ/telefone), localização,
+ * itens com preço unitário, formas de pagamento (inclusive mistas), troco,
+ * saldo atual, chave PIX e selo de cancelamento para cupons estornados.
  */
 export function gerarCupomEntregaRaw(venda: any, config?: any): string {
   const data = venda || {};
@@ -308,60 +351,112 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
   const divisor = "-".repeat(48);
   const divisorDuplo = "=".repeat(48);
 
-  const limparLinha = (v: string, max = 48) => String(v).replace(/[\r\n]+/g, ' ').trim().toUpperCase().slice(0, max);
+  const limparLinha = (v: any, max = 48) => String(v ?? '').replace(/[\r\n]+/g, ' ').trim().toUpperCase().slice(0, max);
 
   const inst = limparLinha(config?.institutionName || config?.appName || 'MERCADO FACIL');
   const app = limparLinha(config?.appName || 'MERCADO FACIL');
   const docName = limparLinha(config?.customReceiptDocName || 'CUPOM DE ENTREGA - NAO FISCAL');
+  const cnpj = limparLinha(config?.cnpj || '', 18);
+  const telefone = limparLinha(config?.contactPhone || '', 18);
+
+  const status = String(data.status || '').toLowerCase();
+  const cancelado = ['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'rejected', 'rejeitado'].includes(status);
 
   let cupom = "";
   cupom += `${divisorDuplo}\n`;
   cupom += `${inst}\n`;
   cupom += `${app}\n`;
+  if (cnpj) cupom += `CNPJ: ${cnpj}\n`;
+  if (telefone) cupom += `TEL: ${telefone}\n`;
   cupom += `${docName}\n`;
   cupom += `${divisorDuplo}\n`;
+
+  if (cancelado) {
+    cupom += `*** CUPOM CANCELADO / DEVOLVIDO ***\n`;
+    cupom += `${divisor}\n`;
+  }
 
   const dataCriacao = data.createdAt || data.date || data.data;
   const dt = dataCriacao ? new Date(dataCriacao).toLocaleString("pt-BR") : new Date().toLocaleString("pt-BR");
   cupom += formatarLinhaDupla("DATA:", dt, 48) + "\n";
-  cupom += formatarLinhaDupla("ID:", `#${String(data.id || '---').slice(0, 10).toUpperCase()}`, 48) + "\n";
+  cupom += formatarLinhaDupla("ID:", `#${String(data.id || '---').slice(0, 12).toUpperCase()}`, 48) + "\n";
   cupom += formatarLinhaDupla("OPER:", String(data.operatorName || 'ADMIN').toUpperCase().slice(0, 15), 48) + "\n";
+  if (data.unitName) {
+    cupom += formatarLinhaDupla("UNIDADE:", limparLinha(data.unitName, 22), 48) + "\n";
+  }
   cupom += `${divisor}\n`;
 
-  const destinatario = data.inmateName || data.userName;
-  if (destinatario) {
-    cupom += `DESTINATARIO\n`;
-    cupom += `${String(destinatario).toUpperCase().slice(0, 48)}\n`;
+  const interno = data.inmateName || data.prisonerName;
+  const familiar = data.userName;
+  if (interno || familiar) {
+    cupom += `DESTINATARIO: ${limparLinha(interno || familiar, 40)}\n`;
+    if (familiar && familiar !== interno) {
+      cupom += `FAMILIAR: ${limparLinha(familiar, 40)}\n`;
+    }
     cupom += `${divisor}\n`;
   }
 
-  cupom += `${"ITEM".padEnd(26)}${"QTD".padStart(6)}  ${"VALOR".padStart(14)}\n`;
+  const loc = data.inmateLocation || data.deliveryLocation;
+  if (loc) {
+    const parts = [loc.raio ? `R:${loc.raio}` : null, loc.ala ? `A:${loc.ala}` : null, loc.cela ? `C:${loc.cela}` : null].filter(Boolean);
+    if (parts.length) {
+      cupom += `LOCALIZACAO: ${parts.join(' | ')}\n`;
+      cupom += `${divisor}\n`;
+    }
+  }
+
+  cupom += `${"ITEM".padEnd(26)}${"QTD X UN".padStart(9)}${"TOTAL".padStart(13)}\n`;
   cupom += `${divisor}\n`;
   for (const item of itens) {
     const nome = String(item?.name || item?.nome || 'ITEM').toUpperCase();
-    const nomeCurto = nome.length > 26 ? nome.substring(0, 23) + '...' : nome;
-    const qtd = item.quantity || 1;
-    const precoUnit = item.priceAtPurchase || item.price || 0;
+    const qtd = Number(item.quantity) || 1;
+    const precoUnit = Number(item.priceAtPurchase || item.price || 0);
     const valor = (precoUnit * qtd).toFixed(2).replace('.', ',');
-    cupom += `${nomeCurto.padEnd(26)}${String(qtd).padStart(6)}  ${String("R$ " + valor).padStart(14)}\n`;
+    const nomeLinha = nome.length > 26 ? nome.substring(0, 23) + '...' : nome;
+    cupom += `${nomeLinha.padEnd(26)}${String(`${qtd} X ${precoUnit.toFixed(2).replace('.', ',')}`).padStart(9)}${String("R$ " + valor).padStart(13)}\n`;
   }
   cupom += `${divisor}\n`;
 
   const total = Math.abs(data.total || 0);
   cupom += formatarLinhaDupla("TOTAL PEDIDO:", `R$ ${total.toFixed(2).replace('.', ',')}`, 48) + "\n";
 
-  const pagamento = data.paymentMethod === 'WALLET' ? 'CARTEIRA' : data.paymentMethod === 'PIX' ? 'PIX' : data.paymentMethod === 'FIADO' ? 'FIADO' : 'DINHEIRO';
-  cupom += formatarLinhaDupla("PAGAMENTO:", pagamento, 48) + "\n";
+  const payments = Array.isArray(data.payments) ? data.payments : [];
+  if (payments.length > 0) {
+    cupom += `${divisor}\n`;
+    cupom += `FORMAS DE PAGAMENTO\n`;
+    const nomesMetodo: any = { PIX: 'PIX', WALLET: 'CARTEIRA', CASH: 'DINHEIRO', CARD: 'CARTAO', FIADO: 'FIADO' };
+    for (const p of payments) {
+      const metodo = nomesMetodo[p.method] || String(p.method || '?').toUpperCase();
+      cupom += formatarLinhaPontilhada(metodo, `R$ ${Number(p.amount || 0).toFixed(2).replace('.', ',')}`, 48) + "\n";
+    }
+    if (data.change !== undefined && data.change !== null && Number(data.change) > 0) {
+      cupom += formatarLinhaPontilhada("TROCO", `R$ ${Number(data.change).toFixed(2).replace('.', ',')}`, 48) + "\n";
+    }
+  } else {
+    const pagamento = data.paymentMethod === 'WALLET' ? 'CARTEIRA' : data.paymentMethod === 'PIX' ? 'PIX' : data.paymentMethod === 'FIADO' ? 'FIADO' : 'DINHEIRO';
+    cupom += formatarLinhaDupla("PAGAMENTO:", pagamento, 48) + "\n";
+  }
 
   const saldo = data.walletBalanceAfter;
   if (saldo !== undefined && saldo !== null) {
     cupom += formatarLinhaDupla("SALDO ATUAL:", `R$ ${Math.abs(saldo).toFixed(2).replace('.', ',')}`, 48) + "\n";
   }
 
+  const pixKey = Array.isArray(config?.pixKeys) && config.pixKeys[0] ? String(config.pixKeys[0]) : '';
+  const temPix =
+    String(data.paymentMethod || '').toUpperCase() === 'PIX' ||
+    (Array.isArray(data.payments) && data.payments.some((p: any) => String(p.method || '').toUpperCase() === 'PIX'));
+  if (pixKey && temPix) {
+    cupom += `${divisor}\n`;
+    cupom += `CHAVE PIX (CONFERENCIA)\n`;
+    cupom += `${pixKey.slice(0, 48)}\n`;
+  }
+
   cupom += `${divisorDuplo}\n`;
   cupom += `${String(config?.receiptFooter || 'AUTENTICO PARA CONFERENCIA').toUpperCase().slice(0, 48)}\n`;
   const authHash = `SEC-${String(data.id || 'XXXX').slice(0, 8).toUpperCase()}-${Math.floor(Date.now() / 1000).toString(36).toUpperCase()}`;
   cupom += `AUTH: ${authHash}\n`;
+  if (cnpj) cupom += `CNPJ: ${cnpj}\n`;
   cupom += `${divisorDuplo}\n`;
   cupom += `       FIM DO CUPOM - BOBINA 48mm\n`;
   cupom += `\n`.repeat(6);
@@ -369,27 +464,14 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
 }
 
 /**
- * Envia texto cru para a bobina térmica.
- * 1) Tenta impressão direta via QZ Tray (driver Tectoy/ESC/POS instalado).
+ * Envia texto cru para a bobina térmica (compatibilidade Tectoy).
+ * 1) Tenta impressão direta via QZ Tray (driver ESC/POS instalado).
  * 2) Sem QZ Tray, cai no window.print() (browser → driver térmico configurado).
  * Retorna true se usou QZ Tray, false se usou o fallback do navegador.
  */
-export async function imprimirCupomTectoy(conteudo: string): Promise<boolean> {
-  const qz = (window as any).qz;
-  if (qz && qz.websocket) {
-    try {
-      await qz.websocket.connect().catch(() => undefined);
-      if (qz.websocket.isActive && qz.websocket.isActive()) {
-        const config = { copies: 1, dotDensity: 6 } as any;
-        const data = [{ type: 'raw', format: 'plain', data: conteudo }];
-        await qz.print(config, data);
-        await qz.websocket.disconnect().catch(() => undefined);
-        return true;
-      }
-    } catch (e) {
-      try { await qz.websocket.disconnect().catch(() => undefined); } catch (_) { /* noop */ }
-    }
-  }
+export async function imprimirCupomTectoy(conteudo: string, config?: any): Promise<boolean> {
+  const ok = await imprimirBobinaFiscal(conteudo, config);
+  if (ok) return true;
   imprimirCupom(conteudo);
   return false;
 }
@@ -410,10 +492,12 @@ async function waitForQz(timeout = 4000): Promise<boolean> {
 
 /**
  * Envia texto cru apenas para a impressora fiscal via QZ Tray (sem fallback do navegador).
+ * Envia a sequência ESC/POS binária (INIT + texto + corte automático + gaveta opcional)
+ * quando habilitado (config.escposEnabled !== false).
  * Retorna true se imprimiu pela bobina, false se o QZ não estava disponível.
  * Usado pela janela /print: quando retorna false, o chamador usa o fallback visual.
  */
-export async function imprimirBobinaFiscal(conteudo: string): Promise<boolean> {
+export async function imprimirBobinaFiscal(conteudo: string, config?: any): Promise<boolean> {
   const disponivel = await waitForQz();
   const w = window as any;
   const qz = w.qz;
@@ -424,9 +508,15 @@ export async function imprimirBobinaFiscal(conteudo: string): Promise<boolean> {
       new Promise((r) => setTimeout(() => r(undefined), 5000)),
     ]);
     if (!(qz.websocket.isActive && qz.websocket.isActive())) return false;
-    const config = { copies: 1, dotDensity: 6 } as any;
-    const data = [{ type: 'raw', format: 'plain', data: conteudo }];
-    await qz.print(config, data);
+    const configImp = {
+      copies: Math.max(1, Number(config?.receiptCopies || 1)),
+      dotDensity: Number(config?.qzDotDensity || 6),
+    } as any;
+    const usaEscPos = config?.escposEnabled !== false;
+    const data = usaEscPos
+      ? [{ type: 'raw', format: 'base64', data: montarEscPos(conteudo, config) }]
+      : [{ type: 'raw', format: 'plain', data: conteudo }];
+    await qz.print(configImp, data);
     await qz.websocket.disconnect().catch(() => undefined);
     return true;
   } catch (e) {
