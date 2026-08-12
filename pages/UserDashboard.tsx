@@ -352,7 +352,7 @@ export const UserDashboard: React.FC = () => {
     const cartTotal = (() => {
         const cents = cart.reduce((acc, item) => {
             const prod = safeProducts.find(p => String(p.id) === String(item.productId));
-            const price = prod ? prod.price : (item.price || 0);
+            const price = item.priceAtPurchase ?? (prod ? prod.price : (item.price || 0));
             return acc + Math.round(price * 100) * (item.quantity || 0);
         }, 0);
         return cents / 100;
@@ -423,20 +423,25 @@ export const UserDashboard: React.FC = () => {
                     paymentMethod: 'WALLET'
                 });
             } else {
-                try {
-                    const original = proofFile!;
-                    const arquivo = original.type === 'application/pdf'
-                        ? original
-                        : new File(
+                // Prepara o arquivo ANTES de enviar o pedido — createOrder é chamado
+                // UMA única vez (reenvio automático aqui gerava pedido duplicado).
+                let arquivo: File;
+                const original = proofFile!;
+                if (original.type === 'application/pdf') {
+                    arquivo = original;
+                } else {
+                    try {
+                        arquivo = new File(
                             [await compressImageFile(original, 0.3, 600)],
                             original.name.replace(/\.[^/.]+$/, '') + '.jpg',
                             { type: 'image/jpeg' }
                         );
-                    await createOrder(arquivo, formattedLocation);
-                } catch (err: any) {
-                    console.warn("Compressão do comprovante falhou, enviando original. Motivo:", err?.message || err);
-                    await createOrder(proofFile!, formattedLocation);
+                    } catch (err: any) {
+                        console.warn("Compressão do comprovante falhou, enviando original. Motivo:", err?.message || err);
+                        arquivo = original;
+                    }
                 }
+                await createOrder(arquivo, formattedLocation);
             }
 
             setCart([]);
@@ -540,7 +545,7 @@ export const UserDashboard: React.FC = () => {
                     {(cart || []).map((item: any, idx: number) => {
                         const prod = safeProducts.find(p => String(p.id) === String(item.productId));
                         const displayName = prod ? prod.name : (item.name || 'Item');
-                        const displayPrice = prod ? prod.price : (item.price || 0);
+                        const displayPrice = item.priceAtPurchase ?? (prod ? prod.price : (item.price || 0));
                         return (
                             <tr key={item.productId} className={`${idx % 2 === 0 ? 'bg-slate-50' : 'bg-white'} border-b border-slate-100`}>
                                 <td className="text-slate-800 font-bold text-xs uppercase text-left pl-3 py-2">{displayName}</td>
@@ -573,7 +578,7 @@ export const UserDashboard: React.FC = () => {
         const lastItem = cart.length > 0 ? cart[cart.length - 1] : null;
         const lastProd = lastItem ? safeProducts.find(p => String(p.id) === String(lastItem.productId)) : null;
         const lastQty = lastItem?.quantity || 0;
-        const lastSubtotal = lastProd ? (lastProd.price || 0) * lastQty : (lastItem?.price || 0) * lastQty;
+        const lastSubtotal = (lastItem?.priceAtPurchase ?? (lastProd ? (lastProd.price || 0) : (lastItem?.price || 0))) * lastQty;
         return (
         <div style={{ display: 'flex', flexDirection: 'row', gap: '16px', width: '100%', height: 'calc(100vh - 140px)' }}>
 
@@ -653,7 +658,7 @@ export const UserDashboard: React.FC = () => {
                                 {(cart || []).map((item: any, idx: number) => {
                                     const prod = safeProducts.find(p => String(p.id) === String(item.productId));
                                     const displayName = prod ? prod.name : (item.name || 'Item');
-                                    const displayPrice = prod ? prod.price : (item.price || 0);
+                                    const displayPrice = item.priceAtPurchase ?? (prod ? prod.price : (item.price || 0));
                                     return (
                                         <tr key={item.productId} className={`${idx % 2 === 0 ? 'bg-slate-50' : 'bg-white'} border-b border-slate-100 hover:bg-emerald-50/50 transition-colors`}>
                                             <td className="text-slate-800 font-bold text-xs uppercase text-left pl-4 py-3">{displayName}</td>
@@ -1171,7 +1176,7 @@ export const UserDashboard: React.FC = () => {
                                         <div className="flex justify-between items-center mb-4 pb-4 border-b border-slate-100">
                                             <div>
                                                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Pedido #{order.id.slice(0, 8)}</span>
-                                                <p className="font-black text-xs uppercase mt-0.5">{new Date(order.createdAt || order.date).toLocaleString()}</p>
+                                                <p className="font-black text-xs uppercase mt-0.5">{(() => { const d = new Date(order.createdAt || order.date); return isNaN(d.getTime()) ? '' : d.toLocaleString(); })()}</p>
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 {order.paymentMethod === 'WALLET' ? (
@@ -1370,7 +1375,7 @@ export const UserDashboard: React.FC = () => {
                                 {(cart || []).map(item => {
                                     const prod = safeProducts.find(p => String(p.id) === String(item.productId));
                                     const displayName = prod ? prod.name : (item.name || 'Item');
-                                    const displayPrice = prod ? prod.price : (item.price || 0);
+                                    const displayPrice = item.priceAtPurchase ?? (prod ? prod.price : (item.price || 0));
                                     if (!prod && !item.name) return null;
                                     const subtotal = displayPrice * item.quantity;
                                     return (

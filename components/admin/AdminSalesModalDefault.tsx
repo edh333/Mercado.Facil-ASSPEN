@@ -724,7 +724,11 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
            changeValue = totalRecebido - totalCarrinho;
            const cashIndex = paymentsArray.findIndex(p => p.method === 'CASH');
            if (cashIndex >= 0) {
-               paymentsArray[cashIndex].amount -= changeValue;
+               if (changeValue > pCash + 0.009) {
+                   alert(`O troco (R$ ${changeValue.toFixed(2).replace('.', ',')}) é maior que o valor recebido em dinheiro (R$ ${pCash.toFixed(2).replace('.', ',')}). Aumente o valor em dinheiro ou reduza o excedente.`);
+                   return;
+               }
+               paymentsArray[cashIndex].amount = Math.max(0, paymentsArray[cashIndex].amount - changeValue);
            }
         }
       } else if (formaPagamento === 'CASH') {

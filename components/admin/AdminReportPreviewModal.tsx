@@ -20,12 +20,15 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
     const [thermalMode, setThermalMode] = React.useState(false);
     const [fontSize, setFontSize] = React.useState(14);
 
+    // Pedidos cancelados/estornados NÃO são receita (contagem e valores).
+    const statusReceita = (s?: string) => !['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'reembolsado'].includes(String(s || '').toLowerCase());
+
     const report = useMemo(() => {
         if (!config || !orders || !expenses) return null;
 
-        const totalEntries = (orders || []).filter(o => o.status !== 'CANCELLED').reduce((a, b) => a + (Number(b.total) || 0), 0);
+        const totalEntries = (orders || []).filter(o => statusReceita(o.status)).reduce((a, b) => a + (Number(b.total) || 0), 0);
         const totalExits = (expenses || []).reduce((a, b) => a + (Number(b.amount) || 0), 0);
-        const ordersCount = (orders || []).filter(o => o.status !== 'CANCELLED').length;
+        const ordersCount = (orders || []).filter(o => statusReceita(o.status)).length;
         const newUsers = (users || []).filter((u: User) => u.role === 'FAMILY' && u.createdAt && new Date(u.createdAt) >= new Date(Date.now() - 30 * 86400000)).length;
         const outOfStock = (products || []).filter((p: any) => (p.stock || 0) <= 0).length;
         const net = totalEntries - totalExits;
@@ -49,7 +52,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
 
             const filteredOrders = (orders || []).filter(o => {
                 const d = new Date(o.date || 0);
-                return o.status !== 'CANCELLED' && d >= new Date(startDateStr) && d <= new Date(endDateStr + 'T23:59:59');
+                return statusReceita(o.status) && d >= new Date(startDateStr) && d <= new Date(endDateStr + 'T23:59:59');
             }).map(o => ({
                 date: o.date,
                 description: `Venda #${(o.id || '').slice(0, 6).toUpperCase()}`,

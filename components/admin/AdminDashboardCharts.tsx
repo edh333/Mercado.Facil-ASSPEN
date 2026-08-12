@@ -126,7 +126,10 @@ export const AdminDashboardCharts: React.FC = () => {
       .map(([method, amount], i) => ({ method, amount, color: colorMap[method] || COLORS[i % COLORS.length] }));
   }, [allOrders]);
 
-  const totalRevenue = useMemo(() => allOrders.reduce((a, o) => a + (Number(o.total) || 0), 0), [allOrders]);
+  const totalRevenue = useMemo(() => {
+    const cancelados = ['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'reembolsado'];
+    return allOrders.filter(o => !cancelados.includes(String(o.status || '').toLowerCase())).reduce((a, o) => a + (Number(o.total) || 0), 0);
+  }, [allOrders]);
   const totalOrders = allOrders.length;
   const avgTicket = totalOrders > 0 ? totalRevenue / totalOrders : 0;
   const topPayment = paymentBreakdown.length > 0 ? paymentBreakdown[0] : null;

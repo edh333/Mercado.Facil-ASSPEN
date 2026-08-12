@@ -65,7 +65,7 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ src, alt, onClose
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'comprovante.' + blob.type.split('/')[1] || 'jpg';
+      a.download = 'comprovante.' + ((blob.type.split('/')[1]) || 'jpg');
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

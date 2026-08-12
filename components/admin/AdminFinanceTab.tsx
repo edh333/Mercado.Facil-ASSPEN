@@ -100,6 +100,13 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   };
 
+  // Pedidos pendentes/cancelados/estornados NÃO são entrada de caixa:
+  // dinheiro ainda não entrou (ou foi devolvido).
+  const statusValido = (s?: string) => {
+    const st = String(s || '').toLowerCase();
+    return !['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'reembolsado', 'pending', 'pending_payment', 'pendente'].includes(st);
+  };
+
   const filteredData = useMemo(() => {
     const startStr = financeFilters?.start || new Date().toISOString().split('T')[0];
     const endStr = financeFilters?.end || new Date().toISOString().split('T')[0];
@@ -114,14 +121,13 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
         return matchDate && matchTerm;
     }).map(e => ({ ...e, type: 'EXIT', amount: -Math.abs(e.amount), name: e.description, person: e.recipientName }));
 
-    const filteredOrders = (orders || []).filter(o => {
-        const dateStr = getLocalDateString(o.date);
+    const filteredOrders = (orders || []).filter(o => {        const dateStr = getLocalDateString(o.date);
         const matchDate = dateStr >= startStr && dateStr <= endStr;
         const termo = (financeFilters.term || '').toLowerCase();
         const matchTerm = !financeFilters.term ||
             (o.userName || '').toLowerCase().includes(termo) ||
             (o.inmateName || '').toLowerCase().includes(termo);
-        return matchDate && matchTerm;
+        return matchDate && matchTerm && statusValido(o.status);
     }).map(o => ({ ...o, type: 'ENTRY', amount: o.total || 0, name: `Venda #${(o.id || '').slice(0,6).toUpperCase()}`, person: o.userName || '' }));
 
     let combined = [];
@@ -170,7 +176,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
       ['', '', 'SALDO DO PERÍODO', '', (totalEntries - totalExits).toFixed(2).replace('.', ',')]
     ];
 
-    const csvContent = [headers, ...rows, ...summaryRows].map(r => r.map(c => `"${c}"`).join(';')).join('\n');
+    const csvContent = [headers, ...rows, ...summaryRows].map(r => r.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(';')).join('\n');
     const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -284,9 +290,9 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
               const days = [];
               for (let i = 6; i >= 0; i--) {
                 const date = new Date(Date.now() - i * 86400000);
-                const dateStr = date.toISOString().split('T')[0];
+                const dateStr = getLocalDateString(date.toISOString());
                 const dayExpenses = expenses.filter(e => getLocalDateString(e.date) === dateStr).reduce((sum, e) => sum + (e.amount || 0), 0);
-                const dayOrders = orders.filter(o => getLocalDateString(o.date) === dateStr).reduce((sum, o) => sum + (o.total || 0), 0);
+                const dayOrders = orders.filter(o => statusValido(o.status) && getLocalDateString(o.date) === dateStr).reduce((sum, o) => sum + (o.total || 0), 0);
                 const maxVal = Math.max(dayExpenses, dayOrders, 1);
                 const dayName = date.toLocaleDateString('pt-BR', { weekday: 'short' });
                 days.push({ dayName, dayExpenses, dayOrders, maxVal, dateStr });

@@ -46,13 +46,19 @@ service cloud.firestore {
     // ── PEDIDOS ──
     // Criação: usuário registra o próprio pedido somente como PENDENTE
     // (pagamento por comprovante). Vendas com carteira vão via Cloud Function.
-    // Atualização/estorno: apenas admin (ou Cloud Function).
+    // Atualização: admin (tudo) ou o dono do pedido PENDENTE — e APENAS o campo
+    // paymentProofUrl (reenvio automático do comprovante após upload offline).
     match /orders/{orderId} {
       allow create: if isAuthenticated()
         && userMatch(request.resource.data.userId)
         && request.resource.data.status == 'PENDING';
       allow read: if isAuthenticated() && (userMatch(resource.data.userId) || isAdmin());
-      allow update, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        userMatch(resource.data.userId)
+        && lower(resource.data.status) == 'pending'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paymentProofUrl'])
+      );
+      allow delete: if isAdmin();
     }
 
     // ── TRANSAÇÕES DE CARTEIRA ──
@@ -66,7 +72,14 @@ service cloud.firestore {
         && request.resource.data.amount is number
         && request.resource.data.amount > 0;
       allow read: if isAuthenticated() && (userMatch(resource.data.userId) || isAdmin());
-      allow update, delete: if isAdmin();
+      // Reenvio automático do comprovante (upload offline): o dono só pode
+      // preencher proofUrl enquanto a transação estiver pendente.
+      allow update: if isAdmin() || (
+        userMatch(resource.data.userId)
+        && lower(resource.data.status) == 'pending'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['proofUrl'])
+      );
+      allow delete: if isAdmin();
     }
 
     // ── PRODUTOS ──

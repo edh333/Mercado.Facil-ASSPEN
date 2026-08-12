@@ -109,6 +109,9 @@ export async function addSupplement(
   reason: string
 ): Promise<void> {
   try {
+    if (!(Number(amount) > 0)) {
+      throw new Error("Valor de suprimento deve ser maior que zero.");
+    }
     const sessionRef = doc(db, "cash_sessions", sessionId);
     await updateDoc(sessionRef, {
       currentBalance: increment(Number(amount)),
@@ -137,6 +140,9 @@ export async function addWithdrawal(
   reason: string
 ): Promise<void> {
   try {
+    if (!(Number(amount) > 0)) {
+      throw new Error("Valor de sangria deve ser maior que zero.");
+    }
     const sessionRef = doc(db, "cash_sessions", sessionId);
     await updateDoc(sessionRef, {
       currentBalance: increment(-Number(amount)),

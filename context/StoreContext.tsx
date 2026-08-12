@@ -471,7 +471,6 @@ interface StoreContextType {
     addExpense: (expense: Expense) => Promise<void>;
     addWithdrawal: (amount: number, description: string, observation?: string) => Promise<void>;
     toggleFinanceEntries: () => Promise<void>;
-    compressImage: (file: File) => Promise<string>;
     showNotification: (msg: string, type?: 'success' | 'error' | 'info' | 'warning' | string) => void;
     removeNotification: (id: string) => void;
 
@@ -620,11 +619,11 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     // --- PAGINATION & LIMITS (Phase 2) ---
     const [ordersLimit, setOrdersLimit] = useState(50);
     const [expensesLimit, setExpensesLimit] = useState(50);
-    const [productsLimit, setProductsLimit] = useState(100);
+    const [productsLimit, setProductsLimit] = useState(500);
 
     const loadMoreOrders = () => setOrdersLimit((prev: number) => prev + 50);
     const loadMoreExpenses = () => setExpensesLimit((prev: number) => prev + 50);
-    const loadMoreProducts = () => setProductsLimit((prev: number) => prev + 100);
+    const loadMoreProducts = () => setProductsLimit((prev: number) => prev + 500);
 
     const logoutTimerRef = useRef<any>(null);
     const unsubscribeRefs = useRef<(() => void)[]>([]);
@@ -704,8 +703,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                     where('status', '==', OrderStatus.CANCELLED),
                     limit(200)
                 );
-                const snap = await getDocs(qOrders);
-                if (!snap.empty) {
+                const snap = await getDocs(qOrders);                if (!snap.empty) {
                     const cutoffMs = Date.now() - 45 * 86400000;
                     const antigos = snap.docs.filter(d => {
                         const createdAt = d.data().createdAt ? new Date(d.data().createdAt).getTime() : 0;
@@ -832,21 +830,19 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     const uploadFile = async (file: File, path: string, meta?: { kind?: string; docId?: string }): Promise<string> => {
         if (!file || file.size === 0) {
-            return "PENDENTE_UPLOAD_LOCAL_CACHE";
+            throw new Error("Arquivo vazio. Selecione um arquivo válido.");
         }
 
         const MAX_FILE_SIZE = 8 * 1024 * 1024;
         const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.pdf', '.heic', '.heif'];
 
         if (file.size > MAX_FILE_SIZE) {
-            showNotification('Arquivo muito grande (máx. 8 MB).', 'error');
-            return "PENDENTE_UPLOAD_LOCAL_CACHE";
+            throw new Error('Arquivo muito grande (máx. 8 MB).');
         }
 
         const ext = '.' + (file.name.split('.').pop() || '').toLowerCase();
         if (!ALLOWED_EXTENSIONS.includes(ext)) {
-            showNotification('Tipo de arquivo não permitido (JPG, PNG ou PDF).', 'error');
-            return "PENDENTE_UPLOAD_LOCAL_CACHE";
+            throw new Error('Tipo de arquivo não permitido (JPG, PNG, HEIC ou PDF).');
         }
 
         try {
@@ -876,6 +872,13 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         }
     };
 
+    // Campo do documento que guarda a URL da prova, por tipo de documento.
+    const CAMPO_PROVA: Record<string, string> = {
+        orders: 'paymentProofUrl',
+        users: 'documentUrl',
+        wallet_transactions: 'proofUrl',
+    };
+
     const retryPendingProofs = async (): Promise<void> => {
         try {
             const pendentes = await listPendingUploads();
@@ -889,10 +892,28 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                     await uploadBytes(fileRef, file);
                     const url = await getDownloadURL(fileRef);
                     if (p.kind && p.docId) {
-                        await updateDoc(doc(db, p.kind, p.docId), { proofUrl: url });
+                        // Só atualiza o documento se ele existir (evita fila-zumbi
+                        // reenviando blobs para docs que nunca foram criados).
+                        const docRef = doc(db, p.kind, p.docId);
+                        const snap = await getDoc(docRef);
+                        if (snap.exists()) {
+                            const campo = CAMPO_PROVA[p.kind] || 'proofUrl';
+                            await updateDoc(docRef, { [campo]: url });
+                            await removePendingUpload(p.id);
+                            reenviados += 1;
+                            continue;
+                        }
+                        console.warn('[retryPendingProofs] doc não existe, mantendo na fila:', p.kind, p.docId);
+                        continue;
                     }
-                    await removePendingUpload(p.id);
-                    reenviados += 1;
+                    if (p.docId) {
+                        await removePendingUpload(p.id);
+                        reenviados += 1;
+                    } else {
+                        // Ainda sem vínculo (o pedido/cadastro ainda não foi criado):
+                        // guarda a URL na fila e NÃO remove — o attach vai vincular depois.
+                        await queuePendingUpload({ ...p, uploadedUrl: url });
+                    }
                 } catch (e: any) {
                     console.warn("[retryPendingProofs] item falhou:", e?.message || e);
                 }
@@ -1027,7 +1048,9 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                 );
             }
 
-            return [...cartArray, { ...product, productId: product.id, quantity: novaQtd, priceAtPurchase: product.price } as CartItem];
+            // Preço anunciado é o cobrado: promoPrice quando ativo, senão price.
+            const precoEfetivo = (Number(product.promoPrice) > 0) ? Number(product.promoPrice) : (Number(product.price) || 0);
+            return [...cartArray, { ...product, productId: product.id, quantity: novaQtd, priceAtPurchase: precoEfetivo } as CartItem];
         });
     };
 
@@ -1071,7 +1094,14 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                 // Comprovante em cache local (upload offline): vincula ao pedido criado para reenvio automático
                 if (proofUrl === "PENDENTE_UPLOAD_LOCAL_CACHE") {
                     const orderId = (resPix?.data as any)?.order?.id;
-                    if (orderId) await attachPendingUploadDoc('comprovantes_pix', orderId);
+                    if (orderId) {
+                        const vinculo = await attachPendingUploadDoc('comprovantes_pix', orderId, 'orders');
+                        // Se um retry já tinha enviado o arquivo ao Storage antes do
+                        // pedido existir, grava a URL real imediatamente no pedido.
+                        if (typeof vinculo === 'string') {
+                            await updateDoc(doc(db, 'orders', orderId), { paymentProofUrl: vinculo }).catch(() => {});
+                        }
+                    }
                 }
             }
 
@@ -1114,23 +1144,33 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             const order = orders.find(o => o.id === oid);
             const estornado = order ? ['refunded', 'devolvido', 'reembolsado', 'estornado', 'cancelled', 'cancelado'].includes(String(order.status || '').toLowerCase()) : false;
             if (order && !estornado) {
-                await runTransaction(db, async (transaction) => {
-                    for (const item of order.items) {
-                        const productRef = doc(db, 'products', item.productId);
-                        const prodSnap = await transaction.get(productRef);
-                        if (prodSnap.exists()) {
-                            const freshStock = prodSnap.data().stock || 0;
-                            transaction.update(productRef, { stock: freshStock + item.quantity });
+                // Pedido pago com carteira: o dinheiro PRECISA voltar ao usuário —
+                // exclusão direta deixaria o saldo retido para sempre. Rota obrigatória
+                // pelo estorno (servidor devolve saldo + estoque de forma atômica).
+                const usouCarteira = String(order.paymentMethod || '').toUpperCase() === 'WALLET' ||
+                    (Array.isArray(order.payments) && order.payments.some((p: any) => String(p.method || '').toUpperCase() === 'WALLET'));
+                if (usouCarteira) {
+                    await fnEstornarVenda({ orderId: oid, motivo: 'Exclusão administrativa (restituição da carteira)' });
+                    await updateDoc(doc(db, 'orders', oid), { deleted: true });
+                } else {
+                    await runTransaction(db, async (transaction) => {
+                        for (const item of order.items) {
+                            const productRef = doc(db, 'products', item.productId);
+                            const prodSnap = await transaction.get(productRef);
+                            if (prodSnap.exists()) {
+                                const freshStock = prodSnap.data().stock || 0;
+                                transaction.update(productRef, { stock: freshStock + item.quantity });
+                            }
                         }
-                    }
-                    transaction.update(doc(db, 'orders', oid), { deleted: true });
-                });
+                        transaction.update(doc(db, 'orders', oid), { deleted: true });
+                    });
+                }
             } else {
                 await updateDoc(doc(db, 'orders', oid), { deleted: true });
             }
-            showNotification(estornado ? "Pedido estornado movido para a lixeira (estoque já devolvido)" : "Pedido movido para a lixeira (Soft Delete)", "success");
+            showNotification(estornado ? "Pedido estornado movido para a lixeira (estoque já devolvido)" : "Pedido excluído e valores restituídos", "success");
         } catch (e: any) {
-            showNotification("Erro ao excluir pedido", "error");
+            showNotification("Erro ao excluir pedido: " + (e?.message || 'tente novamente'), "error");
         }
     };
 
@@ -1564,7 +1604,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                 }
                 if (f) {
                     try {
-                        const docUrl = await uploadFile(f, 'docs');
+                        const docUrl = await uploadFile(f, 'docs', { kind: 'users', docId: data.userId });
                         await updateDoc(doc(db, 'users', data.userId), { documentUrl: docUrl }).catch(() => {});
                     } catch (e) {
                         console.warn('[registerUser] Upload do documento falhou:', e);
@@ -1890,10 +1930,6 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         setNotifications(prev => prev.filter(n => n.id !== id));
     }, []);
 
-    const compressImage = async (file: File): Promise<string> => {
-        return uploadFile(file, 'temp');
-    };
-
     const validateMasterPassword = async (pass: string) => {
         try {
             const res = await fnValidarSenhaMestra({ senha: pass || '' }) as any;
@@ -2109,8 +2145,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             initConfig();
 
             // Sync Secure Time
-            getNetworkTime().then(t => setServerTime(t));
-            timer = setInterval(() => getNetworkTime().then(t => setServerTime(t)), 1000 * 60 * 10); // Update every 10m
+            getNetworkTime().then(t => setServerTime(t)).catch(() => {});
+            timer = setInterval(() => getNetworkTime().then(t => setServerTime(t)).catch(() => {}), 1000 * 60 * 10); // Update every 10m
 
             // Safety timeout
             safetyTimeout = setTimeout(() => setIsLoading(false), 8000);
@@ -2203,7 +2239,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             loadMoreOrders, loadMoreExpenses, loadMoreProducts,
             approveUser, updateUserStatus, toggleUserCredit, deleteUser, suspendUser,
             addSupplier, removeSupplier, addExpense, addWithdrawal, toggleFinanceEntries,
-            processInvoiceImport, importXmlProduct, updateAppConfig, updateSettings: updateAppConfig, compressImage,
+            processInvoiceImport, importXmlProduct, updateAppConfig, updateSettings: updateAppConfig,
             downloadBackup, backupSystem: downloadBackup, resetSystem, resetStock, resetFinance, resetCredits, checkPermission, sendSystemMessage, sendMessage, markMessageRead, showNotification, removeNotification,
             depositToWallet, approveWalletTransaction, rejectWalletTransaction, getWalletTransactions, withdrawWalletCredit,
             validateMasterPassword, defineMasterPassword, masterPasswordStatus, addPreRegisteredInmate, deletePreRegisteredInmate, preRegisteredInmates, refundOrder, importInmatesCsv, updateAdminPassword,

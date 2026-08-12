@@ -56,7 +56,7 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
   const userOrders = (orders || []).filter(o => o.userId === user.id || o.userCpf === user.cpf);
   const userTxs = (walletTx || []).filter(tx => tx.userId === user.id || tx.inmateCpf === user.cpf);
 
-  const totalGasto = userOrders.filter(o => o.status !== 'cancelled').reduce((s, o) => s + (Number(o.total) || 0), 0);
+  const totalGasto = userOrders.filter(o => !['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'reembolsado'].includes(String(o.status || '').toLowerCase())).reduce((s, o) => s + (Number(o.total) || 0), 0);
   const totalDepositos = userTxs.filter(tx => tx.status === 'approved' && tx.type === 'deposit').reduce((s, tx) => s + (Number(tx.amount) || 0), 0);
 
   const docUrl = user.documentUrl || '';

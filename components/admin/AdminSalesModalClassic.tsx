@@ -168,7 +168,12 @@ export const AdminSalesModalClassic: React.FC<AdminSalesModalProps> = ({
            changeValue = totalRecebido - totalComDesconto;
            const cashIndex = paymentsArray.findIndex(p => p.method === 'CASH');
            if (cashIndex >= 0) {
-               paymentsArray[cashIndex].amount -= changeValue;
+               if (changeValue > pCash + 0.009) {
+                   alert(`O troco (R$ ${changeValue.toFixed(2).replace('.', ',')}) é maior que o valor recebido em dinheiro (R$ ${pCash.toFixed(2).replace('.', ',')}). Aumente o valor em dinheiro ou reduza o excedente.`);
+                   setProcessando(false);
+                   return;
+               }
+               paymentsArray[cashIndex].amount = Math.max(0, paymentsArray[cashIndex].amount - changeValue);
            }
         } else if (totalRecebido < totalComDesconto) {
            alert('O valor misto inserido é menor que o total da compra.');

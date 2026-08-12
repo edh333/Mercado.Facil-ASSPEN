@@ -391,24 +391,34 @@ exports.criarPrimeiroAdmin = onCall(async (request) => {
     throw new HttpsError("already-exists", e.message || "Já existe um administrador. Faça login.");
   }
 
-  const authUser = await admin.auth().createUser({ email, password: senha });
-  const hash = await bcrypt.hash(senha, 12);
-  await db.collection("users").doc(authUser.uid).set({
-    id: authUser.uid,
-    authUid: authUser.uid,
-    name: nome,
-    email,
-    cpf: "00000000000",
-    role: "admin",
-    mainAdmin: true,
-    status: "active",
-    approved: true,
-    permissions: ["all"],
-    walletBalance: 0,
-    weeklySpent: 0,
-    createdAt: new Date().toISOString(),
-  });
-  await salvarHashLegado(authUser.uid, hash);
+  let authUser = null;
+  try {
+    authUser = await admin.auth().createUser({ email, password: senha });
+    const hash = await bcrypt.hash(senha, 12);
+    await db.collection("users").doc(authUser.uid).set({
+      id: authUser.uid,
+      authUid: authUser.uid,
+      name: nome,
+      email,
+      cpf: "00000000000",
+      role: "admin",
+      mainAdmin: true,
+      status: "active",
+      approved: true,
+      permissions: ["all"],
+      walletBalance: 0,
+      weeklySpent: 0,
+      createdAt: new Date().toISOString(),
+    });
+    await salvarHashLegado(authUser.uid, hash);
+  } catch (e) {
+    // Rollback da trava: se qualquer passo falhar, o claim é removido para
+    // que o primeiro acesso possa ser tentado novamente (nunca deixar o
+    // sistema bloqueado sem administrador).
+    await db.collection("settings").doc("setup_claim").delete().catch(() => {});
+    if (authUser) await admin.auth().deleteUser(authUser.uid).catch(() => {});
+    throw e;
+  }
   return { ok: true, userId: authUser.uid };
 });
 
@@ -575,11 +585,14 @@ exports.aprovarDeposito = onCall(async (request) => {
       if (!comprovante || comprovante === "PENDENTE_UPLOAD_LOCAL_CACHE") {
         throw new Error("Depósito sem comprovante válido. Exija o envio da imagem do comprovante.");
       }
+      if (!comprovanteEhDoUsuario(comprovante, tx.userId, "wallet_proofs")) {
+        throw new Error("Comprovante do depósito inválido (não pertence a este usuário).");
+      }
 
       const uRef = db.collection("users").doc(tx.userId);
       const uSnap = await t.get(uRef);
       if (!uSnap.exists) throw new Error("Usuário não encontrado.");
-      const novoSaldo = arredondar((uSnap.data().walletBalance || 0) + (tx.amount || 0));
+      const novoSaldo = arredondar(Number(uSnap.data().walletBalance || 0) + Number(tx.amount || 0));
       novoSaldoFinal = novoSaldo;
       valorDepositado = arredondar(tx.amount || 0);
       usuarioIdDeposito = tx.userId;
@@ -649,9 +662,9 @@ exports.creditarSaldo = onCall(async (request) => {
     const uSnap = await t.get(uRef);
     if (!uSnap.exists) throw new Error("Usuário não encontrado.");
     const ud = uSnap.data();
-    const novoSaldo = arredondar((ud.walletBalance || 0) + valor);
+    const novoSaldo = arredondar(Number(ud.walletBalance || 0) + valor);
     novoSaldoFinal = novoSaldo;
-    saldoAnterior = arredondar(ud.walletBalance || 0);
+    saldoAnterior = arredondar(Number(ud.walletBalance || 0));
     usuarioAlvo = ud.name || userId;
     t.update(uRef, { walletBalance: novoSaldo });
     await registrarTransacaoCarteira(t, db.collection("wallet_transactions").doc(), {
@@ -698,10 +711,10 @@ exports.sacarSaldoAdmin = onCall(async (request) => {
     const uSnap = await t.get(uRef);
     if (!uSnap.exists) throw new Error("Usuário não encontrado.");
     const ud = uSnap.data();
-    if ((ud.walletBalance || 0) < valor) throw new Error("Saldo insuficiente.");
-    const novoSaldo = arredondar((ud.walletBalance || 0) - valor);
+    if (Number(ud.walletBalance || 0) < valor) throw new Error("Saldo insuficiente.");
+    const novoSaldo = arredondar(Number(ud.walletBalance || 0) - valor);
     novoSaldoFinal = novoSaldo;
-    saldoAnterior = arredondar(ud.walletBalance || 0);
+    saldoAnterior = arredondar(Number(ud.walletBalance || 0));
     usuarioAlvo = ud.name || userId;
     t.update(uRef, { walletBalance: novoSaldo });
     await registrarTransacaoCarteira(t, db.collection("wallet_transactions").doc(), {
@@ -744,8 +757,8 @@ exports.sacarSaldoProprio = onCall(async (request) => {
     const uSnap = await t.get(uRef);
     if (!uSnap.exists) throw new Error("Usuário não encontrado.");
     const ud = uSnap.data();
-    if ((ud.walletBalance || 0) < valor) throw new Error(`Saldo insuficiente! Disponível: R$ ${(ud.walletBalance || 0).toFixed(2)}`);
-    const novoSaldo = arredondar((ud.walletBalance || 0) - valor);
+    if (Number(ud.walletBalance || 0) < valor) throw new Error(`Saldo insuficiente! Disponível: R$ ${Number(ud.walletBalance || 0).toFixed(2)}`);
+    const novoSaldo = arredondar(Number(ud.walletBalance || 0) - valor);
     novoSaldoFinal = novoSaldo;
     t.update(uRef, { walletBalance: novoSaldo });
     await registrarTransacaoCarteira(t, db.collection("wallet_transactions").doc(), {
@@ -790,6 +803,19 @@ function validarItens(itens) {
   return Array.from(agregados.entries()).map(([productId, quantity]) => ({ productId, quantity }));
 }
 
+/**
+ * Valida se uma URL de Storage pertence ao bucket do projeto e à pasta privada
+ * do usuário ({pasta}/{uid}/...). Impede usar comprovante de outro usuário ou
+ * de outro projeto Firebase para confirmar um pedido/depósito.
+ */
+function comprovanteEhDoUsuario(url, uid, pasta) {
+  const u = String(url || "").trim();
+  if (!u.startsWith("https://firebasestorage.googleapis.com/v0/b/")) return false;
+  if (!u.includes("mercado-facil-mt.appspot.com") && !u.includes("mercado-facil-mt.firebasestorage.app")) return false;
+  const marcador = encodeURIComponent(`${pasta}/${uid}/`);
+  return u.includes(marcador);
+}
+
 /** Lê produtos e valida estoque. Retorna { itens, total }. */
 async function prepararItensServidor(t, itens) {
   const snaps = await Promise.all(itens.map((i) => t.get(db.collection("products").doc(i.productId))));
@@ -799,7 +825,9 @@ async function prepararItensServidor(t, itens) {
     if (!snap.exists) throw new Error(`Produto não encontrado: ${itens[idx].productId}`);
     const p = snap.data();
     if ((p.stock || 0) < itens[idx].quantity) throw new Error(`Estoque insuficiente: ${p.name || itens[idx].productId}`);
-    const preco = Number(p.price) || 0;
+    // Preço promocional (promoPrice) é a fonte da verdade quando ativo:
+    // o cliente vê e é cobrado pelo preço anunciado na vitrine.
+    const preco = Number(p.promoPrice) > 0 ? Number(p.promoPrice) : (Number(p.price) || 0);
     total = arredondar(total + preco * itens[idx].quantity);
     resultado.push({
       productId: itens[idx].productId,
@@ -895,6 +923,9 @@ exports.processarVendaAdmin = onCall(async (request) => {
   const itens = validarItens(request.data?.items);
   const payments = Array.isArray(request.data?.payments) ? request.data.payments : undefined;
   const change = request.data?.change === undefined || request.data?.change === null ? undefined : Number(request.data.change);
+  if (change !== undefined && !Number.isFinite(change)) {
+    throw new HttpsError("invalid-argument", "Troco inválido.");
+  }
   const customerAccountId = request.data?.customerAccountId ? String(request.data.customerAccountId) : null;
 
   const isConsumer = targetUserId === "consumidor_geral" || targetUserId === "balcao_anonimo";
@@ -979,12 +1010,16 @@ exports.processarVendaAdmin = onCall(async (request) => {
     }
 
     let userData = null;
-    if ((walletPortion > 0 || paymentMethod === "WALLET") && !isConsumer) {
+    let clienteFiadoNome = null;
+    if (((walletPortion > 0 || paymentMethod === "WALLET") || (paymentMethod === "FIADO" && !isConsumer)) && !isConsumer) {
       const uSnap = await t.get(db.collection("users").doc(targetUserId));
-      if (!uSnap.exists) throw new Error("Usuário não encontrado.");
-      userData = { ...uSnap.data(), id: uSnap.id };
+      if (uSnap.exists) {
+        userData = { ...uSnap.data(), id: uSnap.id };
+      } else if (walletPortion > 0) {
+        throw new Error("Usuário não encontrado.");
+      }
       if (walletPortion > 0) {
-        if ((userData.walletBalance || 0) < walletPortion) throw new Error("Saldo insuficiente na carteira.");
+        if (Number(userData.walletBalance || 0) < walletPortion) throw new Error("Saldo insuficiente na carteira.");
         // Limite semanal de compras com carteira vale TAMBÉM para o PDV administrativo
         // (mesma regra do comprarComCarteira; isento apenas com autorização excepcional).
         if (!userData.autorizacaoExcepcional) {
@@ -1008,6 +1043,7 @@ exports.processarVendaAdmin = onCall(async (request) => {
       const caSnap = await t.get(caRef);
       if (!caSnap.exists) throw new Error("Cliente de fiado não encontrado.");
       const contaFiado = caSnap.data();
+      clienteFiadoNome = String(contaFiado.nome || contaFiado.name || contaFiado.clienteNome || "Fiado").slice(0, 80);
       if (String(contaFiado.status || "").toLowerCase() === "blocked") {
         throw new Error("Cliente bloqueado para venda fiada.");
       }
@@ -1033,8 +1069,8 @@ exports.processarVendaAdmin = onCall(async (request) => {
 let walletBalanceAfter;
     if (userData) {
       walletBalanceAfter = walletPortion > 0
-        ? arredondar((userData.walletBalance || 0) - walletPortion)
-        : arredondar(userData.walletBalance || 0);
+        ? arredondar(Number(userData.walletBalance || 0) - walletPortion)
+        : arredondar(Number(userData.walletBalance || 0));
     }
     if (walletPortion > 0 && userData) {
       t.update(db.collection("users").doc(targetUserId), {
@@ -1076,7 +1112,7 @@ let walletBalanceAfter;
     const novoPedido = {
       id: orderId,
       userId: targetUserId,
-      userName: isConsumer ? "CONSUMIDOR FINAL" : (userData?.name || "Consumidor"),
+      userName: isConsumer ? "CONSUMIDOR FINAL" : (userData?.name || clienteFiadoNome || "Consumidor"),
       userCpf: isConsumer ? "000.000.000-00" : (userData?.cpf || "000.000.000-00"),
       unitId: isConsumer ? "1" : (userData?.selectedUnitId || userData?.unitId || "1"),
       unitName: "Unidade Prisional",
@@ -1126,22 +1162,22 @@ exports.comprarComCarteira = onCall(async (request) => {
       const uSnap = await t.get(db.collection("users").doc(user.id));
     if (!uSnap.exists) throw new Error("Usuário não encontrado.");
     const ud = uSnap.data();
-    if ((ud.walletBalance || 0) < total) throw new Error(`Crédito insuficiente! Disponível: R$ ${(ud.walletBalance || 0).toFixed(2)}`);
+    if (Number(ud.walletBalance || 0) < total) throw new Error(`Crédito insuficiente! Disponível: R$ ${Number(ud.walletBalance || 0).toFixed(2)}`);
 
     // Limite semanal de compras com carteira (validado NO SERVIDOR, sempre ativo)
     if (!ud.autorizacaoExcepcional) {
       const cfgSnap = await t.get(db.collection("settings").doc("general"));
       const cfg = cfgSnap.exists ? cfgSnap.data() : {};
       const limite = Number(cfg.weeklyWalletLimit) || 300;
-      if (arredondar((ud.weeklySpent || 0) + total) > limite) {
-        throw new Error(`Limite semanal excedido. Disponível: R$ ${arredondar(limite - (ud.weeklySpent || 0)).toFixed(2)}`);
+      if (arredondar(Number(ud.weeklySpent || 0) + total) > limite) {
+        throw new Error(`Limite semanal excedido. Disponível: R$ ${arredondar(limite - Number(ud.weeklySpent || 0)).toFixed(2)}`);
       }
     }
 
     debitarEstoque(t, itensComPreco);
 
-    const novoSaldo = arredondar((ud.walletBalance || 0) - total);
-    const novoWeekly = arredondar((ud.weeklySpent || 0) + total);
+    const novoSaldo = arredondar(Number(ud.walletBalance || 0) - total);
+    const novoWeekly = arredondar(Number(ud.weeklySpent || 0) + total);
     t.update(db.collection("users").doc(user.id), { walletBalance: novoSaldo, weeklySpent: novoWeekly });
 
     await registrarTransacaoCarteira(t, db.collection("wallet_transactions").doc(), {
@@ -1204,7 +1240,9 @@ exports.registrarPedidoPix = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "Envie o comprovante do PIX antes de confirmar o pedido.");
   }
   // Comprovante pendente (upload offline, será reenviado pelo app) ou URL do Storage.
-  if (paymentProofUrl !== "PENDENTE_UPLOAD_LOCAL_CACHE" && !paymentProofUrl.startsWith("https://firebasestorage.googleapis.com")) {
+  // A URL precisa pertencer ao bucket do projeto E à pasta do próprio usuário
+  // (comprovante de outro usuário/projeto não pode ser usado para confirmar um pedido).
+  if (paymentProofUrl !== "PENDENTE_UPLOAD_LOCAL_CACHE" && !comprovanteEhDoUsuario(paymentProofUrl, user.id, "comprovantes_pix")) {
     throw new HttpsError("invalid-argument", "Comprovante inválido. Envie a imagem do comprovante pelo aplicativo.");
   }
 
@@ -1231,7 +1269,7 @@ exports.registrarPedidoPix = onCall(async (request) => {
       total,
 paymentMethod: "PIX",
       paymentProofUrl,
-      walletBalanceAfter: arredondar(ud.walletBalance || 0),
+      walletBalanceAfter: arredondar(Number(ud.walletBalance || 0)),
       inmateName: ud.inmateName || ud.prisonerName || "",
       inmateCpf: cleanCpf(ud.inmateCpf || ud.prisonerCpf || ""),
       ...(inmateLocation ? { inmateLocation } : {}),
@@ -1274,6 +1312,9 @@ exports.estornarVenda = onCall(async (request) => {
       if (!oSnap.exists) throw new Error("Pedido não encontrado.");
       const pedido = oSnap.data();
       const statusAtual = String(pedido.status || "").toUpperCase();
+      if (pedido.deleted) {
+        throw new Error("Este pedido foi excluído (lixeira). O estoque já foi devolvido; restaure o pedido antes de estornar.");
+      }
       if (statusAtual.startsWith("CANCEL") || statusAtual === "REFUNDED" || statusAtual === "RETURNED") {
         throw new Error("Este pedido já foi cancelado/devolvido.");
       }
@@ -1310,7 +1351,7 @@ exports.estornarVenda = onCall(async (request) => {
         const uWalletPortion = pedido.paymentMethod === "WALLET"
           ? (Number(pedido.total) || 0)
           : (pedido.payments || []).filter((p) => p.method === "WALLET").reduce((s, p) => s + (Number(p.amount) || 0), 0);
-        const novoSaldo = arredondar((ud.walletBalance || 0) + uWalletPortion);
+        const novoSaldo = arredondar(Number(ud.walletBalance || 0) + uWalletPortion);
         const novoWeekly = Math.max(0, arredondar((ud.weeklySpent || 0) - uWalletPortion));
         t.update(uRef, { walletBalance: novoSaldo, weeklySpent: novoWeekly });
         registrarTransacaoCarteira(t, db.collection("wallet_transactions").doc(), {
@@ -1433,14 +1474,21 @@ exports.arquivarDadosAntigos = onSchedule({
     // com a UI, marcando autoClosed: true para a trilha de auditoria.
     try {
       const limiarAbandono = new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString();
-      const abandonadas = await db.collection("cash_sessions")
+      // Só query de igualdade (índice de campo único, sempre disponível);
+      // o filtro por data é feito em memória para não depender de índice composto.
+      const abertas = await db.collection("cash_sessions")
         .where("status", "==", "open")
-        .where("openedAt", "<=", limiarAbandono)
-        .limit(100)
+        .limit(200)
         .get();
-      if (!abandonadas.empty) {
+      const abandonadas = abertas.docs.filter((d) => {
+        const abriu = d.data().openedAt;
+        if (!abriu) return false;
+        const t = typeof abriu.toDate === "function" ? abriu.toDate() : new Date(abriu);
+        return t.getTime() <= new Date(limiarAbandono).getTime() && !isNaN(t.getTime());
+      });
+      if (abandonadas.length > 0) {
         const batch = db.batch();
-        abandonadas.docs.forEach((d) => {
+        abandonadas.forEach((d) => {
           const saldo = Number(d.data().currentBalance || 0);
           batch.update(d.ref, {
             status: "closed",
@@ -1454,7 +1502,7 @@ exports.arquivarDadosAntigos = onSchedule({
           });
         });
         await batch.commit();
-        logger.info(`[Caixa] ${abandonadas.size} sessão(ões) de caixa abandonada(s) fechada(s) automaticamente.`);
+        logger.info(`[Caixa] ${abandonadas.length} sessão(ões) de caixa abandonada(s) fechada(s) automaticamente.`);
       }
     } catch (e) {
       logger.warn("[Caixa] Falha no auto-fechamento de sessões abandonadas:", e.message);

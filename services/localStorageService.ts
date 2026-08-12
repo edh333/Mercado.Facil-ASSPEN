@@ -70,8 +70,8 @@ const importBackup = (backupData: any) => {
 
 export { LOCALStorage, exportBackup, importBackup };
 // -- Fila de comprovantes pendentes (IndexedDB) -----------------------------
-// Quando o upload não pode ser concluído (sem internet, falha de rede), o
-// arquivo é guardado aqui e reenviado automaticamente quando a conexão voltar.
+// Quando o upload nï¿½o pode ser concluï¿½do (sem internet, falha de rede), o
+// arquivo ï¿½ guardado aqui e reenviado automaticamente quando a conexï¿½o voltar.
 const DB_NAME = 'mercado_facil_uploads';
 const DB_STORE = 'pending';
 
@@ -120,12 +120,21 @@ export const removePendingUpload = async (id: string): Promise<void> => {
     });
 };
 
-export const attachPendingUploadDoc = async (folder: string, docId: string): Promise<boolean> => {
+export const attachPendingUploadDoc = async (folder: string, docId: string, kind?: string): Promise<boolean> => {
     try {
         const pendentes = await listPendingUploads();
         const alvo = pendentes.find(p => p.folder === folder && !p.docId);
         if (!alvo) return false;
-        await queuePendingUpload({ ...alvo, docId });
+        const atualizado: any = { ...alvo, docId, kind: kind || alvo.kind };
+        if (alvo.uploadedUrl) {
+            // O arquivo jÃ¡ foi enviado ao Storage por um retry anterior (sem vÃ­nculo):
+            // devolve a URL para quem chamou gravar no documento imediatamente.
+            const urlSalva = alvo.uploadedUrl;
+            await queuePendingUpload({ ...atualizado, uploadedUrl: undefined });
+            await removePendingUpload(alvo.id);
+            return urlSalva;
+        }
+        await queuePendingUpload(atualizado);
         return true;
     } catch (e) {
         return false;

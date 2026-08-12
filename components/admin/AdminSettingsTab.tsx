@@ -123,12 +123,12 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
     }
     setIsSavingSecondaryPass(true);
     try {
-      if (defineMasterPassword) {
-        const ok = await defineMasterPassword(pwd);
-        if (!ok) throw new Error('Falha ao salvar no servidor');
-      } else {
-        await updateSettings({ ...localSettings, ...(settings || {}), secondaryPassword: pwd });
-      }
+      // Sempre via Cloud Function (hash no servidor). NUNCA gravar senha em
+      // texto puro no Firestore — as regras de segurança até bloqueiam campos
+      // secondaryPassword/adminPassword em settings/general.
+      if (!defineMasterPassword) throw new Error('Recurso indisponível (Cloud Function não inicializada)');
+      const ok = await defineMasterPassword(pwd);
+      if (!ok) throw new Error('Falha ao salvar no servidor');
       setSecondaryPassword('');
       setConfirmSecondaryPassword('');
       showNotification?.('Senha secundária configurada com sucesso!', 'success');
