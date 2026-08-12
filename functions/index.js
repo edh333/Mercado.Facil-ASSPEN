@@ -913,6 +913,52 @@ async function resolverSessaoCaixaDoPedido(pedido) {
 }
 
 /**
+ * Guarda de idempotência de vendas (anti duplicatas por toque duplo/timeout):
+ * o app gera um clientToken por tentativa lógica de venda e o reutiliza em
+ * reenvios. A primeira chamada grava a marca na transação; qualquer replay
+ * com o mesmo token DEVOLVE o pedido já criado, sem debitar estoque/saldo.
+ *
+ * FASE 1 (leitura, DEVE vir antes de qualquer write da transação):
+ * retorna { deduplicado: true, order } se o token já foi usado, ou null.
+ */
+async function verificarIdempotenciaVenda(t, clientToken, userId) {
+  const token = String(clientToken || "").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 64);
+  if (!token) return null;
+  const reqRef = db.collection("request_guard").doc(`venda_${token}`);
+  const reqSnap = await t.get(reqRef);
+  if (reqSnap.exists) {
+    const r = reqSnap.data();
+    if (r.type === "venda" && r.userId === userId && r.orderId) {
+      const orderSnap = await t.get(db.collection("orders").doc(r.orderId));
+      if (orderSnap.exists) {
+        return { deduplicado: true, order: orderSnap.data() };
+      }
+    }
+    throw new Error("Requisição duplicada (token já utilizado).");
+  }
+  return null;
+}
+
+/**
+ * FASE 2 (escrita, chamar no FINAL da transação, depois de todos os reads):
+ * grava a marca do token apontando para o pedido recém-criado.
+ */
+function marcarIdempotenciaVenda(t, clientToken, userId, orderId) {
+  const token = String(clientToken || "").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 64);
+  if (!token) return;
+  t.set(db.collection("request_guard").doc(`venda_${token}`), {
+    type: "venda",
+    userId,
+    orderId,
+    createdAt: admin.firestore.Timestamp.now(),
+  });
+}
+
+function lerClientToken(data) {
+  return String(data?.clientToken || "").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 64);
+}
+
+/**
  * Admin — venda no PDV. Calcula TUDO no servidor (preços, saldo, estoque),
  * debita carteira quando houver, registra caixa físico e cria o pedido.
  */
@@ -980,6 +1026,9 @@ exports.processarVendaAdmin = onCall(async (request) => {
   let resultado;
   try {
     resultado = await db.runTransaction(async (t) => {
+      // Idempotência: reenvio com o mesmo clientToken devolve o pedido já criado.
+      const guarda = await verificarIdempotenciaVenda(t, lerClientToken(request.data), caller.id);
+      if (guarda) return { ...guarda.order, replay: true };
       const { resultado: itensComPreco, total } = await prepararItensServidor(t, itens);
 
       if (temParteCash) {
@@ -1134,6 +1183,8 @@ let walletBalanceAfter;
     };
 
     t.set(db.collection("orders").doc(orderId), novoPedido);
+    // Idempotência: grava a marca do token apontando para o pedido criado.
+    marcarIdempotenciaVenda(t, lerClientToken(request.data), caller.id, orderId);
     return novoPedido;
   });
   } catch (e) {
@@ -1153,10 +1204,17 @@ exports.comprarComCarteira = onCall(async (request) => {
   const inmateLocation = request.data?.inmateLocation || null;
   const deliveryLocation = request.data?.deliveryLocation || inmateLocation || null;
 
-  const orderId = Math.random().toString(36).slice(2, 14).toUpperCase();
+  // ID do pedido derivado do clientToken quando presente (reenvios reutilizam o
+  // mesmo ID; sem token segue com ID aleatório por compatibilidade antiga).
+  const clientToken = lerClientToken(request.data);
+  const orderId = clientToken
+    ? clientToken.replace(/[^a-zA-Z0-9]/g, "").slice(0, 12).toUpperCase()
+    : Math.random().toString(36).slice(2, 14).toUpperCase();
   let resultado;
   try {
     resultado = await db.runTransaction(async (t) => {
+      const guarda = await verificarIdempotenciaVenda(t, clientToken, user.id);
+      if (guarda) return { ...guarda.order, replay: true };
       const { resultado: itensComPreco, total } = await prepararItensServidor(t, itens);
 
       const uSnap = await t.get(db.collection("users").doc(user.id));
@@ -1215,6 +1273,8 @@ exports.comprarComCarteira = onCall(async (request) => {
     };
 
     t.set(db.collection("orders").doc(orderId), novoPedido);
+    // Idempotência: grava a marca do token apontando para o pedido criado.
+    marcarIdempotenciaVenda(t, clientToken, user.id, orderId);
     return novoPedido;
   });
   } catch (e) {
@@ -1246,10 +1306,13 @@ exports.registrarPedidoPix = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "Comprovante inválido. Envie a imagem do comprovante pelo aplicativo.");
   }
 
-  const orderId = (crypto.randomUUID ? crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase() : Math.random().toString(36).slice(2, 14)).toUpperCase();
+const orderId = (crypto.randomUUID ? crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase() : Math.random().toString(36).slice(2, 14)).toUpperCase();
+  const clientToken = lerClientToken(request.data);
   let resultado;
   try {
     resultado = await db.runTransaction(async (t) => {
+      const guarda = await verificarIdempotenciaVenda(t, clientToken, user.id);
+      if (guarda) return { ...guarda.order, replay: true };
       const { resultado: itensComPreco, total } = await prepararItensServidor(t, itens);
       const uSnap = await t.get(db.collection("users").doc(user.id));
       const ud = uSnap.exists ? uSnap.data() : {};
@@ -1277,6 +1340,8 @@ paymentMethod: "PIX",
     };
 
     t.set(db.collection("orders").doc(orderId), novoPedido);
+    // Idempotência: grava a marca do token apontando para o pedido criado.
+    marcarIdempotenciaVenda(t, clientToken, user.id, orderId);
     return novoPedido;
   });
   } catch (e) {
@@ -1513,6 +1578,24 @@ exports.arquivarDadosAntigos = onSchedule({
       { name: "expenses", dateField: "date", skipPendentes: false },
       { name: "wallet_transactions", dateField: "createdAt", skipPendentes: true }
     ];
+
+    // Guardas de idempotência mais antigas que 7 dias podem ser apagadas
+    // (o dedupe só precisa das recentes).
+    try {
+      const cutoffGuard = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const guardas = await db.collection("request_guard")
+        .where("createdAt", "<=", cutoffGuard)
+        .limit(200)
+        .get();
+      if (!guardas.empty) {
+        const batchGuard = db.batch();
+        guardas.docs.forEach((d) => batchGuard.delete(d.ref));
+        await batchGuard.commit();
+        logger.info(`[Idempotência] ${guardas.size} guardas antigas removidas.`);
+      }
+    } catch (eGuard) {
+      logger.warn("[Idempotência] Falha ao limpar guardas antigas:", eGuard.message);
+    }
 
     let totalArchived = 0;
 

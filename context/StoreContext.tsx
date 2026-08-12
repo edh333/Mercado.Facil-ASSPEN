@@ -1057,10 +1057,14 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const removeFromCart = (pid: string) => setCart(prev => prev.filter(p => String(p.productId) !== String(pid)));
     const clearCart = () => setCart([]);
 
-    const createOrder = async (arg1: Partial<Order> | File | null, arg2?: InmateLocation) => {
+    const createOrder = async (arg1: Partial<Order> | File | null, arg2?: InmateLocation, clientToken?: string) => {
         if (!currentUser) return false;
         const totalCarrinho = (cart || []).reduce((acc, i) => acc + ((Number(i.priceAtPurchase) || 0) * (Number(i.quantity) || 0)), 0);
         if ((cart || []).length === 0) throw new Error("Carrinho vazio.");
+        // Token de idempotência: o MESMO token em reenvios devolve o pedido já
+        // criado no servidor (sem debitar estoque/saldo 2x). Reutilize o token
+        // ao reenviar a MESMA tentativa de venda.
+        const token = clientToken || crypto.randomUUID();
         try {
             let orderData: Partial<Order>;
             let proofUrl = '';
@@ -1076,6 +1080,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                 // Compra com carteira processada NO SERVIDOR (saldo, limite semanal e estoque validados)
                 const res = await fnComprarComCarteira({
                     items,
+                    clientToken: token,
                     inmateLocation: orderData.inmateLocation || undefined,
                     deliveryLocation: orderData.deliveryLocation || undefined
                 });
@@ -1087,10 +1092,19 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                 // Pedido PIX processado NO SERVIDOR (preços e estoque validados)
                 const resPix = await fnRegistrarPedidoPix({
                     items,
+                    clientToken: token,
                     paymentProofUrl: proofUrl || orderData.paymentProofUrl || '',
                     inmateLocation: orderData.inmateLocation || undefined,
                     deliveryLocation: orderData.deliveryLocation || undefined
                 });
+                // Replay de tentativa anterior: o pedido já existia — atualiza o
+                // comprovante pendente sem duplicar nada no servidor.
+                if ((resPix?.data as any)?.replay && proofUrl && proofUrl !== "PENDENTE_UPLOAD_LOCAL_CACHE") {
+                    const orderId = (resPix?.data as any)?.order?.id;
+                    if (orderId) {
+                        await updateDoc(doc(db, 'orders', orderId), { paymentProofUrl: proofUrl }).catch(() => {});
+                    }
+                }
                 // Comprovante em cache local (upload offline): vincula ao pedido criado para reenvio automático
                 if (proofUrl === "PENDENTE_UPLOAD_LOCAL_CACHE") {
                     const orderId = (resPix?.data as any)?.order?.id;
@@ -2313,10 +2327,14 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
                 try {
                     // Venda processada NO SERVIDOR: preços, estoque, carteira e caixa validados no backend.
+                    // clientToken = idempotência: um clique duplo/replay reenvia o mesmo token e o
+                    // servidor devolve o pedido já criado, sem debitar 2x.
+                    const saleToken = crypto.randomUUID();
                     const payloadItems = (items || []).map((i: any) => ({ productId: i?.productId || '', quantity: Number(i?.quantity) || 1 }));
                     const res = await fnProcessarVendaAdmin({
                         targetUserId,
                         items: payloadItems,
+                        clientToken: saleToken,
                         paymentMethod,
                         total: Number(total) || 0,
                         payments: payments || undefined,
