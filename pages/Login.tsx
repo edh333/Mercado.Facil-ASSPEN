@@ -137,7 +137,7 @@ export const Login: React.FC = () => {
         } catch (error: any) {
             setFormError(error.message);
             showNotification(error.message, "error");
-            if (isAdmin && String(error.message || '').includes('primeiro administrador')) {
+            if (isAdmin && String(error.message || '').toLowerCase().includes('primeiro acesso')) {
                 setShowFirstAdminSetup(true);
             }
         } finally {
