@@ -862,7 +862,7 @@ async function getSessaoCaixaAberta(operatorId) {
   //    Filtro de status feito em memória para não depender de índice composto.
   const snap1 = await db.collection("cash_sessions")
     .where("operatorId", "==", operatorId)
-    .limit(10)
+    .limit(100)
     .get();
   const ativa1 = snap1.docs.find((d) => String(d.data().status || "").toLowerCase() === "open");
   if (ativa1) {
