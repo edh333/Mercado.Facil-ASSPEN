@@ -51,6 +51,7 @@ export const UserDashboard: React.FC = () => {
     const [depositStage, setDepositStage] = useState<'amount' | 'proof'>('amount');
     const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const submittingRef = useRef(false);
     const [pixCopied, setPixCopied] = useState(false);
     const [isCartReviewOpen, setIsCartReviewOpen] = useState(false);
     const [isProductsModalOpen, setIsProductsModalOpen] = useState(false);
@@ -376,14 +377,19 @@ export const UserDashboard: React.FC = () => {
     };
 
     const handleFinish = async () => {
+        // Anti duplo clique: o setState ainda não re-renderizou o botão disabled.
+        if (submittingRef.current) return;
+        submittingRef.current = true;
         const isWalletPayment = cartPaymentMethod === 'WALLET';
 
         if (!isWalletPayment && !proofFile) {
+            submittingRef.current = false;
             showNotification("Por favor, anexe o comprovante PIX.", "error");
             return;
         }
 
         if (isWalletPayment && (currentUser?.walletBalance || 0) < cartTotal) {
+            submittingRef.current = false;
             showNotification("Saldo insuficiente. Envie credito primeiro.", "error");
             return;
         }
@@ -421,7 +427,7 @@ export const UserDashboard: React.FC = () => {
                     inmateLocation: formattedLocation,
                     paymentProofUrl: '',
                     paymentMethod: 'WALLET'
-                });
+                }, undefined, undefined, cart);
             } else {
                 // Prepara o arquivo ANTES de enviar o pedido — createOrder é chamado
                 // UMA única vez (reenvio automático aqui gerava pedido duplicado).
@@ -441,7 +447,7 @@ export const UserDashboard: React.FC = () => {
                         arquivo = original;
                     }
                 }
-                await createOrder(arquivo, formattedLocation);
+                await createOrder(arquivo, formattedLocation, undefined, cart);
             }
 
             setCart([]);
@@ -454,6 +460,7 @@ export const UserDashboard: React.FC = () => {
          } catch (e: any) {
             showNotification("Erro ao enviar pedido: " + (e.message || "Falha na conexao"), "error");
         } finally {
+            submittingRef.current = false;
             setIsSubmitting(false);
         }
     };

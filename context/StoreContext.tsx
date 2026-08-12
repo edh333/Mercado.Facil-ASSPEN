@@ -425,7 +425,7 @@ interface StoreContextType {
     addToCart: (product: Product, quantity?: number) => void;
     removeFromCart: (productId: string) => void;
     clearCart: () => void;
-    createOrder: (data: Partial<Order> | File | null, location?: InmateLocation) => Promise<boolean>;
+    createOrder: (data: Partial<Order> | File | null, location?: InmateLocation, clientToken?: string, items?: CartItem[]) => Promise<boolean>;
 
     searchOrders: (term: string) => Promise<Order[]>;
     clearOldData: () => Promise<void>;
@@ -1057,10 +1057,13 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const removeFromCart = (pid: string) => setCart(prev => prev.filter(p => String(p.productId) !== String(pid)));
     const clearCart = () => setCart([]);
 
-    const createOrder = async (arg1: Partial<Order> | File | null, arg2?: InmateLocation, clientToken?: string) => {
+    const createOrder = async (arg1: Partial<Order> | File | null, arg2?: InmateLocation, clientToken?: string, argItems?: CartItem[]) => {
         if (!currentUser) return false;
-        const totalCarrinho = (cart || []).reduce((acc, i) => acc + ((Number(i.priceAtPurchase) || 0) * (Number(i.quantity) || 0)), 0);
-        if ((cart || []).length === 0) throw new Error("Carrinho vazio.");
+        // Fonte da verdade: itens EXPLÍCITOS (carrinho local da tela). O cart do
+        // contexto é usado apenas pelo PDV admin e NUNCA está populado aqui.
+        const carrinhoFonte = argItems || cart;
+        const totalCarrinho = (carrinhoFonte || []).reduce((acc, i) => acc + ((Number(i.priceAtPurchase) || 0) * (Number(i.quantity) || 0)), 0);
+        if ((carrinhoFonte || []).length === 0) throw new Error("Carrinho vazio.");
         // Token de idempotência: o MESMO token em reenvios devolve o pedido já
         // criado no servidor (sem debitar estoque/saldo 2x). Reutilize o token
         // ao reenviar a MESMA tentativa de venda.
@@ -1070,7 +1073,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             let proofUrl = '';
             if (arg1 instanceof File || arg1 === null) {
                 proofUrl = (arg1 instanceof File) ? await uploadFile(arg1, 'comprovantes_pix', { kind: 'orders' }) : '';
-                orderData = { items: [...cart], total: totalCarrinho, paymentProofUrl: proofUrl, inmateLocation: arg2, deliveryLocation: arg2, paymentMethod: 'PIX' };
+                orderData = { items: [...carrinhoFonte], total: totalCarrinho, paymentProofUrl: proofUrl, inmateLocation: arg2, deliveryLocation: arg2, paymentMethod: 'PIX' };
             } else { orderData = arg1; }
 
             const items = (orderData.items || []).map(i => ({ productId: i.productId, quantity: i.quantity }));
