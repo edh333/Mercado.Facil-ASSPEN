@@ -4,6 +4,7 @@ const { logger } = require("firebase-functions");
 const admin = require("firebase-admin");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
+const path = require("path");
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -59,13 +60,14 @@ async function usuarioPorEmail(email) {
   return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
 }
 
-/** Garante que o chamador é admin (role 'admin' no doc users) e está ativo. */
+/** Garante que o chamador é admin (role 'admin'/'ADMIN'/'master' no doc users) e está ativo. */
 async function exigirAdmin(context) {
   if (!context || !context.auth || !context.auth.uid) {
     throw new HttpsError("unauthenticated", "Você precisa estar autenticado.");
   }
   const u = await usuarioPorAuthUid(context.auth.uid);
-  if (!u || u.role !== "admin") {
+  const ehAdmin = u && ["admin", "master"].includes(String(u.role || "").toLowerCase());
+  if (!u || !ehAdmin) {
     throw new HttpsError("permission-denied", "Acesso restrito a administradores.");
   }
   if (u.status && u.status !== "active") {
@@ -585,7 +587,7 @@ exports.aprovarDeposito = onCall(async (request) => {
       if (!comprovante || comprovante === "PENDENTE_UPLOAD_LOCAL_CACHE") {
         throw new Error("Depósito sem comprovante válido. Exija o envio da imagem do comprovante.");
       }
-      if (!comprovanteEhDoUsuario(comprovante, tx.userId, "wallet_proofs")) {
+      if (!(await comprovanteEhDoUsuario(comprovante, tx.userId, "wallet_proofs"))) {
         throw new Error("Comprovante do depósito inválido (não pertence a este usuário).");
       }
 
@@ -808,12 +810,31 @@ function validarItens(itens) {
  * do usuário ({pasta}/{uid}/...). Impede usar comprovante de outro usuário ou
  * de outro projeto Firebase para confirmar um pedido/depósito.
  */
-function comprovanteEhDoUsuario(url, uid, pasta) {
+async function comprovanteEhDoUsuario(url, uid, pasta) {
   const u = String(url || "").trim();
   if (!u.startsWith("https://firebasestorage.googleapis.com/v0/b/")) return false;
   if (!u.includes("mercado-facil-mt.appspot.com") && !u.includes("mercado-facil-mt.firebasestorage.app")) return false;
-  const marcador = encodeURIComponent(`${pasta}/${uid}/`);
-  return u.includes(marcador);
+  // Usuários migrados têm o documento com id == UID do Auth; usuários legados
+  // ainda podem ter id antigo com o campo authUid apontando para o UID real.
+  // O upload no app usa o UID do Auth, então a validação tem que aceitar
+  // TANTO o id do documento QUANTO o authUid na pasta da URL.
+  let primaryId = "";
+  let authUid = null;
+  if (uid && typeof uid === "object") {
+    primaryId = uid.id || uid.uid || "";
+    authUid = uid.authUid || null;
+  } else {
+    primaryId = String(uid || "");
+    try {
+      const snap = await db.collection("users").doc(primaryId).get();
+      if (snap.exists) authUid = snap.data().authUid || null;
+    } catch (e) {
+      authUid = null;
+    }
+  }
+  const marcador1 = encodeURIComponent(`${pasta}/${primaryId}/`);
+  const marcador2 = authUid ? encodeURIComponent(`${pasta}/${authUid}/`) : null;
+  return u.includes(marcador1) || Boolean(marcador2 && u.includes(marcador2));
 }
 
 /** Lê produtos e valida estoque. Retorna { itens, total }. */
@@ -1115,11 +1136,12 @@ exports.processarVendaAdmin = onCall(async (request) => {
 
     debitarEstoque(t, itensComPreco);
 
-let walletBalanceAfter;
+let walletBalanceBefore, walletBalanceAfter;
     if (userData) {
+      walletBalanceBefore = arredondar(Number(userData.walletBalance || 0));
       walletBalanceAfter = walletPortion > 0
         ? arredondar(Number(userData.walletBalance || 0) - walletPortion)
-        : arredondar(Number(userData.walletBalance || 0));
+        : walletBalanceBefore;
     }
     if (walletPortion > 0 && userData) {
       t.update(db.collection("users").doc(targetUserId), {
@@ -1178,6 +1200,7 @@ let walletBalanceAfter;
       operatorName: caller.name || "ADMIN",
       operatorId: caller.id,
       ...pixConfirmacao,
+      ...(walletBalanceBefore !== undefined ? { walletBalanceBefore } : {}),
       ...(walletBalanceAfter !== undefined ? { walletBalanceAfter } : {}),
       ...(paymentMethod === "FIADO" && customerAccountId ? { customerAccountId } : {}),
     };
@@ -1237,6 +1260,7 @@ exports.comprarComCarteira = onCall(async (request) => {
     const novoSaldo = arredondar(Number(ud.walletBalance || 0) - total);
     const novoWeekly = arredondar(Number(ud.weeklySpent || 0) + total);
     t.update(db.collection("users").doc(user.id), { walletBalance: novoSaldo, weeklySpent: novoWeekly });
+    const saldoAnterior = arredondar(Number(ud.walletBalance || 0));
 
     await registrarTransacaoCarteira(t, db.collection("wallet_transactions").doc(), {
       userId: user.id,
@@ -1264,8 +1288,9 @@ exports.comprarComCarteira = onCall(async (request) => {
       items: itensComPreco,
       total,
       paymentMethod: "WALLET",
-      inmateName: ud.inmateName || ud.prisonerName || "",
+inmateName: ud.inmateName || ud.prisonerName || "",
       inmateCpf: cleanCpf(ud.inmateCpf || ud.prisonerCpf || ""),
+      walletBalanceBefore: saldoAnterior,
       walletBalanceAfter: novoSaldo,
       operatorName: user.name || "USUÁRIO",
       ...(inmateLocation ? { inmateLocation } : {}),
@@ -1302,7 +1327,7 @@ exports.registrarPedidoPix = onCall(async (request) => {
   // Comprovante pendente (upload offline, será reenviado pelo app) ou URL do Storage.
   // A URL precisa pertencer ao bucket do projeto E à pasta do próprio usuário
   // (comprovante de outro usuário/projeto não pode ser usado para confirmar um pedido).
-  if (paymentProofUrl !== "PENDENTE_UPLOAD_LOCAL_CACHE" && !comprovanteEhDoUsuario(paymentProofUrl, user.id, "comprovantes_pix")) {
+  if (paymentProofUrl !== "PENDENTE_UPLOAD_LOCAL_CACHE" && !(await comprovanteEhDoUsuario(paymentProofUrl, user, "comprovantes_pix"))) {
     throw new HttpsError("invalid-argument", "Comprovante inválido. Envie a imagem do comprovante pelo aplicativo.");
   }
 
@@ -1332,6 +1357,7 @@ const orderId = (crypto.randomUUID ? crypto.randomUUID().replace(/-/g, "").slice
       total,
 paymentMethod: "PIX",
       paymentProofUrl,
+      walletBalanceBefore: arredondar(Number(ud.walletBalance || 0)),
       walletBalanceAfter: arredondar(Number(ud.walletBalance || 0)),
       inmateName: ud.inmateName || ud.prisonerName || "",
       inmateCpf: cleanCpf(ud.inmateCpf || ud.prisonerCpf || ""),
@@ -1349,6 +1375,82 @@ paymentMethod: "PIX",
   }
 
   return { ok: true, order: resultado };
+});
+
+/** Admin ─ aprova pedido PIX de forma atômica e auditada.
+ *  - Valida que o pedido ainda está pendente e possui comprovante anexado
+ *    (mesma proteção do aprovarDeposito — nunca aprova sem evidência).
+ *  - Com finalizar=true, aprova E finaliza a compra em um único passo.
+ *  - Registra auditoria e notifica o usuário que fez o pedido.
+ */
+exports.aprovarPedidoPix = onCall(async (request) => {
+  const caller = await exigirAdmin(request);
+  const orderId = String(request.data?.orderId || "").trim();
+  const finalizar = request.data?.finalizar === true;
+  if (!orderId) throw new HttpsError("invalid-argument", "Pedido inválido.");
+
+  let statusFinal = "";
+  let usuarioId = "";
+  try {
+    statusFinal = await db.runTransaction(async (t) => {
+      const oRef = db.collection("orders").doc(orderId);
+      const oSnap = await t.get(oRef);
+      if (!oSnap.exists) throw new Error("Pedido não encontrado.");
+      const pedido = oSnap.data();
+      const st = String(pedido.status || "").toLowerCase();
+      if (!["pending", "pendente", "pago_pendente", "pending_payment"].includes(st)) {
+        throw new Error("Este pedido já foi processado (status atual: " + pedido.status + ").");
+      }
+      const ehCarteira = String(pedido.paymentMethod || "").toUpperCase() === "WALLET";
+      if (!ehCarteira) {
+        const proof = String(pedido.paymentProofUrl || "").trim();
+        if (!proof || proof === "PENDENTE_UPLOAD_LOCAL_CACHE") {
+          throw new Error("Pedido sem comprovante de pagamento. Anexe o comprovante antes de aprovar.");
+        }
+      }
+      const agora = new Date().toISOString();
+      const atualizacao = {
+        status: finalizar ? "delivered" : "paid",
+        approvedBy: caller.name || caller.id,
+        approvedAt: agora,
+        paidAt: agora,
+      };
+      if (finalizar) {
+        atualizacao.deliveredAt = agora;
+      }
+      t.update(oRef, atualizacao);
+      usuarioId = String(pedido.userId || "");
+      return atualizacao.status;
+    });
+  } catch (e) {
+    throw new HttpsError("invalid-argument", e.message || "Falha ao aprovar o pedido.");
+  }
+
+  await registrarAudit(
+    caller.id,
+    finalizar ? "APROVAR_E_FINALIZAR_PEDIDO" : "APROVAR_PEDIDO",
+    { orderId },
+    { status: statusFinal, por: caller.name || caller.id }
+  ).catch(() => {});
+
+  if (usuarioId) {
+    try {
+      await db.collection("systemMessages").add({
+        id: crypto.randomUUID(),
+        createdAt: new Date().toISOString(),
+        type: finalizar ? "success" : "info",
+        title: `Pedido #${orderId.slice(0, 6)} ${finalizar ? "FINALIZADO" : "PAGO"}`,
+        content: finalizar
+          ? "Seu pedido foi aprovado e finalizado com sucesso. Você receberá suas compras em breve."
+          : "Seu pagamento foi aprovado. Seu pedido já está sendo preparado.",
+        targetUserId: usuarioId,
+      });
+    } catch (eNotif) {
+      logger.warn("[AprovarPedido] Falha ao notificar usuário:", eNotif.message);
+    }
+  }
+
+  return { ok: true, status: statusFinal };
 });
 
 /** Admin — estorno/devolução de pedido com carteira. */
@@ -1477,7 +1579,93 @@ exports.estornarVenda = onCall(async (request) => {
 
   await registrarAudit(caller.id, "ESTORNAR_VENDA", { pedidoId: orderId }, { pedidoId: orderId, motivo });
 
-  return { ok: true };
+return { ok: true };
+});
+
+// ──────────────────────────────────────────────
+// PAGAMENTO DE CONTA FIADA ("Contas a Pagar")
+// ──────────────────────────────────────────────
+// Antes o abatimento era 100% client-side sem validação (a dívida podia ficar
+// negativa e o pagamento poderia superar o débito). Agora é atômico no servidor:
+//  - valida que o valor é positivo e NÃO supera a dívida atual;
+//  - abate com clamp (nunca fica negativa);
+//  - registra a transação na conta;
+//  - credita o valor na sessão de caixa do operador (quando aberta);
+//  - autorização: qualquer operador admin (como antes, direto do cliente).
+exports.registrarPagamentoConta = onCall({
+  timeoutSeconds: 60,
+}, async (request) => {
+  const caller = await exigirAdmin(request);
+  const customerAccountId = String(request.data?.customerAccountId || "").trim();
+  const amount = arredondar(Number(request.data?.amount) || 0);
+  const note = String(request.data?.note || "").trim().slice(0, 120);
+
+  if (!customerAccountId) throw new HttpsError("invalid-argument", "Cliente de fiado não informado.");
+  if (!(amount > 0)) throw new HttpsError("invalid-argument", "Valor do pagamento deve ser maior que zero.");
+
+  const clienteRef = db.collection("customer_accounts").doc(customerAccountId);
+
+  // Sessão de caixa do operador resolvida ANTES da transação (revalidada dentro),
+  // mesmo padrão das vendas em dinheiro — cobre cash_sessions E cashier legado.
+  let sessaoCaixaPgt = null;
+  try { sessaoCaixaPgt = await getSessaoCaixaAberta(caller.id); } catch (e) { /* caixa opcional */ }
+
+  let resultado;
+  try {
+    resultado = await db.runTransaction(async (t) => {
+      const contaSnap = await t.get(clienteRef);
+      if (!contaSnap.exists) throw new Error("Conta de fiado não encontrada.");
+      const conta = contaSnap.data();
+      const dividaAtual = arredondar(Number(conta.currentDebt || 0));
+      if (dividaAtual <= 0) throw new Error("Este cliente não possui débito em aberto.");
+
+      const excedente = arredondar(amount - dividaAtual);
+      if (excedente > 0) {
+        throw new Error(`O pagamento (R$ ${amount.toFixed(2)}) supera a dívida (R$ ${dividaAtual.toFixed(2)}). Abata no máximo o valor devido.`);
+      }
+
+      const novoDebito = arredondar(dividaAtual - amount);
+
+      t.update(clienteRef, {
+        currentDebt: novoDebito,
+        transactions: admin.firestore.FieldValue.arrayUnion({
+          type: "payment",
+          amount,
+          note,
+          timestamp: admin.firestore.Timestamp.now(),
+          by: caller.id,
+          byName: caller.name || "Administrador",
+        }),
+      });
+
+      // Credita na sessão de caixa aberta do operador (se houver)
+      if (sessaoCaixaPgt) {
+        const sessaoSnap = await t.get(refSessaoCaixa(sessaoCaixaPgt));
+        if (sessaoSnap.exists && String(sessaoSnap.data().status || "").toUpperCase() === "OPEN") {
+          const payloadPgt = {
+            currentBalance: admin.firestore.FieldValue.increment(amount),
+            supplements: admin.firestore.FieldValue.arrayUnion({
+              amount,
+              reason: `Recebimento de Fiado - ${conta.nome || customerAccountId}`,
+              timestamp: admin.firestore.Timestamp.now(),
+            }),
+          };
+          if (sessaoCaixaPgt.colecao !== "cash_sessions") {
+            payloadPgt.totalEntries = admin.firestore.FieldValue.increment(amount);
+          }
+          t.update(sessaoSnap.ref, payloadPgt);
+        }
+      }
+
+      return { dividaAnterior: dividaAtual, novoDebito };
+    });
+  } catch (e) {
+    throw new HttpsError("invalid-argument", e.message || "Falha ao registrar o pagamento.");
+  }
+
+  await registrarAudit(caller.id, "PAGAR_CONTA_FIADO", { clienteId: customerAccountId, amount }, resultado);
+
+  return { ok: true, ...resultado };
 });
 
 // ──────────────────────────────────────────────
@@ -1511,8 +1699,19 @@ async function executarResetSemanal() {
     totalZerados += snapshot.size;
     snapshot = await db.collection("users").where("weeklySpent", ">", 0).limit(500).get();
   }
-  if (totalZerados > 0) {
-    logger.info(`[WeeklyReset] ${totalZerados} usuários com cota zerada.`);
+
+  // Contas de fiado também têm cota semanal — zera junto (antes ficava acumulado)
+  let totalZeradosFiado = 0;
+  let snapshotFiado = await db.collection("customer_accounts").where("weeklySpent", ">", 0).limit(500).get();
+  while (!snapshotFiado.empty && totalZeradosFiado < 5000) {
+    const batchFiado = db.batch();
+    snapshotFiado.docs.forEach((d) => batchFiado.update(d.ref, { weeklySpent: 0 }));
+    await batchFiado.commit();
+    totalZeradosFiado += snapshotFiado.size;
+    snapshotFiado = await db.collection("customer_accounts").where("weeklySpent", ">", 0).limit(500).get();
+  }
+  if (totalZerados + totalZeradosFiado > 0) {
+    logger.info(`[WeeklyReset] ${totalZerados} usuários e ${totalZeradosFiado} contas de fiado com cota zerada.`);
   }
 
   await settingsRef.set({ lastWeeklyReset: mondayStr }, { merge: true });
@@ -1711,6 +1910,161 @@ exports.obterHoraServidor = onCall(async (request) => {
   const agora = admin.firestore.Timestamp.now();
   return { hora: agora.toMillis(), timestamp: agora.toDate().toISOString() };
 });
+
+// ──────────────────────────────────────────────
+// LIMPEZA MANUAL COM BACKUP (quando a cota atinge ~70%)
+// Admin clica em "Limpar Dados Antigos": o servidor faz
+//  1) backup completo em Storage (arquivo JSON, link de download válido por 7 dias)
+//  2) cópia para historico_geral (trilha de auditoria, sem nunca perder nada)
+//  3) marca como deleted:true (soft delete — os dados somem da operação, mas a
+//     cópia de segurança permanece restaurable a qualquer momento)
+// Segurança: exige admin ativo, NUNCA toca pedidos/depósitos pendentes.
+// ──────────────────────────────────────────────
+
+/** Admin ─ backup + limpeza de dados antigos (orders, wallet_transactions, expenses). */
+exports.limparDadosAntigos = onCall({
+  timeoutSeconds: 540,
+  memory: "1GiB",
+}, async (request) => {
+  const chamador = await exigirAdmin(request);
+  const dias = Math.max(30, Math.min(730, Math.floor(Number(request.data?.dias) || 90)));
+  const cutoff = new Date(Date.now() - dias * 24 * 60 * 60 * 1000).toISOString();
+
+  const colecoes = [
+    { name: "orders", dateField: "createdAt", skipPendentes: true },
+    { name: "wallet_transactions", dateField: "createdAt", skipPendentes: true },
+    { name: "expenses", dateField: "date", skipPendentes: false },
+  ];
+
+  const backup = { geradoEm: new Date().toISOString(), dias, por: chamador.name || chamador.id, dados: {} };
+  const totais = {};
+  let totalApagados = 0;
+
+  for (const col of colecoes) {
+    totais[col.name] = 0;
+    backup.dados[col.name] = [];
+    let pagina = await db.collection(col.name)
+      .where(col.dateField, "<=", cutoff)
+      .limit(500)
+      .get();
+    let lote = 0;
+    // Limites de segurança: máx 4000 docs/coleção por execução, 8 lotes de 500.
+    while (!pagina.empty && lote < 8 && backup.dados[col.name].length < 4000) {
+      const loteDocs = pagina.docs.filter((d) => {
+        if (!col.skipPendentes) return true;
+        return String(d.data().status || "").toLowerCase() !== "pending";
+      });
+      if (loteDocs.length > 0) {
+        const dadosLote = loteDocs.map((d) => ({ id: d.id, ...d.data() }));
+        backup.dados[col.name].push(...dadosLote);
+        // 1) Cópia para historico_geral (auditoria permanente)
+        const batchCopy = db.batch();
+        dadosLote.forEach((d) => {
+          batchCopy.set(db.collection("historico_geral").doc(), {
+            colecao: col.name,
+            origem: col.name,
+            arquivadoEm: new Date().toISOString(),
+            motivo: "limpeza_manual_cota",
+            documento: { id: d.id, ...d.data() },
+          });
+        });
+        await batchCopy.commit();
+        // 2) Soft delete nos ativos
+        const batchSoft = db.batch();
+        loteDocs.forEach((d) => batchSoft.update(d.ref, { deleted: true, archivedAt: new Date().toISOString() }));
+        await batchSoft.commit();
+        totais[col.name] += loteDocs.length;
+        totalApagados += loteDocs.length;
+      }
+      lote++;
+      if (backup.dados[col.name].length < 4000) {
+        pagina = await db.collection(col.name)
+          .where(col.dateField, "<=", cutoff)
+          .limit(500)
+          .get();
+      }
+    }
+  }
+
+  if (totalApagados === 0) {
+    return { ok: true, total: 0, porColecao: totais, backupUrl: "", mensagem: "Nenhum dado antigo encontrado dentro do período." };
+  }
+
+  // 3) Backup físico em Storage (cópia de segurança independente do Firestore)
+  let backupUrl = "";
+  try {
+    const bucket = admin.storage().bucket();
+    const nomeArquivo = `backups/limpeza-${Date.now()}.json`;
+    await bucket.file(nomeArquivo).save(JSON.stringify(backup), {
+      contentType: "application/json",
+      resumable: false,
+    });
+    const [url] = await bucket.file(nomeArquivo).getSignedUrl({
+      action: "read",
+      expires: Date.now() + 7 * 24 * 60 * 60 * 1000,
+    });
+    backupUrl = url;
+  } catch (e) {
+    logger.warn("[LimpezaCota] Falha ao salvar backup no Storage (o histórico no Firestore já preserva tudo):", e.message);
+  }
+
+  await db.collection("settings").doc("maintenance").set({
+    lastCotaCleanup: new Date().toISOString(),
+    lastCotaCleanupBy: chamador.id,
+    lastCotaCleanupDias: dias,
+  }, { merge: true });
+
+  return { ok: true, total: totalApagados, porColecao: totais, backupUrl, mensagem: "" };
+});
+
+// ──────────────────────────────────────────────
+// DOWNLOAD DO APP (EXE / SETUP)
+// ──────────────────────────────────────────────
+// Regras de acesso por papel (servidor decide, nunca o cliente):
+//  - FAMILY (usuário comum): pode baixar SOMENTE a versão "Usuário".
+//  - ADMIN: pode baixar as duas versões ("Usuário" e "Administrador").
+// Os executáveis ficam no Storage em apps/ e o link é assinado (7 dias).
+// ──────────────────────────────────────────────
+
+const APPS_DISPONIVEIS = [
+  { chave: "usuario", arquivo: "apps/MercadoFacil-Usuario-Setup.exe", nome: "Mercado Fácil - Usuário", descricao: "App de compras para os familiares" },
+  { chave: "admin", arquivo: "apps/MercadoFacil-Admin-Setup.exe", nome: "Mercado Fácil - Administrador", descricao: "Painel de gestão completa (PDV, estoque e relatórios)" },
+];
+
+/** Autenticado ─ gera links de download do app conforme o papel do chamador. */
+exports.obterLinkDownloadApp = onCall({
+  timeoutSeconds: 60,
+}, async (request) => {
+  const user = await exigirAutenticado(request);
+  const ehAdmin = ["admin", "master"].includes(String(user.role || "").toLowerCase());
+
+  const bucket = admin.storage().bucket();
+  const resultado = [];
+
+  for (const app of APPS_DISPONIVEIS) {
+    if (app.chave === "admin" && !ehAdmin) continue; // usuário comum NUNCA vê a versão admin
+    try {
+      const file = bucket.file(app.arquivo);
+      const [existe] = await file.exists();
+      if (!existe) {
+        resultado.push({ chave: app.chave, nome: app.nome, descricao: app.descricao, disponivel: false, url: "", motivo: "nao_publicado" });
+        continue;
+      }
+      const [url] = await file.getSignedUrl({
+        action: "read",
+        expires: Date.now() + 7 * 24 * 60 * 60 * 1000,
+        responseDisposition: `attachment; filename="${path.basename(app.arquivo)}"`,
+      });
+      resultado.push({ chave: app.chave, nome: app.nome, descricao: app.descricao, disponivel: true, url, motivo: "" });
+    } catch (e) {
+      logger.warn("[DownloadApp] Falha ao gerar link de " + app.chave + ":", e.message);
+      resultado.push({ chave: app.chave, nome: app.nome, descricao: app.descricao, disponivel: false, url: "", motivo: "erro_servidor" });
+    }
+  }
+
+  return { ok: true, ehAdmin, apps: resultado, versao: "1.0.0" };
+});
+
 
 
 

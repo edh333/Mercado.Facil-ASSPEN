@@ -345,9 +345,15 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
     if (produto.stock === 0) return;
     if ((produto.price || 0) <= 0) return;
 
-    const preco = (produto as any).dynamicPrice
-      ? parseFloat(window.prompt(`Preço: ${produto?.name || 'Produto'}`, produto?.price?.toString() || '0') || '0') || produto?.price || 0
+    // Mesmo critério do servidor (functions processarVendaAdmin): promoPrice tem
+    // prioridade sobre price — garante que o valor exibido/cobrado é o do servidor.
+    const precoBase = (produto as any).promoPrice > 0 && (produto as any).promoPrice !== null
+      ? Number((produto as any).promoPrice)
       : produto.price;
+
+    const preco = (produto as any).dynamicPrice
+      ? parseFloat(window.prompt(`Preço: ${produto?.name || 'Produto'}`, precoBase?.toString() || '0') || '0') || precoBase || 0
+      : precoBase;
 
     playAddSound();
 
@@ -383,9 +389,26 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
 
     if (!cod) return;
 
-    const produto = (products || []).find(p => (p as any).barcode === cod || p.id === cod);
+    // Busca exata por código de barras/EAN/id, ignorando zeros à esquerda
+    // (muitos leitores enviam 789... sem o 0 inicial do EAN-13)
+    const normCod = (c: string) => String(c || '').replace(/^0+/, '').trim();
+    const codNorm = normCod(cod);
+    const produto = (products || []).find(p =>
+      String(p.barcode || '').trim() === cod ||
+      String(p.ean || '').trim() === cod ||
+      String(p.id) === cod ||
+      (codNorm && (normCod(p.barcode) === codNorm || normCod(p.ean) === codNorm))
+    );
     if (produto) {
       adicionarAoCarrinho(produto, forceQty);
+      setCodigoProduto('');
+      setTimeout(() => produtoInputRef.current?.focus(), 50);
+      return;
+    }
+
+    // Código numérico (leitor de barras) sem produto correspondente: feedback imediato
+    if (/^\d{8,14}$/.test(cod)) {
+      showNotification(`Código de barras ${cod} não encontrado no cadastro.`, 'error');
       setCodigoProduto('');
       setTimeout(() => produtoInputRef.current?.focus(), 50);
       return;
@@ -394,7 +417,8 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
     const resultados = (products || []).filter(p => {
        const nome = (p.name || '').toLowerCase();
        const barcode = ((p as any).barcode || '').toLowerCase();
-       return nome.includes(cod.toLowerCase()) || barcode.includes(cod.toLowerCase()) || (p.id || '').toLowerCase().includes(cod.toLowerCase());
+       const ean = ((p as any).ean || '').toLowerCase();
+       return nome.includes(cod.toLowerCase()) || barcode.includes(cod.toLowerCase()) || ean.includes(cod.toLowerCase()) || (p.id || '').toLowerCase().includes(cod.toLowerCase());
     }).slice(0, 5);
 
     if (resultados.length === 1) {
@@ -441,6 +465,11 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
   };
 
   const totalCarrinho = useMemo(() => carrinho.reduce((soma, item) => soma + item.price * item.quantity, 0), [carrinho]);
+
+  // Memoizado: o payload PIX (geração do QR) é usado várias vezes por render —
+  // calcular uma única vez economiza processamento a cada tecla digitada no PDV.
+  const pixPayloadCarrinho = useMemo(() => gerarPixPayload(totalCarrinho), [totalCarrinho, gerarPixPayload]);
+  const pixPayloadMisto = useMemo(() => gerarPixPayload(parseFloat(valorMisto.PIX) || 0), [valorMisto.PIX, gerarPixPayload]);
 
   // Segurança extra: se o total do carrinho mudar com PIX pendente, exige nova confirmação
   useEffect(() => {
@@ -1325,11 +1354,11 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                       ))}
                     </div>
 
-                    {gerarPixPayload(totalCarrinho) ? (
+                    {pixPayloadCarrinho ? (
                       <>
                         <div className="bg-white rounded-[2rem] p-5 inline-block shadow-2xl relative z-10">
                           <QRCodeSVG
-                            value={gerarPixPayload(totalCarrinho)}
+                            value={pixPayloadCarrinho}
                             size={220}
                             level="H"
                             bgColor="#ffffff"
@@ -1345,13 +1374,13 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                             <p className="text-[9px] font-black text-emerald-500 uppercase tracking-[0.3em] mb-2">Chave Copia e Cola</p>
                             <input
                               readOnly
-                              value={gerarPixPayload(totalCarrinho)}
+                              value={pixPayloadCarrinho}
                               className="w-full text-[10px] font-mono text-slate-500 bg-transparent outline-none text-center select-all mb-3"
                               onClick={(e) => (e.target as HTMLInputElement).select()}
                             />
                             <button
                               onClick={() => {
-                                navigator.clipboard.writeText(gerarPixPayload(totalCarrinho));
+                                navigator.clipboard.writeText(pixPayloadCarrinho);
                                 setPixCopied(true);
                                 setTimeout(() => setPixCopied(false), 2000);
                               }}
@@ -1471,10 +1500,10 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                           <span className="font-black text-[10px] uppercase tracking-[0.3em] text-blue-700">PIX — Parte da Compra</span>
                         </div>
                         <p className="font-black text-2xl text-blue-700 mb-4">R$ {formatarMoeda(parseFloat(valorMisto.PIX) || 0)}</p>
-                        {gerarPixPayload(parseFloat(valorMisto.PIX) || 0) ? (
+                        {pixPayloadMisto ? (
                           <div className="bg-white rounded-[2rem] p-4 inline-block shadow-lg border border-blue-100">
                             <QRCodeSVG
-                              value={gerarPixPayload(parseFloat(valorMisto.PIX) || 0)}
+                              value={pixPayloadMisto}
                               size={180}
                               level="H"
                               bgColor="#ffffff"

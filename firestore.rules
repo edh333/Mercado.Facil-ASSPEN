@@ -6,10 +6,13 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Admin = documento do usuário autenticado (id == UID do Auth) com role 'admin'
     function isAdmin() {
       return isAuthenticated() &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN' ||
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'master' ||
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'MASTER');
     }
 
     // O usuário é dono de um registro quando: id == UID autenticado,
@@ -55,7 +58,7 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (userMatch(resource.data.userId) || isAdmin());
       allow update: if isAdmin() || (
         userMatch(resource.data.userId)
-        && lower(resource.data.status) == 'pending'
+        && resource.data.status.matches('(?i)^pending$')
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paymentProofUrl'])
       );
       allow delete: if isAdmin();
@@ -76,7 +79,7 @@ service cloud.firestore {
       // preencher proofUrl enquanto a transação estiver pendente.
       allow update: if isAdmin() || (
         userMatch(resource.data.userId)
-        && lower(resource.data.status) == 'pending'
+        && resource.data.status.matches('(?i)^pending$')
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['proofUrl'])
       );
       allow delete: if isAdmin();

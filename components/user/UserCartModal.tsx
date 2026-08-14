@@ -181,6 +181,7 @@ export const UserCartModal: React.FC<UserCartModalProps> = ({
                     inmateLocation: location,
                     deliveryLocation: location,
                     createdAt: new Date().toISOString(),
+                    walletBalanceBefore: currentUser?.walletBalance || 0,
                     walletBalanceAfter: currentUser?.walletBalance || 0,
                     operatorName: currentUser?.name || 'ADMIN'
                 }

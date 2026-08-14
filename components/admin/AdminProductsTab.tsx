@@ -54,7 +54,8 @@ export const AdminProductsTab: React.FC<AdminProductsTabProps> = ({
       const matchSearch = (p.name || '').toLowerCase().includes(termo) ||
         (p.brand || '').toLowerCase().includes(termo) ||
         (p.category || '').toLowerCase().includes(termo) ||
-        (p.barcode || '').toLowerCase().includes(termo);
+        (p.barcode || '').toLowerCase().includes(termo) ||
+        (p.ean || '').toLowerCase().includes(termo);
       const matchCategory = categoryFilter === 'ALL' || p.category === categoryFilter;
       const matchSupplier = supplierFilter === 'ALL' || (p.supplierId || p.supplier) === supplierFilter;
       return matchSearch && matchCategory && matchSupplier;

@@ -12,6 +12,7 @@ import {
   query,
   orderBy
 } from "firebase/firestore";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { CustomerAccount } from "../types";
 
 const COLLECTION = "customer_accounts";
@@ -61,15 +62,42 @@ export async function deleteCustomerAccount(id: string): Promise<void> {
 }
 
 // 1. Receber Pagamento de Conta (Cliente veio pagar o que deve)
+// Preferência: Cloud Function `registrarPagamentoConta` (abatimento atômico no
+// servidor, com validação de valor e clamp — nunca fica dívida negativa).
+// Fallback local (quando a função ainda não foi publicada): mesmo comportamento,
+// validando o valor e fazendo clamp, para não quebrar o fluxo de caixa do lojista.
 export async function receiveCustomerPayment(customerId: string, amount: number, sessionId?: string) {
+  const valor = Math.round(Number(amount) * 100) / 100;
+  if (!(valor > 0)) throw new Error("Valor do pagamento deve ser maior que zero.");
+
+  try {
+    const fn = httpsCallable(getFunctions(), 'registrarPagamentoConta');
+    const res = await fn({ customerAccountId: customerId, amount: valor, sessionId: sessionId || null });
+    const data = res.data as any;
+    if (data?.ok) return data;
+  } catch (e: any) {
+    const code = e?.code || '';
+    if (code && code !== 'functions/not-found' && code !== 'functions/internal' && code !== 'functions/unavailable') {
+      throw new Error(e?.message || "Erro ao processar pagamento.");
+    }
+    // Função não publicada (ou rede) → fallback local com as mesmas regras
+  }
+
   try {
     const customerRef = doc(db, COLLECTION, customerId);
+    const snap = await getDocs(query(collection(db, COLLECTION)));
+    const conta = snap.docs.find(d => d.id === customerId)?.data();
+    const dividaAtual = Math.round(Number(conta?.currentDebt || 0) * 100) / 100;
+    if (dividaAtual <= 0) throw new Error("Este cliente não possui débito em aberto.");
+    if (valor > dividaAtual) throw new Error(`O pagamento (R$ ${valor.toFixed(2)}) supera a dívida (R$ ${dividaAtual.toFixed(2)}). Abata no máximo o valor devido.`);
+
+    const novoDebito = Math.round((dividaAtual - valor) * 100) / 100;
 
     await updateDoc(customerRef, {
-      currentDebt: increment(-Number(amount)),
+      currentDebt: novoDebito,
       transactions: arrayUnion({
         type: "payment",
-        amount: Number(amount),
+        amount: valor,
         timestamp: Timestamp.now()
       })
     });
@@ -77,16 +105,17 @@ export async function receiveCustomerPayment(customerId: string, amount: number,
     if (sessionId) {
       const sessionRef = doc(db, "cash_sessions", sessionId);
       await updateDoc(sessionRef, {
-        currentBalance: increment(Number(amount)),
+        currentBalance: increment(valor),
         supplements: arrayUnion({
-          amount: Number(amount),
+          amount: valor,
           reason: `Recebimento de Fiado - Cliente ID: ${customerId}`,
           timestamp: Timestamp.now()
         })
       });
     }
+    return { ok: true, dividaAnterior: dividaAtual, novoDebito };
   } catch (e: any) {
     console.error("[receiveCustomerPayment]", e.message);
-    throw new Error("Erro ao processar pagamento.");
+    throw new Error(e?.message || "Erro ao processar pagamento.");
   }
 }

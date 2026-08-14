@@ -5,6 +5,7 @@ import { THEME_COLORS } from '../constants';
 import { ThemeOption, UserRole, SystemRole } from '../types';
 import { NotificationSystem } from './NotificationSystem';
 import { InstallButton } from './InstallButton';
+import { AppDownloadButton } from './AppDownloadModal';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -131,6 +132,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     <ShoppingBag size={12} className="inline-block mr-1" />Finalizar ({operatorCartCount})
                   </button>
                   <InstallButton role={isAdmin ? 'admin' : 'user'} />
+                  <AppDownloadButton className="!w-8 !h-8 sm:!w-9 sm:!h-9" />
                 </div>
               )}
               {currentUser && (

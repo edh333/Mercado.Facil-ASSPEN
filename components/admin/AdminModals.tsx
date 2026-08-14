@@ -1,7 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import {
-  X, Check, Upload, ImageIcon,
+  X, Check, Upload, ImageIcon, Barcode,
   MinusCircle, RefreshCw, Loader2, Lock, Package, Key, PlusCircle, Printer
 } from 'lucide-react';
 import { Product, Expense, Order } from '../../types';
@@ -9,7 +9,7 @@ import { compressImageFile, fileToBase64, normalizeName } from '../../utils';
 import { ModalShell } from '../ui/ModalShell';
 import { CupomEntrega } from '../CupomEntrega';
 import { ReciboA4 } from '../ReciboA4';
-import { gerarCupomEntregaRaw, baixarCupomTxt, abrirJanelaImpressao } from '../../utils/printUtils';
+import { gerarCupomEntregaRaw, baixarCupomTxt, abrirJanelaImpressao, imprimirComPrioridadeFiscal, imprimirHtmlSilencioso } from '../../utils/printUtils';
 
 interface AdminModalsProps {
   showProductModal: boolean;
@@ -61,7 +61,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
 
   const handleRawPrint = () => {
     if (!printOrder) return;
-    abrirJanelaImpressao({ type: 'CUPOM', data: printOrder }, settings);
+    imprimirComPrioridadeFiscal({ type: 'CUPOM', data: printOrder }, settings).catch(console.error);
   };
 
   const handleBaixarTxt = () => {
@@ -206,26 +206,75 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
     }
   };
 
+  const barcodeInputRef = React.useRef<HTMLInputElement>(null);
+  const [scanAviso, setScanAviso] = React.useState<{ texto: string; tipo: 'azul' | 'amarelo' | 'verde' } | null>(null);
+
+  // Busca um produto por código de barras (mesma regra do PDV: exato + sem zeros à esquerda)
+  const buscarPorCodigo = React.useCallback((cod: string) => {
+    const codLimpo = String(cod || '').trim();
+    if (!codLimpo) return null;
+    const normCod = (c: string) => String(c || '').replace(/^0+/, '').trim();
+    const norm = normCod(codLimpo);
+    return products.find(p =>
+      String(p.barcode || '').trim() === codLimpo ||
+      String(p.ean || '').trim() === codLimpo ||
+      String(p.id) === codLimpo ||
+      (norm && (normCod(p.barcode) === norm || normCod(p.ean) === norm))
+    ) || null;
+  }, [products]);
+
+  // Processa um código escaneado OU digitado + Enter no campo:
+  //  - Se o produto já existe, abre a EDIÇÃO dele (dados carregados automaticamente),
+  //    evitando duplicidade no cadastro.
+  //  - Se é um código novo, apenas preenche o campo para preencher os dados.
+  const processarBarcode = React.useCallback((cod: string) => {
+    const codLimpo = String(cod || '').trim();
+    if (!codLimpo) return;
+    const existente = buscarPorCodigo(codLimpo);
+    if (existente) {
+      if (!editingProduct) {
+        setEditingProduct(existente);
+        setScanAviso({ texto: `Produto já cadastrado — editando: ${existente.name}. Salve para atualizar.`, tipo: 'verde' });
+      } else if (editingProduct.id === existente.id) {
+        setScanAviso({ texto: 'Código já cadastrado neste produto — tudo pronto.', tipo: 'verde' });
+      } else {
+        setScanAviso({ texto: `Código pertence a outro produto: ${existente.name}. Abra a edição dele para alterar.`, tipo: 'amarelo' });
+      }
+    } else {
+      setProductForm(prev => ({ ...prev, barcode: codLimpo }));
+      setScanAviso({ texto: 'Código novo — preencha os dados e salve.', tipo: 'azul' });
+    }
+  }, [buscarPorCodigo, editingProduct, setEditingProduct]);
+
   React.useEffect(() => {
     if (!showProductModal) return;
+    setScanAviso(null);
     let buffer = '';
     let lastKeyTime = Date.now();
     const handleKeyDown = (e: KeyboardEvent) => {
-        const currentTime = Date.now();
-        if (currentTime - lastKeyTime > 100) buffer = '';
-        lastKeyTime = currentTime;
-        if (e.key === 'Enter') {
-            if (buffer.length > 3) {
-                setProductForm(prev => ({ ...prev, barcode: buffer }));
-                buffer = '';
-            }
-        } else if (e.key.length === 1) {
-            buffer += e.key;
+      const target = e.target as HTMLElement;
+      // Se o foco está num campo de formulário, o campo processa (leitura manual);
+      // o leitor de código de barras atua quando o foco está fora dos campos.
+      const ehCampo = target instanceof HTMLInputElement ||
+        target instanceof HTMLSelectElement ||
+        target instanceof HTMLTextAreaElement;
+      if (ehCampo) return;
+      const currentTime = Date.now();
+      if (currentTime - lastKeyTime > 100) buffer = '';
+      lastKeyTime = currentTime;
+      if (e.key === 'Enter') {
+        if (buffer.length > 3) {
+          processarBarcode(buffer);
+          buffer = '';
+          setTimeout(() => barcodeInputRef.current?.focus(), 50);
         }
+      } else if (e.key.length === 1) {
+        buffer += e.key;
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showProductModal]);
+  }, [showProductModal, processarBarcode]);
 
   return (
     <>
@@ -341,12 +390,30 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
 
                {/* MIDDLE ROW: Código EAN + Custo + Margem */}
                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                   <PremiumInput
-                       label="Código EAN"
-                       value={productForm.barcode}
-                       onChange={e => setProductForm({...productForm, barcode: e.target.value})}
-                       placeholder="0000000000000"
-                   />
+                   <div className="space-y-1">
+                       <div className="bg-white p-4 rounded-xl border-2 border-slate-200 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
+                           <div className="flex justify-between items-center mb-2">
+                               <label className="text-slate-700 font-black text-[10px] uppercase tracking-widest">Código de Barras (EAN)</label>
+                               <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[9px] font-black uppercase tracking-wider">Leitor Ativo</span>
+                           </div>
+                           <input
+                               ref={barcodeInputRef}
+                               value={productForm.barcode}
+                               onChange={e => { setProductForm({ ...productForm, barcode: e.target.value }); setScanAviso(null); }}
+                               onKeyDown={e => {
+                                   if (e.key === 'Enter') {
+                                       e.preventDefault();
+                                       processarBarcode(e.currentTarget.value);
+                                   }
+                               }}
+                               placeholder="Escaneie ou digite o código"
+                               className="w-full bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 text-sm outline-none px-4 py-2.5 placeholder:text-slate-400 transition-all focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                           />
+                       </div>
+                       <p className={`text-[9px] font-bold uppercase tracking-wider px-1 flex items-center gap-1 ${scanAviso?.tipo === 'verde' ? 'text-emerald-600' : scanAviso?.tipo === 'amarelo' ? 'text-amber-600' : 'text-blue-600'}`}>
+                           <Barcode size={11}/> {scanAviso?.texto || 'Leitor ativo — aponte o leitor e escaneie (Enter)'}
+                       </p>
+                   </div>
                    <PremiumInput
                        label="Custo (R$)"
                        value={productForm.cost}
@@ -627,7 +694,14 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                 <button onClick={handleBaixarTxt} className="px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-90 bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 shadow-sm" title="Baixar .txt para impressão externa">
                   TXT
                 </button>
-                <button onClick={() => setTimeout(() => window.print(), 350)} className="px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-90 bg-slate-900 text-white hover:bg-slate-700 shadow-sm" title="Imprimir nesta janela">
+                <button onClick={async () => {
+                    const api = (window as any).electronAPI;
+                    if (api?.printHtmlSilent) {
+                        const ok = await imprimirHtmlSilencioso(gerarCupomEntregaRaw(printOrder, settings), settings);
+                        if (ok) return;
+                    }
+                    setTimeout(() => window.print(), 350);
+                  }} className="px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-90 bg-slate-900 text-white hover:bg-slate-700 shadow-sm" title="Imprimir nesta janela">
                   <Printer size={14}/> Imprimir
                 </button>
                 <button onClick={() => setPrintOrder(null)} className="p-2 rounded-lg transition-all active:scale-90 bg-slate-100 text-slate-700 hover:bg-red-50 hover:text-red-600 border border-slate-200 shadow-sm" title="Fechar">
@@ -636,7 +710,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
               </div>
             </div>
             <div className="w-full mx-auto bg-white flex-1 overflow-y-auto p-4 md:p-6 flex justify-center shadow-inner" style={{ minHeight: '200px' }}>
-              <div className="bg-white shadow-xl origin-top" style={{ width: '80mm' }}>
+              <div className="bg-white shadow-xl origin-top" style={{ width: '76mm' }}>
                 <CupomEntrega order={printOrder} remainingBalance={printOrder.walletBalanceAfter} config={(settings as any)} />
               </div>
               {printOrder && createPortal(
@@ -655,8 +729,8 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                 body { background: white !important; }
                 body * { visibility: hidden !important; }
                 #print-root-modal, #print-root-modal * { visibility: visible !important; }
-                #print-root-modal { position: absolute !important; left: 0 !important; top: 0 !important; width: 80mm !important; max-width: 80mm !important; margin: 0 !important; padding: 0 !important; }
-                @page { size: 80mm auto; margin: 0 !important; }
+                #print-root-modal { position: absolute !important; left: 0 !important; top: 0 !important; width: 76mm !important; max-width: 76mm !important; margin: 0 !important; padding: 0 1mm !important; box-sizing: border-box !important; }
+                @page { size: 76mm auto; margin: 0 !important; }
               }
             `}</style>
           </div>

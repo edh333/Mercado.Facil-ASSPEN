@@ -8,6 +8,7 @@ import { db } from '../firebase';
 import { useTheme } from '../context/ThemeContext';
 import { OnlineStatusIndicator } from '../components/OnlineStatusIndicator';
 import { InstallButton } from '../components/InstallButton';
+import { AppDownloadButton } from '../components/AppDownloadModal';
 import { Menu, X, Banknote } from 'lucide-react';
 
 // Import all modular subcomponents
@@ -697,6 +698,7 @@ export function AdminDashboard() {
           </div>
           
           <div className="flex items-center gap-4">
+            <AppDownloadButton variant="full" label="Baixar App" />
             <InstallButton variant="full" role="user" label="Instalar App (Usuário)" />
             <InstallButton variant="full" role="admin" label="Instalar Painel Admin" />
             <OnlineStatusIndicator />

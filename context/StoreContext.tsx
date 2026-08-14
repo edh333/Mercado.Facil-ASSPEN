@@ -24,6 +24,7 @@ const fnSacarSaldoAdmin = httpsCallable(functions, 'sacarSaldoAdmin');
 const fnSacarSaldoProprio = httpsCallable(functions, 'sacarSaldoProprio');
 const fnComprarComCarteira = httpsCallable(functions, 'comprarComCarteira');
 const fnRegistrarPedidoPix = httpsCallable(functions, 'registrarPedidoPix');
+const fnAprovarPedidoPix = httpsCallable(functions, 'aprovarPedidoPix');
 const fnProcessarVendaAdmin = httpsCallable(functions, 'processarVendaAdmin');
 const fnEstornarVenda = httpsCallable(functions, 'estornarVenda');
 const fnValidarSenhaMestra = httpsCallable(functions, 'validarSenhaMestra');
@@ -232,7 +233,27 @@ export const buildStockAbc = (products: any[], orders: any[], startDate: string,
   };
 };
 
-// Parser para XML de nota fiscal eletrônica (NFe)
+// ───────────────────────────────────────────────────────────────────────────
+// PARSER DE NOTA FISCAL ELETRÔNICA (NFe XML)
+// ───────────────────────────────────────────────────────────────────────────
+// Tolerante a namespaces (notas emitidas com prefixos nfe:/NFe: etc. usam
+// getElementsByTagName, que casa pelo nome local ignorando prefixos), com
+// fallbacks de quantidade/preço (vUnCom → vProd/qCom → vUnTrib) e validação
+// de GTIN/EAN — o código de barras sai pronto para o leitor do PDV.
+// ───────────────────────────────────────────────────────────────────────────
+const tagPorNome = (el: Document | Element, nome: string): Element | null => {
+  const encontrados = el.getElementsByTagName(nome);
+  return encontrados && encontrados.length > 0 ? encontrados[0] : null;
+};
+const textoDe = (el: Document | Element, nome: string): string =>
+  (tagPorNome(el, nome)?.textContent || '').replace(/\u00A0/g, ' ').trim();
+const numeroBr = (el: Document | Element, nome: string): number => {
+  const raw = textoDe(el, nome).replace(/\./g, '').replace(',', '.');
+  const n = parseFloat(raw);
+  return isNaN(n) ? NaN : n;
+};
+const ehGtin = (v: string): boolean => /^\d{8,14}$/.test(v);
+
 const parseInvoiceXML = (xml: string): InvoiceData | null => {
   try {
     const parser = new DOMParser();
@@ -245,57 +266,30 @@ const parseInvoiceXML = (xml: string): InvoiceData | null => {
 
     const result: InvoiceData = { items: [] };
 
-    // Extrair fornecedor (emitente)
-    const emit = doc.querySelector('emit');
+    // Extrair fornecedor (emitente) — caminhos NFe e NFeProc (autorização)
+    const emit = tagPorNome(doc, 'emit');
     if (emit) {
-      const nameEl = emit.querySelector('xNome');
-      const cnpjEl = emit.querySelector('CNPJ');
-      const cpfEl = emit.querySelector('CPF');
-
-      result.supplier = {
-        name: nameEl?.textContent?.trim() || '',
-        cnpj: cnpjEl?.textContent?.trim() || cpfEl?.textContent?.trim() || ''
-      };
+      const nome = textoDe(emit, 'xNome');
+      const cnpj = textoDe(emit, 'CNPJ') || textoDe(emit, 'CPF');
+      result.supplier = { name: nome, cnpj };
     }
 
-    // Se não encontrou emitente, tentar outro caminho (NFeProc)
-    if (!result.supplier?.name) {
-      const infNFe = doc.querySelector('infNFe');
-      const emitAlt = infNFe?.querySelector('emit');
-      if (emitAlt) {
-        const nameEl = emitAlt.querySelector('xNome');
-        const cnpjEl = emitAlt.querySelector('CNPJ');
-        const cpfEl = emitAlt.querySelector('CPF');
+    // Extrair itens (produtos) — namespace-safe
+    const products = doc.getElementsByTagName('det');
+    for (let i = 0; i < products.length; i++) {
+      const prodElement = tagPorNome(products[i], 'prod');
+      if (!prodElement) continue;
 
-        result.supplier = {
-          name: nameEl?.textContent?.trim() || '',
-          cnpj: cnpjEl?.textContent?.trim() || cpfEl?.textContent?.trim() || ''
-        };
-      }
-    }
+      const name = textoDe(prodElement, 'xProd');
+      if (!name) continue;
 
-    // Extrair itens (produtos)
-    const products = doc.querySelectorAll('det');
-    products.forEach((prod) => {
-      const prodElement = prod.querySelector('prod');
-      if (!prodElement) return;
+      const ean = textoDe(prodElement, 'cEAN') || textoDe(prodElement, 'cEANTrib') || '';
+      const eanValido = ehGtin(ean);
+      const code = textoDe(prodElement, 'cProd') || '';
+      const ncm = textoDe(prodElement, 'NCM');
+      const unidade = textoDe(prodElement, 'uCom') || textoDe(prodElement, 'uTrib') || 'UN';
 
-      const nameEl = prodElement.querySelector('xProd');
-      const eanEl = prodElement.querySelector('cEAN');
-      const eanTribEl = prodElement.querySelector('cEANTrib');
-      const codeEl = prodElement.querySelector('cProd');
-      const qtdEl = prodElement.querySelector('qCom');
-      const qtdTribEl = prodElement.querySelector('qTrib');
-      const unitEl = prodElement.querySelector('uCom');
-      const unitTribEl = prodElement.querySelector('uTrib');
-      const priceEl = prodElement.querySelector('vUnCom');
-      const priceTribEl = prodElement.querySelector('vUnTrib');
-
-      // Tentar obter marca do produto
-      const name = nameEl?.textContent?.trim() || '';
-      const ean = eanEl?.textContent?.trim() || eanTribEl?.textContent?.trim() || '';
-      const code = codeEl?.textContent?.trim() || '';
-
+      // Marca: lista conhecida ou primeira palavra em maiúsculas
       let brand = '';
       const brandList = [
         'ALBA', 'AVIANCA', 'BIC', 'LOREAL', 'NESTLE', 'NESTLÉ', 'DANONE', 'AMBEV', 'HEINEKEN', 'COCA COLA', 'COCA-COLA', 'PEPSI',
@@ -309,32 +303,32 @@ const parseInvoiceXML = (xml: string): InvoiceData | null => {
         'OMOR', 'IPÊ', 'LIMPOL', 'YPÊ', 'MINUANO', 'BOMBRIL', 'TIXAN', 'ARIEL', 'BRILHANTE', 'SUFRESH', 'TANG', 'MID',
         'CAMP', 'VALLE', 'KAPO', 'MAGUARY', 'GAROTO', 'LACTA', 'HERSHEY', 'ARCOR', 'M&M', 'FINI', 'DOCILE'
       ];
-
       const brandRegex = new RegExp(`(?:^|\\s)(${brandList.join('|')})(?:\\s|$)`, 'i');
       const brandMatch = name.match(brandRegex);
-
       if (brandMatch?.[1]) {
         brand = brandMatch[1].trim().toUpperCase();
       } else {
-          const words = name.split(' ');
-          if (words[0] && words[0].length > 2 && words[0] === words[0].toUpperCase() && !/^\d+$/.test(words[0]) && !['COM', 'PARA', 'SEM', 'PROD', 'KIT'].includes(words[0])) {
-              brand = words[0];
-          }
+        const words = name.split(' ');
+        if (words[0] && words[0].length > 2 && words[0] === words[0].toUpperCase() && !/^\d+$/.test(words[0]) && !['COM', 'PARA', 'SEM', 'PROD', 'KIT'].includes(words[0])) {
+          brand = words[0];
+        }
       }
 
-      // Obter quantidade e preço com segurança (optional chaining + default names)
-      const qStr = qtdEl?.textContent || qtdTribEl?.textContent || '1';
-      const pStr = priceEl?.textContent || priceTribEl?.textContent || '0';
-      
-      let quantity = parseFloat(qStr.replace(',', '.'));
-      let costPrice = parseFloat(pStr.replace(',', '.'));
-
+      // Quantidade e preço com fallbacks: vUnCom → vProd/qCom → vUnTrib
+      let quantity = numeroBr(prodElement, 'qCom');
+      if (isNaN(quantity) || quantity <= 0) quantity = numeroBr(prodElement, 'qTrib');
       if (isNaN(quantity) || quantity <= 0) quantity = 1;
-      if (isNaN(costPrice)) costPrice = 0;
+
+      let costPrice = numeroBr(prodElement, 'vUnCom');
+      if (isNaN(costPrice) || costPrice <= 0) {
+        const qtdRef = numeroBr(prodElement, 'qCom') || quantity;
+        const vProd = numeroBr(prodElement, 'vProd');
+        if (!isNaN(vProd) && qtdRef > 0) costPrice = vProd / qtdRef;
+        else costPrice = numeroBr(prodElement, 'vUnTrib');
+      }
+      if (isNaN(costPrice) || costPrice < 0) costPrice = 0;
 
       let category = 'Geral';
-      const ncmEl = prodElement.querySelector('NCM');
-      const ncm = ncmEl?.textContent?.trim() || '';
       if (ncm) {
         if (ncm.startsWith('02') || ncm.startsWith('03')) category = 'Carnes';
         else if (ncm.startsWith('04') || ncm.startsWith('05')) category = 'Laticínios';
@@ -366,19 +360,19 @@ const parseInvoiceXML = (xml: string): InvoiceData | null => {
         else if (ncm.startsWith('94')) category = 'Bebidas';
       }
 
-      if (name && costPrice >= 0) {
-        result.items.push({
-          name,
-          costPrice,
-          quantity,
-          category,
-          description: `${code ? 'Código: ' + code + ' | ' : ''}NCM: ${ncm}`,
-          ean: ean && ean !== 'SEM GTIN' ? ean : (code || undefined),
-          barcode: ean && ean !== 'SEM GTIN' ? ean : (code || undefined),
-          brand: brand || undefined
-        });
-      }
-    });
+      // Código de barras: GTIN válido da nota, senão o código do fornecedor
+      const codigoBarras = eanValido ? ean : (code || undefined);
+      result.items.push({
+        name,
+        costPrice,
+        quantity,
+        category,
+        description: `${code ? 'Código: ' + code + ' | ' : ''}NCM: ${ncm} | Und: ${unidade}`,
+        ean: codigoBarras,
+        barcode: codigoBarras,
+        brand: brand || undefined
+      });
+    }
 
     return result.items.length > 0 ? result : null;
   } catch (e) {
@@ -438,6 +432,7 @@ interface StoreContextType {
     finalizarVendaComCredito: () => Promise<boolean>;
 
     updateOrderStatus: (orderId: string, status: string) => void;
+    aprovarPedido: (orderId: string, finalizar?: boolean) => Promise<any>;
     markOrderAsPrinted: (orderId: string) => void;
     addProduct: (product: Product) => Promise<void>;
     updateProduct: (product: Product) => Promise<void>;
@@ -479,6 +474,8 @@ interface StoreContextType {
     rejectWalletTransaction: (transactionId: string) => Promise<void>;
     withdrawWalletCredit: (userId: string, amount: number, reason: string) => Promise<void>;
     getWalletTransactions: (userId?: string) => Promise<WalletTransaction[]>;
+    attachAdminProof: (kind: 'orders' | 'wallet_transactions', docId: string, ownerId: string, file: File) => Promise<string>;
+    reenviarComprovante: (kind: 'orders' | 'wallet_transactions', docId: string, file: File) => Promise<string>;
 
     checkPermission: (permission: string) => boolean;
 
@@ -846,7 +843,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         }
 
         try {
-            const uid = currentUser?.id || 'anonimo';
+            const uid = auth.currentUser?.uid || currentUser?.authUid || currentUser?.id || 'anonimo';
             const folder = (path || 'uploads').replace(/^\/+|\/+$/g, '');
             const fileName = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`;
             const fileRef = storageRef(storage, `${folder}/${uid}/${fileName}`);
@@ -879,11 +876,46 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         wallet_transactions: 'proofUrl',
     };
 
+    // Familiar reenvia o comprovante de UM pedido/depósito específico que ficou
+    // preso no cache local (upload offline falhou). Se o upload seguir falhando,
+    // fica na fila e o retry automático conclui quando a conexão voltar.
+    const reenviarComprovante = async (kind: 'orders' | 'wallet_transactions', docId: string, file: File): Promise<string> => {
+        if (!currentUser) throw new Error('Usuário não autenticado');
+        const pasta = kind === 'orders' ? 'comprovantes_pix' : 'wallet_proofs';
+        const url = await uploadFile(file, pasta, { kind, docId });
+        if (url === 'PENDENTE_UPLOAD_LOCAL_CACHE') {
+            await attachPendingUploadDoc(pasta, docId, kind);
+            showNotification('Conexão instável: o comprovante será enviado automaticamente.', 'info');
+            return url;
+        }
+        await updateDoc(doc(db, kind, docId), { [CAMPO_PROVA[kind]]: url });
+        showNotification('Comprovante reenviado com sucesso!', 'success');
+        return url;
+    };
+
+    // Admin anexa manualmente um comprovante que chegou por outro canal (WhatsApp,
+    // balcão...) em um pedido/depósito que ficou com upload pendente/cache local.
+    // O arquivo vai para a pasta privada do DONO do registro, então o servidor
+    // continua validando a URL como pertencente ao usuário correto.
+    const attachAdminProof = async (kind: 'orders' | 'wallet_transactions', docId: string, ownerId: string, file: File): Promise<string> => {
+        if (!file || file.size === 0) throw new Error("Arquivo vazio.");
+        if (file.size > 8 * 1024 * 1024) throw new Error('Arquivo muito grande (máx. 8 MB).');
+        const pasta = kind === 'orders' ? 'comprovantes_pix' : 'wallet_proofs';
+        const ext = '.' + (file.name.split('.').pop() || 'jpg').toLowerCase();
+        const fileName = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`;
+        const fileRef = storageRef(storage, `${pasta}/${ownerId}/${fileName}`);
+        await uploadBytes(fileRef, file);
+        const url = await getDownloadURL(fileRef);
+        await updateDoc(doc(db, kind, docId), { [CAMPO_PROVA[kind]]: url });
+        await registrarAuditClient('ANEXAR_COMPROVANTE_ADMIN', { kind, docId }, { url });
+        return url;
+    };
+
     const retryPendingProofs = async (): Promise<void> => {
         try {
             const pendentes = await listPendingUploads();
             if (!pendentes.length) return;
-            const uid = currentUser?.id || 'anonimo';
+            const uid = auth.currentUser?.uid || currentUser?.authUid || currentUser?.id || 'anonimo';
             let reenviados = 0;
             for (const p of pendentes) {
                 try {
@@ -1153,7 +1185,17 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const updateOrderStatus = async (oid: string, status: string) => {
         const alvo = String(status || '').toLowerCase();
         if (!STATUS_VALIDOS.includes(alvo)) { showNotification("Status inválido.", "error"); return; }
-        try { await updateDoc(doc(db, 'orders', oid), { status }); } catch (e: any) { showNotification("Erro ao atualizar status: " + e.message, "error"); }
+        try { await updateDoc(doc(db, 'orders', oid), { status }); } catch (e: any) { showNotification("Erro ao atualizar status: " + e.message, "error"); throw e; }
+    };
+    const aprovarPedido = async (orderId: string, finalizar: boolean = true) => {
+        try {
+            const res = await fnAprovarPedidoPix({ orderId, finalizar });
+            const data = res.data as any;
+            if (!data?.ok) throw new Error(data?.error || 'Falha ao aprovar o pedido.');
+            return data;
+        } catch (e: any) {
+            throw new Error(e?.message || 'Erro ao aprovar o pedido. Tente novamente.');
+        }
     };
     const markOrderAsPrinted = async (oid: string) => { try { await updateDoc(doc(db, 'orders', oid), { printCount: increment(1), status: OrderStatus.PREPARING }); } catch (e: any) { console.warn("[markOrderAsPrinted]", e.message); } };
     const deleteOrder = async (oid: string) => {
@@ -1715,10 +1757,30 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         try {
             const snapshot = await getDocs(collection(db, 'users'));
             const antes = snapshot.docs.map(d => ({ id: d.id, nome: d.data().name || '', saldo: Number(d.data().walletBalance || 0) })).filter(u => u.saldo > 0);
+            const agora = new Date().toISOString();
             for (let i = 0; i < snapshot.docs.length; i += 500) {
                 const batch = writeBatch(db);
                 const chunk = snapshot.docs.slice(i, i + 500);
-                chunk.forEach(d => batch.update(d.ref, { walletBalance: 0 }));
+                chunk.forEach(d => {
+                    const saldo = Number(d.data().walletBalance || 0);
+                    if (saldo > 0) {
+                        // Trilha no extrato: cada carteira zerada vira uma correção visível,
+                        // mantendo o extrato coerente com o saldo (antes sumia sem registro).
+                        const txRef = doc(collection(db, 'wallet_transactions'));
+                        batch.set(txRef, {
+                            userId: d.id,
+                            amount: -saldo,
+                            type: 'correction',
+                            status: 'approved',
+                            description: 'Zeragem de créditos (reset manual)',
+                            createdAt: agora,
+                            proofUrl: '',
+                            payerName: currentUser.name || '',
+                            payerId: currentUser.id,
+                        });
+                    }
+                    batch.update(d.ref, { walletBalance: 0 });
+                });
                 await batch.commit();
             }
             await registrarAuditClient('ZERAR_CREDITOS', { usuariosComSaldo: antes }, { status: 'ok' });
@@ -2252,13 +2314,13 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             generateActivationKey,
             isSystemActive,
             
-            updateOrderStatus, markOrderAsPrinted, deleteOrder, addProduct, updateProduct, deleteProduct, deleteExpense,
+            updateOrderStatus, aprovarPedido, markOrderAsPrinted, deleteOrder, addProduct, updateProduct, deleteProduct, deleteExpense,
             loadMoreOrders, loadMoreExpenses, loadMoreProducts,
             approveUser, updateUserStatus, toggleUserCredit, deleteUser, suspendUser,
             addSupplier, removeSupplier, addExpense, addWithdrawal, toggleFinanceEntries,
             processInvoiceImport, importXmlProduct, updateAppConfig, updateSettings: updateAppConfig,
             downloadBackup, backupSystem: downloadBackup, resetSystem, resetStock, resetFinance, resetCredits, checkPermission, sendSystemMessage, sendMessage, markMessageRead, showNotification, removeNotification,
-            depositToWallet, approveWalletTransaction, rejectWalletTransaction, getWalletTransactions, withdrawWalletCredit,
+            depositToWallet, approveWalletTransaction, rejectWalletTransaction, getWalletTransactions, withdrawWalletCredit, attachAdminProof, reenviarComprovante,
             validateMasterPassword, defineMasterPassword, masterPasswordStatus, addPreRegisteredInmate, deletePreRegisteredInmate, preRegisteredInmates, refundOrder, importInmatesCsv, updateAdminPassword,
             isInstallable: !!deferredPrompt, installApp,
             mergeDuplicateProducts: async () => {

@@ -1,0 +1,24 @@
+# Build da versão ADMINISTRADOR (painel completo)
+appId: com.asspen.mercadofacil.admin
+productName: "Mercado Facil - Administrador"
+directories:
+  output: dist-electron
+  buildResources: build
+files:
+  - dist/**/*
+  - desktop/**/*
+  - public/**/*
+  - package.json
+win:
+  target:
+    - portable
+  icon: public/logo.png
+  artifactName: "MercadoFacil-Admin-Setup-${version}.exe"
+portable:
+  artifactName: "MercadoFacil-Admin-Setup-${version}.exe"
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+electronLanguages:
+  - pt-BR
+  - en-US

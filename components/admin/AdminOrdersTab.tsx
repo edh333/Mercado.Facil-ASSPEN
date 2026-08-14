@@ -3,6 +3,7 @@ import {
   ShoppingCart, Search, Grid, List, Clock, Filter, Printer, FileText, DollarSign, ArrowRight, UserCheck, ShieldCheck, Download, XCircle, CheckCircle
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
+import { useApp } from '../../context/StoreContext';
 import { Order, OrderStatus } from '../../types';
 
 interface AdminOrdersTabProps {
@@ -28,6 +29,25 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
   const [dateFilter, setDateFilter] = React.useState<string>('ALL');
   const [sortOrder, setSortOrder] = React.useState<'newest' | 'oldest'>('newest');
   const { colors } = useTheme();
+  const { aprovarPedido, showNotification } = useApp();
+
+  // Aprovação direta pelo card: valida comprovante, pede confirmação e
+  // finaliza a compra em um clique — sem reabrir a janela de detalhes.
+  const handleQuickApprove = async (order: Order) => {
+    const temComprovante = order.paymentMethod === 'WALLET' ||
+      !!(order.paymentProofUrl && order.paymentProofUrl !== 'PENDENTE_UPLOAD_LOCAL_CACHE');
+    if (!temComprovante) {
+      showNotification('Pedido sem comprovante de pagamento. Abra em Detalhes para anexar antes de aprovar.', 'error');
+      return;
+    }
+    if (!window.confirm(`Aprovar e FINALIZAR o pedido #${(order.id || '').slice(0, 8).toUpperCase()} de ${order.userName || '—'}?\n\nO pagamento será aprovado e a compra concluída.`)) return;
+    try {
+      await aprovarPedido(order.id, true);
+      showNotification('Pedido aprovado e finalizado com sucesso!', 'success');
+    } catch (e: any) {
+      showNotification(e?.message || 'Erro ao aprovar o pedido.', 'error');
+    }
+  };
 
   const filteredOrders = React.useMemo(() => {
     const termoLower = (searchTerm || '').toLowerCase();
@@ -260,8 +280,8 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                   <button onClick={() => setSelectedOrderDetails(order)} className="py-3 min-h-[48px] bg-rose-500 text-white font-bold rounded-2xl text-[10px] uppercase tracking-widest shadow-lg hover:bg-rose-600 active:scale-95 transition-all flex items-center justify-center gap-2 touch-target">
                     <XCircle size={18}/> Rejeitar
                   </button>
-                  <button onClick={() => setSelectedOrderDetails(order)} className="py-3 min-h-[48px] bg-emerald-600 text-white font-bold rounded-2xl text-[10px] uppercase tracking-widest shadow-lg hover:bg-emerald-700 active:scale-95 transition-all flex items-center justify-center gap-2 touch-target">
-                    <CheckCircle size={18}/> Aprovar
+                  <button onClick={() => handleQuickApprove(order)} className="py-3 min-h-[48px] bg-emerald-600 text-white font-bold rounded-2xl text-[10px] uppercase tracking-widest shadow-lg hover:bg-emerald-700 active:scale-95 transition-all flex items-center justify-center gap-2 touch-target">
+                    <CheckCircle size={18}/> Aprovar e Finalizar
                   </button>
                 </div>
               ) : null}

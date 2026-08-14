@@ -11,7 +11,10 @@
     "preview": "vite preview",
     "lint": "tsc --noEmit",
     "electron-dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5177 && electron .\"",
-    "electron-build": "vite build && electron-builder"
+    "electron-build": "node scripts/build-exe.mjs",
+    "build:exe": "node scripts/build-exe.mjs",
+    "build:exe:user": "node scripts/build-exe.mjs --user",
+    "build:exe:admin": "node scripts/build-exe.mjs --admin"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -45,8 +48,15 @@
     "appId": "com.asspen.mercadofacil",
     "productName": "Mercado Facil ASSPEN",
     "directories": {
-      "output": "dist-electron"
+      "output": "dist-electron",
+      "buildResources": "build"
     },
+    "files": [
+      "dist/**/*",
+      "desktop/**/*",
+      "public/**/*",
+      "package.json"
+    ],
     "win": {
       "target": "portable",
       "icon": "public/logo.png"

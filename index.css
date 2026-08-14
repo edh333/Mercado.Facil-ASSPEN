@@ -895,7 +895,7 @@ select option {
     min-height: auto !important;
     max-height: none !important;
     overflow: visible !important;
-    width: 80mm !important;
+    width: 76mm !important;
   }
 
   /* Força a visibilidade apenas dos blocos de Cupom Térmico */
@@ -913,11 +913,11 @@ select option {
     position: absolute !important;
     left: 0 !important;
     top: 0 !important;
-    width: 80mm !important;
-    max-width: 80mm !important;
+    width: 76mm !important;
+    max-width: 76mm !important;
     height: auto !important;
     max-height: none !important;
-    padding: 2mm 3mm !important;
+    padding: 2mm 1mm !important;
     font-family: 'Courier New', Courier, monospace !important;
     box-sizing: border-box !important;
     page-break-inside: avoid !important;

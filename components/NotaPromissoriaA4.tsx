@@ -78,7 +78,7 @@ export const NotaPromissoriaA4: React.FC<NotaPromissoriaA4Props> = ({ data, onCl
   const dateShort = (d: Date) => d.toLocaleDateString('pt-BR');
 
   return (
-    <div className="fixed inset-0 z-[500] bg-slate-100 overflow-y-auto custom-scrollbar animate-fadeIn">
+    <div id="print-root" className="fixed inset-0 z-[500] bg-slate-100 overflow-y-auto custom-scrollbar animate-fadeIn print:overflow-visible cupom-gerencial-print">
       <div className="sticky top-0 bg-white/90 backdrop-blur-md border-b-2 border-slate-200 p-5 flex justify-between items-center z-[510] shadow-xl print:hidden">
         <div className="flex items-center gap-4">
           <div className="bg-slate-900 p-3 rounded-2xl text-white shadow-lg"><FileText size={24} /></div>
@@ -227,11 +227,36 @@ export const NotaPromissoriaA4: React.FC<NotaPromissoriaA4Props> = ({ data, onCl
 
       <style>{`
         @media print {
-          body { background: white !important; margin: 0; padding: 0; }
-          .fixed { position: relative !important; inset: 0 !important; background: white !important; }
+          @page { size: A4; margin: 8mm; }
+          html, body {
+            background: white !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            height: auto !important;
+            overflow: visible !important;
+            width: auto !important;
+            max-width: none !important;
+          }
+          body * { visibility: hidden !important; }
+          #print-root, #print-root * { visibility: visible !important; }
+          #print-root.cupom-gerencial-print {
+            display: block !important;
+            position: relative !important;
+            inset: auto !important;
+            background: white !important;
+            overflow: visible !important;
+            width: auto !important;
+            max-width: none !important;
+            font-family: inherit !important;
+            z-index: auto !important;
+          }
           .p-10 { padding: 0 !important; }
           .my-10 { margin: 0 !important; }
           .shadow-2xl { box-shadow: none !important; }
+          .min-h-\\[297mm\\] { min-height: auto !important; }
+          .border-\\[3px\\] { border: none !important; }
+          .p-10.p-10 { padding: 24px !important; }
+          .print-avoid-break { page-break-inside: avoid; }
         }
       `}</style>
     </div>

@@ -6,11 +6,19 @@ service firebase.storage {
     // escrita apenas por administradores (role 'admin' no Firestore).
     function isAdmin() {
       return request.auth != null &&
-        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+        firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+        (firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'ADMIN' ||
+         firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'master' ||
+         firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'MASTER');
     }
 
     function isOwner(uid) {
-      return request.auth != null && request.auth.uid == uid;
+      return request.auth != null && (
+        request.auth.uid == uid ||
+        (firestore.exists(/databases/(default)/documents/users/$(uid)) &&
+         firestore.get(/databases/(default)/documents/users/$(uid)).data.authUid == request.auth.uid)
+      );
     }
 
     match /products/{fileName} {
@@ -27,7 +35,7 @@ service firebase.storage {
     // Comprovantes de depÃ³sito (wallet_proofs) â€” atÃ© 8MB
     match /wallet_proofs/{uid}/{fileName} {
       allow read: if isOwner(uid) || isAdmin();
-      allow write: if isOwner(uid)
+      allow write: if (isOwner(uid) || isAdmin())
         && request.resource.size < 8 * 1024 * 1024
         && (request.resource.contentType.matches('image/(png|jpeg|jpg|heic|heif)') || request.resource.contentType.matches('application/pdf'));
       allow delete: if false;
@@ -36,7 +44,7 @@ service firebase.storage {
     // Documentos de identidade (cadastro) â€” atÃ© 8MB
     match /docs/{uid}/{fileName} {
       allow read: if isOwner(uid) || isAdmin();
-      allow write: if isOwner(uid)
+      allow write: if (isOwner(uid) || isAdmin())
         && request.resource.size < 8 * 1024 * 1024
         && (request.resource.contentType.matches('image/(png|jpeg|jpg|heic|heif)') || request.resource.contentType.matches('application/pdf'));
       allow delete: if isAdmin();
@@ -45,7 +53,7 @@ service firebase.storage {
     // Comprovantes de pagamento PIX (pedidos) â€” atÃ© 8MB
     match /comprovantes_pix/{uid}/{fileName} {
       allow read: if isOwner(uid) || isAdmin();
-      allow write: if isOwner(uid)
+      allow write: if (isOwner(uid) || isAdmin())
         && request.resource.size < 8 * 1024 * 1024
         && (request.resource.contentType.matches('image/(png|jpeg|jpg|heic|heif)') || request.resource.contentType.matches('application/pdf'));
       allow delete: if false;
@@ -54,7 +62,7 @@ service firebase.storage {
     // Comprovantes diversos â€” 5MB max (apenas imagens/PDF)
     match /receipts/{uid}/{fileName} {
       allow read: if isOwner(uid) || isAdmin();
-      allow write: if isOwner(uid)
+      allow write: if (isOwner(uid) || isAdmin())
         && request.resource.size < 5 * 1024 * 1024
         && (request.resource.contentType.matches('image/(png|jpeg|jpg|heic|heif)') || request.resource.contentType.matches('application/pdf'));
       allow delete: if false;

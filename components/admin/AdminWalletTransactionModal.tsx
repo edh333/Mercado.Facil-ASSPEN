@@ -1,23 +1,35 @@
 import React from 'react';
-import { Printer, CheckCircle, XCircle, User, UserCheck, DollarSign, ImageIcon, ArrowRight, Activity, FileText } from 'lucide-react';
+import { Printer, CheckCircle, XCircle, User, UserCheck, DollarSign, ImageIcon, ArrowRight, Activity, FileText, Loader2 } from 'lucide-react';
 import { WalletTransaction } from '../../types';
 import { formatarMoeda } from '../../utils';
 import { ModalShell } from '../ui/ModalShell';
 import { NotaPromissoriaA4 } from '../NotaPromissoriaA4';
 import ImagePreviewModal from '../ImagePreviewModal';
+import { useApp } from '../../context/StoreContext';
 
 const ComprovanteImg: React.FC<{ src: string }> = ({ src }) => {
   const [erro, setErro] = React.useState(false);
   const [previewOpen, setPreviewOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    setErro(false);
+  }, [src]);
+
   if (erro) {
     return (
-      <div className="absolute inset-0 flex flex-col items-center justify-center bg-amber-50 rounded-2xl border border-amber-200">
-        <div className="text-center p-6">
-          <div className="w-16 h-16 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-4 text-amber-600 border border-amber-200">
-            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center bg-amber-50/95 rounded-2xl border border-amber-200 p-4 z-10">
+        <div className="text-center p-4">
+          <div className="w-14 h-14 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-3 text-amber-600 border border-amber-200">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
           </div>
-          <h5 className="font-black text-amber-700 uppercase text-sm mb-1">Imagem Indisponível</h5>
-          <p className="text-[10px] text-amber-500 font-bold">O link do comprovante pode ter expirado</p>
+          <h5 className="font-black text-amber-800 uppercase text-xs mb-1">Visualização Direta Indisponível</h5>
+          <p className="text-[10px] text-amber-600 font-bold mb-3">Tente abrir o link diretamente ou recarregar</p>
+          <div className="flex gap-2 justify-center">
+            <button onClick={() => setErro(false)} className="px-3 py-1.5 bg-amber-200 hover:bg-amber-300 text-amber-800 rounded-lg text-[10px] font-black uppercase transition-all">Tentar Novamente</button>
+            {src && src.startsWith('http') && (
+              <a href={src} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-[10px] font-black uppercase transition-all">Abrir Link ↗</a>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -61,6 +73,27 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
   const [isRejecting, setIsRejecting] = React.useState(false);
   const [isOffline, setIsOffline] = React.useState(!navigator.onLine);
   const [showNotaPromissoria, setShowNotaPromissoria] = React.useState(false);
+  const [proofLocal, setProofLocal] = React.useState('');
+  const [isAttaching, setIsAttaching] = React.useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const { attachAdminProof, showNotification: notifCtx } = useApp();
+  const proofSrc = proofLocal || transaction.proofUrl || '';
+
+  const handleAttachProof = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setIsAttaching(true);
+    try {
+      const url = await attachAdminProof('wallet_transactions', transaction.id, transaction.userId, file);
+      setProofLocal(url);
+      notifCtx('Comprovante anexado ao depósito com sucesso!', 'success');
+    } catch (err: any) {
+      notifCtx('Erro ao anexar comprovante: ' + (err?.message || 'tente novamente'), 'error');
+    } finally {
+      setIsAttaching(false);
+    }
+  };
 
   React.useEffect(() => {
     const handleOnline = () => setIsOffline(false);
@@ -316,26 +349,33 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
                   <ImageIcon size={16}/> Evidência de Depósito
               </h4>
               <div className="flex-1 min-h-[400px] bg-white p-4 rounded-[3rem] border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden shadow-2xl group relative">
-                {transaction.proofUrl && transaction.proofUrl !== 'PENDENTE_UPLOAD_LOCAL_CACHE' ? (
-                  (transaction.proofUrl || '').toLowerCase().includes('.pdf') || (transaction.proofUrl || '').toLowerCase().includes('pdf') ? (
+                {proofSrc && proofSrc !== 'PENDENTE_UPLOAD_LOCAL_CACHE' ? (
+                  (proofSrc).toLowerCase().includes('.pdf') || (proofSrc).toLowerCase().includes('pdf') ? (
                     <div className="w-full h-full relative">
                       <iframe
-                        src={`${transaction.proofUrl}#toolbar=0&navpanes=0&scrollbar=0`}
+                        src={`${proofSrc}#toolbar=0&navpanes=0&scrollbar=0`}
                         className="w-full h-full border-0"
                         title="Document Preview"
                       />
                       <div className="absolute bottom-4 right-4 bg-red-600 text-white text-[8px] px-3 py-1.5 rounded-xl font-black shadow-2xl uppercase tracking-widest animate-pulse">Preview PDF</div>
                     </div>
                   ) : (
-                    <ComprovanteImg src={transaction.proofUrl} />
+                    <ComprovanteImg src={proofSrc} />
                   )
-                ) : transaction.proofUrl === 'PENDENTE_UPLOAD_LOCAL_CACHE' ? (
+                ) : proofSrc === 'PENDENTE_UPLOAD_LOCAL_CACHE' ? (
                   <div className="text-center p-10 animate-fadeIn">
                     <div className="w-20 h-20 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-6 text-amber-600 border border-amber-200">
                       <FileText size={40}/>
                     </div>
                     <h5 className="font-black text-amber-700 uppercase tracking-[0.1em] text-sm">COMPROVANTE PENDENTE DE UPLOAD</h5>
-                    <p className="text-[10px] text-amber-500 font-bold mt-2 uppercase tracking-widest">Upload falhou — comprovante em cache local do cliente</p>
+                    <p className="text-[10px] text-amber-500 font-bold mt-2 uppercase tracking-widest">Upload falhou no aparelho do familiar. Peça para reenviar ou anexe manualmente abaixo.</p>
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isAttaching}
+                      className="mt-6 px-6 py-3.5 bg-amber-500 hover:bg-amber-400 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 disabled:opacity-50 mx-auto"
+                    >
+                      {isAttaching ? <Loader2 size={16} className="animate-spin"/> : <FileText size={16}/>} Anexar Comprovante (Admin)
+                    </button>
                   </div>
                 ) : (
                   <div className="text-center opacity-10">
@@ -344,17 +384,33 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
                   </div>
                 )}
 
-                {transaction.proofUrl && transaction.proofUrl !== 'PENDENTE_UPLOAD_LOCAL_CACHE' && (
+                {proofSrc && proofSrc !== 'PENDENTE_UPLOAD_LOCAL_CACHE' && (
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
                          <span className="bg-white text-black px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-2xl">Clique para Expandir</span>
                     </div>
                 )}
               </div>
-              {transaction.proofUrl && transaction.proofUrl !== 'PENDENTE_UPLOAD_LOCAL_CACHE' && (
+              {proofSrc && proofSrc !== 'PENDENTE_UPLOAD_LOCAL_CACHE' && (
                 <p className="text-[9px] text-center font-black text-slate-500 uppercase tracking-widest animate-pulse opacity-60">
                     A auditoria visual é obrigatória antes da validação
                 </p>
               )}
+              {!proofSrc || proofSrc === 'PENDENTE_UPLOAD_LOCAL_CACHE' ? (
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isAttaching}
+                  className="w-full py-4 bg-amber-50 border-2 border-amber-200 text-amber-600 rounded-3xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-amber-100 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isAttaching ? <Loader2 size={16} className="animate-spin"/> : <FileText size={16}/>} Anexar Comprovante (Admin)
+                </button>
+              ) : null}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,application/pdf"
+                className="hidden"
+                onChange={handleAttachProof}
+              />
             </div>
           </div>
     </ModalShell>

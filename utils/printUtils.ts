@@ -387,18 +387,27 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
   cupom += `${divisor}\n`;
 
   const interno = data.inmateName || data.prisonerName;
+  const inmateCpf = data.inmateCpf || data.prisonerCpf;
   const familiar = data.userName;
+  const userCpf = data.userCpf;
+
   if (interno || familiar) {
-    cupom += `DESTINATARIO: ${limparLinha(interno || familiar, 40)}\n`;
+    if (interno) cupom += `DESTINATARIO: ${limparLinha(interno, 34)}\n`;
+    if (inmateCpf) cupom += `CPF INTERNO:  ${limparLinha(inmateCpf, 34)}\n`;
     if (familiar && familiar !== interno) {
-      cupom += `FAMILIAR: ${limparLinha(familiar, 40)}\n`;
+      cupom += `FAMILIAR:     ${limparLinha(familiar, 34)}\n`;
+      if (userCpf) cupom += `CPF FAMILIAR: ${limparLinha(userCpf, 34)}\n`;
     }
     cupom += `${divisor}\n`;
   }
 
   const loc = data.inmateLocation || data.deliveryLocation;
   if (loc) {
-    const parts = [loc.raio ? `R:${loc.raio}` : null, loc.ala ? `A:${loc.ala}` : null, loc.cela ? `C:${loc.cela}` : null].filter(Boolean);
+    const parts = [
+      loc.raio || loc.ray ? `RAIO ${loc.raio || loc.ray}` : null,
+      loc.ala || loc.wing ? `ALA ${loc.ala || loc.wing}` : null,
+      loc.cela || loc.cell ? `CELA ${loc.cela || loc.cell}` : null
+    ].filter(Boolean);
     if (parts.length) {
       cupom += `LOCALIZACAO: ${parts.join(' | ')}\n`;
       cupom += `${divisor}\n`;
@@ -437,7 +446,11 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
     cupom += formatarLinhaDupla("PAGAMENTO:", pagamento, 48) + "\n";
   }
 
+  const saldoAnterior = data.walletBalanceBefore;
   const saldo = data.walletBalanceAfter;
+  if (saldoAnterior !== undefined && saldoAnterior !== null) {
+    cupom += formatarLinhaDupla("SALDO ANTERIOR:", `R$ ${Math.abs(saldoAnterior).toFixed(2).replace('.', ',')}`, 48) + "\n";
+  }
   if (saldo !== undefined && saldo !== null) {
     cupom += formatarLinhaDupla("SALDO ATUAL:", `R$ ${Math.abs(saldo).toFixed(2).replace('.', ',')}`, 48) + "\n";
   }
@@ -548,25 +561,57 @@ export function abrirJanelaImpressao(
 }
 
 /**
+ * Imprime TEXTO cru (cupom térmico) DIRETO na impressora padrão, SEM diálogo e
+ * SEM abrir janela — usa a impressão silenciosa do Electron (webContents.print
+ * com silent:true em janela oculta). Retorna true se imprimiu.
+ * Fora do Electron retorna false (o chamador usa o fallback visual).
+ */
+export async function imprimirHtmlSilencioso(conteudo: string, config?: any): Promise<boolean> {
+  try {
+    const api = (window as any).electronAPI;
+    if (!api?.printHtmlSilent) return false;
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+      @page { size: 76mm auto; margin: 0; }
+      html, body { margin: 0; padding: 0; background: #fff; }
+      body { width: 76mm; margin: 0 auto; box-sizing: border-box; padding: 2mm 1mm; }
+      pre { font-family: 'Courier New', Courier, monospace; font-size: ${Number(config?.receiptFontSizeRaw) || 11}px; line-height: 1.25; color: #000; white-space: pre-wrap; word-wrap: break-word; margin: 0; }
+    </style></head><body><pre>${conteudo
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    }</pre></body></html>`;
+    const res = await api.printHtmlSilent(html, config?.printerName);
+    return res?.ok === true;
+  } catch (e) {
+    console.warn('Falha na impressão silenciosa (Electron):', e);
+    return false;
+  }
+}
+
+/**
  * Impressão com PRIORIDADE FISCAL:
  * 1) Tenta a bobina fiscal diretamente via QZ Tray (sem popup e sem diálogo).
- * 2) Sem QZ, abre a janela de impressão profissional /print (fallback visual 80mm).
- * 3) Popup bloqueado → imprime na própria janela usando o layout térmico global.
+ * 2) No app desktop (Electron): imprime SILENCIOSO direto na impressora padrão,
+ *    sem abrir janela nem diálogo (nada de múltiplas janelas para confirmar).
+ * 3) Navegador sem QZ: abre a janela de impressão profissional /print (fallback).
+ * 4) Popup bloqueado → imprime na própria janela usando o layout térmico global.
  * Retorna true se imprimiu direto na fiscal.
  */
 export async function imprimirComPrioridadeFiscal(
   item: { type: string; data: any; subType?: string },
   config?: any
 ): Promise<boolean> {
+  const raw = gerarCupomEntregaRaw(item.data, config);
   try {
-    const ok = await imprimirBobinaFiscal(gerarCupomEntregaRaw(item.data, config));
+    const ok = await imprimirBobinaFiscal(raw, config);
     if (ok) return true;
   } catch (e) {
     console.warn('Falha na impressão fiscal direta:', e);
   }
+  // App desktop: impressão silenciosa sem janelas e sem diálogos
+  const electronOk = await imprimirHtmlSilencioso(raw, config);
+  if (electronOk) return true;
   const win = abrirJanelaImpressao(item, config);
   if (!win) {
-    imprimirCupom(gerarCupomEntregaRaw(item.data, config));
+    imprimirCupom(raw);
   }
   return false;
 }

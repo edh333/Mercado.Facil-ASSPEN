@@ -3,7 +3,8 @@ import { ReciboA4 } from './ReciboA4';
 import { CupomEntrega } from './CupomEntrega';
 import { CatalogoA4 } from './CatalogoA4';
 import { RelatorioA4 } from './RelatorioA4';
-import { gerarCupomEntregaRaw, imprimirBobinaFiscal, baixarCupomTxt } from '../utils/printUtils';
+import { NotaPromissoriaA4 } from './NotaPromissoriaA4';
+import { gerarCupomEntregaRaw, imprimirBobinaFiscal, imprimirHtmlSilencioso, baixarCupomTxt } from '../utils/printUtils';
 import { Printer, Download, X, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
 
 interface PrintData {
@@ -69,12 +70,31 @@ export const PrintPage: React.FC = () => {
                         setStatus('fiscal');
                         setCloseCountdown(4);
                     } else {
-                        setStatus('dialog');
-                        setTimeout(() => {
-                            if (!closedRef.current) window.print();
-                        }, 500);
+                        // App desktop: impressão silenciosa — sem diálogo e sem repetir janelas
+                        const electronOk = await imprimirHtmlSilencioso(rawCupomRef.current, parsedSettings);
+                        if (!mounted) return;
+                        if (electronOk) {
+                            setStatus('fiscal');
+                            setCloseCountdown(4);
+                        } else {
+                            setStatus('dialog');
+                            setTimeout(() => {
+                                if (!closedRef.current) window.print();
+                            }, 500);
+                        }
                     }
                 } else {
+                    const electronApi = (window as any).electronAPI;
+                    if (electronApi?.printHtmlSilent) {
+                        // Documento A4 no desktop: imprime silencioso na impressora padrão
+                        const html = document.documentElement.outerHTML;
+                        const res = await electronApi.printHtmlSilent(html);
+                        if (mounted && res?.ok) {
+                            setStatus('fiscal');
+                            setCloseCountdown(3);
+                            return;
+                        }
+                    }
                     setStatus('dialog');
                     setTimeout(() => {
                         if (!closedRef.current) window.print();
@@ -114,7 +134,13 @@ export const PrintPage: React.FC = () => {
                 setStatus('fiscal');
                 setCloseCountdown(4);
             } else {
-                setTimeout(() => window.print(), 300);
+                const electronOk = await imprimirHtmlSilencioso(rawCupomRef.current, printData?.config);
+                if (electronOk) {
+                    setStatus('fiscal');
+                    setCloseCountdown(4);
+                } else {
+                    setTimeout(() => window.print(), 300);
+                }
             }
         } finally {
             setIsFiscalPrinting(false);
@@ -175,6 +201,7 @@ export const PrintPage: React.FC = () => {
     const docName = isCupom
         ? 'Cupom de Entrega'
         : type === 'RECIBO' ? (item.subType === 'EXPENSE' ? 'Recibo de Despesa' : 'Recibo de Pedido')
+        : type === 'PROMISSORIA' ? 'Nota Promissória'
         : type === 'CATALOGO' ? 'Catálogo de Produtos'
         : 'Relatório';
 
@@ -182,11 +209,11 @@ export const PrintPage: React.FC = () => {
         <>
             <style>{`
                 @media print {
-                    @page { size: ${isCupom ? '80mm auto' : 'A4'}; margin: ${isCupom ? '2mm' : '10mm'}; }
+                    @page { size: ${isCupom ? '76mm auto' : 'A4'}; margin: ${isCupom ? '0' : '10mm'}; }
                     body { margin: 0; padding: 0; background: white !important; }
                     .print-header, .print-toolbar { display: none !important; }
                     .print-preview { background: white !important; padding: 0 !important; }
-                    .thermal-card { width: 80mm !important; max-width: 80mm !important; margin: 0 auto !important; padding: 2mm !important; box-shadow: none !important; border: none !important; border-radius: 0 !important; }
+                    .thermal-card { width: 76mm !important; max-width: 76mm !important; margin: 0 !important; padding: 2mm 1mm !important; box-sizing: border-box !important; box-shadow: none !important; border: none !important; border-radius: 0 !important; }
                     * { color: black !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
                 }
             `}</style>
@@ -240,6 +267,9 @@ export const PrintPage: React.FC = () => {
                                 config={config}
                             />
                         )}
+                        {type === 'PROMISSORIA' && item?.data && (
+                            <NotaPromissoriaA4 data={item.data} />
+                        )}
                         {isCupom && item?.data && (
                             <CupomEntrega order={item.data} remainingBalance={item.data.walletBalanceAfter} config={config} />
                         )}
@@ -264,7 +294,21 @@ export const PrintPage: React.FC = () => {
                         </button>
                     )}
                     <button
-                        onClick={() => { closedRef.current = false; setTimeout(() => window.print(), 300); }}
+                        onClick={async () => {
+                            if (isCupom) {
+                                const electronOk = await imprimirHtmlSilencioso(rawCupomRef.current, printData?.config);
+                                if (electronOk) {
+                                    setStatus('fiscal');
+                                    setCloseCountdown(4);
+                                } else {
+                                    closedRef.current = false;
+                                    setTimeout(() => window.print(), 300);
+                                }
+                            } else {
+                                closedRef.current = false;
+                                setTimeout(() => window.print(), 300);
+                            }
+                        }}
                         className="flex items-center gap-2 px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-emerald-500/25"
                     >
                         <Printer size={16} /> {status === 'dialog' ? 'Imprimir Agora' : 'Imprimir'}

@@ -9,19 +9,31 @@ import { formatarMoeda } from '../../utils';
 import { abrirJanelaImpressao } from '../../utils/printUtils';
 import { ModalShell } from '../ui/ModalShell';
 import ImagePreviewModal from '../ImagePreviewModal';
+import { useApp } from '../../context/StoreContext';
 
 const ComprovanteImg: React.FC<{ src: string }> = ({ src }) => {
   const [erro, setErro] = React.useState(false);
   const [previewOpen, setPreviewOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    setErro(false);
+  }, [src]);
+
   if (erro) {
     return (
-      <div className="absolute inset-0 flex flex-col items-center justify-center bg-amber-50 rounded-xl border border-amber-200">
-        <div className="text-center p-6">
-          <div className="w-16 h-16 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-4 text-amber-600 border border-amber-200">
-            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center bg-amber-50/95 rounded-xl border border-amber-200 p-4 z-10">
+        <div className="text-center p-4">
+          <div className="w-14 h-14 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-3 text-amber-600 border border-amber-200">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
           </div>
-          <h5 className="font-black text-amber-700 uppercase text-sm mb-1">Imagem Indisponível</h5>
-          <p className="text-[10px] text-amber-500 font-bold">O link do comprovante pode ter expirado</p>
+          <h5 className="font-black text-amber-800 uppercase text-xs mb-1">Visualização Direta Indisponível</h5>
+          <p className="text-[10px] text-amber-600 font-bold mb-3">Tente abrir o link diretamente ou recarregar</p>
+          <div className="flex gap-2 justify-center">
+            <button onClick={() => setErro(false)} className="px-3 py-1.5 bg-amber-200 hover:bg-amber-300 text-amber-800 rounded-lg text-[10px] font-black uppercase transition-all">Tentar Novamente</button>
+            {src && src.startsWith('http') && (
+              <a href={src} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-[10px] font-black uppercase transition-all">Abrir Link ↗</a>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -29,7 +41,7 @@ const ComprovanteImg: React.FC<{ src: string }> = ({ src }) => {
   return (
     <>
       <div
-        className="w-full h-full block relative cursor-pointer"
+        className="w-full h-full block relative cursor-pointer group"
         onClick={() => setPreviewOpen(true)}
       >
         <img
@@ -38,6 +50,9 @@ const ComprovanteImg: React.FC<{ src: string }> = ({ src }) => {
           alt="Comprovante de Pagamento"
           onError={() => setErro(true)}
         />
+        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center">
+          <span className="bg-white/90 text-slate-900 px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-wider shadow-lg">Clique para Ampliar</span>
+        </div>
       </div>
       {previewOpen && (
         <ImagePreviewModal src={src} alt="Comprovante de Pagamento" onClose={() => setPreviewOpen(false)} />
@@ -72,8 +87,55 @@ export const AdminOrderDetailsModal: React.FC<AdminOrderDetailsModalProps> = ({
   settings
 }) => {
   const { colors } = useTheme();
+  const { attachAdminProof, showNotification: notifCtx, aprovarPedido } = useApp();
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [isRawPrinting, setIsRawPrinting] = React.useState(false);
+  const [proofLocal, setProofLocal] = React.useState('');
+  const [isAttaching, setIsAttaching] = React.useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const proofSrc = proofLocal || order.paymentProofUrl || '';
+
+  const temComprovante = order.paymentMethod === 'WALLET' || !!(proofSrc && proofSrc !== 'PENDENTE_UPLOAD_LOCAL_CACHE');
+
+  // Fecha o modal SOMENTE em caso de sucesso. Em erro, mantém aberto com a
+  // mensagem exibida — o admin nunca perde a janela com o pedido pendente.
+  const executarAprovacao = async (finalizar: boolean) => {
+    if (isProcessing) return;
+    if (!temComprovante) {
+      showNotification('Pedido sem comprovante de pagamento. Anexe o comprovante antes de aprovar.', 'error');
+      return;
+    }
+    setIsProcessing(true);
+    try {
+      await aprovarPedido(order.id, finalizar);
+      showNotification(finalizar ? 'Comprovante verificado — Pedido Aprovado e Finalizado!' : 'Pagamento aprovado com sucesso!', 'success');
+      onClose();
+    } catch (e: any) {
+      showNotification(e?.message || (finalizar ? 'Erro ao finalizar pedido' : 'Erro ao aprovar pagamento'), 'error');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleApprove = () => executarAprovacao(false);
+
+  const handleApproveAndFinalize = () => executarAprovacao(true);
+
+  const handleAttachProof = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setIsAttaching(true);
+    try {
+      const url = await attachAdminProof('orders', order.id, order.userId, file);
+      setProofLocal(url);
+      notifCtx('Comprovante anexado ao pedido com sucesso!', 'success');
+    } catch (err: any) {
+      notifCtx('Erro ao anexar comprovante: ' + (err?.message || 'tente novamente'), 'error');
+    } finally {
+      setIsAttaching(false);
+    }
+  };
 
   const handleRawPrint = () => {
     if (isRawPrinting) return;
@@ -87,31 +149,17 @@ export const AdminOrderDetailsModal: React.FC<AdminOrderDetailsModalProps> = ({
     }
   };
 
-  const handleApprove = async () => {
-    if (isProcessing) return;
-    setIsProcessing(true);
-    try {
-      await updateOrderStatus(order.id, OrderStatus.PAID);
-      showNotification('Pagamento Aprovado com sucesso!', 'success');
-    } catch (e) {
-      showNotification('Erro ao aprovar pagamento', 'error');
-    } finally {
-      setIsProcessing(false);
-      onClose();
-    }
-  };
-
   const handlePrepare = async () => {
     if (isProcessing) return;
     setIsProcessing(true);
     try {
       await updateOrderStatus(order.id, OrderStatus.PREPARING);
       showNotification('Pedido em Separação', 'info');
+      onClose();
     } catch (e) {
       showNotification('Erro ao iniciar separação', 'error');
     } finally {
       setIsProcessing(false);
-      onClose();
     }
   };
 
@@ -121,11 +169,11 @@ export const AdminOrderDetailsModal: React.FC<AdminOrderDetailsModalProps> = ({
     try {
       await updateOrderStatus(order.id, OrderStatus.DELIVERED);
       showNotification('Pedido Finalizado!', 'success');
+      onClose();
     } catch (e) {
       showNotification('Erro ao finalizar pedido', 'error');
     } finally {
       setIsProcessing(false);
-      onClose();
     }
   };
 
@@ -134,11 +182,11 @@ export const AdminOrderDetailsModal: React.FC<AdminOrderDetailsModalProps> = ({
     setIsProcessing(true);
     try {
       await handleRejectOrder();
+      onClose();
     } catch (e) {
       showNotification('Erro ao reprovar pedido', 'error');
     } finally {
       setIsProcessing(false);
-      onClose();
     }
   };
 
@@ -263,7 +311,7 @@ export const AdminOrderDetailsModal: React.FC<AdminOrderDetailsModalProps> = ({
                         </div>
                         Comprovante Digital
                     </h4>
-                    {order.paymentMethod !== 'WALLET' && order.paymentProofUrl && order.paymentProofUrl !== 'PENDENTE_UPLOAD_LOCAL_CACHE' && (
+                    {order.paymentMethod !== 'WALLET' && proofSrc && proofSrc !== 'PENDENTE_UPLOAD_LOCAL_CACHE' && (
                         <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-[9px] font-black uppercase flex items-center gap-1">
                             <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
                             Anexado
@@ -280,21 +328,21 @@ export const AdminOrderDetailsModal: React.FC<AdminOrderDetailsModalProps> = ({
                       <h5 className="font-black text-slate-900 uppercase tracking-[0.2em] text-sm">Pago via Carteira Digital</h5>
                       <p className="text-[10px] text-slate-500 font-bold mt-2 uppercase tracking-widest">Débito automático no saldo interno</p>
                     </div>
-                  ) : order.paymentProofUrl && order.paymentProofUrl !== 'PENDENTE_UPLOAD_LOCAL_CACHE' ? (
+                  ) : proofSrc && proofSrc !== 'PENDENTE_UPLOAD_LOCAL_CACHE' ? (
                     <div className="w-full h-full p-3 flex flex-col items-center justify-center gap-3">
-                      {(order.paymentProofUrl || '').toLowerCase().includes('.pdf') || (order.paymentProofUrl || '').toLowerCase().includes('pdf') ? (
+                      {(proofSrc).toLowerCase().includes('.pdf') || (proofSrc).toLowerCase().includes('pdf') ? (
                         <div className="w-full h-full flex-1 min-h-[300px] relative">
                           <iframe
-                            src={`${order.paymentProofUrl}#toolbar=0&navpanes=0&scrollbar=0`}
+                            src={`${proofSrc}#toolbar=0&navpanes=0&scrollbar=0`}
                             className="w-full h-full border-0 rounded-xl"
                             title="Comprovante PDF"
                           />
                         </div>
                       ) : (
-                        <ComprovanteImg src={order.paymentProofUrl} />
+                        <ComprovanteImg src={proofSrc} />
                       )}
                       <a 
-                        href={order.paymentProofUrl} 
+                        href={proofSrc} 
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="px-4 py-2 bg-slate-800 text-white font-bold rounded-xl text-xs hover:bg-slate-700 transition-all block text-center w-full max-w-xs"
@@ -302,13 +350,20 @@ export const AdminOrderDetailsModal: React.FC<AdminOrderDetailsModalProps> = ({
                         ↗️ VER EM ALTA DEFINIÇÃO (FULL HD)
                       </a>
                     </div>
-                  ) : order.paymentProofUrl === 'PENDENTE_UPLOAD_LOCAL_CACHE' ? (
+                  ) : proofSrc === 'PENDENTE_UPLOAD_LOCAL_CACHE' ? (
                     <div className="text-center p-10 animate-fadeIn">
                       <div className="w-20 h-20 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-6 text-amber-600 border border-amber-200">
                         <FileText size={40}/>
                       </div>
                       <h5 className="font-black text-amber-700 uppercase tracking-[0.1em] text-sm">COMPROVANTE PENDENTE DE UPLOAD</h5>
-                      <p className="text-[10px] text-amber-500 font-bold mt-2 uppercase tracking-widest">Upload falhou — comprovante em cache local do cliente</p>
+                      <p className="text-[10px] text-amber-500 font-bold mt-2 uppercase tracking-widest">Upload falhou no aparelho do familiar. Peça para reenviar ou anexe manualmente abaixo.</p>
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isAttaching}
+                        className="mt-6 px-6 py-3.5 bg-amber-500 hover:bg-amber-400 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 disabled:opacity-50 mx-auto"
+                      >
+                        {isAttaching ? <Loader2 size={16} className="animate-spin"/> : <FileText size={16}/>} Anexar Comprovante (Admin)
+                      </button>
                     </div>
                   ) : (
                     <div className="text-center p-10 animate-fadeIn">
@@ -337,6 +392,11 @@ export const AdminOrderDetailsModal: React.FC<AdminOrderDetailsModalProps> = ({
                     <button onClick={() => { if (order.inmateCpf) { setHistoryModalCpf(order.inmateCpf); setHistoryModalName(order.inmateName || 'INTERNO'); } else { showNotification('CPF do interno não informado', 'error'); } }} className="py-4 bg-slate-100 text-slate-600 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-slate-200 active:scale-95 transition-all flex items-center justify-center gap-3 border border-slate-200">
                         <Users size={18}/> Histórico
                     </button>
+                    {order.paymentMethod !== 'WALLET' && !(proofSrc && proofSrc !== 'PENDENTE_UPLOAD_LOCAL_CACHE') && (
+                      <button onClick={() => fileInputRef.current?.click()} disabled={isAttaching} className="py-4 bg-amber-50 text-amber-600 border border-amber-200 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-amber-100 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50">
+                        {isAttaching ? <Loader2 size={18} className="animate-spin"/> : <FileText size={18}/>} Anexar Comprovante
+                      </button>
+                    )}
                 </div>
 
                 {order.status !== OrderStatus.CANCELLED && (
@@ -347,22 +407,39 @@ export const AdminOrderDetailsModal: React.FC<AdminOrderDetailsModalProps> = ({
 
                 <div className="pt-4 border-t border-slate-200 mt-4">
                     {order.status === OrderStatus.PENDING ? (
-                      <div className="flex flex-col xl:flex-row gap-3">
-                        <button onClick={() => setIsRejecting(true)} disabled={isProcessing} className="flex-1 py-4 bg-red-50 text-red-600 border border-red-200 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] hover:bg-red-600 hover:text-white active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50">
-                            <XCircle size={22}/> Reprovar
-                        </button>
+                      <>
                         <button
+                          onClick={handleApproveAndFinalize}
+                          disabled={isProcessing}
+                          className="w-full py-5 bg-emerald-600 text-white rounded-xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-4 disabled:opacity-50"
+                        >
+                          <CheckCircle size={22}/> {isProcessing ? 'PROCESSANDO...' : 'Aprovar e Finalizar Compra'}
+                        </button>
+                        <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest text-center -mt-1">
+                          Aprova o pagamento e finaliza o pedido em um único passo
+                        </p>
+                        <div className="grid grid-cols-2 gap-3">
+                          <button onClick={() => setIsRejecting(true)} disabled={isProcessing} className="py-4 bg-red-50 text-red-600 border border-red-200 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] hover:bg-red-600 hover:text-white active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50">
+                              <XCircle size={22}/> Reprovar
+                          </button>
+                          <button
                           onClick={handleApprove}
                           disabled={isProcessing}
-                          className="flex-[1.5] py-4 bg-emerald-600 text-white rounded-xl font-black text-[11px] uppercase tracking-[0.2em] shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                          className="py-4 bg-slate-100 text-slate-700 border border-slate-200 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] hover:bg-slate-200 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
                         >
-                          <CheckCircle size={22}/> {isProcessing ? 'APROVANDO...' : 'Aprovar Pedido'}
+                          <CheckCircle size={22}/> Só Aprovar Pagamento
                         </button>
-                      </div>
+                        </div>
+                      </>
                     ) : order.status === OrderStatus.PAID ? (
-                        <button onClick={handlePrepare} disabled={isProcessing} className="w-full py-5 bg-blue-600 text-white rounded-xl font-black text-[11px] uppercase tracking-[0.3em] shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-4 disabled:opacity-50">
-                            <Box size={24}/> {isProcessing ? 'PROCESSANDO...' : 'Iniciar Separação'}
-                        </button>
+                        <div className="flex flex-col sm:flex-row gap-3">
+                            <button onClick={handlePrepare} disabled={isProcessing} className="flex-1 py-4 bg-blue-600 text-white rounded-xl font-black text-[11px] uppercase tracking-[0.2em] shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-4 disabled:opacity-50">
+                                <Box size={22}/> {isProcessing ? 'PROCESSANDO...' : 'Iniciar Separação'}
+                            </button>
+                            <button onClick={handleDeliver} disabled={isProcessing} className="flex-[1.3] py-4 bg-purple-600 text-white rounded-xl font-black text-[11px] uppercase tracking-[0.2em] shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-4 disabled:opacity-50">
+                                <Truck size={22}/> {isProcessing ? 'PROCESSANDO...' : 'Finalizar Pedido'}
+                            </button>
+                        </div>
                     ) : order.status === OrderStatus.PREPARING ? (
                         <button onClick={handleDeliver} disabled={isProcessing} className="w-full py-5 bg-purple-600 text-white rounded-xl font-black text-[11px] uppercase tracking-[0.3em] shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-4 disabled:opacity-50">
                             <Truck size={24}/> {isProcessing ? 'PROCESSANDO...' : 'Marcar como Entregue'}
@@ -376,6 +453,13 @@ export const AdminOrderDetailsModal: React.FC<AdminOrderDetailsModalProps> = ({
               </div>
             </div>
             </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,application/pdf"
+              className="hidden"
+              onChange={handleAttachProof}
+            />
         </ModalShell>
   );
 };

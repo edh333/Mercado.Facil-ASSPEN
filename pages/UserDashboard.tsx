@@ -12,19 +12,20 @@ import { CupomEntrega } from '../components/CupomEntrega';
 import { NotificationSystem } from '../components/NotificationSystem';
 
 import { generatePixPayload, formatarMoeda, compressImageFile } from '../utils';
-import { abrirJanelaImpressao } from '../utils/printUtils';
+import { imprimirComPrioridadeFiscal } from '../utils/printUtils';
 import { collection, query, where, onSnapshot, orderBy, limit, getDocs, getDocsFromServer } from 'firebase/firestore';
 import { db } from '../firebase';
 import { QRCodeSVG } from 'qrcode.react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { OnlineStatusIndicator } from '../components/OnlineStatusIndicator';
 import { InstallButton } from '../components/InstallButton';
+import { AppDownloadButton } from '../components/AppDownloadModal';
 
 export const UserDashboard: React.FC = () => {
     const { 
         currentUser, products, createOrder, showNotification, 
         logout, messages, markMessageRead, settings, getWalletTransactions, depositToWallet,
-        serverTime 
+        serverTime, reenviarComprovante
     } = useApp();
     const { isDark, primaryColor } = useTheme();
 
@@ -71,6 +72,29 @@ export const UserDashboard: React.FC = () => {
     const [viewingWalletHistory, setViewingWalletHistory] = useState(false);
 
     const isMobile = useMemo(() => typeof navigator !== 'undefined' && /android|iphone|ipad|ipod/i.test(navigator.userAgent), []);
+
+    const resendInputRef = useRef<HTMLInputElement>(null);
+    const [resendTarget, setResendTarget] = useState<{ kind: 'orders' | 'wallet_transactions'; docId: string } | null>(null);
+
+    const handleResendProofFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        const target = resendTarget;
+        e.target.value = '';
+        setResendTarget(null);
+        if (!file || !target) return;
+        try {
+            const url = await reenviarComprovante(target.kind, target.docId, file);
+            if (url && url !== 'PENDENTE_UPLOAD_LOCAL_CACHE') {
+                if (target.kind === 'orders') {
+                    setMyOrders(prev => prev.map(o => o.id === target.docId ? { ...o, paymentProofUrl: url } : o));
+                } else {
+                    setWalletTxs(prev => prev.map(t => t.id === target.docId ? { ...t, proofUrl: url } : t));
+                }
+            }
+        } catch (err: any) {
+            showNotification(err?.message || 'Erro ao reenviar comprovante. Tente novamente.', 'error');
+        }
+    };
 
     useEffect(() => {
         window.dispatchEvent(new CustomEvent('opencode:cart-update', { detail: { count: totalItensNoCarrinho } }));
@@ -992,6 +1016,7 @@ export const UserDashboard: React.FC = () => {
                         {unreadMsg > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] w-5 h-5 rounded-full flex items-center justify-center font-black border-2 border-[var(--bg-card)] animate-bounce shadow-lg shadow-red-500/40">{unreadMsg}</span>}
                     </button>
                     <InstallButton role={isAdmin ? 'admin' : 'user'} />
+                    <AppDownloadButton className="!w-8 !h-8 sm:!w-9 sm:!h-9" />
                     <button onClick={logout} className="w-10 h-10 sm:w-12 sm:h-12 bg-red-500/10 text-red-500 border border-red-500/20 rounded-2xl flex items-center justify-center hover:bg-red-500 hover:text-white transition-all active:scale-90 shadow-sm"><LogOut size={18} /></button>
                 </div>
             </header>
@@ -1162,7 +1187,7 @@ export const UserDashboard: React.FC = () => {
                         {viewingWalletHistory ? (
                             <div className="space-y-4">
                                 {walletTxs.map((tx: any) => (
-                                    <div key={tx.id} className="bg-[var(--bg-card)] p-4 rounded-3xl border border-slate-200 shadow-sm flex justify-between items-center">
+                                    <div key={tx.id} className="bg-[var(--bg-card)] p-4 rounded-3xl border border-slate-200 shadow-sm flex justify-between items-center gap-3 flex-wrap">
                                         <div className="flex items-center gap-3">
                                             <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${tx.amount > 0 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
                                                 {tx.amount > 0 ? <Plus size={18} /> : <ShoppingBag size={18} />}
@@ -1170,6 +1195,14 @@ export const UserDashboard: React.FC = () => {
                                             <div>
                                                 <p className="font-black text-xs uppercase">{tx.type === 'deposit' ? 'Depósito' : 'Compra'}</p>
                                                 <p className="text-[9px] font-bold text-slate-400 uppercase">{new Date(tx.createdAt).toLocaleString()}</p>
+                                                {tx.status === 'pending' && tx.type === 'deposit' && (tx.proofUrl === 'PENDENTE_UPLOAD_LOCAL_CACHE' || !tx.proofUrl) && (
+                                                    <button
+                                                        onClick={() => { setResendTarget({ kind: 'wallet_transactions', docId: tx.id }); resendInputRef.current?.click(); }}
+                                                        className="mt-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-white rounded-xl text-[8px] font-black uppercase tracking-wider transition-all"
+                                                    >
+                                                        Reenviar Comprovante
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
                                         <p className={`font-black ${tx.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>R$ {formatarMoeda(tx.amount)}</p>
@@ -1217,10 +1250,18 @@ export const UserDashboard: React.FC = () => {
                                                     </div>
                                                 )}
                                                 {order.paymentMethod !== 'WALLET' && order.paymentProofUrl === 'PENDENTE_UPLOAD_LOCAL_CACHE' && (
-                                                    <div className="mt-3 pt-3 border-t border-slate-100">
+                                                    <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between gap-2 flex-wrap">
                                                         <span className="flex items-center gap-2 text-amber-600 text-[10px] font-black uppercase">
                                                             <AlertCircle size={14} /> Comprovante Pendente de Upload
                                                         </span>
+                                                        {String(order.status || '').toLowerCase() === 'pending' && (
+                                                            <button
+                                                                onClick={() => { setResendTarget({ kind: 'orders', docId: order.id }); resendInputRef.current?.click(); }}
+                                                                className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-all"
+                                                            >
+                                                                Reenviar Comprovante
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 )}
                                                 {order.paymentMethod === 'WALLET' && (
@@ -1543,7 +1584,7 @@ export const UserDashboard: React.FC = () => {
 
             {isCheckoutModalOpen && (
                 <div className="fixed inset-0 z-[999] bg-black/60 backdrop-blur-sm" onClick={() => setIsCheckoutModalOpen(false)}>
-                    <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 md:max-w-lg md:mx-auto bg-white rounded-2xl shadow-2xl p-4 max-h-[82vh] overflow-y-auto flex flex-col space-y-3 z-50 border border-slate-100 font-sans" onClick={e => e.stopPropagation()}>
+                    <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 md:max-w-lg md:mx-auto bg-white rounded-2xl shadow-2xl p-4 max-h-[82vh] overflow-y-auto overflow-x-hidden flex flex-col space-y-3 z-50 border border-slate-100 font-sans" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center shrink-0">
                             <h3 className="font-black text-base uppercase tracking-tight">Finalizar Venda</h3>
                             <button onClick={() => setIsCheckoutModalOpen(false)} className="w-7 h-7 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200"><X size={16}/></button>
@@ -1609,7 +1650,7 @@ export const UserDashboard: React.FC = () => {
                                                 {settings?.pixKeys?.[0] && (
                                                     <div className="bg-white rounded-xl p-2 border border-slate-200">
                                                         <p className="text-[7px] font-black text-emerald-500 uppercase tracking-[0.3em] mb-1">Chave Copia e Cola</p>
-                                                        <input readOnly value={pixPayload} className="w-full text-[8px] font-mono text-slate-500 bg-transparent outline-none text-center select-all mb-1" onClick={(e) => (e.target as HTMLInputElement).select()} />
+                                                        <input readOnly value={pixPayload} className="w-full text-[8px] font-mono text-slate-500 bg-transparent outline-none text-center select-all mb-1 break-all" onClick={(e) => (e.target as HTMLInputElement).select()} />
                                                         <button
                                                             onClick={() => {
                                                                 navigator.clipboard.writeText(pixPayload);
@@ -1622,27 +1663,30 @@ export const UserDashboard: React.FC = () => {
                                                         </button>
                                                     </div>
                                                 )}
-                                                <div className="bg-slate-50 rounded-xl border border-slate-200 p-3">
-                                                    <p className="text-[8px] font-black text-slate-400 uppercase mb-2 text-left">Comprovante de Pagamento</p>
-                                                    <label className="flex items-center gap-2 bg-white p-3 rounded-xl border-2 border-dashed border-slate-300 cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/30 transition-all active:scale-[0.98]">
-                                                        <Upload size={16} className="text-emerald-500 shrink-0" />
-                                                        <span className="text-[10px] font-bold text-slate-700 text-left leading-tight">{proofFile ? proofFile.name : 'CLIQUE AQUI PARA ENVIAR O COMPROVANTE PIX'}</span>
-                                                        <input type="file" accept="image/*" className="hidden" onChange={async e => {
-                                                        const f = e.target.files?.[0]; if (!f) return;
-                                                        try {
-                                                            const compressed = await compressImageFile(f, 0.3, 600);
-                                                            setProofFile(new File([compressed], f.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
-                                                    } catch { console.warn("compress fallback (fileInput 1)"); setProofFile(f); }
-                                                        e.target.value = '';
-                                                    }} />
-                                                    </label>
-                                                    {proofFile && (
-                                                        <p className="text-[8px] text-emerald-600 font-bold mt-1 text-left">Arquivo selecionado: {proofFile.name}</p>
-                                                    )}
-                                                    <p className="text-[7px] font-bold text-red-600 text-center mt-2 leading-tight"><AlertCircle size={10} className="inline-block mr-1 -mt-0.5" />Enviar comprovantes falsos ou adulterados configura CRIME (Art. 171 e 298 CP). Ao confirmar, você assume total responsabilidade civil e criminal.</p>
-                                                </div>
                                             </>
                                         )}
+                                        {!pixPayload && (
+                                            <p className="text-[8px] font-black text-amber-600 uppercase tracking-wider text-left"><AlertCircle size={10} className="inline-block mr-1 -mt-0.5" />Chave PIX ainda não cadastrada — o pagamento será confirmado com o comprovante anexado.</p>
+                                        )}
+                                        <div className="bg-slate-50 rounded-xl border border-slate-200 p-3">
+                                            <p className="text-[8px] font-black text-slate-400 uppercase mb-2 text-left">Comprovante de Pagamento</p>
+                                            <label className="flex items-center gap-2 bg-white p-3 rounded-xl border-2 border-dashed border-slate-300 cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/30 transition-all active:scale-[0.98]">
+                                                <Upload size={16} className="text-emerald-500 shrink-0" />
+                                                <span className="text-[10px] font-bold text-slate-700 text-left leading-tight break-all">{proofFile ? proofFile.name : 'CLIQUE AQUI PARA ENVIAR O COMPROVANTE PIX'}</span>
+                                                <input type="file" accept="image/*,.pdf" className="hidden" onChange={async e => {
+                                                const f = e.target.files?.[0]; if (!f) return;
+                                                try {
+                                                    const compressed = await compressImageFile(f, 0.3, 600);
+                                                    setProofFile(new File([compressed], f.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
+                                            } catch { console.warn("compress fallback (fileInput 1)"); setProofFile(f); }
+                                                e.target.value = '';
+                                            }} />
+                                            </label>
+                                            {proofFile && (
+                                                <p className="text-[8px] text-emerald-600 font-bold mt-1 text-left break-all">Arquivo selecionado: {proofFile.name}</p>
+                                            )}
+                                            <p className="text-[7px] font-bold text-red-600 text-center mt-2 leading-tight"><AlertCircle size={10} className="inline-block mr-1 -mt-0.5" />Enviar comprovantes falsos ou adulterados configura CRIME (Art. 171 e 298 CP). Ao confirmar, você assume total responsabilidade civil e criminal.</p>
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -1652,8 +1696,8 @@ export const UserDashboard: React.FC = () => {
                                 <span className="text-xl font-black text-slate-900">R$ {formatarMoeda(cartTotal)}</span>
                             </div>
 
-                            <button onClick={handleFinish} disabled={isSubmitting || (cartPaymentMethod === 'PIX' && !proofFile)} className="w-full py-3 bg-slate-900 text-white font-black rounded-2xl uppercase text-xs shadow-xl active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2 shrink-0">
-                                {isSubmitting ? <><Loader2 size={14} className="animate-spin" /> Processando...</> : 'Confirmar Pedido'}
+                            <button onClick={handleFinish} disabled={isSubmitting || (cartPaymentMethod === 'PIX' && !proofFile)} className="w-full py-3 bg-slate-900 text-white font-black rounded-2xl uppercase text-xs shadow-xl active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shrink-0">
+                                {isSubmitting ? <><Loader2 size={14} className="animate-spin" /> Processando...</> : (cartPaymentMethod === 'PIX' && !proofFile) ? <><Paperclip size={14} className="inline-block mr-1 -mt-0.5" /> Anexe o Comprovante para Confirmar</> : 'Confirmar Pedido'}
                             </button>
                         </div>
                     </div>
@@ -1662,7 +1706,7 @@ export const UserDashboard: React.FC = () => {
 
             {viewingOrderCupom && (
                 <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 print:p-0 print:bg-white z-[5000]" onClick={() => setViewingOrderCupom(null)}>
-                    <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden print:shadow-none print:w-[80mm] print:mx-auto" onClick={e => e.stopPropagation()}>
+                    <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden print:shadow-none print:w-[76mm] print:mx-auto" onClick={e => e.stopPropagation()}>
                         <div className="p-4 border-b border-slate-100 flex justify-between items-center print:hidden">
                             <span className="font-black text-xs uppercase">Recibo</span>
                             <button onClick={() => setViewingOrderCupom(null)} className="text-slate-400"><X size={20}/></button>
@@ -1679,7 +1723,7 @@ export const UserDashboard: React.FC = () => {
                             />
                         </div>
                         <div className="p-4 bg-white border-t border-slate-100 print:hidden">
-                            <button onClick={() => abrirJanelaImpressao({ type: 'CUPOM', data: viewingOrderCupom }, settings)} className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black text-xs uppercase shadow-lg shadow-emerald-500/20">Imprimir Comprovante</button>
+                            <button onClick={() => imprimirComPrioridadeFiscal({ type: 'CUPOM', data: viewingOrderCupom }, settings).catch(console.error)} className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black text-xs uppercase shadow-lg shadow-emerald-500/20">Imprimir Comprovante</button>
                         </div>
                         <style>{`
                           @media print {
@@ -1691,6 +1735,14 @@ export const UserDashboard: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            <input
+                ref={resendInputRef}
+                type="file"
+                accept="image/*,application/pdf"
+                className="hidden"
+                onChange={handleResendProofFile}
+            />
         </div>
     );
 };

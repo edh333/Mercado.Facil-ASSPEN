@@ -6,6 +6,7 @@ import {
   BookOpen, Download
 } from 'lucide-react';
 import { usePWAInstall, SystemRole } from '../PWAInstallProvider';
+import { AppDownloadButton } from '../AppDownloadModal';
 
 interface AdminSidebarProps {
   activeTab: string;
@@ -131,6 +132,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         </nav>
 
         <div className="mt-auto pt-4 border-t border-slate-200 flex flex-col gap-3">
+            <AppDownloadButton variant="full" label="Baixar App (Setup)" />
             <InstallButtonSidebar userRole={userRole} />
             <div className="flex items-center gap-3 px-2">
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-white text-sm shadow-sm"

@@ -27,6 +27,8 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
   const dataCriacao = data.createdAt || data.date || data.data;
   const saldoExplicito = data.walletBalanceAfter !== undefined && data.walletBalanceAfter !== null;
   const creditoRestante = saldoExplicito ? data.walletBalanceAfter : (data.userName ? (data.userBalance || remainingBalance) : undefined);
+  const saldoAnteriorExplicito = data.walletBalanceBefore !== undefined && data.walletBalanceBefore !== null;
+  const saldoAnterior = saldoAnteriorExplicito ? data.walletBalanceBefore : undefined;
 
   const status = String(data.status || '').toLowerCase();
   const cancelado = ['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'rejected', 'rejeitado'].includes(status);
@@ -100,11 +102,15 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
 
       {/* RECEPTOR */}
       {(data.inmateName || data.userName || data.prisonerName) && (
-          <div className="mb-2 border border-black p-2 rounded bg-gray-50">
-              <p className="font-black uppercase opacity-60 mb-0.5">Destinatário / Interno</p>
-              <p className="font-black uppercase leading-tight">{data.inmateName || data.prisonerName || 'Não identificado'}</p>
+          <div className="mb-2 border-2 border-black p-2 rounded bg-gray-50">
+              <p className="font-black uppercase text-[9px] opacity-70 mb-0.5">Destinatário / Interno</p>
+              <p className="font-black uppercase leading-tight text-base">{data.inmateName || data.prisonerName || 'Não identificado'}</p>
+              {(data.inmateCpf || data.prisonerCpf) && <p className="font-bold text-[10px] mt-0.5">CPF INTERNO: {data.inmateCpf || data.prisonerCpf}</p>}
               {data.userName && (data.userName !== data.inmateName) && (
-                <p className="font-bold mt-0.5">Familiar: {data.userName}</p>
+                <div className="mt-1 pt-1 border-t border-dashed border-gray-400">
+                  <p className="font-bold text-[10px]">FAMILIAR: {data.userName}</p>
+                  {data.userCpf && <p className="font-bold text-[9px] opacity-80">CPF FAMILIAR: {data.userCpf}</p>}
+                </div>
               )}
           </div>
       )}
@@ -112,11 +118,11 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
       {/* LOCATION */}
       {(data.inmateLocation || data.deliveryLocation) && (() => {
         const loc = data.inmateLocation || data.deliveryLocation;
-        const parts = [ loc.raio ? `R:${loc.raio}` : null, loc.ala ? `A:${loc.ala}` : null, loc.cela ? `C:${loc.cela}` : null ].filter(Boolean);
+        const parts = [ loc.raio || loc.ray ? `RAIO ${loc.raio || loc.ray}` : null, loc.ala || loc.wing ? `ALA ${loc.ala || loc.wing}` : null, loc.cela || loc.cell ? `CELA ${loc.cela || loc.cell}` : null ].filter(Boolean);
         if (parts.length === 0) return null;
         return (
-          <div className="mb-2 p-1.5 border border-black text-center">
-            <p className="font-black uppercase">{parts.join(' | ')}</p>
+          <div className="mb-2 p-1.5 border-2 border-black text-center bg-black text-white">
+            <p className="font-black uppercase text-xs tracking-wider">{parts.join(' — ')}</p>
           </div>
         );
       })()}
@@ -174,6 +180,12 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
                 <div className="flex justify-between">
                     <span>PAGAMENTO:</span>
                     <span className="uppercase">{data.paymentMethod === 'WALLET' ? 'CARTEIRA' : data.paymentMethod === 'PIX' ? 'PIX' : data.paymentMethod === 'FIADO' ? 'FIADO' : 'DINHEIRO'}</span>
+                </div>
+            )}
+            {saldoAnterior !== undefined && (
+                <div className="flex justify-between italic opacity-80">
+                    <span>SALDO ANTERIOR:</span>
+                    <span>R$ {formatarMoeda(saldoAnterior)}</span>
                 </div>
             )}
             {creditoRestante !== undefined && (

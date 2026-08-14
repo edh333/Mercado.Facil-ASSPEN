@@ -4,6 +4,7 @@ import { collection, query, where, getDocs, orderBy, Timestamp } from 'firebase/
 import { Order } from '../../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { TrendingUp, CreditCard, DollarSign, AlertTriangle, BarChart3, PieChart as PieChartIcon, Loader2 } from 'lucide-react';
+import { AdminCapacityPanel } from './AdminCapacityPanel';
 
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -157,6 +158,9 @@ export const AdminDashboardCharts: React.FC = () => {
           <p className="text-sm text-slate-500 font-semibold">Inteligência de vendas · últimos 30 dias</p>
         </div>
       </div>
+
+      {/* Painel de Capacidade de Atendimento */}
+      <AdminCapacityPanel />
 
       {/* Cards de Métricas */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
