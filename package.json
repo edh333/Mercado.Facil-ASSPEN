@@ -1,9 +1,13 @@
 {
-  "name": "sistema-de-gestao-prisional-mt",
+  "name": "mercado-facil-pdv",
   "private": true,
-  "version": "1.0.0-STABLE",
+  "version": "1.0.0",
   "main": "desktop/main.js",
   "type": "commonjs",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/edh333/Mercado.Facil-ASSPEN.git"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -12,9 +16,17 @@
     "lint": "tsc --noEmit",
     "electron-dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5177 && electron .\"",
     "electron-build": "node scripts/build-exe.mjs",
+    "electron-build:user": "node scripts/build-exe.mjs --user",
+    "electron-build:admin": "node scripts/build-exe.mjs --admin",
     "build:exe": "node scripts/build-exe.mjs",
     "build:exe:user": "node scripts/build-exe.mjs --user",
-    "build:exe:admin": "node scripts/build-exe.mjs --admin"
+    "build:exe:admin": "node scripts/build-exe.mjs --admin",
+    "deploy": "firebase deploy --only hosting,firestore,storage,functions",
+    "deploy:web": "npm run build && firebase deploy --only hosting",
+    "deploy:rules": "firebase deploy --only firestore,storage",
+    "deploy:functions": "firebase deploy --only functions",
+    "publish:apps": "node scripts/publish-apps.cjs",
+    "release": "node scripts/release.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

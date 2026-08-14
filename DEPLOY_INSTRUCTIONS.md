@@ -1,61 +1,52 @@
-# Guia de Deploy Profissional — Firebase Hosting
+# Guia de Deploy Profissional — Mercado Fácil
 
 ## Pré-requisitos
 
-- Node.js 18+ instalado
+- Node.js 20+ (recomendado 22, alinhado às Cloud Functions)
 - Acesso ao projeto Firebase `mercado-facil-mt`
-- Firebase CLI instalado (`npm install -g firebase-tools`)
+- Firebase CLI instalado (`npm install -g firebase-tools`) e autenticado (`firebase login`)
+- Arquivo `.env` na raiz (copie de `.env.example` e preencha as chaves do Firebase)
 
-## Passo a Passo
+## Release completo (recomendado)
 
-### 1. Instalar dependências e compilar
-
-```bash
-npm install
-npm run build
-```
-
-O comando `npm run build` gera os arquivos finais na pasta `dist/`.
-
-### 2. Deploy no Firebase Hosting
+Um único comando faz tudo — build, deploy (web/regras/functions) e publicação dos instaladores:
 
 ```bash
-firebase deploy --only hosting
+npm run release
 ```
 
-Se for o primeiro deploy no projeto, faça login:
+Ou, em partes:
+
+| Etapa | Comando |
+|---|---|
+| Build web + deploy completo | `npm run deploy` |
+| Gerar instaladores (Usuário + Admin) | `npm run build:exe` |
+| Publicar instaladores + version.json | `npm run publish:apps` |
+| Apenas atualização da web | `npm run release -- --web` |
+| Apenas instaladores | `npm run release -- --apps` |
+
+## Versionamento
 
 ```bash
-firebase login
-firebase init hosting   # Escolha "dist/" como pasta pública, configure como SPA
-firebase deploy --only hosting
+npm version patch   # ou minor/major — cria tag git (ex.: v1.1.0)
+node scripts/release.mjs
+git push --tags     # ao enviar a tag, o GitHub Actions roda o release automaticamente
 ```
 
-### 3. Verificar o deploy
+## Verificação pós-deploy
 
-Acesse a URL exibida no terminal (ex: `https://mercado-facil-mt.web.app`).
+- Web: https://mercado-facil-mt.web.app
+- Instaladores: botão **"Baixar App"** do sistema (links assinados por 7 dias via `obterLinkDownloadApp`)
+- Manifest público de versão: `apps/version.json` (usado pelo desktop para avisar de atualizações)
 
----
+## CI/CD
 
-## Comandos Rápidos
-
-| Ação | Comando |
-|------|---------|
-| Compilar para produção | `npm run build` |
-| Deploy apenas hosting | `firebase deploy --only hosting` |
-| Deploy completo (hosting + functions) | `firebase deploy` |
-| Visualizar localmente | `npm run dev` (acesse http://localhost:5177) |
-
----
-
-## Variáveis de Ambiente
-
-O arquivo `.env` na raiz contém as credenciais do Firebase. **Nunca compartilhe este arquivo.** Para deploy, as variáveis são injetadas automaticamente pelo Vite durante o build.
-
----
+O workflow `.github/workflows/release.yml` roda em tags `v*` (ou manualmente). Requer os secrets
+`FIREBASE_TOKEN` (obtido com `firebase login:ci`) e as 7 variáveis `VITE_FIREBASE_*` + `VITE_GEMINI_API_KEY`.
 
 ## Observações Importantes
 
-- Certifique-se de que as **regras do Firestore** (`firestore.rules`) estão atualizadas antes do deploy.
-- A primeira compilação pode demorar alguns minutos.
+- As regras (`firestore.rules`, `storage.rules`) são publicadas junto no `npm run deploy`.
+- O script de publicação usa um usuário temporário do Firebase Auth — não há chave de serviço no repositório.
+- Instaladores usam nomes canônicos: `apps/MercadoFacil-Usuario-Setup.exe` e `apps/MercadoFacil-Admin-Setup.exe` — uma nova publicação sobrescreve a versão anterior.
 - O cache do navegador pode exibir versão antiga — use **Ctrl+F5** para forçar atualização.

@@ -1,0 +1,65 @@
+name: Release
+
+# Roda o release completo (web + functions + regras + instaladores) quando:
+#   - uma tag v* é enviada (git push --tags após npm version)
+#   - ou acionado manualmente (Actions → Release → Run workflow)
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    name: Release completo (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      CI: 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      # O Vite injeta as variáveis no build — o .env é montado a partir dos secrets
+      - name: Montar .env a partir dos secrets
+        shell: pwsh
+        run: |
+          $envLines = @(
+            "VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY }}",
+            "VITE_FIREBASE_AUTH_DOMAIN=${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}",
+            "VITE_FIREBASE_PROJECT_ID=${{ secrets.VITE_FIREBASE_PROJECT_ID }}",
+            "VITE_FIREBASE_STORAGE_BUCKET=${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}",
+            "VITE_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}",
+            "VITE_FIREBASE_APP_ID=${{ secrets.VITE_FIREBASE_APP_ID }}",
+            "VITE_GEMINI_API_KEY=${{ secrets.VITE_GEMINI_API_KEY }}"
+          )
+          $envLines | Set-Content .env -Encoding utf8
+          Write-Output "Arquivo .env criado ($($envLines.Count) variáveis)"
+
+      - name: Deploy Firebase (hosting, firestore, storage, functions)
+        shell: pwsh
+        run: npx firebase deploy --only hosting,firestore,storage,functions --token "${{ secrets.FIREBASE_TOKEN }}" --non-interactive
+
+      - name: Gerar instaladores (Usuário + Admin)
+        shell: pwsh
+        run: node scripts/build-exe.mjs
+
+      - name: Publicar instaladores + version.json no Storage
+        shell: pwsh
+        run: node scripts/publish-apps.cjs
+
+      - name: Publicar artefatos (instaladores)
+        uses: actions/upload-artifact@v4
+        with:
+          name: instaladores-v
+          path: dist-electron/*.exe
+          retention-days: 14

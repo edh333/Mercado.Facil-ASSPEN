@@ -1,6 +1,7 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const https = require('https');
 
 // Modo do app definido no momento do build:
 //   APP_MODE=user  → Mercado Fácil - Usuário (compras dos familiares)
@@ -9,6 +10,51 @@ const APP_MODE = process.env.APP_MODE === 'admin' ? 'admin' : 'user';
 const APP_TITLE = APP_MODE === 'admin'
   ? 'Mercado Fácil - Administrador'
   : 'Mercado Fácil - Usuário';
+
+// Manifest público de versões (Firebase Storage) — usado para avisar de atualizações.
+const VERSION_URL = 'https://firebasestorage.googleapis.com/v0/b/mercado-facil-mt.firebasestorage.app/o/apps%2Fversion.json?alt=media';
+const WEB_URL = 'https://mercado-facil-mt.web.app';
+
+const compararVersoes = (a, b) => {
+  const pa = String(a).split('.').map(Number);
+  const pb = String(b).split('.').map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const va = pa[i] || 0, vb = pb[i] || 0;
+    if (va !== vb) return va > vb ? 1 : -1;
+  }
+  return 0;
+};
+
+// Verifica periodicamente se há nova versão publicada (apps/version.json).
+function checarAtualizacao(win) {
+  if (!app.isPackaged) return;
+  const req = https.get(VERSION_URL, { timeout: 8000 }, (res) => {
+    let data = '';
+    res.on('data', (c) => (data += c));
+    res.on('end', () => {
+      try {
+        const manifest = JSON.parse(data);
+        const atual = app.getVersion();
+        if (manifest?.version && compararVersoes(manifest.version, atual) > 0 && !win.isDestroyed()) {
+          dialog.showMessageBox(win, {
+            type: 'info',
+            title: 'Nova versão disponível',
+            message: `Mercado Fácil atualizado!`,
+            detail: `A versão ${manifest.version} está disponível (você está na ${atual}).\n\nBaixe o novo instalador diretamente do sistema (Use a opção "Baixar App") e substitua o atual.`,
+            buttons: ['Abrir site para baixar', 'Agora não'],
+            defaultId: 0,
+            cancelId: 1,
+          }).then(({ response }) => {
+            if (response === 0) shell.openExternal(WEB_URL);
+          });
+        }
+      } catch { /* manifest inválido — ignora silenciosamente */ }
+    });
+  });
+  req.on('error', () => { /* sem internet/bloqueio — ignora */ });
+  req.on('timeout', () => req.destroy());
+  setTimeout(() => checarAtualizacao(win), 6 * 60 * 60 * 1000); // re-checa a cada 6h
+}
 
 // Configurar Portabilidade Real (Dados no Pendrive)
 if (app.isPackaged) {
@@ -48,7 +94,8 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  createWindow();
+  const win = createWindow();
+  setTimeout(() => checarAtualizacao(win), 15000); // primeira checagem após 15s
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
