@@ -378,7 +378,7 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
                     </button>
                   </div>
                 ) : (
-                  <div className="text-center opacity-10">
+                  <div className="text-center opacity-70">
                     <ImageIcon size={80} className="mx-auto mb-4"/>
                     <p className="text-[10px] font-black uppercase tracking-[0.4em]">Nenhuma evidência anexada</p>
                   </div>

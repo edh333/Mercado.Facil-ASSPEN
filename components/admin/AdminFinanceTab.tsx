@@ -464,7 +464,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
               </thead>
               <tbody className="divide-y divide-[var(--border-color)]">
                 {filteredData.length === 0 ? (
-                  <tr><td colSpan={5} className="p-20 text-center font-black uppercase text-xs opacity-20"><Search size={40} className="mx-auto mb-4"/> Sem registros.</td></tr>
+                  <tr><td colSpan={5} className="p-20 text-center font-black uppercase text-xs opacity-70"><Search size={40} className="mx-auto mb-4"/> Sem registros.</td></tr>
                 ) : filteredData.map((item: any) => (
                   <tr key={item.id} className="hover:bg-[var(--bg-main)]/50 transition-all group">
                     <td className="p-6 whitespace-nowrap">
@@ -526,7 +526,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
           {/* Mobile Cards View */}
           <div className="lg:hidden divide-y divide-[var(--border-color)]">
             {filteredData.length === 0 ? (
-                <div className="p-10 text-center font-black uppercase text-[10px] opacity-20">Sem registros.</div>
+                <div className="p-10 text-center font-black uppercase text-[10px] opacity-70">Sem registros.</div>
             ) : filteredData.map((item: any) => (
                 <div key={item.id} className="p-6 flex flex-col gap-4">
                     <div className="flex justify-between items-start">

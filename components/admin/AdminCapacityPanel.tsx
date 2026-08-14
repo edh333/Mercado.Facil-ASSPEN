@@ -103,7 +103,7 @@ export const AdminCapacityPanel: React.FC = () => {
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <div className="p-3 bg-emerald-100 rounded-2xl">
             <Gauge size={22} className="text-emerald-600" />

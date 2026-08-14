@@ -421,8 +421,8 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
     const qtd = Number(item.quantity) || 1;
     const precoUnit = Number(item.priceAtPurchase || item.price || 0);
     const valor = (precoUnit * qtd).toFixed(2).replace('.', ',');
-    const nomeLinha = nome.length > 26 ? nome.substring(0, 23) + '...' : nome;
-    cupom += `${nomeLinha.padEnd(26)}${String(`${qtd} X ${precoUnit.toFixed(2).replace('.', ',')}`).padStart(9)}${String("R$ " + valor).padStart(13)}\n`;
+    const nomeLinha = nome.length > 22 ? nome.substring(0, 19) + '...' : nome;
+    cupom += `${nomeLinha.padEnd(22)}${String(`${qtd} X ${precoUnit.toFixed(2).replace('.', ',')}`).padStart(12)}${String("R$ " + valor).padStart(14)}\n`;
   }
   cupom += `${divisor}\n`;
 
@@ -574,7 +574,7 @@ export async function imprimirHtmlSilencioso(conteudo: string, config?: any): Pr
       @page { size: 76mm auto; margin: 0; }
       html, body { margin: 0; padding: 0; background: #fff; }
       body { width: 76mm; margin: 0 auto; box-sizing: border-box; padding: 2mm 1mm; }
-      pre { font-family: 'Courier New', Courier, monospace; font-size: ${Number(config?.receiptFontSizeRaw) || 11}px; line-height: 1.25; color: #000; white-space: pre-wrap; word-wrap: break-word; margin: 0; }
+      pre { font-family: 'Courier New', Courier, monospace; font-size: ${Number(config?.receiptFontSizeRaw) || 9}px; line-height: 1.2; color: #000; white-space: pre; }
     </style></head><body><pre>${conteudo
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     }</pre></body></html>`;

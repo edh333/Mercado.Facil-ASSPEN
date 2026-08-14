@@ -105,7 +105,7 @@ export const ReciboA4: React.FC<ReciboA4Props> = ({ data, type, config, printerN
       {/* A4 CANVAS */}
       <div className={embedded
         ? "bg-white text-black p-6 sm:p-8 w-full md:max-w-[210mm] mx-auto relative font-sans shadow-xl shadow-slate-300/50 my-4 md:my-6 box-border print:shadow-none print:w-full print:m-0 print:p-8"
-        : "bg-white text-black p-10 w-[210mm] min-h-[297mm] mx-auto relative font-sans shadow-2xl print:shadow-none print:w-full print:m-0 print:p-8 box-border my-10 print:my-0"}>
+        : "bg-white text-black p-10 w-full max-w-[210mm] min-h-[297mm] mx-auto relative font-sans shadow-2xl print:shadow-none print:w-full print:m-0 print:p-8 box-border my-10 print:my-0"}>
 
         {/* EXTERNAL BORDER */}
         <div className="border-[2px] border-slate-900 p-10 h-full flex flex-col justify-between relative overflow-hidden">

@@ -488,7 +488,7 @@ export const Login: React.FC = () => {
 
                 {/* Rodapé */}
                 <div className="mt-6 text-center px-4">
-                    <p className="text-[10px] text-slate-500 font-medium tracking-wider uppercase leading-relaxed">
+                    <p className="text-[11px] text-slate-300 font-medium tracking-wider uppercase leading-relaxed">
                         © 2026 {settings?.appName || 'MERCADO FÁCIL'} · TODOS OS DIREITOS RESERVADOS<br />
                         Desenvolvido por {settings?.dev_name || settings?.developerName || 'EDEVALDO DE LIMA ALMEIDA'}{settings?.dev_email || settings?.developerEmail ? ` · ${settings?.dev_email || settings?.developerEmail}` : ''}{settings?.dev_phone || settings?.developerPhone ? ` · SUPORTE: ${settings?.dev_phone || settings?.developerPhone}` : ''}
                     </p>

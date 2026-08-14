@@ -213,7 +213,7 @@ export const AdminDashboardCharts: React.FC = () => {
               <BarChart data={dailySales} margin={{ top: 5, right: 5, left: -10, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#94a3b8' }} interval="preserveStartEnd" />
-                <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} tickFormatter={(v: number) => `R$${(v / 100).toFixed(0)}`} />
+                <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} tickFormatter={(v: number) => `R$ ${v.toLocaleString('pt-BR')}`} />
                 <Tooltip
                   formatter={(value: number) => [fmt(value), 'Faturamento']}
                   contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}

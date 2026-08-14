@@ -697,10 +697,10 @@ export function AdminDashboard() {
             </div>
           </div>
           
-          <div className="flex items-center gap-4">
-            <AppDownloadButton variant="full" label="Baixar App" />
-            <InstallButton variant="full" role="user" label="Instalar App (Usuário)" />
-            <InstallButton variant="full" role="admin" label="Instalar Painel Admin" />
+          <div className="flex items-center gap-4 flex-wrap justify-end">
+            <span className="hidden sm:inline"><AppDownloadButton variant="full" label="Baixar App" /></span>
+            <span className="hidden md:inline"><InstallButton variant="full" role="user" label="Instalar App (Usuário)" /></span>
+            <span className="hidden md:inline"><InstallButton variant="full" role="admin" label="Instalar Painel Admin" /></span>
             <OnlineStatusIndicator />
           </div>
         </header>

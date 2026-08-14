@@ -334,12 +334,12 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                 <p className="font-black uppercase tracking-[0.2em]">Nenhum familiar encontrado</p>
               </div>
             ) : filteredUsers.map(u => (
-              <div key={u.id} onClick={() => setViewingUser(u)} className={`bg-white p-6 rounded-[2.5rem] shadow-sm border-2 hover:shadow-xl transition-all group relative overflow-hidden cursor-pointer ${showBulkActions && selectedUsers.has(u.id) ? 'border-emerald-500 ring-2 ring-emerald-500/20' : 'border-slate-200'}`}>
+              <div key={u.id} onClick={() => setViewingUser(u)} className={`bg-white p-6 rounded-[2.5rem] shadow-sm border-2 hover:shadow-xl transition-all group relative overflow-visible cursor-pointer ${showBulkActions && selectedUsers.has(u.id) ? 'border-emerald-500 ring-2 ring-emerald-500/20' : 'border-slate-200'}`}>
                 <div className={`absolute top-0 right-0 w-24 h-24 blur-[50px] -mr-12 -mt-12 opacity-5 ${u.status === 'active' ? 'bg-emerald-500' : u.status === 'suspended' ? 'bg-red-500' : 'bg-amber-500'}`} />
 
                 <div className="flex items-start gap-5 relative z-10">
                   {showBulkActions && (
-                    <button onClick={() => toggleUserSelection(u.id)} className="flex-shrink-0 p-2 rounded-xl border-2 border-slate-200 hover:border-emerald-500 hover:bg-emerald-50 transition-all">
+                    <button onClick={(e) => { e.stopPropagation(); toggleUserSelection(u.id); }} className="flex-shrink-0 p-2 rounded-xl border-2 border-slate-200 hover:border-emerald-500 hover:bg-emerald-50 transition-all">
                       {selectedUsers.has(u.id) ? <CheckCircle className="text-emerald-500" size={24}/> : <Square className="text-slate-400" size={24}/>}
                     </button>
                   )}
@@ -350,7 +350,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 mb-1">
                       <h3 className="font-black text-base text-slate-900 uppercase tracking-tight truncate">{u?.name || 'Sem nome'}</h3>
-                      <span className={`text-[8px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest border ${statusBadge(u.status || '')}`}>{u.status}</span>
+                      <span className={`text-[8px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest border ${statusBadge(u.status || '')}`}>{({ active: 'Ativo', pending: 'Pendente', suspended: 'Suspenso' } as any)[u.status] || u.status}</span>
                     </div>
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-tight truncate">CPF: {u?.cpf || '—'} • Tel: {u?.phone || '—'}</p>
                     {u?.address ? (
@@ -374,7 +374,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                       <div className="px-3 py-1 bg-emerald-50 rounded-full border border-emerald-200 text-emerald-700 text-[10px] font-bold tracking-tighter">
                         SALDO: R$ {formatarMoeda(u.walletBalance || 0)}
                       </div>
-                      <button onClick={() => toggleUserCredit(u.id, !(u.allowCredit !== false))} className={`px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-tighter border transition-all ${u.allowCredit !== false ? 'bg-indigo-50 text-indigo-600 border-indigo-200' : 'bg-slate-100 text-slate-400 border-slate-200 opacity-60'}`}>
+                      <button onClick={(e) => { e.stopPropagation(); toggleUserCredit(u.id, !(u.allowCredit !== false)); }} className={`px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-tighter border transition-all ${u.allowCredit !== false ? 'bg-indigo-50 text-indigo-600 border-indigo-200' : 'bg-slate-100 text-slate-400 border-slate-200 opacity-60'}`}>
                         CRÉDITO: {u.allowCredit !== false ? 'LIBERADO' : 'BLOQUEADO'}
                       </button>
                     </div>

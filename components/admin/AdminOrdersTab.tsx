@@ -187,7 +187,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
       {/* Orders Grid/List */}
       <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'bg-[var(--bg-card)] rounded-[3rem] border-2 border-[var(--border-color)] shadow-sm overflow-hidden'}>
         {filteredOrders.length === 0 ? (
-          <div className="col-span-full py-20 text-center opacity-10">
+          <div className="col-span-full py-20 text-center opacity-70">
             <ShoppingCart size={80} className="mx-auto mb-4"/>
             <p className="font-black uppercase tracking-[0.4em]">Nenhum pedido encontrado</p>
           </div>
@@ -258,7 +258,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
 
             {/* Bottom Actions */}
             <div className="mt-8 pt-6 border-t border-[var(--border-color)] relative z-10">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
                 <div>
                   <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest mb-1">Valor Total</p>
                   <h3 className="text-2xl font-black text-[var(--text-main)] tracking-tighter">
@@ -266,7 +266,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                     {(Number(order.total) || 0).toFixed(2).replace('.', ',')}
                   </h3>
                 </div>
-                <div className="flex space-x-2">
+                <div className="flex space-x-2 flex-wrap gap-y-2">
                   <button onClick={() => setPrintOrder(order)} className="p-4 min-h-[44px] min-w-[44px] bg-[var(--bg-main)] text-[var(--text-muted)] hover:bg-slate-100 hover:text-[var(--text-main)] rounded-2xl border border-[var(--border-color)] shadow-sm active:scale-95 transition-all flex items-center justify-center" title="Imprimir Cupom 80mm"><Printer size={22}/></button>
                   <button onClick={() => setViewingReceipt({ data: order, type: 'ORDER' })} className="p-4 min-h-[44px] min-w-[44px] bg-[var(--bg-main)] text-[var(--text-muted)] hover:bg-emerald-50 hover:text-emerald-600 rounded-2xl border border-[var(--border-color)] shadow-sm active:scale-95 transition-all flex items-center justify-center" title="Ver Recibo Digital"><FileText size={22}/></button>
                   <button onClick={() => setSelectedOrderDetails(order)} className="px-6 py-4 min-h-[44px] bg-emerald-500 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-lg hover:bg-emerald-600 active:scale-95 transition-all flex items-center gap-2 touch-target">

@@ -817,12 +817,12 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
             showNotification(`Venda realizada! Total: R$ ${formatarMoeda(data?.order?.total || 0)}\nCrédito restante: R$ ${formatarMoeda(novoSaldo)}`, 'success');
             return true;
-        } catch (error: any) {
-            console.error('Erro ao finalizar venda:', error);
-            const msg = error?.message || 'Erro ao processar venda';
-            showNotification('❌ ' + (msg.includes('insuficiente') ? msg : 'Erro ao processar venda'), 'error');
-            return false;
-        }
+} catch (error: any) {
+console.error('Erro ao finalizar venda:', error);
+const msg = error?.message || 'Erro ao processar venda';
+showNotification('❌ ' + msg, 'error');
+return false;
+}
     };
 
     const uploadFile = async (file: File, path: string, meta?: { kind?: string; docId?: string }): Promise<string> => {

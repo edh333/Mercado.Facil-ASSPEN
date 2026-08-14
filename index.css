@@ -165,6 +165,38 @@ body {
   margin: 0;
   padding: 0;
   overflow-x: hidden;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   EXPERIÊNCIA DE APP INSTALADO (Desktop / Celular / Tablet)
+   ═══════════════════════════════════════════════════════════ */
+
+/* Interface parece software nativo: sem seleção de texto acidental
+   nos controles (inputs/impressões continuam selecionáveis) */
+button, a, label, .no-select {
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+input, select, textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Rolagem discreta, como sistema instalado (Windows/ChromeOS/macOS) */
+@media (hover: hover) {
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, 0.4); border-radius: 8px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 0.6); }
+}
+
+/* Bottom sheets respeitam o notch/barra de gestos do iOS */
+.modal-bottom-sheet {
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 h1, h2, h3, h4, h5, h6 { 
@@ -753,6 +785,12 @@ button {
   max-height: 85vh !important;
   max-width: 95vw !important;
   z-index: 10000 !important;
+}
+
+/* ModalShell: header/rodapé fixos e corpo rolável (sobrescreve o auto
+   genérico acima apenas para o shell, mantendo max-height/max-width) */
+.modal-shell-fixed {
+  overflow: hidden !important;
 }
 
 /* ═══════════════════════════════════════════════════════════

@@ -611,7 +611,8 @@ export const UserDashboard: React.FC = () => {
         const lastQty = lastItem?.quantity || 0;
         const lastSubtotal = (lastItem?.priceAtPurchase ?? (lastProd ? (lastProd.price || 0) : (lastItem?.price || 0))) * lastQty;
         return (
-        <div style={{ display: 'flex', flexDirection: 'row', gap: '16px', width: '100%', height: 'calc(100vh - 140px)' }}>
+        <div className="overflow-x-auto custom-scrollbar" style={{ width: '100%' }}>
+        <div style={{ display: 'flex', flexDirection: 'row', gap: '16px', width: '100%', minWidth: '1100px', height: 'calc(100vh - 140px)' }}>
 
             {/* PAINEL ESQUERDO — 35% — DESTAQUE DO ITEM ATUAL */}
             <div className="bg-slate-900 text-white rounded-2xl p-5 flex flex-col justify-between shadow-xl relative border border-slate-800 font-mono" style={{ width: '35%', flexShrink: 0, height: 'calc(100vh - 260px)' }}>
@@ -751,6 +752,7 @@ export const UserDashboard: React.FC = () => {
                     </button>
                 </div>
             </div>
+        </div>
         </div>
     );};
 
@@ -945,7 +947,7 @@ export const UserDashboard: React.FC = () => {
                 </div>
             )}
 
-            <header className="sticky top-0 z-[100] px-4 sm:px-6 md:px-8 py-3 sm:py-4 md:py-5 backdrop-blur-2xl border-b border-slate-200 bg-[var(--bg-card)]/80 shadow-[0_10px_40px_rgba(0,0,0,0.1)] flex justify-between items-center overflow-hidden">
+            <header className="sticky top-0 z-[100] px-4 sm:px-6 md:px-8 py-3 sm:py-4 md:py-5 backdrop-blur-2xl border-b border-slate-200 bg-[var(--bg-card)]/80 shadow-[0_10px_40px_rgba(0,0,0,0.1)] flex flex-wrap items-center justify-between gap-y-3 overflow-visible">
                 <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-[var(--primary-color)]/10 via-transparent to-transparent pointer-events-none"></div>
                 
                 <div className="relative z-10 flex items-center gap-2 sm:gap-3 md:gap-4">
@@ -981,7 +983,7 @@ export const UserDashboard: React.FC = () => {
                     </div>
                 )}
 
-                <div className={`hidden lg:flex items-center gap-1.5 bg-black/5 dark:bg-white/5 backdrop-blur-xl p-1.5 rounded-[2rem] border border-slate-100`}>
+                <div className={`hidden md:flex items-center gap-1.5 bg-black/5 dark:bg-white/5 backdrop-blur-xl p-1.5 rounded-[2rem] border border-slate-100`}>
                     <button
                         onClick={() => setActiveTab('store')}
                         className={`flex items-center gap-2 px-6 py-2.5 rounded-2xl transition-all text-[9px] font-black uppercase tracking-[0.2em] ${activeTab === 'store' ? 'bg-[var(--primary-color)] text-white shadow-xl scale-105' : 'text-[var(--text-muted)] hover:bg-[var(--primary-color)]/10'}`}
@@ -1006,7 +1008,7 @@ export const UserDashboard: React.FC = () => {
                             }
                         }}
                         disabled={myOrders.length === 0}
-                        className="w-10 h-10 sm:w-12 sm:h-12 bg-[var(--bg-main)]/50 backdrop-blur-md border border-slate-200 text-[var(--text-main)] rounded-2xl flex items-center justify-center hover:bg-emerald-500/20 hover:text-emerald-500 hover:border-emerald-500/30 transition-all active:scale-90 shadow-sm disabled:opacity-30"
+                        className="hidden sm:flex w-10 h-10 sm:w-12 sm:h-12 bg-[var(--bg-main)]/50 backdrop-blur-md border border-slate-200 text-[var(--text-main)] rounded-2xl items-center justify-center hover:bg-emerald-500/20 hover:text-emerald-500 hover:border-emerald-500/30 transition-all active:scale-90 shadow-sm disabled:opacity-30"
                         title="Reimprimir Último Cupom"
                     >
                         <Printer size={18} />
@@ -1015,8 +1017,8 @@ export const UserDashboard: React.FC = () => {
                         <MessageSquare size={18} />
                         {unreadMsg > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] w-5 h-5 rounded-full flex items-center justify-center font-black border-2 border-[var(--bg-card)] animate-bounce shadow-lg shadow-red-500/40">{unreadMsg}</span>}
                     </button>
-                    <InstallButton role={isAdmin ? 'admin' : 'user'} />
-                    <AppDownloadButton className="!w-8 !h-8 sm:!w-9 sm:!h-9" />
+                    <span className="hidden sm:inline"><InstallButton role={isAdmin ? 'admin' : 'user'} /></span>
+                    <span className="hidden sm:inline"><AppDownloadButton className="!w-8 !h-8 sm:!w-9 sm:!h-9" /></span>
                     <button onClick={logout} className="w-10 h-10 sm:w-12 sm:h-12 bg-red-500/10 text-red-500 border border-red-500/20 rounded-2xl flex items-center justify-center hover:bg-red-500 hover:text-white transition-all active:scale-90 shadow-sm"><LogOut size={18} /></button>
                 </div>
             </header>
@@ -1186,7 +1188,14 @@ export const UserDashboard: React.FC = () => {
 
                         {viewingWalletHistory ? (
                             <div className="space-y-4">
-                                {walletTxs.map((tx: any) => (
+                                {walletTxs.length === 0 ? (
+                                    <div className="bg-[var(--bg-card)] p-10 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center gap-3 text-center">
+                                        <Wallet size={32} className="text-slate-300" />
+                                        <p className="font-black text-xs uppercase text-slate-400">Nenhuma movimentação</p>
+                                        <p className="text-[10px] text-slate-400 font-bold">Seus depósitos e compras aparecerão aqui.</p>
+                                    </div>
+                                ) : (
+                                walletTxs.map((tx: any) => (
                                     <div key={tx.id} className="bg-[var(--bg-card)] p-4 rounded-3xl border border-slate-200 shadow-sm flex justify-between items-center gap-3 flex-wrap">
                                         <div className="flex items-center gap-3">
                                             <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${tx.amount > 0 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
@@ -1207,11 +1216,25 @@ export const UserDashboard: React.FC = () => {
                                         </div>
                                         <p className={`font-black ${tx.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>R$ {formatarMoeda(tx.amount)}</p>
                                     </div>
-                                ))}
+                                ))
+                                )}
                             </div>
                         ) : (
                             <div className="space-y-4">
-                                {myOrders.map((order: any) => (
+                                {loadingOrders && (
+                                    <div className="bg-[var(--bg-card)] p-10 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center gap-3">
+                                        <Loader2 size={28} className="text-[var(--primary-color)] animate-spin" />
+                                        <p className="font-black text-xs uppercase text-slate-400">Carregando pedidos...</p>
+                                    </div>
+                                )}
+                                {!loadingOrders && myOrders.length === 0 && (
+                                    <div className="bg-[var(--bg-card)] p-10 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center gap-3 text-center">
+                                        <Package size={32} className="text-slate-300" />
+                                        <p className="font-black text-xs uppercase text-slate-400">Nenhum pedido ainda</p>
+                                        <p className="text-[10px] text-slate-400 font-bold">Seus pedidos aparecerão aqui assim que você fizer uma compra.</p>
+                                    </div>
+                                )}
+                                {!loadingOrders && myOrders.map((order: any) => (
                                     <div key={order.id} className="bg-[var(--bg-card)] p-6 rounded-3xl border border-slate-200 shadow-sm">
                                         <div className="flex justify-between items-center mb-4 pb-4 border-b border-slate-100">
                                             <div>
@@ -1376,7 +1399,7 @@ export const UserDashboard: React.FC = () => {
             )}
 
             {/* MOBILE BOTTOM NAV */}
-            <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 flex justify-around items-center h-16 z-50 shadow-lg">
+            <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 flex justify-around items-center h-16 z-50 shadow-lg modal-bottom-sheet" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
                 {((settings?.allow_balance_purchases ?? true) === false && !isAdmin) ? (
                     <>
                         <button onClick={() => { setActiveTab('store'); }} className={`flex flex-col items-center justify-center h-full flex-1 transition-colors ${activeTab === 'store' ? 'text-emerald-600' : 'text-slate-400'}`}>
@@ -1402,6 +1425,10 @@ export const UserDashboard: React.FC = () => {
                         <button onClick={() => { setActiveTab('store'); setMobileView('payment'); }} className={`flex flex-col items-center justify-center h-full flex-1 transition-colors ${mobileView === 'payment' ? 'text-emerald-600' : 'text-slate-400'}`}>
                             <CreditCard size={20} />
                             <span className="text-[8px] font-black uppercase mt-0.5">PAGAMENTO</span>
+                        </button>
+                        <button onClick={() => { setActiveTab('orders'); }} className={`flex flex-col items-center justify-center h-full flex-1 transition-colors ${activeTab === 'orders' ? 'text-emerald-600' : 'text-slate-400'}`}>
+                            <Clock size={20} />
+                            <span className="text-[8px] font-black uppercase mt-0.5">HISTÓRICO</span>
                         </button>
                     </>
                 )}
@@ -1572,7 +1599,7 @@ export const UserDashboard: React.FC = () => {
                                         </div>
                                     )}
                                 </div>
-                                <p className="text-[7px] font-bold text-red-400 text-center mt-2 leading-tight"><AlertCircle size={10} className="inline-block mr-1 -mt-0.5" />Enviar comprovantes falsos ou adulterados configura CRIME (Art. 171 e 298 CP). Ao prosseguir, você assume total responsabilidade civil e criminal.</p>
+<p className="text-[11px] font-bold text-red-400 text-center mt-2 leading-tight"><AlertCircle size={12} className="inline-block mr-1 -mt-0.5" />Enviar comprovantes falsos ou adulterados configura CRIME (Art. 171 e 298 CP). Ao prosseguir, você assume total responsabilidade civil e criminal.</p>
                                 <button onClick={async () => { if (!proofFile) { showNotification('ANEXE O COMPROVANTE.', 'error'); return; } await depositToWalletAction(); setDepositStage('amount'); }} disabled={isSubmitting || !proofFile} className="w-full py-3 bg-blue-500 text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg disabled:opacity-50">
                                     {isSubmitting ? <><Loader2 size={14} className="animate-spin" /> Enviando...</> : <><Upload size={14} /> Enviar Comprovante</>}
                                 </button>
@@ -1650,7 +1677,7 @@ export const UserDashboard: React.FC = () => {
                                                 {settings?.pixKeys?.[0] && (
                                                     <div className="bg-white rounded-xl p-2 border border-slate-200">
                                                         <p className="text-[7px] font-black text-emerald-500 uppercase tracking-[0.3em] mb-1">Chave Copia e Cola</p>
-                                                        <input readOnly value={pixPayload} className="w-full text-[8px] font-mono text-slate-500 bg-transparent outline-none text-center select-all mb-1 break-all" onClick={(e) => (e.target as HTMLInputElement).select()} />
+                                                        <input readOnly value={pixPayload} className="w-full text-[10px] font-mono text-slate-500 bg-transparent outline-none text-center select-all mb-1 break-all" onClick={(e) => (e.target as HTMLInputElement).select()} />
                                                         <button
                                                             onClick={() => {
                                                                 navigator.clipboard.writeText(pixPayload);
@@ -1666,7 +1693,7 @@ export const UserDashboard: React.FC = () => {
                                             </>
                                         )}
                                         {!pixPayload && (
-                                            <p className="text-[8px] font-black text-amber-600 uppercase tracking-wider text-left"><AlertCircle size={10} className="inline-block mr-1 -mt-0.5" />Chave PIX ainda não cadastrada — o pagamento será confirmado com o comprovante anexado.</p>
+                                            <p className="text-[10px] font-black text-amber-600 uppercase tracking-wider text-left"><AlertCircle size={12} className="inline-block mr-1 -mt-0.5" />Chave PIX ainda não cadastrada — o pagamento será confirmado com o comprovante anexado.</p>
                                         )}
                                         <div className="bg-slate-50 rounded-xl border border-slate-200 p-3">
                                             <p className="text-[8px] font-black text-slate-400 uppercase mb-2 text-left">Comprovante de Pagamento</p>
@@ -1685,7 +1712,7 @@ export const UserDashboard: React.FC = () => {
                                             {proofFile && (
                                                 <p className="text-[8px] text-emerald-600 font-bold mt-1 text-left break-all">Arquivo selecionado: {proofFile.name}</p>
                                             )}
-                                            <p className="text-[7px] font-bold text-red-600 text-center mt-2 leading-tight"><AlertCircle size={10} className="inline-block mr-1 -mt-0.5" />Enviar comprovantes falsos ou adulterados configura CRIME (Art. 171 e 298 CP). Ao confirmar, você assume total responsabilidade civil e criminal.</p>
+                                            <p className="text-[11px] font-bold text-red-600 text-center mt-2 leading-tight"><AlertCircle size={12} className="inline-block mr-1 -mt-0.5" />Enviar comprovantes falsos ou adulterados configura CRIME (Art. 171 e 298 CP). Ao confirmar, você assume total responsabilidade civil e criminal.</p>
                                         </div>
                                     </div>
                                 )}
@@ -1705,7 +1732,7 @@ export const UserDashboard: React.FC = () => {
             )}
 
             {viewingOrderCupom && (
-                <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 print:p-0 print:bg-white z-[5000]" onClick={() => setViewingOrderCupom(null)}>
+                <div className="fixed inset-0 z-[5000] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 print:p-0 print:bg-white" onClick={() => setViewingOrderCupom(null)}>
                     <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden print:shadow-none print:w-[76mm] print:mx-auto" onClick={e => e.stopPropagation()}>
                         <div className="p-4 border-b border-slate-100 flex justify-between items-center print:hidden">
                             <span className="font-black text-xs uppercase">Recibo</span>

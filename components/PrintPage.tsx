@@ -265,10 +265,11 @@ export const PrintPage: React.FC = () => {
                                 data={item.data}
                                 type={(item.subType === 'EXPENSE' ? 'EXPENSE' : 'ORDER') as 'ORDER' | 'EXPENSE'}
                                 config={config}
+                                embedded
                             />
                         )}
                         {type === 'PROMISSORIA' && item?.data && (
-                            <NotaPromissoriaA4 data={item.data} />
+                            <NotaPromissoriaA4 data={item.data} embedded />
                         )}
                         {isCupom && item?.data && (
                             <CupomEntrega order={item.data} remainingBalance={item.data.walletBalanceAfter} config={config} />

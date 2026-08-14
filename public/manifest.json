@@ -1,10 +1,12 @@
 {
+  "id": "/?mode=user",
   "name": "Mercado Fácil PDV",
   "short_name": "Mercado Fácil",
   "description": "Sistema de Gestão de Pedidos e PDV - Mercado Fácil",
   "start_url": "/?mode=user",
   "display": "standalone",
-  "orientation": "portrait-primary",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
   "lang": "pt-BR",
@@ -28,6 +30,20 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Loja / Pedidos",
+      "short_name": "Loja",
+      "url": "/?mode=user",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Painel Administrativo",
+      "short_name": "Painel",
+      "url": "/?mode=admin",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
     }
   ],
   "screenshots": [],

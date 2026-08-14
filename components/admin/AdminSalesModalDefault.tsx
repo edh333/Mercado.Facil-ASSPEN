@@ -1299,7 +1299,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
       <AnimatePresence>
         {modalPagamento && (
           <div className="fixed inset-0 z-[700] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/80 backdrop-blur-3xl" onClick={() => setModalPagamento(false)}></div>
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-3xl" onClick={() => { if (!processando && !pixPendente) setModalPagamento(false); }}></div>
             <motion.div
               initial={{ scale: 0.9, opacity: 0, y: 50 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -1308,7 +1308,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
             >
               <div className="p-8 sm:p-10 border-b border-slate-200 shrink-0 bg-slate-50 text-center">
                 <p className="font-black text-[10px] text-slate-500 uppercase tracking-[0.4em] mb-2">Total a Pagar</p>
-                <h3 className="font-black text-5xl sm:text-6xl text-emerald-600 tracking-tighter">
+                <h3 className="font-black text-4xl sm:text-5xl text-emerald-600 tracking-tighter truncate max-w-full">
                     <span className="text-2xl text-emerald-500/50 mr-2">R$</span>
                     {formatarMoeda(totalCarrinho)}
                 </h3>
@@ -1328,7 +1328,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                   <button
                     key={key}
                     onClick={() => { setFormaPagamento(key as any); setPixConfirmado(false); if (key === 'FIADO') setCustomerAccountSearch(''); }}
-                    className={`py-6 rounded-[2rem] font-black text-[11px] sm:text-xs uppercase tracking-[0.2em] flex flex-col items-center justify-center gap-3 transition-all touch-target border ${formaPagamento === key ? 'bg-emerald-500 text-white border-emerald-500 scale-[1.02]' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100 hover:text-white'}`}
+                    className={`py-6 rounded-[2rem] font-black text-[11px] sm:text-xs uppercase tracking-[0.2em] flex flex-col items-center justify-center gap-3 transition-all touch-target border ${formaPagamento === key ? 'bg-emerald-500 text-white border-emerald-500 scale-[1.02]' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-emerald-100 hover:text-emerald-700'}`}
                   >
                     <Icon size={24} className={formaPagamento === key ? 'animate-pulse' : ''}/>
                     {label}
@@ -1535,8 +1535,6 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                     )}
                   </motion.div>
                 )}
-              </div>
-
                 {formaPagamento === 'FIADO' && (
                   <motion.div initial={{opacity:0}} animate={{opacity:1}} className="space-y-4">
                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] ml-2">Cliente para Fiado</p>
@@ -1609,6 +1607,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                     )}
                   </motion.div>
                 )}
+              </div>
 
               <div className="flex gap-4 p-8 border-t border-slate-200 bg-slate-50 shrink-0">
                 <button onClick={() => setModalPagamento(false)} className="flex-1 py-5 rounded-[1.5rem] font-black text-[11px] uppercase tracking-[0.2em] text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 touch-target transition-all active:scale-95">
@@ -1619,8 +1618,10 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                     <span className="font-black text-red-600 uppercase tracking-[0.3em] text-xs leading-none">Sem saldo no momento</span>
                   </div>
                 ) : formaPagamento === 'FIADO' && (!selectedCustomerAccount || ((selectedCustomerAccount.currentDebt || 0) + totalCarrinho > (selectedCustomerAccount.creditLimit || 0))) ? (
-                  <div className="w-full py-6 rounded-[2rem] bg-red-50 border-2 border-red-200 flex items-center justify-center">
-                    <span className="font-black text-red-600 uppercase tracking-[0.3em] text-xs leading-none">Sem saldo no momento</span>
+                  <div className="w-full py-6 rounded-[2rem] bg-red-50 border-2 border-red-200 flex items-center justify-center px-4">
+                    <span className="font-black text-red-600 uppercase tracking-[0.3em] text-xs leading-none text-center">
+                      {!selectedCustomerAccount ? 'Selecione um cliente' : 'Sem saldo no momento'}
+                    </span>
                   </div>
                 ) : (
                   <div className="flex-1 flex flex-col gap-2">

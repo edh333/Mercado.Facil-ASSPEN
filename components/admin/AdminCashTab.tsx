@@ -372,8 +372,8 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
 
       {/* ══════════════ MODALS ══════════════ */}
       {modal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-4 pb-4 sm:pb-0">
-          <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-4 pb-4 sm:pb-0" onClick={() => setModal(null)}>
+          <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
 
             {modal === 'open' && (
               <>

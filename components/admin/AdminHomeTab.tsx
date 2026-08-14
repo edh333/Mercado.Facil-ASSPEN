@@ -272,7 +272,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
                     </div>
                   </div>
                 </div>
-                <div className="mt-4 py-3 bg-[var(--primary-color)] rounded-2xl text-white text-[9px] font-black uppercase flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all shadow-lg">
+                <div className="mt-4 py-3 bg-[var(--primary-color)] rounded-2xl text-white text-[9px] font-black uppercase flex items-center justify-center gap-2 opacity-70 group-hover:opacity-100 translate-y-0 group-hover:translate-y-0 transition-all shadow-lg">
                    Validar Agora <ArrowRight size={12}/>
                 </div>
               </div>
@@ -379,7 +379,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
               </div>
             ))}
             {(!orders || orders.length === 0) && (
-              <div className="text-center py-10 opacity-20"><ShoppingCart size={40} className="mx-auto mb-2"/><p className="text-xs font-bold uppercase">Sem pedidos</p></div>
+              <div className="text-center py-10 opacity-70"><ShoppingCart size={40} className="mx-auto mb-2"/><p className="text-xs font-bold uppercase">Sem pedidos</p></div>
             )}
           </div>
           <button onClick={() => setActiveTab('orders')} className="mt-6 w-full py-4 bg-[var(--text-main)] text-[var(--bg-card)] rounded-xl font-black text-[10px] uppercase tracking-widest hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-lg">Ver Todos <ArrowRight size={14}/></button>

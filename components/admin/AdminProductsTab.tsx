@@ -186,7 +186,7 @@ return (
       {/* Grid / List of Products */}
       <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6' : 'bg-[var(--bg-card)] rounded-[2.5rem] border border-[var(--border-color)] shadow-sm overflow-hidden'}>
         {filteredProducts.length === 0 ? (
-          <div className="col-span-full py-20 text-center opacity-30">
+          <div className="col-span-full py-20 text-center opacity-70">
             <Package size={64} className="mx-auto mb-4"/>
             <p className="font-black uppercase tracking-[0.3em]">Nenhum produto em catálogo</p>
           </div>
@@ -205,7 +205,7 @@ return (
 
              {/* Thumbnail */}
              <div className={`${viewMode === 'grid' ? 'aspect-square relative overflow-hidden' : 'w-20 h-20 rounded-2xl flex-shrink-0 relative overflow-hidden bg-[var(--bg-main)]'}`}>
-                <img src={product?.imageUrl || ''} className={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 ${product?.available === false ? 'grayscale opacity-30' : ''}`} alt={product?.name || 'Produto'} onError={(e) => { const t = e.target as HTMLImageElement; t.onerror = null; t.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%2394a3b8%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z%22/%3E%3Cline x1=%224%22 y1=%2222%22 x2=%2220%22 y2=%222%22/%3E%3C/svg%3E'; t.classList.add('opacity-30'); }} />
+                <img src={product?.imageUrl || ''} className={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 ${product?.available === false ? 'grayscale opacity-40' : ''}`} alt={product?.name || 'Produto'} onError={(e) => { const t = e.target as HTMLImageElement; t.onerror = null; t.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%2394a3b8%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z%22/%3E%3Cline x1=%224%22 y1=%2222%22 x2=%2220%22 y2=%222%22/%3E%3C/svg%3E'; t.classList.add('opacity-40'); }} />
                 {product.available === false && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm">
                         <span className="text-[10px] font-black text-white uppercase tracking-[0.2em] -rotate-12 border-2 border-white/30 px-3 py-1 rounded-xl shadow-2xl">Pausado</span>
@@ -243,7 +243,7 @@ return (
                     <div className="text-left">
                         <p className="text-[10px] font-black uppercase text-[var(--text-muted)] mb-1">Preço PDV</p>
                         <p className="font-black text-xl text-[var(--text-main)] tracking-tighter">
-                            <span className="text-xs opacity-30 mr-0.5">R$</span>
+                            <span className="text-xs opacity-70 mr-0.5">R$</span>
                             {(product.price || product.costPrice || 0) > 0 ? formatarMoeda(product.price || product.costPrice || 0) : '—'}
                         </p>
                     </div>

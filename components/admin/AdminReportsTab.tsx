@@ -244,7 +244,7 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
                                         ? 'Arquivo compatível com Excel (separador ;) — pronto para o contador.'
                                         : reportConfig.type === 'STOCK_ABC'
                                             ? 'Mapeia o giro A/B/C e o valor do inventário parado para balanço de fim de ano.'
-                                            : 'O documento será gerado em formato A4 profissional <br/> seguindo os padrões de auditoria institucional.'}
+                                            : 'O documento será gerado em formato A4 profissional, seguindo os padrões de auditoria institucional.'}
                             </p>
                         </div>
                     </div>

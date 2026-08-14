@@ -55,7 +55,7 @@ export const ModalShell: React.FC<ModalShellProps> = ({
   return (
     <div className="modal-container">
       <div className="modal-overlay" onClick={() => closeOnBackdrop && onClose()}></div>
-      <div className={`modal-content relative w-full ${SIZE_CLASS[size]} bg-white overflow-hidden flex flex-col max-h-[90vh] rounded-2xl shadow-2xl animate-scaleIn`}>
+      <div className={`modal-content modal-shell-fixed relative w-full ${SIZE_CLASS[size]} bg-white overflow-hidden flex flex-col max-h-[90vh] rounded-2xl shadow-2xl animate-scaleIn`}>
         {/* TOP ACCENT BAR */}
         <div className="h-1.5 shrink-0 bg-gradient-to-r from-emerald-500 via-blue-500 to-purple-500"></div>
 

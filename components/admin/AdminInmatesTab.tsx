@@ -123,7 +123,7 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
                     />
                 </div>
             </div>
-            <div className="overflow-y-auto max-h-[600px] divide-y divide-slate-200 custom-scrollbar">
+            <div className="overflow-x-auto overflow-y-auto max-h-[600px] divide-y divide-slate-200 custom-scrollbar">
                 {viewMode === 'table' && (
                     <table className="w-full text-left">
                         <thead className="bg-[var(--bg-main)] text-[var(--text-muted)] font-black uppercase text-[9px] tracking-widest sticky top-0 border-b border-[var(--border-color)]">
@@ -136,7 +136,7 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
                         </thead>
                         <tbody className="divide-y divide-[var(--border-color)]">
                             {filteredInmates.length === 0 ? (
-                                <tr><td colSpan={4} className="p-20 text-center font-black uppercase text-xs opacity-20"><Shield size={40} className="mx-auto mb-4"/> Nenhum Registro</td></tr>
+                                <tr><td colSpan={4} className="p-20 text-center font-black uppercase text-xs opacity-70"><Shield size={40} className="mx-auto mb-4"/> Nenhum Registro</td></tr>
                             ) : filteredInmates.map((inmate: any) => (
                                 <tr key={inmate.id} className="hover:bg-[var(--bg-main)]/50 transition-all group">
                                     <td className="p-5">

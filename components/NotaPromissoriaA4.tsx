@@ -14,6 +14,7 @@ interface NotaPromissoriaA4Props {
     avalistaNome?: string;
   };
   onClose?: () => void;
+  embedded?: boolean;
 }
 
 const UNIDADES = ['', 'UM', 'DOIS', 'TRÊS', 'QUATRO', 'CINCO', 'SEIS', 'SETE', 'OITO', 'NOVE', 'DEZ',
@@ -71,14 +72,17 @@ export const valorPorExtenso = (valor: number): string => {
   return extenso;
 };
 
-export const NotaPromissoriaA4: React.FC<NotaPromissoriaA4Props> = ({ data, onClose }) => {
+export const NotaPromissoriaA4: React.FC<NotaPromissoriaA4Props> = ({ data, onClose, embedded }) => {
   const emitDate = new Date(data.dataEmissao);
   const dueDate = new Date(data.dataVencimento);
   const dateLong = (d: Date) => d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
   const dateShort = (d: Date) => d.toLocaleDateString('pt-BR');
 
   return (
-    <div id="print-root" className="fixed inset-0 z-[500] bg-slate-100 overflow-y-auto custom-scrollbar animate-fadeIn print:overflow-visible cupom-gerencial-print">
+    <div id="print-root" className={embedded
+      ? "bg-white overflow-visible"
+      : "fixed inset-0 z-[500] bg-slate-100 overflow-y-auto custom-scrollbar animate-fadeIn print:overflow-visible cupom-gerencial-print"}>
+      {!embedded && (
       <div className="sticky top-0 bg-white/90 backdrop-blur-md border-b-2 border-slate-200 p-5 flex justify-between items-center z-[510] shadow-xl print:hidden">
         <div className="flex items-center gap-4">
           <div className="bg-slate-900 p-3 rounded-2xl text-white shadow-lg"><FileText size={24} /></div>
@@ -98,8 +102,9 @@ export const NotaPromissoriaA4: React.FC<NotaPromissoriaA4Props> = ({ data, onCl
           )}
         </div>
       </div>
+      )}
 
-      <div className="bg-white text-black p-10 w-[210mm] min-h-[297mm] mx-auto relative font-sans shadow-2xl print:shadow-none print:w-full print:m-0 print:p-8 box-border my-10 print:my-0">
+      <div className="bg-white text-black p-10 w-full max-w-[210mm] min-h-[297mm] mx-auto relative font-sans shadow-2xl print:shadow-none print:w-full print:m-0 print:p-8 box-border my-10 print:my-0">
         <div className="border-[3px] border-slate-900 p-10 h-full flex flex-col justify-between relative overflow-hidden">
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.02] -rotate-12 select-none">
             <ShieldCheck size={500} />
