@@ -68,6 +68,18 @@ service firebase.storage {
       allow delete: if false;
     }
 
+    // Instaladores dos aplicativos desktop (pasta apps/) â€” pÃºblicos para leitura;
+    // escrita apenas de arquivos .exe por qualquer usuÃ¡rio autenticado
+    // (fluxo do script de publicaÃ§Ã£o).
+    match /apps/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.resource.size < 100 * 1024 * 1024
+        && (request.resource.contentType.matches('application/octet-stream|application/x-msdownload|application/vnd.microsoft.portable-executable')
+            || fileName.matches('.*\\.exe$'));
+      allow delete: if false;
+    }
+
     // Regra de seguranÃ§a (Fallback): bloqueia qualquer pasta nÃ£o listada acima
     match /{allPaths=**} {
       allow read, write: if false;
