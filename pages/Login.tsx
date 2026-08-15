@@ -18,7 +18,8 @@ export const Login: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'login' | 'register' | 'admin' | 'recovery'>('login');
 
     const urlParams = new URLSearchParams(window.location.search);
-    const isUserPwa = urlParams.get('mode') === 'user';
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
+    const isUserPwa = urlParams.get('mode') === 'user' || (isStandalone && urlParams.get('mode') !== 'admin');
 
     const [isLoading, setIsLoading] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState('');

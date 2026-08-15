@@ -20,6 +20,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { OnlineStatusIndicator } from '../components/OnlineStatusIndicator';
 import { InstallButton } from '../components/InstallButton';
 import { AppDownloadButton } from '../components/AppDownloadModal';
+import { usePWAInstall } from '../components/PWAInstallProvider';
+import { UninstallModal } from '../components/UninstallModal';
 
 export const UserDashboard: React.FC = () => {
     const { 
@@ -39,6 +41,9 @@ export const UserDashboard: React.FC = () => {
     // States do Carrinho e Pedido
     const [cart, setCart] = useState<CartItem[]>([]);
     const [isMsgOpen, setIsMsgOpen] = useState(false);
+    const [showUninstallModal, setShowUninstallModal] = useState(false);
+    const [showInstallBanner, setShowInstallBanner] = useState(true);
+    const pwaInstall = usePWAInstall();
     const [searchTerm, setSearchTerm] = useState('');
     const [stage, setStage] = useState<'cart' | 'location' | 'pay' | 'proof'>('cart');
     const [location, setLocation] = useState({ ray: '', wing: '', cell: '' });
@@ -598,7 +603,7 @@ export const UserDashboard: React.FC = () => {
                                 <td className="font-black text-slate-900 text-sm text-center font-mono py-2">R$ {formatarMoeda(displayPrice * item.quantity)}</td>
                                 <td className="py-2 text-center">
                                     <button onClick={() => removeFromCart(item.productId)} className="text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-all active:scale-95 text-xs font-black flex items-center justify-center gap-1 mx-auto cursor-pointer">
-                                        <Trash2 size={12} className="inline-block mr-1" /> CANCELAR ITEM
+                                        <Trash2 size={12} className="inline-block mr-1" /> REMOVER
                                     </button>
                                 </td>
                             </tr>
@@ -1024,11 +1029,27 @@ export const UserDashboard: React.FC = () => {
                         <MessageSquare size={18} />
                         {unreadMsg > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] w-5 h-5 rounded-full flex items-center justify-center font-black border-2 border-[var(--bg-card)] animate-bounce shadow-lg shadow-red-500/40">{unreadMsg}</span>}
                     </button>
-                    <span className="hidden sm:inline"><InstallButton role={isAdmin ? 'admin' : 'user'} /></span>
-                    <span className="hidden sm:inline"><AppDownloadButton className="!w-8 !h-8 sm:!w-9 sm:!h-9" /></span>
+                    <span><InstallButton role={isAdmin ? 'admin' : 'user'} /></span>
+                    <span><AppDownloadButton className="!w-8 !h-8 sm:!w-9 sm:!h-9" /></span>
+                    <button onClick={() => setShowUninstallModal(true)} title="Desinstalar aplicativo" className="w-10 h-10 sm:w-12 sm:h-12 bg-slate-500/10 text-slate-500 border border-slate-500/20 rounded-2xl flex items-center justify-center hover:bg-red-500 hover:text-white hover:border-red-500 transition-all active:scale-90 shadow-sm"><Trash2 size={18} /></button>
                     <button onClick={logout} className="w-10 h-10 sm:w-12 sm:h-12 bg-red-500/10 text-red-500 border border-red-500/20 rounded-2xl flex items-center justify-center hover:bg-red-500 hover:text-white transition-all active:scale-90 shadow-sm"><LogOut size={18} /></button>
                 </div>
             </header>
+
+            {/* BANNER INSTALAR APP — celulares/tablets quando ainda não instalado */}
+            {showInstallBanner && pwaInstall.isInstallable && !pwaInstall.isInstalled && (
+                <div className="md:hidden flex items-center gap-3 bg-gradient-to-r from-emerald-600 to-emerald-500 px-4 py-3 shadow-lg shadow-emerald-500/20">
+                    <div className="p-2 bg-white/20 rounded-xl text-white shrink-0"><Smartphone size={18} /></div>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-white font-black text-[10px] uppercase tracking-widest">Instalar o aplicativo</p>
+                        <p className="text-emerald-100 text-[9px] font-bold uppercase tracking-wider">Deixe o ícone na tela do celular</p>
+                    </div>
+                    <button onClick={() => pwaInstall.install(isAdmin ? 'admin' : 'user')} className="bg-white text-emerald-700 font-black text-[10px] uppercase tracking-widest px-3.5 py-2.5 rounded-xl shadow-md active:scale-95 transition-all shrink-0">
+                        Instalar
+                    </button>
+                    <button onClick={() => setShowInstallBanner(false)} className="text-white/70 hover:text-white p-1 shrink-0" title="Fechar"><X size={16} /></button>
+                </div>
+            )}
 
             {/* Painel de Mensagens (Sino) */}
             <AnimatePresence>
@@ -1510,18 +1531,20 @@ export const UserDashboard: React.FC = () => {
                             <p className="font-black text-3xl text-slate-900">R$ {formatarMoeda(cartTotal)}</p>
                         </div>
                         <button onClick={cancelSale} className="w-full py-3 rounded-xl font-bold text-sm bg-red-500 text-white active:scale-95 mb-2 flex items-center justify-center gap-2">
-                            <X size={14} className="inline-block mr-1.5 -mt-0.5" /> Cancelar (F7)
+                            <X size={14} className="inline-block mr-1.5 -mt-0.5" /> {isAdmin ? 'Cancelar (F7)' : 'Limpar Carrinho'}
                         </button>
-                        <button onClick={() => {
-                            const cartNow = cartRef.current;
-                            if (cartNow.length > 0) {
-                                const lastItem = cartNow[cartNow.length - 1];
-                                setCart(prev => prev.filter(i => String(i.productId) !== String(lastItem.productId)));
-                                showNotification('Último item removido!', 'success');
-                            }
-                        }} className="w-full py-3 rounded-xl font-bold text-sm bg-orange-500 text-white active:scale-95 mb-4 flex items-center justify-center gap-2">
-                            <RefreshCcw size={14} className="inline-block mr-1.5 -mt-0.5" /> Estorno (F9)
-                        </button>
+                        {isAdmin && (
+                            <button onClick={() => {
+                                const cartNow = cartRef.current;
+                                if (cartNow.length > 0) {
+                                    const lastItem = cartNow[cartNow.length - 1];
+                                    setCart(prev => prev.filter(i => String(i.productId) !== String(lastItem.productId)));
+                                    showNotification('Último item removido!', 'success');
+                                }
+                            }} className="w-full py-3 rounded-xl font-bold text-sm bg-orange-500 text-white active:scale-95 mb-4 flex items-center justify-center gap-2">
+                                <RefreshCcw size={14} className="inline-block mr-1.5 -mt-0.5" /> Estorno (F9)
+                            </button>
+                        )}
                         <button onClick={() => setIsCheckoutModalOpen(true)} disabled={cart.length === 0} className="w-full py-4 rounded-xl text-white font-black text-lg bg-emerald-600 active:scale-95 shadow-md disabled:bg-slate-300 disabled:cursor-not-allowed disabled:text-slate-500 transition-all">
                             FINALIZAR COMPRA
                         </button>
@@ -1777,6 +1800,11 @@ export const UserDashboard: React.FC = () => {
                 className="hidden"
                 onChange={handleResendProofFile}
             />
+
+            {/* MODAL DESINSTALAR APLICATIVO */}
+            {showUninstallModal && (
+                <UninstallModal isOpen={showUninstallModal} onClose={() => setShowUninstallModal(false)} />
+            )}
         </div>
     );
 };

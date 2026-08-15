@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mercado-facil-v6';
+const CACHE_NAME = 'mercado-facil-v7';
 const CORE_ASSETS = [
   '/',
   '/index.html',

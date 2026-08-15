@@ -10,9 +10,23 @@ import { verificarBackupAutomatico } from './utils/backupUtils';
 import { useMaintenance } from './hooks/useMaintenance';
 import { MaintenanceScreen, MaintenanceBanner } from './components/MaintenanceScreen';
 
-const UserDashboard = lazy(() => import('./pages/UserDashboard').then(m => ({ default: m.UserDashboard })));
-const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
-const PrintPage = lazy(() => import('./components/PrintPage').then(m => ({ default: m.PrintPage })));
+// Retry automático de chunks: se o navegador falhar ao baixar um módulo
+// (rede instável — causa de "tela branca" no primeiro acesso), tenta de novo
+// algumas vezes antes de desistir.
+const retryLazy = (loader: () => Promise<any>, attempts = 4, delayMs = 900): Promise<any> => {
+  const load = (remaining: number): Promise<any> => {
+    return loader().catch((err) => {
+      if (remaining <= 1) throw err;
+      console.warn('[LazyRetry] chunk falhou, tentando novamente...', err);
+      return new Promise((resolve) => setTimeout(() => resolve(load(remaining - 1)), delayMs));
+    });
+  };
+  return load(attempts);
+};
+
+const UserDashboard = lazy(() => retryLazy(() => import('./pages/UserDashboard').then(m => ({ default: m.UserDashboard }))));
+const AdminDashboard = lazy(() => retryLazy(() => import('./pages/AdminDashboard').then(m => ({ default: m.AdminDashboard }))));
+const PrintPage = lazy(() => retryLazy(() => import('./components/PrintPage').then(m => ({ default: m.PrintPage }))));
 
 const FullScreenLoader: React.FC = () => (
   <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#f8fafc' }}>

@@ -9,7 +9,8 @@ import { useTheme } from '../context/ThemeContext';
 import { OnlineStatusIndicator } from '../components/OnlineStatusIndicator';
 import { InstallButton } from '../components/InstallButton';
 import { AppDownloadButton } from '../components/AppDownloadModal';
-import { Menu, X, Banknote } from 'lucide-react';
+import { UninstallModal } from '../components/UninstallModal';
+import { Menu, X, Banknote, Trash2 } from 'lucide-react';
 
 // Import all modular subcomponents
 import { AdminSidebar } from '../components/admin/AdminSidebar';
@@ -177,6 +178,7 @@ export function AdminDashboard() {
   });
   const [showReportModal, setShowReportModal] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const [showUninstallModal, setShowUninstallModal] = useState(false);
 
   // Finance Filters & Expense Form
   const [financeFilters, setFinanceFilters] = useState({
@@ -745,9 +747,10 @@ export function AdminDashboard() {
           </div>
           
           <div className="flex items-center gap-4 flex-wrap justify-end">
-            <span className="hidden sm:inline"><AppDownloadButton variant="full" label="Baixar App" /></span>
-            <span className="hidden md:inline"><InstallButton variant="full" role="user" label="Instalar App (Usuário)" /></span>
-            <span className="hidden md:inline"><InstallButton variant="full" role="admin" label="Instalar Painel Admin" /></span>
+            <span><AppDownloadButton variant="full" label="Baixar App" /></span>
+            <span><InstallButton variant="full" role="user" label="Instalar App (Usuário)" /></span>
+            <span><InstallButton variant="full" role="admin" label="Instalar Painel Admin" /></span>
+            <button onClick={() => setShowUninstallModal(true)} title="Desinstalar aplicativo" className="w-10 h-10 bg-slate-500/10 text-slate-500 border border-slate-500/20 rounded-2xl flex items-center justify-center hover:bg-red-500 hover:text-white hover:border-red-500 transition-all active:scale-90 shadow-sm"><Trash2 size={18} /></button>
             <OnlineStatusIndicator />
           </div>
         </header>
@@ -1106,6 +1109,14 @@ export function AdminDashboard() {
         <AdminShortcutsModal
           isOpen={showShortcutsModal}
           onClose={() => setShowShortcutsModal(false)}
+        />
+      )}
+
+      {/* Uninstall app modal */}
+      {showUninstallModal && (
+        <UninstallModal
+          isOpen={showUninstallModal}
+          onClose={() => setShowUninstallModal(false)}
         />
       )}
 
