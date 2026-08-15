@@ -12,6 +12,11 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
+// Bucket real do projeto (o padrão "project.appspot.com" foi descontinuado
+// pelo Firebase — o bucket ativo é "{project}.firebasestorage.app").
+const FUNC_BUCKET = process.env.FIREBASE_STORAGE_BUCKET
+  || `${process.env.GCLOUD_PROJECT || "mercado-facil-mt"}.firebasestorage.app`;
+
 // ──────────────────────────────────────────────
 // Helpers
 // ──────────────────────────────────────────────
@@ -1993,7 +1998,7 @@ exports.limparDadosAntigos = onCall({
   // 3) Backup físico em Storage (cópia de segurança independente do Firestore)
   let backupUrl = "";
   try {
-    const bucket = admin.storage().bucket();
+    const bucket = admin.storage().bucket(FUNC_BUCKET);
     const nomeArquivo = `backups/limpeza-${Date.now()}.json`;
     await bucket.file(nomeArquivo).save(JSON.stringify(backup), {
       contentType: "application/json",
@@ -2038,7 +2043,7 @@ exports.obterLinkDownloadApp = onCall({
   const user = await exigirAutenticado(request);
   const ehAdmin = ["admin", "master"].includes(String(user.role || "").toLowerCase());
 
-  const bucket = admin.storage().bucket();
+  const bucket = admin.storage().bucket(FUNC_BUCKET);
   const resultado = [];
 
   for (const app of APPS_DISPONIVEIS) {
