@@ -899,6 +899,8 @@ export function AdminDashboard() {
               {activeTab === 'settings' && (isMaster || userRole === 'admin') && (
                 <AdminSettingsTab
                   isMaster={isMaster}
+                  currentUserId={currentUser?.id}
+                  currentUserName={currentUser?.name || currentUser?.email}
                   isAuthenticated={isSettingsAuthenticated}
                   onAuthenticate={() => handleProtectedAction(() => setIsSettingsAuthenticated(true))}
                   newAdminPassword={newAdminPassword}

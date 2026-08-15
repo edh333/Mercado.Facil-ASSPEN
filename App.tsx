@@ -7,6 +7,8 @@ import { ThemeProvider } from './context/ThemeContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Loader2 } from 'lucide-react';
 import { verificarBackupAutomatico } from './utils/backupUtils';
+import { useMaintenance } from './hooks/useMaintenance';
+import { MaintenanceScreen, MaintenanceBanner } from './components/MaintenanceScreen';
 
 const UserDashboard = lazy(() => import('./pages/UserDashboard').then(m => ({ default: m.UserDashboard })));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
@@ -25,7 +27,7 @@ const FullScreenLoader: React.FC = () => (
 );
 
 const MainApp: React.FC = () => {
-  const { currentUser, authLoading } = useApp();
+  const { currentUser, authLoading, logout } = useApp();
 
   React.useEffect(() => {
     if (currentUser?.role === UserRole.ADMIN) {
@@ -69,12 +71,23 @@ const MainApp: React.FC = () => {
     );
   }
 
+  // Modo manutenção: só afeta ADMINS. Quem desativou (ou o master) continua
+  // operando e vê a faixa de reativação; usuários comuns nunca são bloqueados.
+  const { maintenance, loading: maintenanceLoading, inativo, podeOperar, reativar } = useMaintenance(currentUser);
+  if (maintenanceLoading) {
+    return <FullScreenLoader />;
+  }
+  if (inativo && !podeOperar) {
+    return <MaintenanceScreen maintenance={maintenance} userName={currentUser.name || ''} onLogout={logout} />;
+  }
+
   // Administrador logado SEMPRE acessa o painel administrativo,
   // independentemente do modo de instalação do PWA (modo usuário ou admin).
   return (
     <>
       <NotificationSystem />
       <ErrorBoundary>
+        {inativo && podeOperar && <MaintenanceBanner maintenance={maintenance} onReativar={reativar} />}
         <Suspense fallback={<FullScreenLoader />}>
           <AdminDashboard />
         </Suspense>
@@ -89,7 +102,6 @@ export default function App() {
       <ThemeProvider>
         <MainApp />
         <style>{`
-          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Roboto:wght@400;500;700&display=swap');
           * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
           html { font-size: 100%; scroll-behavior: smooth; }
           body { font-family: 'Inter', 'Plus Jakarta Sans', sans-serif; -webkit-font-smoothing: antialiased; background-color: var(--bg-main, #f8fafc); color: var(--text-main, #1e293b); margin: 0; padding: 0; overflow-x: hidden; }

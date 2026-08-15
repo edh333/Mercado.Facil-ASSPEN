@@ -108,8 +108,22 @@ service cloud.firestore {
       allow delete: if false;
     }
     match /settings/maintenance {
+      // Controle de manutenção (sistema desativado para outros admins):
+      // leitura para qualquer autenticado (admins bloqueados precisam ver o motivo),
+      // escrita SOMENTE admin, com campos e tipos forçados. Exclusão proibida.
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow create, update: if isAdmin()
+        && request.resource.data.keys().hasOnly([
+          'ativo', 'motivo', 'desativadoPor', 'desativadoPorNome', 'desativadoEm',
+          'lastWeeklyReset'
+        ])
+        && request.resource.data.ativo is bool
+        && (!('motivo' in request.resource.data) || request.resource.data.motivo is string)
+        && (!('desativadoPor' in request.resource.data) || request.resource.data.desativadoPor is string)
+        && (!('desativadoPorNome' in request.resource.data) || request.resource.data.desativadoPorNome is string)
+        && (!('desativadoEm' in request.resource.data) || request.resource.data.desativadoEm is string)
+        && (!('lastWeeklyReset' in request.resource.data) || request.resource.data.lastWeeklyReset is string);
+      allow delete: if false;
     }
 
     // ── SEGREDOS DE AUTENTICAÇÃO (hash legado de senha) ──

@@ -3,9 +3,10 @@ import {
   Settings, KeyRound, Database, HardDrive, Download, AlertTriangle,
   Trash2, RefreshCw, Smartphone, Palette, Shield, Lock, Save, DollarSign, Check,
   FileText, CreditCard, Building, Info, Printer, Wrench, Truck, ShoppingBag, Search, Loader2, Zap, Users,
-  History, RotateCcw, Upload, Archive
+  History, RotateCcw, Upload, Archive, Power, CalendarClock
 } from 'lucide-react';
 import { ThemeOption } from '../../types';
+import { useMaintenance } from '../../hooks/useMaintenance';
 import {
   PontoRestauracao, criarPontoRestauracao, listarPontosRestauracao, restaurarPontoRestauracao,
   excluirPontoRestauracao, baixarPontoRestauracao, baixarBackupLocal, importarPontoRestauracao,
@@ -16,6 +17,8 @@ interface AdminSettingsTabProps {
   isMaster: boolean;
   isAuthenticated?: boolean;
   onAuthenticate?: () => void;
+  currentUserId?: string;
+  currentUserName?: string;
   newAdminPassword: string;
   setNewAdminPassword: (val: string) => void;
   confirmAdminPassword: string;
@@ -50,7 +53,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
   newAdminPassword, setNewAdminPassword, confirmAdminPassword, setConfirmAdminPassword, handleChangeAdminPassword,
   handleProtectedAction, clearOldData, backupSystem, resetStock, resetFinance, updateSettings, settings, resetSystem,
   users, deleteUser, createAdminUser, handleDownloadSource, handleBuildExe, showNotification,
-  isInstallable, installApp, defineMasterPassword
+  isInstallable, installApp, defineMasterPassword, currentUserId, currentUserName
 }) => {
   const [activeSubTab, setActiveSubTab] = React.useState('general');
   const [newPixKey, setNewPixKey] = React.useState('');
@@ -59,6 +62,17 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
     name: '', email: '', password: '', cpf: '',
     permissions: ['orders', 'products', 'sales']
   });
+
+  // ── Controle do Sistema (modo manutenção) ──
+  const {
+    maintenance: maintenanceState,
+    loading: maintenanceLoading,
+    inativo,
+    desativar: desativarSistema,
+    reativar: reativarSistema,
+  } = useMaintenance(currentUserId ? { id: currentUserId, name: currentUserName || '' } as any : null);
+  const [maintenanceMotivo, setMaintenanceMotivo] = React.useState('');
+  const [maintenanceConfirming, setMaintenanceConfirming] = React.useState(false);
 
   // Local copy for batch-save pattern
   const [localSettings, setLocalSettings] = React.useState<any>(settings || {});
@@ -837,6 +851,122 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
         {/* ── MANUTENÇÃO ── */}
         {activeSubTab === 'maintenance' && (
           <>
+          {/* ── CONTROLE DO SISTEMA (modo manutenção) ── */}
+          <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-2xl space-y-6 animate-slideUp">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
+                <Power size={20} className={inativo ? 'text-red-500' : 'text-emerald-600'} /> Controle do Sistema
+              </h3>
+              {maintenanceLoading ? (
+                <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 bg-slate-100 px-3 py-1.5 rounded-lg">
+                  Verificando...
+                </span>
+              ) : inativo ? (
+                <span className="text-[9px] font-black uppercase tracking-wider text-red-700 bg-red-50 border border-red-100 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                  <AlertTriangle size={12} /> SISTEMA DESATIVADO
+                </span>
+              ) : (
+                <span className="text-[9px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                  <Check size={12} /> SISTEMA ATIVO
+                </span>
+              )}
+            </div>
+
+            {inativo && (
+              <div className="bg-red-50 border border-red-100 rounded-2xl p-5 space-y-2">
+                <p className="text-[10px] font-black text-red-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <CalendarClock size={13} /> Sistema desativado
+                  {maintenanceState?.desativadoEm
+                    ? ` em ${new Date(maintenanceState.desativadoEm).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`
+                    : ''}
+                </p>
+                <p className="text-xs font-bold text-slate-600">
+                  Por: {maintenanceState?.desativadoPorNome || 'Administrador'}
+                </p>
+                {maintenanceState?.motivo && (
+                  <p className="text-xs text-slate-500 leading-relaxed bg-white border border-red-100 rounded-xl p-3">
+                    <span className="font-black text-red-700 uppercase text-[10px] block mb-1">Motivo</span>
+                    {maintenanceState.motivo}
+                  </p>
+                )}
+              </div>
+            )}
+
+            <p className="text-[11px] font-semibold text-slate-500 leading-relaxed">
+              Desative o acesso do painel administrativo (ex.: feriado, manutenção).{' '}
+              <span className="font-black text-slate-700">
+                Somente você (ou o master) continua com acesso e pode reativar.
+              </span>{' '}
+              Clientes e vendas continuam funcionando normalmente.
+            </p>
+
+            {inativo ? (
+              <button
+                onClick={() => handleProtectedAction(async () => {
+                  try {
+                    await reativarSistema();
+                    showNotification?.('Sistema reativado! Outros administradores já podem acessar.', 'success');
+                  } catch {
+                    showNotification?.('Erro ao reativar o sistema.', 'error');
+                  }
+                }, 'maintenance')}
+                className="inline-flex items-center gap-2 px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-emerald-500/30 transition-all"
+              >
+                <Power size={15} /> Reativar sistema
+              </button>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-[10px] font-black text-slate-900 uppercase mb-1 block">
+                    Motivo (opcional)
+                  </label>
+                  <input
+                    className="w-full p-4 bg-slate-50 border-2 border-slate-200 focus:border-red-400 rounded-2xl font-bold text-sm text-slate-900 outline-none transition-all"
+                    value={maintenanceMotivo}
+                    onChange={e => setMaintenanceMotivo(e.target.value)}
+                    placeholder="Ex: Sistema indisponível no feriado"
+                    maxLength={200}
+                  />
+                </div>
+                {!maintenanceConfirming ? (
+                  <button
+                    onClick={() => setMaintenanceConfirming(true)}
+                    className="inline-flex items-center gap-2 px-6 py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-red-500/30 transition-all"
+                  >
+                    <Power size={15} /> Desativar sistema
+                  </button>
+                ) : (
+                  <div className="flex flex-wrap items-center gap-3 bg-red-50 border border-red-200 rounded-2xl p-4">
+                    <p className="text-xs font-black text-red-800 flex-1 min-w-[200px]">
+                      Confirmar desativação? Outros administradores perderão o acesso imediatamente.
+                    </p>
+                    <button
+                      onClick={() => handleProtectedAction(async () => {
+                        try {
+                          await desativarSistema(maintenanceMotivo);
+                          setMaintenanceMotivo('');
+                          setMaintenanceConfirming(false);
+                          showNotification?.('Sistema desativado. Somente você e o master têm acesso agora.', 'success');
+                        } catch {
+                          showNotification?.('Erro ao desativar o sistema.', 'error');
+                        }
+                      }, 'maintenance')}
+                      className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-black text-xs uppercase tracking-widest"
+                    >
+                      Sim, desativar
+                    </button>
+                    <button
+                      onClick={() => setMaintenanceConfirming(false)}
+                      className="px-5 py-2.5 bg-white border-2 border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl font-black text-xs uppercase tracking-widest"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-slideUp">
             <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-2xl col-span-1 lg:col-span-2 space-y-6">
               <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2 mb-4">
