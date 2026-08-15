@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React, { Component, ReactNode, ErrorInfo } from 'react';
-import ReactDOM from 'react-dom/client';
+import { createRoot } from 'react-dom/client';
 import App from './App';
 import { PWAInstallProvider } from './components/PWAInstallProvider';
 import './index.css';
@@ -117,8 +117,19 @@ if (typeof window !== 'undefined') {
 }
 
 const rootElement = document.getElementById('root');
-if (rootElement) {
-  const root = ReactDOM.createRoot(rootElement);
+
+// ── MONTAGEM SEGURA (React 19) ──────────────────────────────────────────
+// No React 19 o createRoot AUTO-HIDRATA o container quando ele já contém DOM.
+// Isso dispara o erro "Minified React #318" (hydration mismatch) quando algo
+// injeta nós em #root ANTES do React carregar — ex.: extensões de navegador
+// (tradutor, bloqueador), cache antigo misturado ou HTML residual de outra
+// versão. Como este é um app 100% SPA (sem SSR), hidratação é sempre
+// indesejada: limpamos o container antes de montar e, se algo ainda falhar,
+// forçamos um re-render limpo com a árvore reconstruída do zero.
+function montarAplicativo() {
+  if (!rootElement) throw new Error('Elemento #root não encontrado no HTML.');
+  if (rootElement.firstChild) rootElement.replaceChildren();
+  const root = createRoot(rootElement);
   root.render(
     <ErrorBoundary>
       <PWAInstallProvider>
@@ -126,4 +137,27 @@ if (rootElement) {
       </PWAInstallProvider>
     </ErrorBoundary>
   );
+  return root;
+}
+
+if (rootElement) {
+  try {
+    montarAplicativo();
+  } catch (error) {
+    // Falha de hidratação/render detectada — descarta o DOM residual e
+    // reconstrói a árvore de nós do zero (cura #318 e caches corrompidos).
+    console.error('[Mount] Erro de hidratação/render detectado, forçando re-render limpo:', error);
+    try {
+      rootElement.replaceChildren();
+      montarAplicativo();
+    } catch (error2) {
+      console.error('[Mount] Segunda tentativa também falhou:', error2);
+      document.body.innerHTML =
+        '<div style="padding:40px;font-family:sans-serif;text-align:center;background:#0f172a;color:#f8fafc;min-height:100vh;">' +
+        '<h2 style="color:#f87171;">Falha ao iniciar o aplicativo</h2>' +
+        '<p>Feche e reabra esta página. Se o erro persistir, limpe o cache do navegador.</p>' +
+        '<button onclick="location.reload()" style="margin-top:16px;padding:12px 24px;background:#3b82f6;color:#fff;border:none;border-radius:8px;font-weight:bold;cursor:pointer;">Tentar Novamente</button>' +
+        '</div>';
+    }
+  }
 }
