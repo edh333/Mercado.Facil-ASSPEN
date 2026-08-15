@@ -173,7 +173,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
             },
             items
         };
-    }, [config, orders, expenses, users, products, settings]);
+    }, [config, orders, expenses, users, products, settings, transactions]);
 
     if (!isOpen || !report) return null;
 
