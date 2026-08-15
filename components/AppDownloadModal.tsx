@@ -224,7 +224,7 @@ export const AppDownloadModal: React.FC<{ onClose: () => void }> = ({ onClose })
       )}
 
       <p className="text-[9px] text-slate-400 font-bold text-center uppercase tracking-widest">
-        O download gera um link válido por 7 dias • Baixe e execute o arquivo no computador
+        Baixe e execute o arquivo no computador • Você sempre recebe a versão mais recente publicada
       </p>
     </ModalShell>
   );

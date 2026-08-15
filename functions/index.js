@@ -4,7 +4,6 @@ const { logger } = require("firebase-functions");
 const admin = require("firebase-admin");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
-const path = require("path");
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -16,6 +15,30 @@ const db = admin.firestore();
 // pelo Firebase — o bucket ativo é "{project}.firebasestorage.app").
 const FUNC_BUCKET = process.env.FIREBASE_STORAGE_BUCKET
   || `${process.env.GCLOUD_PROJECT || "mercado-facil-mt"}.firebasestorage.app`;
+
+// URL pública de download (usada para itens de leitura pública, ex.: apps/).
+// Evita getSignedUrl: a service account padrão do projeto não tem o papel
+// iam.serviceAccountTokenCreator (signBlob negado desde a política de 2024).
+const urlPublicaArquivo = (file) =>
+  `https://firebasestorage.googleapis.com/v0/b/${file.bucket.name}/o/${encodeURIComponent(file.name)}?alt=media`;
+
+// URL de download via token nativo do Firebase Storage (metadata), para
+// arquivos NÃO públicos. Se não conseguir ler/definir o token, retorna "".
+async function urlDownloadComToken(file) {
+  try {
+    const [meta] = await file.getMetadata();
+    let tokens = String(meta.metadata?.firebaseStorageDownloadTokens || "");
+    let tok = tokens.split(",")[0] || "";
+    if (!tok || tok.startsWith("eyJ")) { // token vazio ou antigo → gera um limpo
+      tok = crypto.randomUUID();
+      await file.setMetadata({ metadata: { firebaseStorageDownloadTokens: tok } });
+    }
+    return `https://firebasestorage.googleapis.com/v0/b/${file.bucket.name}/o/${encodeURIComponent(file.name)}?alt=media&token=${tok}`;
+  } catch (e) {
+    logger.warn("[Storage] Falha ao gerar URL com token:", e.message);
+    return "";
+  }
+}
 
 // ──────────────────────────────────────────────
 // Helpers
@@ -2004,11 +2027,7 @@ exports.limparDadosAntigos = onCall({
       contentType: "application/json",
       resumable: false,
     });
-    const [url] = await bucket.file(nomeArquivo).getSignedUrl({
-      action: "read",
-      expires: Date.now() + 7 * 24 * 60 * 60 * 1000,
-    });
-    backupUrl = url;
+    backupUrl = await urlDownloadComToken(bucket.file(nomeArquivo));
   } catch (e) {
     logger.warn("[LimpezaCota] Falha ao salvar backup no Storage (o histórico no Firestore já preserva tudo):", e.message);
   }
@@ -2055,11 +2074,10 @@ exports.obterLinkDownloadApp = onCall({
         resultado.push({ chave: app.chave, nome: app.nome, descricao: app.descricao, disponivel: false, url: "", motivo: "nao_publicado" });
         continue;
       }
-      const [url] = await file.getSignedUrl({
-        action: "read",
-        expires: Date.now() + 7 * 24 * 60 * 60 * 1000,
-        responseDisposition: `attachment; filename="${path.basename(app.arquivo)}"`,
-      });
+      // apps/ é de leitura pública nas regras de Storage — devolve a URL direta
+      // (sem assinatura; getSignedUrl exige IAM signBlob que a service account
+      // padrão do projeto não possui).
+      const url = urlPublicaArquivo(file);
       resultado.push({ chave: app.chave, nome: app.nome, descricao: app.descricao, disponivel: true, url, motivo: "" });
     } catch (e) {
       logger.warn("[DownloadApp] Falha ao gerar link de " + app.chave + ":", e.message);

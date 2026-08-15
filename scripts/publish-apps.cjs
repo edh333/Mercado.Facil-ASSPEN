@@ -89,7 +89,7 @@ async function main() {
       : fs.readFileSync(u.local);
     console.log(`[upload] ${u.local ? path.basename(u.local) : 'version.json'} (${(data.length / 1024 / 1024).toFixed(1)} MB) -> ${u.dest} (v${VERSION})`);
     const res = await request(HOST,
-      `/v0/b/${ENC_BUCKET}/o?uploadType=media&name=${encodeURIComponent(u.dest)}&firebaseStorageDownloadTokens=${encodeURIComponent(idToken)}`,
+      `/v0/b/${ENC_BUCKET}/o?uploadType=media&name=${encodeURIComponent(u.dest)}`,
       'POST', { ...hAuth, 'Content-Type': u.json ? 'application/json' : 'application/octet-stream' }, data);
     if (res.status === 200) {
       console.log(`  OK (tamanho: ${res.body?.size || data.length})`);
