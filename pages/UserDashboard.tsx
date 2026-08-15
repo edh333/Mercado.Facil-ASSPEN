@@ -46,6 +46,13 @@ export const UserDashboard: React.FC = () => {
     const [deliveryFreeText, setDeliveryFreeText] = useState('');
 
     const cartRef = useRef(cart);
+    // Token de idempotência do checkout: reenvios da MESMA tentativa reutilizam o
+    // token (o servidor devolve o pedido já criado, sem debitar 2x). Só muda
+    // quando o carrinho muda — uma nova compra ganha um token novo.
+    const checkoutTokenRef = useRef<string>(crypto.randomUUID());
+    useEffect(() => {
+        checkoutTokenRef.current = crypto.randomUUID();
+    }, [cart]);
     const [proofFile, setProofFile] = useState<File | null>(null);
     const [depositAmount, setDepositAmount] = useState<number>(0);
     const [isDepositOpen, setIsDepositOpen] = useState(false);
@@ -451,7 +458,7 @@ export const UserDashboard: React.FC = () => {
                     inmateLocation: formattedLocation,
                     paymentProofUrl: '',
                     paymentMethod: 'WALLET'
-                }, undefined, undefined, cart);
+                }, undefined, checkoutTokenRef.current, cart);
             } else {
                 // Prepara o arquivo ANTES de enviar o pedido — createOrder é chamado
                 // UMA única vez (reenvio automático aqui gerava pedido duplicado).
@@ -471,7 +478,7 @@ export const UserDashboard: React.FC = () => {
                         arquivo = original;
                     }
                 }
-                await createOrder(arquivo, formattedLocation, undefined, cart);
+                await createOrder(arquivo, formattedLocation, checkoutTokenRef.current, cart);
             }
 
             setCart([]);

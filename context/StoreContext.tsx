@@ -384,7 +384,7 @@ const parseInvoiceXML = (xml: string): InvoiceData | null => {
 import {
     collection, doc, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, getDocsFromServer, orderBy, limit, startAfter, writeBatch, Unsubscribe, getDoc, runTransaction, increment, arrayUnion, Timestamp
 } from 'firebase/firestore';
-import { getActiveSession, addWithdrawal as addCashWithdrawal } from '../utils/cashSession';
+import { getActiveSession } from '../utils/cashSession';
 
 interface StoreContextType {
     currentUser: User | null;
@@ -497,7 +497,7 @@ interface StoreContextType {
     refundOrder: (orderId: string, reason?: string) => Promise<void>;
     resetCredits: () => Promise<void>;
     mergeDuplicateProducts: () => Promise<void>;
-    adminDirectSale: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO', total: number, payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO'; amount: number }[], change?: number, customerAccountId?: string) => Promise<Order | null>;
+    adminDirectSale: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO', total: number, payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO'; amount: number }[], change?: number, customerAccountId?: string, clientToken?: string) => Promise<Order | null>;
     loadMoreOrders: () => void;
     loadMoreExpenses: () => void;
     loadMoreProducts: () => void;
@@ -1807,13 +1807,14 @@ return false;
 
     const depositToWallet = async (amount: number, proofFile: File) => {
         if (!currentUser) throw new Error('Usuário não autenticado');
-        if (!(Number(amount) > 0)) throw new Error('Valor do depósito deve ser maior que zero.');
+        const valorDeposito = Math.round((Number(amount) || 0) * 100) / 100;
+        if (!(valorDeposito > 0)) throw new Error('Valor do depósito deve ser maior que zero.');
         try {
             const transaction: WalletTransaction = {
                 id: crypto.randomUUID(),
                 userId: currentUser.id,
                 inmateCpf: currentUser.inmateCpf || currentUser.prisonerCpf || '',
-                amount,
+                amount: valorDeposito,
                 proofUrl: '',
                 status: 'pending',
                 createdAt: new Date().toISOString(),
@@ -1934,21 +1935,35 @@ return false;
         try {
             const id = e.id || crypto.randomUUID();
             const expenseRef = doc(db, 'expenses', id);
-            await setDoc(expenseRef, { ...e, id });
+            const valor = Math.round((Number(e.amount) || 0) * 100) / 100;
 
-            // Despesa debitada do CAIXA FÍSICO: registra a sangria na sessão de caixa
-            // aberta do operador (fonte única de verdade: cash_sessions).
+            // Despesa debitada do CAIXA FÍSICO: grava a despesa E a sangria na MESMA
+            // transação (atômico) — nunca uma fica sem a outra. Exige sessão aberta.
             if (e.debitAccount === 'CAIXA' && currentUser) {
-                try {
-                    const sessao = await getActiveSession(currentUser.id);
-                    if (sessao) {
-                        await addCashWithdrawal(sessao.id, Number(e.amount), `Despesa: ${e.description || 'Lançamento'}`);
-                    }
-                } catch (err) {
-                    console.warn('[addExpense] Falha ao debitar do caixa físico:', err);
+                const sessao = await getActiveSession(currentUser.id);
+                if (!sessao) {
+                    throw new Error('Nenhuma sessão de caixa aberta para este operador. Abra o caixa antes de lançar despesa debitada no caixa físico.');
                 }
+                const sessaoRef = doc(db, 'cash_sessions', sessao.id);
+                await runTransaction(db, async (tx) => {
+                    const sessaoSnap = await tx.get(sessaoRef);
+                    if (!sessaoSnap.exists() || String(sessaoSnap.data()?.status || '').toUpperCase() !== 'OPEN') {
+                        throw new Error('A sessão de caixa foi fechada. Reabra o caixa antes de lançar a despesa.');
+                    }
+                    tx.set(expenseRef, { ...e, id, amount: valor });
+                    tx.update(sessaoRef, {
+                        currentBalance: increment(-valor),
+                        withdrawals: arrayUnion({
+                            amount: valor,
+                            reason: `Despesa: ${e.description || 'Lançamento'}`,
+                            timestamp: Timestamp.now(),
+                        }),
+                    });
+                });
+            } else {
+                await setDoc(expenseRef, { ...e, id, amount: valor });
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error('[ADD_EXPENSE_ERROR]', err);
             throw err;
         }
@@ -2366,7 +2381,7 @@ return false;
                     setIsLoading(false);
                 }
             },
-            adminDirectSale: async (targetUserId, items, paymentMethod, total, payments: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO'; amount: number }[] | undefined, change, customerAccountId?: string) => {
+            adminDirectSale: async (targetUserId, items, paymentMethod, total, payments: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO'; amount: number }[] | undefined, change, customerAccountId?: string, clientToken?: string) => {
                 if (!currentUser || currentUser.role !== UserRole.ADMIN) {
                     throw new Error("Acesso restrito a administradores.");
                 }
@@ -2394,7 +2409,9 @@ return false;
                     // Venda processada NO SERVIDOR: preços, estoque, carteira e caixa validados no backend.
                     // clientToken = idempotência: um clique duplo/replay reenvia o mesmo token e o
                     // servidor devolve o pedido já criado, sem debitar 2x.
-                    const saleToken = crypto.randomUUID();
+                    // O token é gerado UMA vez por venda lógica no modal do PDV e reutilizado
+                    // em reenvios (timeout/retry) — nunca um token novo por tentativa.
+                    const saleToken = clientToken || crypto.randomUUID();
                     const payloadItems = (items || []).map((i: any) => ({ productId: i?.productId || '', quantity: Number(i?.quantity) || 1 }));
                     const res = await fnProcessarVendaAdmin({
                         targetUserId,

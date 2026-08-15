@@ -18,7 +18,7 @@ interface AdminSalesModalProps {
   users: User[];
   products: Product[];
   orders?: Order[];
-  onConfirm: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'MIXED' | 'FIADO', total: number, payments?: {method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO', amount: number}[], change?: number, customerAccountId?: string) => Promise<any>;
+  onConfirm: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'MIXED' | 'FIADO', total: number, payments?: {method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO', amount: number}[], change?: number, customerAccountId?: string, clientToken?: string) => Promise<any>;
   setPrintOrder?: (order: any) => void;
   settings?: AppConfig;
   currentUser?: User;
@@ -85,6 +85,15 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
   const [selectedCustomerAccount, setSelectedCustomerAccount] = useState<CustomerAccount | null>(null);
   const [customerAccountSearch, setCustomerAccountSearch] = useState('');
   const [customerAccountsLoaded, setCustomerAccountsLoaded] = useState(false);
+
+  // Token de idempotência da venda: gerado UMA vez por venda lógica (muda quando
+  // o carrinho/cliente/pagamento mudam). Reenvios da MESMA venda (timeout/retry
+  // após resposta perdida) reutilizam o token e o servidor devolve o pedido já
+  // criado — nunca debita 2x.
+  const [saleToken, setSaleToken] = useState<string>(() => crypto.randomUUID());
+  useEffect(() => {
+    setSaleToken(crypto.randomUUID());
+  }, [carrinho, clienteSelecionado, formaPagamento, selectedCustomerAccount?.id]);
 
   // Load customer accounts when modal opens
   useEffect(() => {
@@ -721,7 +730,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
         if ((novaDivida || 0) > (selectedCustomerAccount.creditLimit || 0)) {
           throw new Error('Sem saldo no momento - Limite de crédito excedido.');
         }
-        const pedido = await onConfirm(clienteSelecionado, carrinho, 'FIADO', totalCarrinho, undefined, undefined, selectedCustomerAccount.id);
+        const pedido = await onConfirm(clienteSelecionado, carrinho, 'FIADO', totalCarrinho, undefined, undefined, selectedCustomerAccount.id, saleToken);
         if (pedido) {
           setUltimoPedido(pedido);
           setUltimaVenda(pedido);
@@ -772,7 +781,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
         }
       }
 
-      const pedido = await onConfirm(targetId, carrinho, formaPagamento, totalCarrinho, paymentsArray, changeValue);
+      const pedido = await onConfirm(targetId, carrinho, formaPagamento, totalCarrinho, paymentsArray, changeValue, undefined, saleToken);
       if (pedido) {
         setUltimoPedido(pedido);
         setUltimaVenda(pedido);

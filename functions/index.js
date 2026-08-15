@@ -733,6 +733,11 @@ exports.sacarSaldoAdmin = onCall(async (request) => {
   const valor = validarValor(request.data?.valor);
   const motivo = String(request.data?.motivo || "Retirada de crédito").slice(0, 200);
 
+  // Caixa físico: o dinheiro pago ao cliente sai da gaveta — registra a sangria
+  // automática na sessão aberta do operador (se houver), mesmo padrão das vendas.
+  let sessaoSaque = null;
+  try { sessaoSaque = await getSessaoCaixaAberta(caller.id); } catch (e) { /* caixa opcional */ }
+
   let novoSaldoFinal = null;
   let saldoAnterior = null;
   let usuarioAlvo = null;
@@ -759,6 +764,24 @@ exports.sacarSaldoAdmin = onCall(async (request) => {
       payerName: caller.name || "Administrador",
       payerId: caller.id,
     });
+
+    if (sessaoSaque) {
+      const sessaoSnap = await t.get(refSessaoCaixa(sessaoSaque));
+      if (sessaoSnap.exists && String(sessaoSnap.data().status || "").toUpperCase() === "OPEN") {
+        const payloadSaque = {
+          currentBalance: admin.firestore.FieldValue.increment(-valor),
+          withdrawals: admin.firestore.FieldValue.arrayUnion({
+            amount: valor,
+            reason: `Retirada de crédito - ${usuarioAlvo || userId}`,
+            timestamp: admin.firestore.Timestamp.now(),
+          }),
+        };
+        if (sessaoSaque.colecao !== "cash_sessions") {
+          payloadSaque.totalEntries = admin.firestore.FieldValue.increment(-valor);
+        }
+        t.update(sessaoSnap.ref, payloadSaque);
+      }
+    }
   });
 
   await registrarAudit(caller.id, "SAQUE_ADMIN", {
@@ -1242,6 +1265,16 @@ let walletBalanceBefore, walletBalanceAfter;
     throw new HttpsError("invalid-argument", e.message || "Falha ao processar a venda.");
   }
 
+  if (!resultado.replay) {
+    await registrarAudit(caller.id, "VENDA_PDV_ADMIN", { pedidoId: resultado.id, usuarioId: targetUserId }, {
+      pedidoId: resultado.id,
+      usuarioId: targetUserId,
+      valor: resultado.total,
+      formaPagamento: paymentMethod,
+      operadorId: caller.id,
+    });
+  }
+
   return { ok: true, order: resultado };
 });
 
@@ -1334,6 +1367,14 @@ inmateName: ud.inmateName || ud.prisonerName || "",
     throw new HttpsError("invalid-argument", e.message || "Falha ao processar a compra.");
   }
 
+  if (!resultado.replay) {
+    await registrarAudit(user.id, "COMPRA_CARTEIRA", { pedidoId: resultado.id }, {
+      pedidoId: resultado.id,
+      valor: resultado.total,
+      itens: (resultado.items || []).length,
+    });
+  }
+
   return { ok: true, order: resultado };
 });
 
@@ -1400,6 +1441,14 @@ paymentMethod: "PIX",
   });
   } catch (e) {
     throw new HttpsError("invalid-argument", e.message || "Falha ao registrar o pedido.");
+  }
+
+  if (!resultado.replay) {
+    await registrarAudit(user.id, "PEDIDO_PIX", { pedidoId: resultado.id }, {
+      pedidoId: resultado.id,
+      valor: resultado.total,
+      itens: (resultado.items || []).length,
+    });
   }
 
   return { ok: true, order: resultado };

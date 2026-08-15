@@ -88,8 +88,8 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
         setExpenseForm({ description: '', amount: '', recipientName: '', recipientCpf: '', category: 'Manutenção', type: 'OPERATIONAL', observation: '', debitAccount: 'CAIXA' });
         setPrintReceipt(expenseData);
         showNotification("Lançamento efetuado com sucesso!", "success");
-    } catch (err) {
-        showNotification("Erro ao processar lançamento.", "error");
+    } catch (err: any) {
+        showNotification(err?.message || "Erro ao processar lançamento.", "error");
     }
   };
 
@@ -100,11 +100,11 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   };
 
-  // Pedidos pendentes/cancelados/estornados NÃO são entrada de caixa:
-  // dinheiro ainda não entrou (ou foi devolvido).
+  // Pedidos pendentes/cancelados/estornados/rejeitados NÃO são entrada de caixa:
+  // dinheiro ainda não entrou (ou foi devolvido, ou o pedido foi recusado).
   const statusValido = (s?: string) => {
     const st = String(s || '').toLowerCase();
-    return !['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'reembolsado', 'pending', 'pending_payment', 'pendente'].includes(st);
+    return !['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'reembolsado', 'pending', 'pending_payment', 'pendente', 'rejected', 'rejeitado'].includes(st);
   };
 
   const filteredData = useMemo(() => {
@@ -150,7 +150,11 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
   }, [cashSessions, financeFilters]);
 
   const cashTotais = useMemo(() => ({
-    saldoFisico: cashInPeriod.reduce((s, x) => s + Number(x.closedBalance ?? x.currentBalance ?? 0), 0),
+    // Sessão aberta: saldo vivo (currentBalance). Fechada: contagem física (closedBalance).
+    saldoFisico: cashInPeriod.reduce((s, x) => {
+      if (String(x.status || '').toLowerCase() === 'open') return s + Number(x.currentBalance ?? 0);
+      return s + Number(x.closedBalance ?? 0);
+    }, 0),
     abertas: cashInPeriod.filter((x) => x.status === 'open').length,
     discrepanciaCount: cashInPeriod.filter((x) => x.hasDiscrepancy).length,
     totalDiscrepancias: cashInPeriod.filter((x) => x.hasDiscrepancy)

@@ -297,9 +297,10 @@ export function AdminDashboard() {
     total: number, 
     payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO'; amount: number }[], 
     change?: number,
-    customerAccountId?: string
+    customerAccountId?: string,
+    clientToken?: string
   ) => {
-    const res = await adminDirectSale(targetUserId, items, paymentMethod, total, payments, change, customerAccountId);
+    const res = await adminDirectSale(targetUserId, items, paymentMethod, total, payments, change, customerAccountId, clientToken);
     if (!res) {
       throw new Error('Erro ao processar venda no caixa.');
     }
@@ -849,6 +850,7 @@ export function AdminDashboard() {
               {activeTab === 'wallet' && hasPermission('wallet') && (
                 <AdminWalletTab
                   walletTx={walletTx}
+                  users={users}
                   userSearch={userSearch}
                   setUserSearch={setUserSearch}
                   financeFilters={financeFilters}

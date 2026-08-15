@@ -20,8 +20,8 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
     const [thermalMode, setThermalMode] = React.useState(false);
     const [fontSize, setFontSize] = React.useState(14);
 
-    // Pedidos cancelados/estornados NÃO são receita (contagem e valores).
-    const statusReceita = (s?: string) => !['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'reembolsado'].includes(String(s || '').toLowerCase());
+    // Pedidos cancelados/estornados/rejeitados NÃO são receita (contagem e valores).
+    const statusReceita = (s?: string) => !['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'reembolsado', 'rejected', 'rejeitado'].includes(String(s || '').toLowerCase());
 
     const report = useMemo(() => {
         if (!config || !orders || !expenses) return null;
