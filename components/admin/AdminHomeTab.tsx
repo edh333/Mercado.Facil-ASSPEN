@@ -34,11 +34,12 @@ interface AdminHomeTabProps {
   rejectWalletTransaction: (id: string) => Promise<void>;
   onSelectTransaction: (tx: WalletTransaction) => void;
   onOpenSales: () => void;
+  onOpenShortcuts?: () => void;
 }
 
 export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
   stats, chartData, isMaster, setActiveTab, setShowProductModal, setOrderStatusFilter, filterType, orders,
-  products = [],   walletTx, approveWalletTransaction, rejectWalletTransaction, onSelectTransaction, onOpenSales
+  products = [],   walletTx, approveWalletTransaction, rejectWalletTransaction, onSelectTransaction, onOpenSales, onOpenShortcuts
 }) => {
   const { colors } = useTheme();
 
@@ -64,6 +65,28 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
 
   const zeroStock = (products || []).filter(p => p.stock !== undefined && p.stock <= 0).length;
 
+  // ── RESUMO DO DIA — VENDAS POR FORMA DE PAGAMENTO (HOJE) ───────────
+  const todayPayments = React.useMemo(() => {
+    const label: Record<string, string> = { PIX: 'Pix', CASH: 'Dinheiro', CARD: 'Cartão', WALLET: 'Carteira', FIADO: 'Fiado', MIXED: 'Misto' };
+    const validStatus = (s?: string) => !['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'reembolsado', 'rejected', 'rejeitado'].includes(String(s || '').toLowerCase());
+    const startToday = new Date(); startToday.setHours(0, 0, 0, 0);
+    const endToday = new Date(); endToday.setHours(23, 59, 59, 999);
+    const map: Record<string, { label: string; amount: number }> = {};
+    let total = 0;
+    (orders || []).forEach(o => {
+      const d = new Date(o.date || 0);
+      if (d < startToday || d > endToday || !validStatus(o.status)) return;
+      const splits = Array.isArray(o.payments) && o.payments.length ? o.payments : [{ method: o.paymentMethod || 'PIX', amount: Number(o.total) || 0 }];
+      splits.forEach((s: any) => {
+        const m = String(s.method || 'PIX').toUpperCase();
+        if (!map[m]) map[m] = { label: label[m] || m, amount: 0 };
+        map[m].amount += Number(s.amount) || 0;
+      });
+      total += Number(o.total) || 0;
+    });
+    return { rows: Object.entries(map).map(([k, v]) => ({ method: k, ...v })).sort((a, b) => b.amount - a.amount), total };
+  }, [orders]);
+
   return (
     <div className="space-y-3.5 animate-slideUp pb-20">
       {/* BARRA DE ATALHOS RÁPIDOS OPERACIONAIS */}
@@ -87,6 +110,34 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
         >
           <Printer size={14} /> ABRIR RELATÓRIOS (F4)
         </button>
+        {onOpenShortcuts && (
+          <button
+            onClick={onOpenShortcuts}
+            className="flex items-center gap-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold px-4 py-2 rounded-xl text-xs shadow-sm transition-all active:scale-95 cursor-pointer ml-auto"
+          >
+            <Zap size={14} className="text-amber-600" /> ATALHOS (?)
+          </button>
+        )}
+      </div>
+
+      {/* RESUMO DO DIA — VENDAS POR FORMA DE PAGAMENTO */}
+      <div className="flex flex-wrap items-center gap-2.5 bg-white rounded-2xl border border-slate-200 p-3 shadow-sm">
+        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-1"><TrendingUp size={10} className="inline-block mr-1 -mt-0.5 text-emerald-500" />Vendas de Hoje</span>
+        {todayPayments.rows.length === 0 ? (
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Nenhuma venda registrada ainda</span>
+        ) : (
+          <>
+            {todayPayments.rows.map(r => (
+              <span key={r.method} className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-[10px] font-black text-slate-700">
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: ['#10b981', '#6366f1', '#f59e0b', '#3b82f6', '#ef4444', '#8b5cf6'][todayPayments.rows.indexOf(r) % 6] }}></span>
+                {r.label}: <span className="text-emerald-600">{formatarMoeda(r.amount)}</span>
+              </span>
+            ))}
+            <span className="flex items-center gap-1.5 bg-emerald-600 text-white rounded-lg px-3 py-1.5 text-[10px] font-black shadow-sm ml-auto">
+              Total: {formatarMoeda(todayPayments.total)}
+            </span>
+          </>
+        )}
       </div>
 
       {/* Quick Access Buttons */}

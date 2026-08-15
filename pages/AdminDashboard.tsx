@@ -14,6 +14,7 @@ import { Menu, X, Banknote } from 'lucide-react';
 // Import all modular subcomponents
 import { AdminSidebar } from '../components/admin/AdminSidebar';
 import { AdminHomeTab } from '../components/admin/AdminHomeTab';
+import { AdminShortcutsModal } from '../components/admin/AdminShortcutsModal';
 import { AdminOrdersTab } from '../components/admin/AdminOrdersTab';
 import { AdminProductsTab } from '../components/admin/AdminProductsTab';
 import { AdminInmatesTab } from '../components/admin/AdminInmatesTab';
@@ -175,6 +176,7 @@ export function AdminDashboard() {
     selectedUser: null as User | null
   });
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
 
   // Finance Filters & Expense Form
   const [financeFilters, setFinanceFilters] = useState({
@@ -272,22 +274,66 @@ export function AdminDashboard() {
     }
   }, [currentUser, userRole, roleLoading, logout, isMaster]);
 
-  // ATALHOS GLOBAIS F2/F4/F6 na HOME
-  useEffect(() => {
-    if (activeTab !== 'home') return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'F2') { e.preventDefault(); setShowSalesModal(true); }
-      if (e.key === 'F4') { e.preventDefault(); setActiveTab('reports'); }
-      if (e.key === 'F6') { e.preventDefault(); setActiveTab('finance'); }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [activeTab]);
-
   // 5. Permission Helpers
   const hasPermission = (perm: string) => {
     return isMaster || (currentUser?.permissions || []).includes(perm);
   };
+
+  // ATALHOS GLOBAIS F1-F12 + '?' — funcionam em qualquer aba do painel.
+  // Guardas: nada de atalho com janela aberta, nem digitando em campos.
+  const shortcutsModalOpen = [showSalesModal, showReportModal, showShortcutsModal, showProductModal, showRefundModal, showWithdrawalModal, showAuthModal, historyModalCpf, viewingReceipt].some(Boolean);
+
+  const goToTab = (tab: string) => {
+    const tabPermissions: Record<string, string> = {
+      'orders': 'orders',
+      'products': 'products',
+      'cash': 'cash',
+      'inmates': 'inmates',
+      'users': 'users',
+      'finance': 'finance',
+      'wallet': 'wallet',
+      'reports': 'reports',
+      'customers': 'finance',
+      'stock_alerts': 'products'
+    };
+    const needPerm = tabPermissions[tab];
+    if (!needPerm || hasPermission(needPerm)) {
+      setActiveTab(tab);
+    } else {
+      showNotification('Permissão negada para esta seção.', 'error');
+    }
+  };
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)) return;
+      const isFKey = e.key.startsWith('F') && !isNaN(Number(e.key.slice(1)));
+      if (!isFKey && !(e.key === '?')) return;
+      if (shortcutsModalOpen) return;
+      e.preventDefault();
+      const key = e.key;
+      if (key === '?') { setShowShortcutsModal(true); return; }
+      const map: Record<string, () => void> = {
+        F1: () => setActiveTab('home'),
+        F2: () => setShowSalesModal(true),
+        F3: () => goToTab('orders'),
+        F4: () => goToTab('reports'),
+        F5: () => goToTab('products'),
+        F6: () => goToTab('finance'),
+        F7: () => goToTab('wallet'),
+        F8: () => goToTab('users'),
+        F9: () => goToTab('bi'),
+        F10: () => goToTab('settings'),
+        F11: () => goToTab('cash'),
+        F12: () => goToTab('customers')
+      };
+      const action = map[key];
+      if (action) action();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [shortcutsModalOpen, hasPermission]);
 
   // 6. Direct Sale (PDV) Callback Hookup
   const handleConfirmDirectSale = async (
@@ -733,6 +779,7 @@ export function AdminDashboard() {
                   rejectWalletTransaction={rejectWalletTransaction}
                   onSelectTransaction={setSelectedWalletTx}
                   onOpenSales={() => setShowSalesModal(true)}
+                  onOpenShortcuts={() => setShowShortcutsModal(true)}
                 />
               )}
 
@@ -1050,6 +1097,15 @@ export function AdminDashboard() {
           users={users}
           products={products}
           settings={settings}
+          transactions={walletTx}
+        />
+      )}
+
+      {/* Global shortcuts help overlay (F1-F12 / '?') */}
+      {showShortcutsModal && (
+        <AdminShortcutsModal
+          isOpen={showShortcutsModal}
+          onClose={() => setShowShortcutsModal(false)}
         />
       )}
 

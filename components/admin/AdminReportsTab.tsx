@@ -2,7 +2,7 @@ import React from 'react';
 import {
   ClipboardList, FileText, Search, TrendingUp, Users, Package, CreditCard,
   BarChart3, RefreshCcw, Calendar, Download, Landmark, FileSpreadsheet, PieChart,
-  Wallet, Coins, Printer
+  Wallet, Coins, Printer, Calculator
 } from 'lucide-react';
 import { User } from '../../types';
 import { useTheme } from '../../context/ThemeContext';
@@ -106,6 +106,7 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
     { id: 'DRE_MONTHLY', name: 'Fechamento Mensal (DRE)', desc: 'DRE simplificado: receita, custo das mercadorias e lucro líquido real.', icon: <Landmark className="text-teal-600" size={24}/> },
     { id: 'SALES_CSV', name: 'Movimentação de Vendas', desc: 'CSV/Excel p/ contador: data, cupom, CPF, pagamento, imposto e valor.', icon: <FileSpreadsheet className="text-green-600" size={24}/> },
     { id: 'STOCK_ABC', name: 'Curva ABC de Estoque', desc: 'Giro dos produtos e valor do inventário parado p/ balanço patrimonial.', icon: <PieChart className="text-amber-600" size={24}/> },
+    { id: 'DAILY_CLOSING', name: 'Fechamento do Dia', desc: 'Conferência de caixa diária: vendas por forma de pagamento, despesas e resultado.', icon: <Calculator className="text-cyan-600" size={24}/> },
   ];
 
   return (
@@ -242,8 +243,10 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
                                     ? 'Consolida receita bruta, custo das mercadorias (NFe/XML) e lucro líquido do período.'
                                     : reportConfig.type === 'SALES_CSV'
                                         ? 'Arquivo compatível com Excel (separador ;) — pronto para o contador.'
-                                        : reportConfig.type === 'STOCK_ABC'
-                                            ? 'Mapeia o giro A/B/C e o valor do inventário parado para balanço de fim de ano.'
+                                    : reportConfig.type === 'STOCK_ABC'
+                                        ? 'Mapeia o giro A/B/C e o valor do inventário parado para balanço de fim de ano.'
+                                        : reportConfig.type === 'DAILY_CLOSING'
+                                            ? 'Conferência diária de caixa: vendas por forma de pagamento, despesas, depósitos aprovados e resultado.'
                                             : 'O documento será gerado em formato A4 profissional, seguindo os padrões de auditoria institucional.'}
                             </p>
                         </div>

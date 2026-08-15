@@ -1,8 +1,64 @@
 import React, { useMemo } from 'react';
-import { X, Printer, FileText, TrendingUp, TrendingDown, Package, Users, Download, Calendar, BarChart3, PieChart, Activity, FileSpreadsheet, Landmark } from 'lucide-react';
+import { X, Printer, FileText, TrendingUp, TrendingDown, Package, Users, Download, Calendar, BarChart3, PieChart, Activity, FileSpreadsheet, Landmark, Wallet } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { User } from '../../types';
 import { buildMonthlyDre, buildSalesCsv, buildStockAbc } from '../../context/StoreContext';
+
+const PAYMENT_LABELS: Record<string, string> = {
+    PIX: 'Pix',
+    CASH: 'Dinheiro',
+    CARD: 'Cartão',
+    WALLET: 'Carteira',
+    FIADO: 'Fiado',
+    MIXED: 'Misto'
+};
+
+const buildDailyClosing = (orders: any[], expenses: any[], transactions: any[], startDateStr: string, endDateStr: string) => {
+    const statusReceita = (s?: string) => !['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'reembolsado', 'rejected', 'rejeitado'].includes(String(s || '').toLowerCase());
+    const inPeriod = (ts?: string | number) => {
+        if (!ts) return false;
+        const d = new Date(ts);
+        return d >= new Date(startDateStr) && d <= new Date(endDateStr + 'T23:59:59');
+    };
+
+    const periodOrders = (orders || []).filter(o => statusReceita(o.status) && inPeriod(o.date));
+    const periodExpenses = (expenses || []).filter(e => inPeriod(e.date));
+    const periodDeposits = (transactions || []).filter((tx: any) =>
+        tx.type === 'deposit' && tx.status === 'approved' && inPeriod(tx.createdAt || tx.date));
+
+    const methods: Record<string, { label: string; amount: number; count: number }> = {};
+    let totalSales = 0;
+    periodOrders.forEach(order => {
+        const splits = Array.isArray(order.payments) && order.payments.length
+            ? order.payments
+            : [{ method: order.paymentMethod || 'PIX', amount: Number(order.total) || 0 }];
+        const primary = String(order.paymentMethod || 'PIX').toUpperCase();
+        splits.forEach((split: any) => {
+            const method = String(split.method || primary).toUpperCase();
+            const label = PAYMENT_LABELS[method] || method;
+            if (!methods[method]) methods[method] = { label, amount: 0, count: 0 };
+            methods[method].amount += Number(split.amount) || 0;
+        });
+        if (!methods[primary]) methods[primary] = { label: PAYMENT_LABELS[primary] || primary, amount: 0, count: 0 };
+        methods[primary].count += 1;
+        totalSales += Number(order.total) || 0;
+    });
+
+    const paymentRows = Object.values(methods).sort((a, b) => b.amount - a.amount);
+    const totalExpenses = periodExpenses.reduce((a, b) => a + (Number(b.amount) || 0), 0);
+    const totalDeposits = periodDeposits.reduce((a, b) => a + (Number(b.amount) || 0), 0);
+
+    return {
+        paymentRows,
+        totalSales,
+        salesCount: periodOrders.length,
+        totalExpenses,
+        totalDeposits,
+        net: totalSales - totalExpenses,
+        expensesCount: periodExpenses.length,
+        depositsCount: periodDeposits.length
+    };
+};
 
 interface AdminReportPreviewModalProps {
     isOpen: boolean;
@@ -13,9 +69,10 @@ interface AdminReportPreviewModalProps {
     users: User[];
     products: any[];
     settings: any;
+    transactions?: any[];
 }
 
-export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = ({ isOpen, onClose, config, orders, expenses, users, products, settings }) => {
+export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = ({ isOpen, onClose, config, orders, expenses, users, products, settings, transactions = [] }) => {
     const { colors } = useTheme();
     const [thermalMode, setThermalMode] = React.useState(false);
     const [fontSize, setFontSize] = React.useState(14);
@@ -76,8 +133,13 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
             'SALES_BY_CATEGORY': 'Vendas por Grupo',
             'DRE_MONTHLY': 'Fechamento de Caixa Mensal (DRE Simplificado)',
             'SALES_CSV': 'Arquivo de Movimentação de Vendas (CSV/Excel)',
-            'STOCK_ABC': 'Curva ABC de Estoque'
+            'STOCK_ABC': 'Curva ABC de Estoque',
+            'DAILY_CLOSING': 'Fechamento do Dia (Conferência de Caixa)'
         };
+
+        const dailyClosing = config?.type === 'DAILY_CLOSING'
+            ? buildDailyClosing(orders, expenses, transactions, startDateStr, endDateStr)
+            : null;
 
         const dre = config?.type === 'DRE_MONTHLY'
             ? buildMonthlyDre(orders, expenses, products, startDateStr, endDateStr)
@@ -98,6 +160,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
             dre,
             salesCsv,
             stockAbc,
+            dailyClosing,
             summary: {
                 totalSales: totalEntries,
                 totalExpenses: totalExits,
@@ -631,6 +694,125 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
         printWindow.print();
     };
 
+    const renderDailyClosing = () => {
+        const dc = report.dailyClosing;
+        if (!dc) return null;
+        const maxAmount = Math.max(...dc.paymentRows.map((r: any) => r.amount), 0.01);
+        const fmt = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+        return (
+            <div className="space-y-6 animate-fadeIn">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-[var(--bg-main)]/50 p-5 rounded-[2rem] border border-[var(--border-color)] shadow-inner">
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="p-2 bg-emerald-500/10 text-emerald-600 rounded-lg"><TrendingUp size={16}/></div>
+                            <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest leading-none">Vendas do Período</p>
+                        </div>
+                        <p className="text-2xl font-black text-emerald-600 tracking-tighter">{fmt(dc.totalSales)}</p>
+                        <p className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest mt-1">{dc.salesCount} venda(s)</p>
+                    </div>
+                    <div className="bg-[var(--bg-main)]/50 p-5 rounded-[2rem] border border-[var(--border-color)] shadow-inner">
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="p-2 bg-red-500/10 text-red-600 rounded-lg"><TrendingDown size={16}/></div>
+                            <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest leading-none">Despesas do Período</p>
+                        </div>
+                        <p className="text-2xl font-black text-red-600 tracking-tighter">{fmt(dc.totalExpenses)}</p>
+                        <p className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest mt-1">{dc.expensesCount} lançamento(s)</p>
+                    </div>
+                    <div className="bg-[var(--bg-main)]/50 p-5 rounded-[2rem] border border-[var(--border-color)] shadow-inner">
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="p-2 bg-[var(--primary-color)]/10 text-[var(--primary-color)] rounded-lg"><Activity size={16}/></div>
+                            <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest leading-none">Resultado do Período</p>
+                        </div>
+                        <p className={`text-2xl font-black tracking-tighter ${dc.net >= 0 ? 'text-[var(--primary-color)]' : 'text-orange-600'}`}>{fmt(dc.net)}</p>
+                    </div>
+                    <div className="bg-[var(--bg-main)]/50 p-5 rounded-[2rem] border border-[var(--border-color)] shadow-inner">
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="p-2 bg-indigo-500/10 text-indigo-600 rounded-lg"><Wallet size={16}/></div>
+                            <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest leading-none">Depósitos Aprovados</p>
+                        </div>
+                        <p className="text-2xl font-black text-indigo-600 tracking-tighter">{fmt(dc.totalDeposits)}</p>
+                        <p className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest mt-1">{dc.depositsCount} aprovação(ões)</p>
+                    </div>
+                </div>
+
+                <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[2.5rem] overflow-hidden shadow-sm">
+                    <div className="p-6 border-b border-[var(--border-color)] bg-[var(--bg-main)]/30">
+                        <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--text-muted)] flex items-center gap-2">
+                            <PieChart size={16}/> Vendas por Forma de Pagamento
+                        </h4>
+                    </div>
+                    <div className="divide-y divide-[var(--border-color)]">
+                        {dc.paymentRows.length === 0 && (
+                            <div className="p-8 text-center font-black uppercase text-xs opacity-30">Nenhuma venda neste período.</div>
+                        )}
+                        {dc.paymentRows.map((row: any, idx: number) => (
+                            <div key={idx} className="p-5">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-tight">{row.label}</span>
+                                    <span className="text-sm font-black text-[var(--text-main)] tracking-tighter">{fmt(row.amount)}</span>
+                                </div>
+                                <div className="h-2 bg-[var(--bg-main)] rounded-full overflow-hidden">
+                                    <div className="h-full rounded-full" style={{ width: `${Math.max((row.amount / maxAmount) * 100, row.amount > 0 ? 4 : 0)}%`, backgroundColor: ['#10b981', '#6366f1', '#f59e0b', '#3b82f6', '#ef4444', '#8b5cf6'][idx % 6] }}></div>
+                                </div>
+                            </div>
+                        ))}
+                        <div className="p-5 flex justify-between items-center bg-[var(--bg-main)]/30">
+                            <span className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Total de Vendas</span>
+                            <span className="text-base font-black text-[var(--text-main)] tracking-tighter">{fmt(dc.totalSales)}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const printDailyClosing = () => {
+        const dc = report.dailyClosing;
+        if (!dc) return;
+        const fmt = (v: number) => `R$ ${v.toFixed(2)}`;
+        const hoje = new Date().toLocaleDateString('pt-BR');
+        const linhas = dc.paymentRows.map((r: any) => `<tr><td>${r.label}</td><td style="text-align:right;">${fmt(r.amount)}</td></tr>`).join('');
+        const html = `<html><head><title>${report.title}</title><style>
+            body{font-family:'Segoe UI',Arial,sans-serif;padding:40px;color:#0f172a}
+            h1{font-size:22px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+            .sub{color:#64748b;font-size:13px;margin-bottom:24px}
+            table{width:100%;border-collapse:collapse}
+            th{padding:10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #0f172a}
+            td{padding:11px 10px;font-size:14px;border-bottom:1px solid #e2e8f0;font-weight:600}
+            tfoot td{font-size:15px;font-weight:800;border-top:2px solid #0f172a}
+            .cards{display:flex;gap:14px;margin:18px 0 26px;flex-wrap:wrap}
+            .card{flex:1;min-width:140px;padding:16px 18px;border-radius:14px;background:#f8fafc;border:1px solid #e2e8f0}
+            .card p{margin:0}
+            .card .titulo{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#64748b;font-weight:700;margin-bottom:6px}
+            .card .valor{font-size:20px;font-weight:800}
+            .assinatura{margin-top:70px;display:flex;justify-content:space-between;font-size:13px;color:#475569}
+            .rodape{margin-top:30px;font-size:11px;color:#94a3b8;text-align:center}
+            @media print{body{background:white!important;padding:20px!important}}
+        </style></head><body>
+            <h1>${report.title}</h1>
+            <p class="sub">Período: ${report.period} · Emitido em: ${hoje} · ${dc.salesCount} venda(s) no período</p>
+            <div class="cards">
+                <div class="card"><p class="titulo">Vendas</p><p class="valor">${fmt(dc.totalSales)}</p></div>
+                <div class="card"><p class="titulo">Despesas</p><p class="valor">${fmt(dc.totalExpenses)}</p></div>
+                <div class="card"><p class="titulo">Resultado</p><p class="valor">${fmt(dc.net)}</p></div>
+                <div class="card"><p class="titulo">Depósitos Aprovados</p><p class="valor">${fmt(dc.totalDeposits)}</p></div>
+            </div>
+            <table>
+                <thead><tr><th>Forma de Pagamento</th><th style="text-align:right;">Valor</th></tr></thead>
+                <tbody>${linhas}</tbody>
+                <tfoot><tr><td>TOTAL DE VENDAS</td><td style="text-align:right;">${fmt(dc.totalSales)}</td></tr></tfoot>
+            </table>
+            <div class="assinatura"><div>Emitido por: ${(settings as any)?.adminName || 'Administração'}</div><div>Assinatura / Carimbo</div></div>
+            <p class="rodape">Documento gerado pelo sistema Mercado Fácil — conferência de caixa</p>
+        </body></html>`;
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+            printWindow.document.write(html);
+            printWindow.document.close();
+            printWindow.print();
+        }
+    };
+
     return (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 animate-fadeIn" style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
             <div className="bg-[var(--bg-card)] w-full max-w-5xl rounded-3xl shadow-2xl flex flex-col max-h-[90vh] border border-[var(--border-color)] animate-slideUp" style={{ overflow: 'hidden' }}>
@@ -693,6 +875,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                         {report.type === 'DRE_MONTHLY' && renderDre()}
                         {report.type === 'SALES_CSV' && renderSalesCsv()}
                         {report.type === 'STOCK_ABC' && renderStockAbc()}
+                        {report.type === 'DAILY_CLOSING' && renderDailyClosing()}
                     </div>
                 </div>
 
@@ -722,6 +905,10 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                         <button onClick={() => {
                             if (report.type === 'USERS_CREDITS') {
                                 printUsersCredits();
+                                return;
+                            }
+                            if (report.type === 'DAILY_CLOSING') {
+                                printDailyClosing();
                                 return;
                             }
                             const printWindow = window.open('', '_blank');
