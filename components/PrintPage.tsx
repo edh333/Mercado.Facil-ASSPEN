@@ -26,10 +26,20 @@ export const PrintPage: React.FC = () => {
     const [closeCountdown, setCloseCountdown] = useState(0);
     const rawCupomRef = useRef('');
     const closedRef = useRef(false);
+    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const dialogTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const statusRef = useRef<PrintStatus>('loading');
+    const [autoCloseCancelado, setAutoCloseCancelado] = useState(false);
 
-    useEffect(() => {
+    statusRef.current = status;
+
+    // Carrega (ou RECARREGA) os dados da impressão. Chamado no mount e sempre
+    // que a janela do pai publica uma NOVA impressão (evento 'storage') — assim
+    // a janela /print se atualiza sozinha, sem precisar dar refresh manual.
+    const carregar = () => {
         let mounted = true;
-
+        if (timerRef.current) clearTimeout(timerRef.current);
+        if (dialogTimerRef.current) clearTimeout(dialogTimerRef.current);
         try {
             const data = localStorage.getItem('printItem');
             const settings = localStorage.getItem('appSettings');
@@ -37,7 +47,7 @@ export const PrintPage: React.FC = () => {
             if (!data) {
                 setError('Nenhum dado de impressão encontrado. Feche esta janela e tente novamente.');
                 setStatus('error');
-                return;
+                return () => { mounted = false; };
             }
 
             const parsedItem = JSON.parse(data);
@@ -46,9 +56,13 @@ export const PrintPage: React.FC = () => {
             if (!parsedItem || !parsedItem.type || !parsedItem.data) {
                 setError('Dados de impressão inválidos ou incompletos.');
                 setStatus('error');
-                return;
+                return () => { mounted = false; };
             }
 
+            closedRef.current = false;
+            setAutoCloseCancelado(false);
+            setCloseCountdown(0);
+            setError(null);
             setPrintData({ item: parsedItem, config: parsedSettings });
 
             const isCupom = parsedItem.type === 'CUPOM';
@@ -61,7 +75,7 @@ export const PrintPage: React.FC = () => {
             // PRIORIDADE FISCAL: cupom tenta a bobina (QZ Tray) automaticamente.
             // Com QZ → imprime direto na fiscal e mostra confirmação.
             // Sem QZ → abre o diálogo do navegador com o layout térmico 80mm.
-            const timer = setTimeout(async () => {
+            timerRef.current = setTimeout(async () => {
                 if (!mounted) return;
                 if (isCupom) {
                     const ok = await imprimirBobinaFiscal(rawCupomRef.current, parsedSettings);
@@ -70,7 +84,6 @@ export const PrintPage: React.FC = () => {
                         setStatus('fiscal');
                         setCloseCountdown(4);
                     } else {
-                        // App desktop: impressão silenciosa — sem diálogo e sem repetir janelas
                         const electronOk = await imprimirHtmlSilencioso(rawCupomRef.current, parsedSettings);
                         if (!mounted) return;
                         if (electronOk) {
@@ -78,8 +91,8 @@ export const PrintPage: React.FC = () => {
                             setCloseCountdown(4);
                         } else {
                             setStatus('dialog');
-                            setTimeout(() => {
-                                if (!closedRef.current) window.print();
+                            dialogTimerRef.current = setTimeout(() => {
+                                if (!closedRef.current && mounted) window.print();
                             }, 500);
                         }
                     }
@@ -96,20 +109,62 @@ export const PrintPage: React.FC = () => {
                         }
                     }
                     setStatus('dialog');
-                    setTimeout(() => {
-                        if (!closedRef.current) window.print();
+                    dialogTimerRef.current = setTimeout(() => {
+                        if (!closedRef.current && mounted) window.print();
                     }, 500);
                 }
             }, 400);
 
-            return () => { mounted = false; clearTimeout(timer); };
+            return () => { mounted = false; };
         } catch (e: any) {
             setError('Erro ao carregar dados: ' + (e.message || 'Falha desconhecida'));
             setStatus('error');
+            return () => { mounted = false; };
         }
+    };
+
+    useEffect(() => {
+        const limpar = carregar();
+
+        // A janela do PDV publica a nova impressão via localStorage; o evento
+        // 'storage' (que só dispara em OUTRAS janelas) nos avisa na hora.
+        const onStorage = (e: StorageEvent) => {
+            if (e.key !== 'printItem' && e.key !== 'appSettings' && e.key !== 'printTicket') return;
+            if (limpar) limpar();
+            carregar();
+        };
+        window.addEventListener('storage', onStorage);
+
+        // Terminou o diálogo de impressão do navegador → fecha a janela sozinha
+        // (após pequena contagem, cancelável ao interagir com a janela).
+        const onAfterPrint = () => {
+            if (statusRef.current === 'error') return;
+            setStatus('fiscal');
+            setCloseCountdown(3);
+        };
+        window.addEventListener('afterprint', onAfterPrint);
+
+        const cancelarAutoClose = () => {
+            setAutoCloseCancelado(true);
+            setCloseCountdown(0);
+        };
+        window.addEventListener('mousedown', cancelarAutoClose);
+        window.addEventListener('keydown', cancelarAutoClose);
+        window.addEventListener('touchstart', cancelarAutoClose);
+
+        return () => {
+            if (limpar) limpar();
+            window.removeEventListener('storage', onStorage);
+            window.removeEventListener('afterprint', onAfterPrint);
+            window.removeEventListener('mousedown', cancelarAutoClose);
+            window.removeEventListener('keydown', cancelarAutoClose);
+            window.removeEventListener('touchstart', cancelarAutoClose);
+            if (timerRef.current) clearTimeout(timerRef.current);
+            if (dialogTimerRef.current) clearTimeout(dialogTimerRef.current);
+        };
     }, []);
 
-    // Auto-fecha quando imprime direto na fiscal
+    // Auto-fecha quando imprime direto na fiscal (ou após o diálogo terminar)
     useEffect(() => {
         if (status !== 'fiscal' || closeCountdown <= 0) return;
         const t = setTimeout(() => {
@@ -119,11 +174,11 @@ export const PrintPage: React.FC = () => {
     }, [status, closeCountdown]);
 
     useEffect(() => {
-        if (status === 'fiscal' && closeCountdown === 0) {
+        if (status === 'fiscal' && closeCountdown === 0 && !autoCloseCancelado) {
             closedRef.current = true;
             try { window.close(); } catch { /* noop */ }
         }
-    }, [status, closeCountdown]);
+    }, [status, closeCountdown, autoCloseCancelado]);
 
     const handleFiscalPrint = async () => {
         if (isFiscalPrinting) return;
@@ -253,7 +308,9 @@ export const PrintPage: React.FC = () => {
                         <p className="text-xs font-black text-emerald-700 uppercase tracking-widest flex items-center gap-2">
                             <CheckCircle size={16} /> Cupom enviado para a bobina fiscal com sucesso
                         </p>
-                        <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Fechando em {closeCountdown}s…</p>
+                        <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">
+                            {autoCloseCancelado ? 'Janela mantida aberta — clique em Fechar para sair' : `Fechando em ${closeCountdown}s…`}
+                        </p>
                     </div>
                 )}
 

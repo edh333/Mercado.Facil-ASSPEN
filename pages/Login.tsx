@@ -32,8 +32,9 @@ export const Login: React.FC = () => {
 
     const [recoveryStep, setRecoveryStep] = useState<1 | 2>(1);
 
-    const [recoveryPrisonerCpf, setRecoveryPrisonerCpf] = useState('');
-    const [recoveryUserCpf, setRecoveryUserCpf] = useState('');
+const [recoveryPrisonerCpf, setRecoveryPrisonerCpf] = useState('');
+const [recoveryUserCpf, setRecoveryUserCpf] = useState('');
+const [recoveryName, setRecoveryName] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmNewPassword, setConfirmNewPassword] = useState('');
 
@@ -65,6 +66,7 @@ export const Login: React.FC = () => {
         setFormSuccess(null);
         setRecoveryPrisonerCpf('');
         setRecoveryUserCpf('');
+        setRecoveryName('');
         setNewPassword('');
         setConfirmNewPassword('');
         setLoadingMessage('');
@@ -119,14 +121,14 @@ export const Login: React.FC = () => {
             } else if (isRecovery) {
                 if (recoveryStep === 1) {
                     setLoadingMessage('Validando dados...');
-                    await validateRecovery(recoveryUserCpf, recoveryPrisonerCpf);
+                    await validateRecovery(recoveryUserCpf, recoveryPrisonerCpf, recoveryName);
                     setRecoveryStep(2);
                 } else {
                     if (newPassword) {
                         setLoadingMessage('Salvando nova senha...');
                         if (newPassword.length < 6) throw new Error("Mínimo 6 caracteres.");
                         if (newPassword !== confirmNewPassword) throw new Error("Senhas não coincidem.");
-                        await resetUserPassword(recoveryUserCpf, recoveryPrisonerCpf, newPassword);
+                        await resetUserPassword(recoveryUserCpf, recoveryPrisonerCpf, newPassword, recoveryName);
                     }
                     setFormSuccess(newPassword ? "Senha alterada!" : "Acesso liberado.");
                     setTimeout(() => setActiveTab('login'), 2500);
@@ -366,6 +368,7 @@ export const Login: React.FC = () => {
                                             </div>
                                             <PremiumInput icon={UserCheck} label="Seu CPF" value={recoveryUserCpf} onChange={(e: any) => setRecoveryUserCpf(e.target.value)} />
                                             <PremiumInput icon={Briefcase} label="CPF do Interno" value={recoveryPrisonerCpf} onChange={(e: any) => setRecoveryPrisonerCpf(e.target.value)} />
+                                            <PremiumInput icon={User} label="Nome Completo (como no cadastro)" value={recoveryName} onChange={(e: any) => setRecoveryName(e.target.value)} />
                                         </>
                                     ) : (
                                         <div className="space-y-4">

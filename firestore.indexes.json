@@ -79,6 +79,22 @@
         { "fieldPath": "userId", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "historico_geral",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "origem", "order": "ASCENDING" },
+        { "fieldPath": "arquivadoEm", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "cash_sessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "hasDiscrepancy", "order": "ASCENDING" },
+        { "fieldPath": "closedAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

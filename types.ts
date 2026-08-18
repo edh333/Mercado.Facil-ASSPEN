@@ -210,6 +210,10 @@ export interface AppConfig {
   customReceiptTitle?: string; // Novo: Título do Cupom (ASSPEN - Gestão)
   customReceiptSubtitle?: string; // Novo: Subtítulo (CDP Peixoto...)
   customReceiptDocName?: string; // Novo: Nome do Doc (CUPOM DE ENTREGA)
+  fiscalEmission?: boolean; // Opcional: emite cupom com identificação fiscal (NF-e/NFC-e/SAT)
+  fiscalModel?: string; // Modelo fiscal exibido no cupom: NF-E | NFC-E | SAT
+  fiscalNumber?: string; // Número atual da sequência fiscal (informado pelo contador/equipamento)
+  fiscalSeries?: string; // Série fiscal (ex.: A1)
   loginBgUrl?: string;
   loginBgType?: 'none' | 'color' | 'image';
   userDashboardBgUrl?: string;

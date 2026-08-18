@@ -63,7 +63,7 @@ export const AppDownloadModal: React.FC<{ onClose: () => void }> = ({ onClose })
   const [erro, setErro] = useState('');
   const [baixando, setBaixando] = useState('');
 
-  const ehAdmin = currentUser?.role === 'ADMIN';
+  const ehAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'MASTER';
   const logado = !!currentUser;
 
   const carregar = useCallback(async () => {

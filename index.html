@@ -27,8 +27,11 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 
-  <!-- QZ Tray SDK - impressão direta na impressora fiscal/bobina (via QZ Tray local) -->
-  <script src="https://qz.io/sdk/qz-tray.js" defer></script>
+  <!-- QZ Tray SDK - impressão direta na impressora fiscal/bobina (via QZ Tray local).
+       EMBUTIDO LOCALMENTE (public/qz-tray.js, v2.2.6): a URL antiga
+       https://qz.io/sdk/qz-tray.js está DESCONTINUADA (404) e ainda era
+       bloqueada por filtros de rede — o script local elimina os dois problemas. -->
+  <script src="/qz-tray.js" defer></script>
 </head>
 
 <body class="bg-slate-950 text-white antialiased">

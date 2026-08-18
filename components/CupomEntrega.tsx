@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatarMoeda } from '../utils';
+import { formatarMoeda, mascararCpf } from '../utils';
 import { AppConfig } from '../types';
 import { ShieldCheck, Hash, Printer, Scissors, QrCode, X } from 'lucide-react';
 
@@ -70,7 +70,17 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
           {config?.institutionName || title || 'GESTÃO ERP'}
         </h1>
         <p className="font-black uppercase tracking-widest">{config?.appName || 'Mercado Fácil'}</p>
-        <p className="font-bold uppercase mt-1 opacity-70">{subtitle || 'Cupom de Entrega - Não Fiscal'}</p>
+        <p className="font-bold uppercase mt-1 opacity-70">
+          {config?.fiscalEmission === true
+            ? `Cupom Fiscal - ${config?.fiscalModel || 'NF-e'}`
+            : (subtitle || 'Cupom de Entrega - Não Fiscal')}
+        </p>
+        {config?.fiscalEmission === true && (config?.fiscalNumber || config?.fiscalSeries) && (
+          <p className="font-black uppercase mt-1 bg-black text-white px-2 py-0.5 inline-block text-[9px]">
+            {config?.fiscalModel || 'NF-e'} Nº {String(config?.fiscalNumber || '').padStart(9, '0')}
+            {config?.fiscalSeries ? ` SERIE ${String(config?.fiscalSeries).toUpperCase()}` : ''}
+          </p>
+        )}
         {(config?.cnpj || config?.contactPhone) && (
           <p className="font-bold mt-1 opacity-60 text-[9px]">
             {config?.cnpj ? `CNPJ: ${config.cnpj}` : ''}
@@ -105,11 +115,11 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
           <div className="mb-2 border-2 border-black p-2 rounded bg-gray-50">
               <p className="font-black uppercase text-[9px] opacity-70 mb-0.5">Destinatário / Interno</p>
               <p className="font-black uppercase leading-tight text-base">{data.inmateName || data.prisonerName || 'Não identificado'}</p>
-              {(data.inmateCpf || data.prisonerCpf) && <p className="font-bold text-[10px] mt-0.5">CPF INTERNO: {data.inmateCpf || data.prisonerCpf}</p>}
+              {(data.inmateCpf || data.prisonerCpf) && <p className="font-bold text-[10px] mt-0.5">CPF INTERNO: {mascararCpf(data.inmateCpf || data.prisonerCpf)}</p>}
               {data.userName && (data.userName !== data.inmateName) && (
                 <div className="mt-1 pt-1 border-t border-dashed border-gray-400">
                   <p className="font-bold text-[10px]">FAMILIAR: {data.userName}</p>
-                  {data.userCpf && <p className="font-bold text-[9px] opacity-80">CPF FAMILIAR: {data.userCpf}</p>}
+                  {data.userCpf && <p className="font-bold text-[9px] opacity-80">CPF FAMILIAR: {mascararCpf(data.userCpf)}</p>}
                 </div>
               )}
           </div>
@@ -177,10 +187,18 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
                     )}
                 </>
             ) : (
-                <div className="flex justify-between">
-                    <span>PAGAMENTO:</span>
-                    <span className="uppercase">{data.paymentMethod === 'WALLET' ? 'CARTEIRA' : data.paymentMethod === 'PIX' ? 'PIX' : data.paymentMethod === 'FIADO' ? 'FIADO' : 'DINHEIRO'}</span>
-                </div>
+                <>
+                    <div className="flex justify-between">
+                        <span>PAGAMENTO:</span>
+                        <span className="uppercase">{data.paymentMethod === 'WALLET' ? 'CARTEIRA' : data.paymentMethod === 'PIX' ? 'PIX' : data.paymentMethod === 'FIADO' ? 'FIADO' : 'DINHEIRO'}</span>
+                    </div>
+                    {Number(data.change || 0) > 0 && (
+                        <div className="flex justify-between">
+                            <span>TROCO</span>
+                            <span>R$ {formatarMoeda(Number(data.change))}</span>
+                        </div>
+                    )}
+                </>
             )}
             {saldoAnterior !== undefined && (
                 <div className="flex justify-between italic opacity-80">

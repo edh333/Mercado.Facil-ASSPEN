@@ -1,5 +1,5 @@
 import React from "react";
-import { formatarMoeda } from "../utils";
+import { formatarMoeda, mascararCpf } from "../utils";
 import { Order, Expense, AppConfig } from "../types";
 import { valorPorExtenso } from "./NotaPromissoriaA4";
 import { Shield, Printer, X, ShieldCheck, QrCode, Hash, FileText, User, CreditCard } from "lucide-react";
@@ -50,9 +50,9 @@ export const ReciboA4: React.FC<ReciboA4Props> = ({ data, type, config, printerN
   const cityLine = formatCityDate(dateObj, config.contactAddress || 'Peixoto de Azevedo - MT');
 
   const pagadorNome = isOrder ? (order?.userName || 'Consumidor Geral') : (config?.institutionName || 'Instituição');
-  const pagadorDoc = isOrder ? (order?.userCpf || 'Identificado no Sistema') : (config?.cnpj || '00.000.000/0001-00');
+  const pagadorDoc = isOrder ? (mascararCpf(order?.userCpf) || 'Identificado no Sistema') : (config?.cnpj || '00.000.000/0001-00');
   const beneficiarioNome = isOrder ? (config?.institutionName || 'Instituição') : (expense?.recipientName || 'Favorecido Não Informado');
-  const beneficiarioDoc = isOrder ? (config?.cnpj || '00.000.000/0001-00') : (expense?.recipientCpf || 'S/ DOCUMENTO');
+  const beneficiarioDoc = isOrder ? (config?.cnpj || '00.000.000/0001-00') : (mascararCpf(expense?.recipientCpf) || 'S/ DOCUMENTO');
   const numRecibo = !isOrder ? ((expense as any)?.auditDocNumber || expense?.recipientDoc || '') : '';
   const referenciaId = isOrder ? (order?.id || '') : numRecibo;
 

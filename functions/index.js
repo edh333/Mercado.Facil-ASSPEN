@@ -5,6 +5,20 @@ const admin = require("firebase-admin");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 
+// Lógica pura de negócio (testável) — decisões financeiras vêm daqui.
+const {
+  arredondar,
+  cleanCpf,
+  sanitizarToken,
+  validarItensPuros,
+  calcularPartesPagamento,
+  validarTroco,
+  verificarLimiteSemanal,
+  validarSaldoSuficiente,
+  calcularNovoSaldo,
+  caminhoStorageDeUrl,
+} = require("./logic");
+
 if (!admin.apps.length) {
   admin.initializeApp();
 }
@@ -43,9 +57,6 @@ async function urlDownloadComToken(file) {
 // ──────────────────────────────────────────────
 // Helpers
 // ──────────────────────────────────────────────
-
-const cleanCpf = (v) => String(v || "").replace(/\D/g, "");
-const arredondar = (v) => Math.round((Number(v) || 0) * 100) / 100;
 
 /** Email padrão usado como login do Firebase Auth para usuários sem e-mail real. */
 function authEmailPara(cpf, email) {
@@ -116,6 +127,66 @@ async function exigirAdminPrincipal(context) {
   return u;
 }
 
+/**
+ * Admin com permissão específica (granular). O principal sempre passa.
+ * Admins legados sem o campo permissions = acesso total (compatibilidade).
+ */
+async function exigirAdminPermissao(context, permissao) {
+  const u = await exigirAdmin(context);
+  if (!permissao) return u;
+  const ehPrincipal = u.mainAdmin === true ||
+    u.id === "admin" || u.id === "master" ||
+    (u.email || "").toLowerCase() === "admin@mercado.com";
+  if (ehPrincipal) return u;
+  const perms = u.permissions;
+  if (perms === undefined || perms === null) return u;
+  if (perms.includes("all") || perms.includes(permissao)) return u;
+  throw new HttpsError(
+    "permission-denied",
+    "Seu acesso a esta função foi restringido pelo administrador principal."
+  );
+}
+
+/**
+ * Verifica a SENHA SECUNDÁRIA/MESTRA informada para operações sensíveis
+ * (aporte, retirada, restauração).
+ *  - Formato atual: bcrypt em settings/private.masterPasswordHash.
+ *  - Formato LEGADO: plaintext em settings/general.secondaryPassword /
+ *    adminPassword — ao acertar a senha legada, MIGRA automaticamente para
+ *    bcrypt (settings/private) e apaga o plaintext (uma única vez).
+ *  - Sem nenhum formato configurado: falha seguro com orientação clara.
+ */
+async function verificarSenhaMestra(informada) {
+  const senha = String(informada || "");
+  const privSnap = await db.collection("settings").doc("private").get();
+  const priv = privSnap.exists ? privSnap.data() : {};
+  if (priv.masterPasswordHash) {
+    const ok = await bcrypt.compare(senha, priv.masterPasswordHash);
+    if (!ok) throw new HttpsError("permission-denied", "Senha secundária inválida.");
+    return;
+  }
+  const genSnap = await db.collection("settings").doc("general").get();
+  const gen = genSnap.exists ? genSnap.data() : {};
+  const legada = String(gen.secondaryPassword || gen.adminPassword || "");
+  if (!legada) {
+    throw new HttpsError(
+      "failed-precondition",
+      "A senha secundária ainda não foi configurada. Vá em Configurações > Segurança e defina a senha secundária (mínimo 8 caracteres) antes de continuar."
+    );
+  }
+  if (senha !== legada) {
+    throw new HttpsError("permission-denied", "Senha secundária inválida.");
+  }
+  // Migração automática do formato antigo para bcrypt (remove o plaintext).
+  const hash = await bcrypt.hash(legada, 12);
+  await db.collection("settings").doc("private").set({ masterPasswordHash: hash }, { merge: true });
+  await db.collection("settings").doc("general").update({
+    secondaryPassword: admin.firestore.FieldValue.delete(),
+    adminPassword: admin.firestore.FieldValue.delete(),
+  }).catch(() => {});
+  logger.info("[Segurança] Senha secundária migrada do formato legado para bcrypt.");
+}
+
 /** Garante que o chamador está autenticado. */
 async function exigirAutenticado(context) {
   if (!context || !context.auth || !context.auth.uid) {
@@ -139,6 +210,20 @@ function validarValor(valor, minimo = 0.01) {
   const v = Number(valor);
   if (!isFinite(v) || v < minimo) throw new HttpsError("invalid-argument", "Valor inválido.");
   return arredondar(v);
+}
+
+// Módulos que um admin secundário pode acessar. "all" = acesso total.
+const PERMISSOES_ADMIN = [
+  "all", "orders", "products", "sales", "cash",
+  "inmates", "users", "finance", "wallet", "reports",
+];
+
+function validarPermissoesAdmin(perms) {
+  if (perms === undefined || perms === null) return ["all"];
+  if (!Array.isArray(perms)) throw new HttpsError("invalid-argument", "Permissões inválidas.");
+  const unicas = [...new Set(perms.filter((p) => PERMISSOES_ADMIN.includes(p)))];
+  if (unicas.includes("all")) return ["all"];
+  return unicas;
 }
 
 // Rate limiting em memória (por instância de função) — janela deslizante por chave.
@@ -340,18 +425,19 @@ exports.registrarUsuario = onCall(async (request) => {
   if (inmateCpf.length === 11 && role === "FAMILY") {
     const preSnap = await db.collection("pre_registered_inmates")
       .where("cpf", "==", inmateCpf).limit(1).get();
-    const preTotal = await db.collection("pre_registered_inmates").limit(1).get();
-    if (!preSnap.empty) {
-      const preDoc = preSnap.docs[0];
-      const preName = String(preDoc.data().name || "").slice(0, 120);
-      if (!dados.inmateName && preName) dados.inmateName = preName;
-      if (!dados.prisonerName && preName) dados.prisonerName = preName;
-    } else if (!preTotal.empty) {
+    if (preSnap.empty) {
+      // Sempre bloqueia — mesmo quando a coleção de pré-cadastros está vazia.
+      // (Antes, coleção vazia = qualquer CPF de interno era aceito; um atacante
+      // podia se cadastrar como FAMILY de qualquer detento e esgotar os 3 slots.)
       throw new HttpsError(
         "invalid-argument",
         "O interno informado não está pré-cadastrado no sistema. Por favor, entre em contato com a administração."
       );
     }
+    const preDoc = preSnap.docs[0];
+    const preName = String(preDoc.data().name || "").slice(0, 120);
+    if (!dados.inmateName && preName) dados.inmateName = preName;
+    if (!dados.prisonerName && preName) dados.prisonerName = preName;
     const fams = await db.collection("users")
       .where("inmateCpf", "==", inmateCpf)
       .where("role", "==", "FAMILY")
@@ -471,6 +557,7 @@ exports.criarAdmin = onCall(async (request) => {
 
   const authUser = await admin.auth().createUser({ email, password: senha });
   const hash = await bcrypt.hash(senha, 12);
+  const permissao = validarPermissoesAdmin(request.data?.permissions);
   await db.collection("users").doc(authUser.uid).set({
     id: authUser.uid,
     authUid: authUser.uid,
@@ -480,15 +567,51 @@ exports.criarAdmin = onCall(async (request) => {
     role: "admin",
     status: "active",
     approved: true,
-    permissions: ["all"],
+    permissions: permissao,
     walletBalance: 0,
     weeklySpent: 0,
     createdBy: caller.id,
     createdAt: new Date().toISOString(),
   });
   await salvarHashLegado(authUser.uid, hash);
-  await registrarAudit(caller.id, "CRIAR_ADMIN", null, { usuarioId: authUser.uid, nome, email, cpf: cpf || null });
+  await registrarAudit(caller.id, "CRIAR_ADMIN", null, { usuarioId: authUser.uid, nome, email, cpf: cpf || null, permissao });
   return { ok: true, userId: authUser.uid };
+});
+
+/** Master - altera as permissões de um admin secundário a qualquer momento. */
+exports.atualizarPermissoesAdmin = onCall(async (request) => {
+  const caller = await exigirAdminPrincipal(request);
+  const userId = String(request.data?.userId || "").trim();
+  if (!userId) throw new HttpsError("invalid-argument", "Informe o usuário.");
+  const permissoes = request.data?.permissions;
+  if (!Array.isArray(permissoes)) {
+    throw new HttpsError("invalid-argument", "Informe a lista de permissões.");
+  }
+  const permissaoFinal = validarPermissoesAdmin(permissoes);
+
+  const snap = await db.collection("users").doc(userId).get();
+  if (!snap.exists) throw new HttpsError("not-found", "Usuário não encontrado.");
+  const userData = snap.data();
+  if (
+    userData.mainAdmin === true ||
+    userData.id === "admin" || userData.id === "master" ||
+    String(userData.email || "").toLowerCase() === "admin@mercado.com"
+  ) {
+    throw new HttpsError("permission-denied", "Não é possível alterar as permissões do administrador principal.");
+  }
+  if (!["admin", "master"].includes(String(userData.role || "").toLowerCase())) {
+    throw new HttpsError("invalid-argument", "O usuário informado não é um administrador.");
+  }
+
+  await db.collection("users").doc(userId).update({
+    permissions: permissaoFinal,
+    updatedAt: new Date().toISOString(),
+  });
+  await registrarAudit(caller.id, "ALTERAR_PERMISSOES_ADMIN", userId, {
+    de: userData.permissions || null,
+    para: permissaoFinal,
+  });
+  return { ok: true, permissions: permissaoFinal };
 });
 
 /** Autenticado — altera a própria senha. */
@@ -504,7 +627,7 @@ exports.alterarSenha = onCall(async (request) => {
 
 /** Admin — redefine a senha de qualquer usuário (exceto a conta principal). */
 exports.redefinirSenhaAdmin = onCall(async (request) => {
-  const caller = await exigirAdmin(request);
+  const caller = await exigirAdminPermissao(request, "users");
   const userId = String(request.data?.userId || "");
   const novaSenha = validarSenha(request.data?.novaSenha);
   if (!userId) throw new HttpsError("invalid-argument", "Informe o usuário.");
@@ -539,6 +662,7 @@ exports.redefinirSenhaAdmin = onCall(async (request) => {
 exports.redefinirSenhaPublica = onCall(async (request) => {
   const cpf = cleanCpf(request.data?.cpf);
   const cpfInterno = cleanCpf(request.data?.cpfInterno);
+  const nomeCompleto = String(request.data?.nomeCompleto || "").trim().toLowerCase().replace(/\s+/g, " ");
   const apenasValidacao = String(request.data?.novaSenha || "") === "__VALIDACAO__";
   const novaSenha = apenasValidacao ? "" : validarSenha(request.data?.novaSenha);
   if (cpf.length !== 11) throw new HttpsError("invalid-argument", "CPF do usuário inválido.");
@@ -547,9 +671,27 @@ exports.redefinirSenhaPublica = onCall(async (request) => {
   const usuario = await usuarioPorCpf(cpf);
   if (!usuario) throw new HttpsError("not-found", "Usuário não encontrado.");
 
+  // NUNCA permitir recuperação pública de contas administrativas — um atacante
+  // não pode tomar o painel com 2 CPFs conhecidos.
+  const roleDoc = String(usuario.role || "").toLowerCase();
+  if (["admin", "master"].includes(roleDoc)) {
+    throw new HttpsError("permission-denied", "Recuperação pública não disponível para contas administrativas.");
+  }
+
   const cpfInternoDoc = cleanCpf(usuario.inmateCpf || usuario.prisonerCpf || "");
   if (cpfInternoDoc !== cpfInterno) {
     throw new HttpsError("permission-denied", "CPF do interno não confere com o cadastro.");
+  }
+
+  // Fator adicional de conhecimento: o nome completo cadastrado deve bater.
+  // (CPF de usuário + CPF de interno são semi-públicos entre familiares; o
+  // nome completo reduz drasticamente a superfície de tomada de conta.)
+  if (!nomeCompleto) {
+    throw new HttpsError("invalid-argument", "Informe o nome completo cadastrado.");
+  }
+  const nomeDoc = String(usuario.name || "").trim().toLowerCase().replace(/\s+/g, " ");
+  if (!nomeDoc || nomeDoc !== nomeCompleto) {
+    throw new HttpsError("permission-denied", "Nome completo não confere com o cadastro.");
   }
 
   // Contagem de tentativas somente após confirmar que o CPF pertence a um usuário válido
@@ -557,12 +699,12 @@ exports.redefinirSenhaPublica = onCall(async (request) => {
   const bloqueio = await bloqueioRef.get();
   if (bloqueio.exists) {
     const bd = bloqueio.data();
-    const janelaMs = 10 * 60 * 1000;
+    const janelaMs = 30 * 60 * 1000;
     const primeiro = bd.primeiraTentativa ? new Date(bd.primeiraTentativa).getTime() : 0;
     if (Date.now() - primeiro < janelaMs && (Number(bd.contagem) || 0) >= 5) {
       throw new HttpsError(
         "resource-exhausted",
-        "Muitas tentativas de recuperação para este CPF. Aguarde alguns minutos."
+        "Muitas tentativas de recuperação para este CPF. Aguarde 30 minutos."
       );
     }
     if (Date.now() - primeiro >= janelaMs) {
@@ -594,7 +736,7 @@ exports.redefinirSenhaPublica = onCall(async (request) => {
 
 /** Admin — aprova depósito PIX (credita saldo). */
 exports.aprovarDeposito = onCall(async (request) => {
-  const caller = await exigirAdmin(request);
+  const caller = await exigirAdminPermissao(request, "wallet");
   const tid = String(request.data?.transacaoId || "");
   if (!tid) throw new HttpsError("invalid-argument", "Transação inválida.");
 
@@ -683,6 +825,14 @@ exports.creditarSaldo = onCall(async (request) => {
   const userId = String(request.data?.userId || "");
   const valor = validarValor(request.data?.valor);
   const motivo = String(request.data?.motivo || "Crédito administrativo").slice(0, 200);
+  logger.info(`[creditarSaldo] operador=${caller.id} usuario=${userId} valor=${valor}`);
+
+  // SEGURANÇA (LGPD/auditoria): aporte manual de crédito exige a SENHA
+  // SECUNDÁRIA (mestra), validada no servidor com bcrypt + rate limit.
+  // Sem hash configurado a operação fica BLOQUEADA (falha segura).
+  verificarRateLimit("creditarSaldo:" + caller.id, 10);
+  await verificarSenhaMestra(request.data?.senhaMestra);
+  logger.info(`[creditarSaldo] senha validada — executando operação (${caller.id})`);
 
   let novoSaldoFinal = null;
   let saldoAnterior = null;
@@ -726,12 +876,18 @@ exports.creditarSaldo = onCall(async (request) => {
   return { ok: true, novoSaldo: novoSaldoFinal };
 });
 
-/** Admin — retirada de saldo (débito) de qualquer usuário. */
+/** Admin PRINCIPAL — retirada de saldo (débito) de qualquer usuário.
+ *  O dinheiro SAI da gaveta: exige senha mestra (bcrypt + rate limit),
+ *  mesmo nível de segurança do aporte de crédito (creditarSaldo). */
 exports.sacarSaldoAdmin = onCall(async (request) => {
-  const caller = await exigirAdmin(request);
+  const caller = await exigirAdminPrincipal(request);
   const userId = String(request.data?.userId || "");
   const valor = validarValor(request.data?.valor);
   const motivo = String(request.data?.motivo || "Retirada de crédito").slice(0, 200);
+  logger.info(`[sacarSaldoAdmin] operador=${caller.id} usuario=${userId} valor=${valor}`);
+
+  verificarRateLimit("sacarSaldoAdmin:" + caller.id, 10);
+  await verificarSenhaMestra(request.data?.senhaMestra);
 
   // Caixa físico: o dinheiro pago ao cliente sai da gaveta — registra a sangria
   // automática na sessão aberta do operador (se houver), mesmo padrão das vendas.
@@ -810,8 +966,8 @@ exports.sacarSaldoProprio = onCall(async (request) => {
     const uSnap = await t.get(uRef);
     if (!uSnap.exists) throw new Error("Usuário não encontrado.");
     const ud = uSnap.data();
-    if (Number(ud.walletBalance || 0) < valor) throw new Error(`Saldo insuficiente! Disponível: R$ ${Number(ud.walletBalance || 0).toFixed(2)}`);
-    const novoSaldo = arredondar(Number(ud.walletBalance || 0) - valor);
+    validarSaldoSuficiente(ud.walletBalance || 0, valor);
+    const novoSaldo = calcularNovoSaldo(ud.walletBalance || 0, valor);
     novoSaldoFinal = novoSaldo;
     t.update(uRef, { walletBalance: novoSaldo });
     await registrarTransacaoCarteira(t, db.collection("wallet_transactions").doc(), {
@@ -841,19 +997,11 @@ exports.sacarSaldoProprio = onCall(async (request) => {
 // ──────────────────────────────────────────────
 
 function validarItens(itens) {
-  if (!Array.isArray(itens) || itens.length === 0) {
-    throw new HttpsError("invalid-argument", "Lista de itens vazia.");
+  try {
+    return validarItensPuros(itens);
+  } catch (e) {
+    throw new HttpsError("invalid-argument", e.message);
   }
-  const agregados = new Map();
-  for (const raw of itens) {
-    const productId = String(raw?.productId || "");
-    const quantity = Math.floor(Number(raw?.quantity) || 0);
-    if (!productId || quantity <= 0) {
-      throw new HttpsError("invalid-argument", "Item inválido na lista de compras (produto ou quantidade incorretos).");
-    }
-    agregados.set(productId, (agregados.get(productId) || 0) + quantity);
-  }
-  return Array.from(agregados.entries()).map(([productId, quantity]) => ({ productId, quantity }));
 }
 
 /**
@@ -994,7 +1142,7 @@ async function resolverSessaoCaixaDoPedido(pedido) {
  * retorna { deduplicado: true, order } se o token já foi usado, ou null.
  */
 async function verificarIdempotenciaVenda(t, clientToken, userId) {
-  const token = String(clientToken || "").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 64);
+  const token = sanitizarToken(clientToken);
   if (!token) return null;
   const reqRef = db.collection("request_guard").doc(`venda_${token}`);
   const reqSnap = await t.get(reqRef);
@@ -1016,7 +1164,7 @@ async function verificarIdempotenciaVenda(t, clientToken, userId) {
  * grava a marca do token apontando para o pedido recém-criado.
  */
 function marcarIdempotenciaVenda(t, clientToken, userId, orderId) {
-  const token = String(clientToken || "").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 64);
+  const token = sanitizarToken(clientToken);
   if (!token) return;
   t.set(db.collection("request_guard").doc(`venda_${token}`), {
     type: "venda",
@@ -1027,7 +1175,7 @@ function marcarIdempotenciaVenda(t, clientToken, userId, orderId) {
 }
 
 function lerClientToken(data) {
-  return String(data?.clientToken || "").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 64);
+  return sanitizarToken(data?.clientToken);
 }
 
 /**
@@ -1035,7 +1183,7 @@ function lerClientToken(data) {
  * debita carteira quando houver, registra caixa físico e cria o pedido.
  */
 exports.processarVendaAdmin = onCall(async (request) => {
-  const caller = await exigirAdmin(request);
+  const caller = await exigirAdminPermissao(request, "sales");
   const targetUserId = String(request.data?.targetUserId || "balcao_anonimo");
   const paymentMethod = String(request.data?.paymentMethod || "CASH");
   const itens = validarItens(request.data?.items);
@@ -1052,29 +1200,18 @@ exports.processarVendaAdmin = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "Forma de pagamento inválida.");
   }
 
-  let walletPortion = 0;
-  let cashPortion = 0;
-  if (paymentMethod === "WALLET") {
-    walletPortion = arredondar(Number(request.data?.total) || 0);
-  } else if (paymentMethod === "MIXED") {
-    if (!payments || payments.length === 0) throw new HttpsError("invalid-argument", "Pagamento misto sem valores.");
-    for (const p of payments) {
-      if (!metodosValidos.includes(p.method)) throw new HttpsError("invalid-argument", "Método inválido no pagamento misto.");
-      if (!isFinite(Number(p.amount)) || Number(p.amount) < 0) throw new HttpsError("invalid-argument", "Valor inválido no pagamento misto.");
-      if (p.method === "WALLET") walletPortion = arredondar(walletPortion + Number(p.amount));
-      if (p.method === "CASH") cashPortion = arredondar(cashPortion + Number(p.amount));
-    }
-  } else if (paymentMethod === "CASH") {
-    // cashPortion será = total calculado NO SERVIDOR (dentro da transação)
-    cashPortion = 0;
-  }
+  // Partes de carteira/dinheiro são calculadas DENTRO da transação (total
+  // server-side); aqui só detectamos a presença de dinheiro para resolver a
+  // sessão de caixa antes de abrir a transação.
+  const temParteCash = paymentMethod === "CASH" ||
+    (paymentMethod === "MIXED" && (payments || []).some((p) => p.method === "CASH"));
+  const temPartePix = paymentMethod === "PIX" ||
+    (paymentMethod === "MIXED" && (payments || []).some((p) => p.method === "PIX"));
 
   const orderId = (crypto.randomUUID ? crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase() : Math.random().toString(36).slice(2, 14)).toUpperCase();
 
   // Auditoria PIX: a venda só chega aqui DEPOIS que o operador confirmou o recebimento
   // (o frontend bloqueia a finalização sem confirmação). Registra quem/ quando confirmou.
-  const temPartePix = paymentMethod === "PIX" ||
-    (paymentMethod === "MIXED" && (payments || []).some((p) => p.method === "PIX"));
   const pixConfirmacao = temPartePix
     ? {
         pixConfirmed: true,
@@ -1088,8 +1225,6 @@ exports.processarVendaAdmin = onCall(async (request) => {
   // o id é resolvido ANTES da transação, mas o doc é relido DENTRO dela.
   // Necessária para CASH puro E para MIXED com parte em dinheiro
   // (correção: antes, a parte em dinheiro do MIXED nunca era creditada no caixa).
-  const temParteCash = paymentMethod === "CASH" ||
-    (paymentMethod === "MIXED" && (payments || []).some((p) => p.method === "CASH"));
   let sessaoCaixa = null;
   if (temParteCash) {
     sessaoCaixa = await getSessaoCaixaAberta(caller.id);
@@ -1103,32 +1238,16 @@ exports.processarVendaAdmin = onCall(async (request) => {
       if (guarda) return { ...guarda.order, replay: true };
       const { resultado: itensComPreco, total } = await prepararItensServidor(t, itens);
 
+      // Partes de carteira/dinheiro calculadas NO SERVIDOR (lógica pura testável)
+      const { walletPortion, cashPortion } = calcularPartesPagamento(paymentMethod, payments, total, isConsumer);
+
       if (temParteCash) {
-        cashPortion = paymentMethod === "CASH" ? total : cashPortion;
         if (!sessaoCaixa) throw new Error("Nenhuma sessão de caixa aberta para este operador. Abra o caixa antes de vender em dinheiro.");
         const sessaoAtual = await t.get(refSessaoCaixa(sessaoCaixa));
         if (!sessaoAtual.exists || String(sessaoAtual.data().status || "").toUpperCase() !== "OPEN") {
           throw new Error("A sessão de caixa foi fechada. Reabra o caixa antes de vender em dinheiro.");
         }
       }
-
-    if (paymentMethod === "MIXED") {
-      const somaPagamentos = arredondar((payments || []).reduce((s, p) => s + (Number(p.amount) || 0), 0));
-      if (somaPagamentos !== total) throw new Error("A soma dos pagamentos não confere com o total.");
-      if (walletPortion > total) throw new Error("Valor de carteira excede o total.");
-      if (payments.some((p) => p.method === "FIADO" || p.method === "CARD")) {
-        throw new Error("FIADO e CARD não são suportados em pagamento misto. Use somente PIX, WALLET e/ou CASH.");
-      }
-      if (isConsumer && walletPortion > 0) {
-        throw new Error("Venda para consumidor final não pode usar carteira.");
-      }
-    }
-    if (paymentMethod === "WALLET" && !isConsumer) {
-      walletPortion = total;
-    }
-    if (paymentMethod === "WALLET" && isConsumer) {
-      throw new Error("Venda para consumidor final não pode usar carteira.");
-    }
 
     let userData = null;
     let clienteFiadoNome = null;
@@ -1146,12 +1265,7 @@ exports.processarVendaAdmin = onCall(async (request) => {
         if (!userData.autorizacaoExcepcional) {
           const cfgSnap = await t.get(db.collection("settings").doc("general"));
           const cfg = cfgSnap.exists ? cfgSnap.data() : {};
-          const limite = Number(cfg.weeklyWalletLimit) || 300;
-          if (arredondar((userData.weeklySpent || 0) + walletPortion) > limite) {
-            throw new Error(
-              `Limite semanal excedido. Disponível: R$ ${arredondar(limite - (userData.weeklySpent || 0)).toFixed(2)}`
-            );
-          }
+          verificarLimiteSemanal(userData.weeklySpent || 0, walletPortion, cfg.weeklyWalletLimit);
         }
       }
     }
@@ -1214,9 +1328,7 @@ let walletBalanceBefore, walletBalanceAfter;
     }
 
     if (cashPortion > 0 && sessaoCaixa) {
-      if (change !== undefined && (change < 0 || change > cashPortion)) {
-        throw new Error("Troco inválido (deve estar entre 0 e o valor pago em dinheiro).");
-      }
+      validarTroco(change, cashPortion);
       const payload = {
         currentBalance: admin.firestore.FieldValue.increment(cashPortion),
         supplements: admin.firestore.FieldValue.arrayUnion({
@@ -1310,15 +1422,12 @@ exports.comprarComCarteira = onCall(async (request) => {
     if (!ud.autorizacaoExcepcional) {
       const cfgSnap = await t.get(db.collection("settings").doc("general"));
       const cfg = cfgSnap.exists ? cfgSnap.data() : {};
-      const limite = Number(cfg.weeklyWalletLimit) || 300;
-      if (arredondar(Number(ud.weeklySpent || 0) + total) > limite) {
-        throw new Error(`Limite semanal excedido. Disponível: R$ ${arredondar(limite - Number(ud.weeklySpent || 0)).toFixed(2)}`);
-      }
+      verificarLimiteSemanal(ud.weeklySpent || 0, total, cfg.weeklyWalletLimit);
     }
 
     debitarEstoque(t, itensComPreco);
 
-    const novoSaldo = arredondar(Number(ud.walletBalance || 0) - total);
+    const novoSaldo = calcularNovoSaldo(ud.walletBalance || 0, total);
     const novoWeekly = arredondar(Number(ud.weeklySpent || 0) + total);
     t.update(db.collection("users").doc(user.id), { walletBalance: novoSaldo, weeklySpent: novoWeekly });
     const saldoAnterior = arredondar(Number(ud.walletBalance || 0));
@@ -1461,7 +1570,7 @@ paymentMethod: "PIX",
  *  - Registra auditoria e notifica o usuário que fez o pedido.
  */
 exports.aprovarPedidoPix = onCall(async (request) => {
-  const caller = await exigirAdmin(request);
+  const caller = await exigirAdminPermissao(request, "orders");
   const orderId = String(request.data?.orderId || "").trim();
   const finalizar = request.data?.finalizar === true;
   if (!orderId) throw new HttpsError("invalid-argument", "Pedido inválido.");
@@ -1532,7 +1641,7 @@ exports.aprovarPedidoPix = onCall(async (request) => {
 
 /** Admin — estorno/devolução de pedido com carteira. */
 exports.estornarVenda = onCall(async (request) => {
-  const caller = await exigirAdmin(request);
+  const caller = await exigirAdminPermissao(request, "sales");
   const orderId = String(request.data?.orderId || "");
   const motivo = String(request.data?.motivo || "Devolução administrativa").slice(0, 200);
   if (!orderId) throw new HttpsError("invalid-argument", "Pedido inválido.");
@@ -1672,7 +1781,7 @@ return { ok: true };
 exports.registrarPagamentoConta = onCall({
   timeoutSeconds: 60,
 }, async (request) => {
-  const caller = await exigirAdmin(request);
+  const caller = await exigirAdminPermissao(request, "finance");
   const customerAccountId = String(request.data?.customerAccountId || "").trim();
   const amount = arredondar(Number(request.data?.amount) || 0);
   const note = String(request.data?.note || "").trim().slice(0, 120);
@@ -1882,13 +1991,15 @@ exports.arquivarDadosAntigos = onSchedule({
     for (const col of collections) {
       let pagina = await db.collection(col.name)
         .where(col.dateField, "<=", cutoffStr)
+        .where("deleted", "!=", true)
         .limit(500)
         .get();
       let lote = 0;
       while (!pagina.empty && lote < 8 && totalArchived < 4000) {
         const loteDocs = pagina.docs.filter((doc) => {
-          if (!col.skipPendentes) return true;
           const d = doc.data();
+          if (d.deleted === true) return false;
+          if (!col.skipPendentes) return true;
           return String(d.status || "").toLowerCase() !== "pending";
         });
         if (loteDocs.length > 0) {
@@ -1914,6 +2025,7 @@ exports.arquivarDadosAntigos = onSchedule({
 
         pagina = await db.collection(col.name)
           .where(col.dateField, "<=", cutoffStr)
+          .where("deleted", "!=", true)
           .limit(500)
           .get();
       }
@@ -1937,10 +2049,10 @@ exports.arquivarDadosAntigos = onSchedule({
 
 /** Admin ─ define/atualiza a senha mestra (bcrypt no servidor). */
 exports.definirSenhaMestra = onCall(async (request) => {
-  await exigirAdmin(request);
+  await exigirAdminPrincipal(request);
   const nova = String(request.data?.senha || "");
-  if (nova.length < 4) {
-    throw new HttpsError("invalid-argument", "A senha mestra deve ter pelo menos 4 caracteres.");
+  if (nova.length < 8) {
+    throw new HttpsError("invalid-argument", "A senha mestra deve ter pelo menos 8 caracteres.");
   }
   const hash = await bcrypt.hash(nova, 12);
   await db.collection("settings").doc("private").set({ masterPasswordHash: hash }, { merge: true });
@@ -2003,9 +2115,13 @@ exports.limparDadosAntigos = onCall({
   timeoutSeconds: 540,
   memory: "1GiB",
 }, async (request) => {
-  const chamador = await exigirAdmin(request);
+  // Só admin PRINCIPAL: apaga fisicamente comprovantes e até 12.000 docs —
+  // poder destrutivo comparável ao de creditarSaldo, que exige senha mestra.
+  const chamador = await exigirAdminPrincipal(request);
   const dias = Math.max(30, Math.min(730, Math.floor(Number(request.data?.dias) || 90)));
+  const apagarArquivos = Boolean(request.data?.apagarArquivos);
   const cutoff = new Date(Date.now() - dias * 24 * 60 * 60 * 1000).toISOString();
+  const bucket = admin.storage().bucket(FUNC_BUCKET);
 
   const colecoes = [
     { name: "orders", dateField: "createdAt", skipPendentes: true },
@@ -2016,20 +2132,25 @@ exports.limparDadosAntigos = onCall({
   const backup = { geradoEm: new Date().toISOString(), dias, por: chamador.name || chamador.id, dados: {} };
   const totais = {};
   let totalApagados = 0;
+  let arquivosApagados = 0;
+  let arquivosFalha = 0;
 
   for (const col of colecoes) {
     totais[col.name] = 0;
     backup.dados[col.name] = [];
     let pagina = await db.collection(col.name)
       .where(col.dateField, "<=", cutoff)
+      .where("deleted", "!=", true)
       .limit(500)
       .get();
     let lote = 0;
     // Limites de segurança: máx 4000 docs/coleção por execução, 8 lotes de 500.
     while (!pagina.empty && lote < 8 && backup.dados[col.name].length < 4000) {
       const loteDocs = pagina.docs.filter((d) => {
+        const data = d.data();
+        if (data.deleted === true) return false;
         if (!col.skipPendentes) return true;
-        return String(d.data().status || "").toLowerCase() !== "pending";
+        return String(data.status || "").toLowerCase() !== "pending";
       });
       if (loteDocs.length > 0) {
         const dadosLote = loteDocs.map((d) => ({ id: d.id, ...d.data() }));
@@ -2052,11 +2173,37 @@ exports.limparDadosAntigos = onCall({
         await batchSoft.commit();
         totais[col.name] += loteDocs.length;
         totalApagados += loteDocs.length;
+
+        // 3) (Opcional) Apaga os arquivos de comprovante dos registros
+        // arquivados — o Storage é o que realmente enche a cota do plano
+        // gratuito. Só mexe em arquivos do nosso bucket e NUNCA em
+        // documentos de identidade (pasta docs/). A URL continua registrada
+        // no histórico (trilha de auditoria), apenas o arquivo é removido.
+        if (apagarArquivos && col.name !== "expenses") {
+          const campoUrl = col.name === "orders" ? "paymentProofUrl" : "proofUrl";
+          const caminhos = [
+            ...new Set(
+              dadosLote
+                .map((d) => (d[campoUrl] && typeof d[campoUrl] === "string" ? caminhoStorageDeUrl(d[campoUrl], FUNC_BUCKET) : null))
+                .filter(Boolean)
+            ),
+          ];
+          for (const caminho of caminhos) {
+            try {
+              await bucket.file(caminho).delete();
+              arquivosApagados += 1;
+            } catch (e) {
+              arquivosFalha += 1;
+              logger.warn(`[LimpezaCota] Falha ao apagar arquivo ${caminho}:`, e.message);
+            }
+          }
+        }
       }
       lote++;
       if (backup.dados[col.name].length < 4000) {
         pagina = await db.collection(col.name)
           .where(col.dateField, "<=", cutoff)
+          .where("deleted", "!=", true)
           .limit(500)
           .get();
       }
@@ -2064,13 +2211,12 @@ exports.limparDadosAntigos = onCall({
   }
 
   if (totalApagados === 0) {
-    return { ok: true, total: 0, porColecao: totais, backupUrl: "", mensagem: "Nenhum dado antigo encontrado dentro do período." };
+    return { ok: true, total: 0, porColecao: totais, arquivosApagados: 0, arquivosFalha: 0, backupUrl: "", mensagem: "Nenhum dado antigo encontrado dentro do período." };
   }
 
-  // 3) Backup físico em Storage (cópia de segurança independente do Firestore)
+  // Backup físico em Storage (cópia de segurança independente do Firestore)
   let backupUrl = "";
   try {
-    const bucket = admin.storage().bucket(FUNC_BUCKET);
     const nomeArquivo = `backups/limpeza-${Date.now()}.json`;
     await bucket.file(nomeArquivo).save(JSON.stringify(backup), {
       contentType: "application/json",
@@ -2087,7 +2233,52 @@ exports.limparDadosAntigos = onCall({
     lastCotaCleanupDias: dias,
   }, { merge: true });
 
-  return { ok: true, total: totalApagados, porColecao: totais, backupUrl, mensagem: "" };
+  return { ok: true, total: totalApagados, porColecao: totais, arquivosApagados, arquivosFalha, backupUrl, mensagem: "" };
+});
+
+/**
+ * Admin PRINCIPAL — reset TOTAL do sistema (apaga as coleções operacionais).
+ * Substitui o reset que rodava 100% no cliente (qualquer admin podia apagar
+ * o banco inteiro com 1 clique). Agora só o admin principal, com rate limit.
+ * Não toca em users/settings/suppliers/systemMessages/system_licenses
+ * (mesmo comportamento da versão anterior, para não derrubar o cadastro).
+ */
+exports.resetarSistemaTotal = onCall({
+  timeoutSeconds: 300,
+  memory: "512MiB",
+}, async (request) => {
+  const chamador = await exigirAdminPrincipal(request);
+  verificarRateLimit("reset_sistema_" + chamador.id, 1, 60 * 1000);
+  if (request.data?.confirmar !== true) {
+    throw new HttpsError("invalid-argument", "Confirmação explícita necessária.");
+  }
+
+  const collections = [
+    "products", "orders", "expenses", "wallet_transactions", "messages",
+    "audit_logs", "cashier", "cash_sessions", "pre_registered_inmates", "historico_geral",
+  ];
+  const inicio = new Date().toISOString();
+  const totais = {};
+  for (const coll of collections) {
+    const snap = await db.collection(coll).limit(2000).get();
+    totais[coll] = snap.docs.length;
+    for (let i = 0; i < snap.docs.length; i += 500) {
+      const batch = db.batch();
+      const chunk = snap.docs.slice(i, i + 500);
+      chunk.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
+  }
+
+  await db.collection("audit_logs").add({
+    operadorUid: chamador.id,
+    timestamp: new Date().toISOString(),
+    acaoTipo: "RESET_SISTEMA_TOTAL",
+    payloadAntes: { totais, inicio },
+    payloadDepois: { status: "ok" },
+  });
+
+  return { ok: true, totais };
 });
 
 // ──────────────────────────────────────────────
@@ -2136,6 +2327,294 @@ exports.obterLinkDownloadApp = onCall({
 
   return { ok: true, ehAdmin, apps: resultado, versao: "1.0.0" };
 });
+
+// ──────────────────────────────────────────────
+// BACKUP AUTOMÁTICO DIÁRIO + RESTAURAÇÃO SEGURA
+// Cópia de segurança COMPLETA do Firestore para o Cloud Storage (pasta
+// backups/), feita em streaming (memória baixa), com retenção de 30 dias
+// e snapshot de segurança antes de qualquer restauração.
+// ──────────────────────────────────────────────
+
+// Coleções transitórias que NÃO entram no backup (regeneráveis sozinhas).
+const COLS_SEM_BACKUP = new Set(["request_guard"]);
+
+// Coleções SENSÍVEIS que nunca entram no backup (hash de senhas, segredos).
+// auth_secrets guarda hashes bcrypt de senhas; settings/private guarda o hash
+// da senha mestra. Excluí-las evita vazamento de credenciais em Storage e
+// impede que restaurarBackup "reanime" senhas antigas (rotação de segurança).
+const COLS_SEM_BACKUP_SENSIVEIS = new Set(["auth_secrets", "settings"]);
+
+/**
+ * Exporta TODAS as coleções (exceto as transitórias) para um JSON no Storage,
+ * escrevendo em streaming com paginação por __name__ (sem índice composto).
+ * Retorna { arquivo, bytes, totalDocs, porColecao }.
+ */
+async function gerarBackupCompleto(caminho, motivo, por) {
+  const bucket = admin.storage().bucket(FUNC_BUCKET);
+  const arquivo = bucket.file(caminho);
+  const stream = arquivo.createWriteStream({
+    contentType: "application/json",
+    resumable: false,
+    validation: false,
+  });
+
+  const porColecao = {};
+  let totalDocs = 0;
+
+  await new Promise((resolve, reject) => {
+    const escrever = (texto) =>
+      new Promise((ok) => stream.write(texto, ok));
+    (async () => {
+      try {
+        const colecoes = await db.listCollections();
+        await escrever(`{"__meta":{"geradoEm":"${new Date().toISOString()}","motivo":"${motivo}","por":"${por}","versao":1},`);
+        let primeira = true;
+        for (const col of colecoes) {
+          const nome = col.id;
+          // Transitórias (regeneráveis) e sensíveis (hashes/segredos) ficam fora.
+          if (COLS_SEM_BACKUP.has(nome) || COLS_SEM_BACKUP_SENSIVEIS.has(nome)) continue;
+          await escrever(`${primeira ? "" : ","}${JSON.stringify(nome)}:[`);
+          let n = 0;
+          let cursor = null;
+          let primeiroDoc = true;
+          do {
+            const base = db.collection(nome).orderBy("__name__").limit(300);
+            const pagina = cursor
+              ? await base.startAfter(cursor).get()
+              : await base.get();
+            if (pagina.empty) break;
+            cursor = pagina.docs[pagina.docs.length - 1];
+            for (const d of pagina.docs) {
+              await escrever(`${primeiroDoc ? "" : ","}${JSON.stringify({ __id: d.id, ...d.data() })}`);
+              primeiroDoc = false;
+              n++;
+            }
+            totalDocs += pagina.docs.length;
+            if (n >= 50000) break; // salvaguarda: nunca estoura tempo/memória
+          } while (cursor);
+          await escrever("]");
+          porColecao[nome] = n;
+          primeira = false;
+        }
+        await escrever("}");
+        stream.end();
+      } catch (e) {
+        stream.destroy(e);
+      }
+    })();
+    stream.on("finish", resolve);
+    stream.on("error", reject);
+  });
+
+  const [meta] = await arquivo.getMetadata();
+  const bytes = Number(meta.size || 0);
+  logger.info(`[Backup] ${caminho} — ${totalDocs} docs, ${(bytes / 1024 / 1024).toFixed(2)} MB`);
+  return { arquivo: caminho, bytes, totalDocs, porColecao };
+}
+
+/** Apaga backups diários com mais de `dias` (mantém no mínimo `minimo`). */
+async function limparBackupsAntigos(dias = 30, minimo = 3) {
+  try {
+    const bucket = admin.storage().bucket(FUNC_BUCKET);
+    const [files] = await bucket.getFiles({ prefix: "backups/diario-" });
+    const corte = Date.now() - dias * 24 * 60 * 60 * 1000;
+    const paraApagar = files
+      .filter((f) => {
+        const m = f.name.match(/diario-(\d+)\.json$/);
+        if (!m) return false;
+        return Number(m[1]) < corte;
+      })
+      .sort((a, b) => a.name.localeCompare(b.name)); // mais antigos primeiro
+    // Mantém sempre os `minimo` mais recentes, mesmo que antigos.
+    const sobrantes = Math.max(0, paraApagar.length - minimo);
+    await Promise.all(paraApagar.slice(0, sobrantes).map((f) => f.delete().catch(() => {})));
+    if (sobrantes > 0) logger.info(`[Backup] ${sobrantes} backup(s) antigo(s) removido(s) (retenção de ${dias} dias).`);
+  } catch (e) {
+    logger.warn("[Backup] Falha ao limpar backups antigos:", e.message);
+  }
+}
+
+/** Agendado — backup completo diário às 03:15 (hora de Mato Grosso). */
+exports.backupAutomaticoDiario = onSchedule({
+  schedule: "15 3 * * *",
+  timeZone: "America/Cuiaba",
+  timeoutSeconds: 540,
+  memory: "1GiB",
+}, async () => {
+  const inicio = Date.now();
+  const nome = `backups/diario-${Date.now()}.json`;
+  const r = await gerarBackupCompleto(nome, "diario", "sistema");
+  await limparBackupsAntigos(30, 3);
+  await db.collection("settings").doc("maintenance").set({
+    lastBackup: new Date().toISOString(),
+    lastBackupFile: r.arquivo,
+    lastBackupDocs: r.totalDocs,
+    lastBackupBytes: r.bytes,
+    lastBackupDurationMs: Date.now() - inicio,
+    lastBackupStatus: "ok",
+  }, { merge: true });
+});
+
+/** Admin — dispara um backup manual imediatamente. */
+exports.executarBackupAgora = onCall({
+  timeoutSeconds: 540,
+  memory: "1GiB",
+}, async (request) => {
+  const chamador = await exigirAdmin(request);
+  const nome = `backups/manual-${Date.now()}.json`;
+  const r = await gerarBackupCompleto(nome, "manual", chamador.id);
+  return { ok: true, ...r };
+});
+
+/** Admin — lista os backups disponíveis (nome, tamanho, data). */
+exports.listarBackups = onCall(async (request) => {
+  await exigirAdmin(request);
+  const bucket = admin.storage().bucket(FUNC_BUCKET);
+  const [files] = await bucket.getFiles({ prefix: "backups/" });
+  const backups = files
+    .filter((f) => /\.json$/.test(f.name))
+    .map((f) => ({
+      nome: f.name,
+      tamanho: Number(f.metadata.size || 0),
+      atualizadoEm: f.metadata.updated || "",
+    }))
+    .sort((a, b) => b.nome.localeCompare(a.nome));
+  return { ok: true, backups };
+});
+
+/** Admin PRINCIPAL — gera link de download (token) de um backup específico. */
+exports.baixarBackup = onCall(async (request) => {
+  await exigirAdminPrincipal(request);
+  const nome = String(request.data?.nome || "");
+  if (!/^backups\/[\w.-]+\.json$/.test(nome)) {
+    throw new HttpsError("invalid-argument", "Nome de backup inválido.");
+  }
+  const file = admin.storage().bucket(FUNC_BUCKET).file(nome);
+  const [existe] = await file.exists();
+  if (!existe) throw new HttpsError("not-found", "Backup não encontrado.");
+  return { ok: true, url: await urlDownloadComToken(file) };
+});
+
+/**
+ * Admin — restaura um backup completo. Exige, em ordem:
+ *   1. admin ativo
+ *   2. senha mestra válida (settings/private.masterPasswordHash)
+ *   3. confirmação explícita (confirmar: true)
+ * ANTES de restaurar, tira um snapshot de segurança do estado atual
+ * (backups/pre-restore-{timestamp}.json) — nada é perdido.
+ */
+exports.restaurarBackup = onCall({
+  timeoutSeconds: 540,
+  memory: "1GiB",
+}, async (request) => {
+  const chamador = await exigirAdminPrincipal(request);
+  const nome = String(request.data?.nome || "");
+  const confirmar = request.data?.confirmar === true;
+  const senhaMestra = String(request.data?.senhaMestra || "");
+
+  if (!confirmar) throw new HttpsError("failed-precondition", "Confirmação obrigatória para restaurar.");
+  if (!/^backups\/diario-[\d]+\.json$/.test(nome)) {
+    throw new HttpsError("invalid-argument", "Selecione um backup diário válido.");
+  }
+
+  await verificarSenhaMestra(senhaMestra);
+
+  // 1) Snapshot de segurança do estado ATUAL (antes de qualquer escrita).
+  try {
+    await gerarBackupCompleto(`backups/pre-restore-${Date.now()}.json`, "pre_restore", chamador.id);
+  } catch (e) {
+    logger.warn("[Restore] Falha no snapshot de segurança (continuando mesmo assim):", e.message);
+  }
+
+  // 2) Baixa o backup escolhido e aplica por coleção (lote de 450 docs).
+  const file = admin.storage().bucket(FUNC_BUCKET).file(nome);
+  const [buf] = await file.download();
+  const dados = JSON.parse(buf.toString("utf8"));
+  const totais = {};
+  let total = 0;
+
+  for (const [col, docs] of Object.entries(dados)) {
+    if (col === "__meta" || COLS_SEM_BACKUP.has(col) || !Array.isArray(docs)) continue;
+    let n = 0;
+    for (let i = 0; i < docs.length; i += 450) {
+      const lote = docs.slice(i, i + 450);
+      const batch = db.batch();
+      lote.forEach((d) => {
+        const { __id, ...resto } = d;
+        if (!__id) return;
+        batch.set(db.collection(col).doc(__id), resto, { merge: false });
+      });
+      await batch.commit();
+      n += lote.length;
+    }
+    totais[col] = n;
+    total += n;
+  }
+
+  await db.collection("settings").doc("maintenance").set({
+    lastRestore: new Date().toISOString(),
+    lastRestoreFile: nome,
+    lastRestoreBy: chamador.id,
+    lastRestoreDocs: total,
+    lastRestoreStatus: "ok",
+  }, { merge: true });
+
+  logger.info(`[Restore] ${nome} restaurado por ${chamador.id}: ${total} docs.`);
+  return { ok: true, totais, totalDocs: total };
+});
+
+// ──────────────────────────────────────────────
+// Firebase Alerts (Alert Center)
+// ──────────────────────────────────────────────
+// Captura alertas do tópico Pub/Sub `firebase-alerts` (monitoramento de
+// erros/uso) e persiste um registro auditável em alerts_log + último
+// alerta em settings/maintenance (consultável pelo painel admin).
+//
+// IMPORTANTE: o envio de E-MAIL é configurado no console (passo manual
+// de 2 min — Monitoramento > Alertas > Criar regra > Canal: e-mail).
+// Esta função NÃO envia e-mail: apenas registra o alerta de forma
+// persistente e acionável dentro do app. Sem regra criada no console o
+// tópico não existe e/ou nada chega aqui — o deploy desta função exige
+// que ao menos uma regra de alerta esteja ativa no console.
+const { onCustomEventPublished } = require("firebase-functions/v2/eventarc");
+
+exports.tratarAlertasFirebase = onCustomEventPublished(
+  "firebase.alerts/alert",
+  { retry: false, timeoutSeconds: 30 },
+  async (event) => {
+    try {
+      const alerta = event.data || {};
+      const tipo = String(alerta.alertType || alerta.type || "desconhecido").slice(0, 80);
+      const severidade = String(alerta.severity || "WARNING").toUpperCase().slice(0, 10);
+      const titulo = String(alerta.title || tipo).slice(0, 160);
+      const det = alerta.data || {};
+
+      await db.collection("alerts_log").add({
+        tipo,
+        severidade,
+        titulo,
+        mensagem: String(det.message || det.errorCount || "").slice(0, 1000),
+        origem: String(det.service || det.jobName || det.appId || "").slice(0, 120),
+        payload: JSON.stringify(alerta).slice(0, 3000),
+        criadoEm: new Date().toISOString(),
+      });
+
+      await db.collection("settings").doc("maintenance").set({
+        lastFirebaseAlert: {
+          tipo,
+          severidade,
+          titulo,
+          criadoEm: new Date().toISOString(),
+        },
+      }, { merge: true });
+
+      logger.info(`[Alerts] ${severidade} ${tipo}: ${titulo}`);
+    } catch (e) {
+      logger.warn("[Alerts] Falha ao processar alerta (sem abortar):", e.message);
+    }
+  }
+);
+
 
 
 

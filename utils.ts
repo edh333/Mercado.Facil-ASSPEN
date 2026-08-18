@@ -7,6 +7,19 @@ export const formatCPF = (value: string) => {
     .replace(/(-\d{2})\d+?$/, '$1');
 };
 
+/**
+ * Mascara CPF para conformidade LGPD (impressões/relatórios): mantém visíveis
+ * apenas os 3 primeiros e os 2 últimos dígitos. Ex.: 529.***.***-25
+ * Strings curtas ou vazias passam como "***" — nunca expõe o número completo.
+ */
+export const mascararCpf = (cpf: string | null | undefined): string => {
+  const digitos = String(cpf || '').replace(/\D/g, '');
+  if (digitos.length < 6) return '***';
+  const inicio = digitos.slice(0, 3);
+  const fim = digitos.slice(-2);
+  return `${inicio}.***.***-${fim}`;
+};
+
 export const formatPhone = (value: string) => {
   return value
     .replace(/\D/g, '')
@@ -241,4 +254,17 @@ export const formatarMoeda = (valor: number): string => {
   const safeNumber = isNaN(valor as number) || valor === null || valor === undefined ? 0 : Number(valor);
   const centavos = Math.round(safeNumber * 100) / 100;
   return centavos.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+/** Converte entrada de valor monetário (aceita vírgula ou ponto) em número.
+ *  Com vírgula: o ponto é separador de milhar ("1.234,56"). Sem vírgula: o
+ *  ponto é decimal ("129.90") — padrão de teclados internacionais. */
+export const parseMoeda = (valor: string | number | null | undefined): number => {
+  if (valor === null || valor === undefined) return 0;
+  if (typeof valor === 'number') return isFinite(valor) ? valor : 0;
+  const s = String(valor).trim();
+  if (!s) return 0;
+  const limpo = s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : s;
+  const n = parseFloat(limpo);
+  return isFinite(n) ? n : 0;
 };

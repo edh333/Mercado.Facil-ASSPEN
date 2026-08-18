@@ -3,8 +3,9 @@ import {
   Settings, KeyRound, Database, HardDrive, Download, AlertTriangle,
   Trash2, RefreshCw, Smartphone, Palette, Shield, Lock, Save, DollarSign, Check,
   FileText, CreditCard, Building, Info, Printer, Wrench, Truck, ShoppingBag, Search, Loader2, Zap, Users,
-  History, RotateCcw, Upload, Archive, Power, CalendarClock
+  History, RotateCcw, Upload, Archive, Power, CalendarClock, CloudUpload, CloudDownload, FileJson, Receipt, Pencil
 } from 'lucide-react';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { ThemeOption } from '../../types';
 import { useMaintenance } from '../../hooks/useMaintenance';
 import {
@@ -12,6 +13,63 @@ import {
   excluirPontoRestauracao, baixarPontoRestauracao, baixarBackupLocal, importarPontoRestauracao,
   aplicarChavesLocal, formatarDataPonto
 } from '../../utils/backupUtils';
+
+const MODULOS_PERMISSAO: { key: string; label: string }[] = [
+  { key: 'orders', label: 'Pedidos' },
+  { key: 'sales', label: 'Venda Direta (PDV)' },
+  { key: 'products', label: 'Produtos' },
+  { key: 'cash', label: 'Caixa / Gaveta' },
+  { key: 'inmates', label: 'Gestão de Internos' },
+  { key: 'users', label: 'Gestão de Familiares' },
+  { key: 'finance', label: 'Fluxo de Caixa' },
+  { key: 'wallet', label: 'Carteira & Créditos' },
+  { key: 'reports', label: 'Relatórios / Dashboards' },
+];
+
+const PermToggles: React.FC<{ perms: string[]; onChange: (p: string[]) => void }> = ({ perms, onChange }) => (
+  <div className="p-4 bg-white border border-slate-200 rounded-xl space-y-2">
+    <div className="flex items-center justify-between">
+      <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Permissões de acesso</p>
+      <div className="flex gap-1">
+        <button
+          type="button"
+          onClick={() => onChange(MODULOS_PERMISSAO.map(m => m.key))}
+          className="text-[9px] font-black uppercase px-2 py-1 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+        >
+          Todas
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange([])}
+          className="text-[9px] font-black uppercase px-2 py-1 rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200"
+        >
+          Nenhuma
+        </button>
+      </div>
+    </div>
+    <div className="grid grid-cols-2 gap-1.5">
+      {MODULOS_PERMISSAO.map(mod => {
+        const ativo = perms.includes(mod.key);
+        return (
+          <button
+            key={mod.key}
+            type="button"
+            onClick={() => onChange(ativo ? perms.filter(p => p !== mod.key) : [...perms, mod.key])}
+            className={`flex items-center gap-2 p-2 rounded-lg border text-left transition-all ${ativo ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-indigo-300'}`}
+          >
+            <span className={`w-4 h-4 rounded border flex items-center justify-center flex-none ${ativo ? 'bg-white border-white' : 'border-slate-300'}`}>
+              {ativo && <Check size={10} className="text-indigo-600" strokeWidth={4} />}
+            </span>
+            <span className="text-[10px] font-black leading-tight">{mod.label}</span>
+          </button>
+        );
+      })}
+    </div>
+    {perms.length === 0 && (
+      <p className="text-[9px] text-amber-600 font-bold">Sem permissões: o admin verá apenas o Painel Geral.</p>
+    )}
+  </div>
+);
 
 interface AdminSettingsTabProps {
   isMaster: boolean;
@@ -40,6 +98,7 @@ interface AdminSettingsTabProps {
   users: any[];
   deleteUser: (uid: string) => void;
   createAdminUser: (data: any) => void;
+  updateAdminPermissions: (userId: string, permissions: string[]) => void;
   // Optional legacy props forwarded by AdminDashboard
   activateSystem?: (key: string) => Promise<{ success: boolean; message: string }>;
   generateActivationKey?: (days: number) => Promise<string>;
@@ -52,15 +111,18 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
   isMaster, isAuthenticated, onAuthenticate,
   newAdminPassword, setNewAdminPassword, confirmAdminPassword, setConfirmAdminPassword, handleChangeAdminPassword,
   handleProtectedAction, clearOldData, backupSystem, resetStock, resetFinance, updateSettings, settings, resetSystem,
-  users, deleteUser, createAdminUser, handleDownloadSource, handleBuildExe, showNotification,
+  users, deleteUser, createAdminUser, updateAdminPermissions, handleDownloadSource, handleBuildExe, showNotification,
   isInstallable, installApp, defineMasterPassword, currentUserId, currentUserName
 }) => {
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
   const [activeSubTab, setActiveSubTab] = React.useState('general');
   const [newPixKey, setNewPixKey] = React.useState('');
   const [showAddAdmin, setShowAddAdmin] = React.useState(false);
+  const [editPermissionsFor, setEditPermissionsFor] = React.useState<string | null>(null);
+  const [editPermissions, setEditPermissions] = React.useState<string[]>([]);
   const [adminForm, setAdminForm] = React.useState({
     name: '', email: '', password: '', cpf: '',
-    permissions: ['orders', 'products', 'sales']
+    permissions: MODULOS_PERMISSAO.map(m => m.key)
   });
 
   // ── Controle do Sistema (modo manutenção) ──
@@ -87,11 +149,87 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
   const [restoreTarget, setRestoreTarget] = React.useState<PontoRestauracao | null>(null);
   const fileInputRestoreRef = React.useRef<HTMLInputElement>(null);
 
+  // ── Backup na Nuvem (Firestore → Storage) ──
+  const [backupsNuvem, setBackupsNuvem] = React.useState<any[]>([]);
+  const [backupsLoading, setBackupsLoading] = React.useState(false);
+  const [backupExecutando, setBackupExecutando] = React.useState(false);
+  const [restoreNuvemTarget, setRestoreNuvemTarget] = React.useState<any | null>(null);
+  const [restoreNuvemPassword, setRestoreNuvemPassword] = React.useState('');
+  const [restoreNuvemConfirm, setRestoreNuvemConfirm] = React.useState(false);
+  const [restoreNuvemLoading, setRestoreNuvemLoading] = React.useState(false);
+
   const refreshPontos = () => setPontosRestauracao(listarPontosRestauracao());
+
+  const refreshBackupsNuvem = React.useCallback(async () => {
+    setBackupsLoading(true);
+    try {
+      const fn = httpsCallable(getFunctions(), 'listarBackups');
+      const res = await fn();
+      setBackupsNuvem((res.data as any)?.backups || []);
+    } catch {
+      showNotification?.('Erro ao listar backups.', 'error');
+    } finally {
+      setBackupsLoading(false);
+    }
+  }, [showNotification]);
 
   React.useEffect(() => {
     refreshPontos();
-  }, []);
+    refreshBackupsNuvem();
+  }, [refreshBackupsNuvem]);
+
+  const handleBackupAgora = async () => {
+    setBackupExecutando(true);
+    try {
+      const fn = httpsCallable(getFunctions(), 'executarBackupAgora');
+      const res = await fn();
+      const r = res.data as any;
+      showNotification?.(`Backup concluído! ${r.totalDocs || 0} documentos (${((r.bytes || 0) / 1024 / 1024).toFixed(2)} MB).`, 'success');
+      refreshBackupsNuvem();
+    } catch (e: any) {
+      showNotification?.(e?.message || 'Erro ao fazer backup.', 'error');
+    } finally {
+      setBackupExecutando(false);
+    }
+  };
+
+  const handleBaixarBackup = async (nome: string) => {
+    try {
+      const fn = httpsCallable(getFunctions(), 'baixarBackup');
+      const res = await fn({ nome });
+      const url = (res.data as any)?.url;
+      if (url) window.open(url, '_blank');
+      else showNotification?.('URL de download não gerada.', 'error');
+    } catch (e: any) {
+      showNotification?.(e?.message || 'Erro ao baixar backup.', 'error');
+    }
+  };
+
+  const handleRestaurarBackup = async () => {
+    if (!restoreNuvemTarget || !restoreNuvemConfirm) return;
+    if (!restoreNuvemPassword) {
+      showNotification?.('Informe a senha mestra para restaurar.', 'error');
+      return;
+    }
+    setRestoreNuvemLoading(true);
+    try {
+      const fn = httpsCallable(getFunctions(), 'restaurarBackup');
+      const res = await fn({
+        nome: restoreNuvemTarget.nome,
+        confirmar: true,
+        senhaMestra: restoreNuvemPassword,
+      });
+      const r = res.data as any;
+      showNotification?.(`Backup restaurado! ${r.totalDocs || 0} documentos atualizados.`, 'success');
+      setRestoreNuvemTarget(null);
+      setRestoreNuvemPassword('');
+      setRestoreNuvemConfirm(false);
+    } catch (e: any) {
+      showNotification?.(e?.message || 'Erro ao restaurar backup.', 'error');
+    } finally {
+      setRestoreNuvemLoading(false);
+    }
+  };
 
   const handleCriarPonto = () => {
     criarPontoRestauracao(`Manual — ${new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`);
@@ -127,8 +265,8 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
   const handleSaveSecondaryPassword = async () => {
     const pwd = secondaryPassword.trim();
     const confirm = confirmSecondaryPassword.trim();
-    if (!pwd || pwd.length < 4) {
-      showNotification?.('A senha secundária deve ter pelo menos 4 caracteres.', 'error');
+    if (!pwd || pwd.length < 8) {
+      showNotification?.('A senha secundária deve ter pelo menos 8 caracteres.', 'error');
       return;
     }
     if (pwd !== confirm) {
@@ -172,8 +310,8 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
   const handlePasswordChange = async () => {
     const newPwd = newAdminPassword.trim();
     const confirmPwd = confirmAdminPassword.trim();
-    if (!newPwd || newPwd.length < 4) {
-      showNotification?.('A nova senha deve ter pelo menos 4 caracteres.', 'error');
+    if (!newPwd || newPwd.length < 6) {
+      showNotification?.('A nova senha deve ter pelo menos 6 caracteres.', 'error');
       return;
     }
     if (newPwd !== confirmPwd) {
@@ -268,6 +406,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
           <SubTabButton id="receipts" label="Impressão" icon={Printer} />
           <SubTabButton id="appearance" label="Aparência" icon={Palette} />
           <SubTabButton id="updates" label="Atualização" icon={Zap} />
+          <SubTabButton id="backup" label="Backup" icon={Database} />
           <SubTabButton id="maintenance" label="Manutenção" icon={Wrench} />
         </div>
       </div>
@@ -337,22 +476,22 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
             </div>
 
             <div className="space-y-8">
-              {isInstallable && (
-                <div className="bg-gradient-to-br from-blue-600 to-blue-800 p-6 rounded-3xl shadow-2xl flex items-center justify-between flex-wrap gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center">
-                      <Smartphone size={28} className="text-white" />
+              {isInstallable && !isStandalone && (
+                <div className="bg-white border border-slate-200 rounded-2xl px-4 py-3.5 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 shrink-0 bg-slate-900 rounded-xl flex items-center justify-center">
+                      <Smartphone size={18} className="text-white" />
                     </div>
-                    <div>
-                      <h4 className="text-white font-black text-sm uppercase tracking-wider">Instalar Programa</h4>
-                      <p className="text-blue-200 text-[10px] font-bold uppercase tracking-widest mt-0.5">Disponível para PC e Celular</p>
+                    <div className="min-w-0">
+                      <h4 className="text-slate-900 font-black text-[11px] uppercase tracking-wider">Instalar Programa</h4>
+                      <p className="text-slate-500 text-[9px] font-bold uppercase tracking-widest mt-0.5">Disponível para PC e Celular</p>
                     </div>
                   </div>
                   <button
                     onClick={installApp}
-                    className="flex items-center gap-2 bg-white hover:bg-blue-50 text-blue-700 font-black px-6 py-3 rounded-xl text-xs shadow-lg transition-all active:scale-95 cursor-pointer"
+                    className="shrink-0 flex items-center gap-2 bg-slate-900 hover:bg-slate-700 text-white font-black px-4 py-2.5 rounded-xl text-[10px] uppercase tracking-widest shadow transition-all active:scale-95 cursor-pointer"
                   >
-                    <Download size={18} /> BAIXAR E INSTALAR PROGRAMA NO COMPUTADOR / CELULAR
+                    <Download size={14} /> Baixar
                   </button>
                 </div>
               )}
@@ -375,12 +514,13 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                       <input className="w-full p-3 text-xs border bg-white rounded-xl font-black text-slate-900" placeholder="NOME" value={adminForm.name} onChange={e => setAdminForm({ ...adminForm, name: e.target.value.toUpperCase() })} />
                       <input className="w-full p-3 text-xs border bg-white rounded-xl font-black text-slate-900" placeholder="EMAIL" value={adminForm.email} onChange={e => setAdminForm({ ...adminForm, email: e.target.value })} />
                       <input className="w-full p-3 text-xs border bg-white rounded-xl font-black text-slate-900" placeholder="SENHA" type="password" value={adminForm.password} onChange={e => setAdminForm({ ...adminForm, password: e.target.value })} />
+                      <PermToggles perms={adminForm.permissions} onChange={p => setAdminForm({ ...adminForm, permissions: p })} />
                       <button
                         onClick={() => {
                           if (adminForm.name && adminForm.email && adminForm.password) {
                             createAdminUser(adminForm);
                             setShowAddAdmin(false);
-                            setAdminForm({ name: '', email: '', password: '', cpf: '', permissions: ['orders', 'products', 'sales'] });
+                            setAdminForm({ name: '', email: '', password: '', cpf: '', permissions: MODULOS_PERMISSAO.map(m => m.key) });
                           }
                         }}
                         className="w-full bg-slate-900 text-white p-3 rounded-xl text-xs font-black uppercase"
@@ -391,15 +531,71 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                   )}
                   <div className="space-y-2">
                     {(users || []).filter(u => u.role === 'ADMIN' && u.id !== 'master').map(admin => (
-                      <div key={admin.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
-                        <div>
-                          <p className="font-black text-xs">{admin.name}</p>
-                          <p className="text-[10px] text-slate-500">{admin.email}</p>
+                      <React.Fragment key={admin.id}>
+                        <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
+                          <div className="min-w-0">
+                            <p className="font-black text-xs">{admin.name}</p>
+                            <p className="text-[10px] text-slate-500">{admin.email}</p>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {!admin.permissions || admin.permissions.length === 0 || admin.permissions.includes('all') ? (
+                                <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${admin.permissions?.includes('all') ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                                  {admin.permissions?.includes('all') ? 'Acesso total' : 'Sem permissões'}
+                                </span>
+                              ) : (
+                                admin.permissions.map(p => {
+                                  const mod = MODULOS_PERMISSAO.find(m => m.key === p);
+                                  if (!mod) return null;
+                                  return (
+                                    <span key={p} className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700">
+                                      {mod.label}
+                                    </span>
+                                  );
+                                })
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 flex-none">
+                            <button
+                              onClick={() => {
+                                setEditPermissions(admin.permissions?.includes('all') ? MODULOS_PERMISSAO.map(m => m.key) : (admin.permissions || []));
+                                setEditPermissionsFor(admin.id);
+                              }}
+                              title="Editar permissões"
+                              className="text-indigo-500 p-2 rounded-lg hover:bg-indigo-50 transition-all"
+                            >
+                              <Pencil size={15} />
+                            </button>
+                            <button onClick={() => { if (confirm('REMOVER?')) deleteUser(admin.id); }} className="text-red-500 p-2">
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
                         </div>
-                        <button onClick={() => { if (confirm('REMOVER?')) deleteUser(admin.id); }} className="text-red-500 p-2">
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
+                        {editPermissionsFor === admin.id && (
+                          <div className="p-4 bg-white rounded-xl border border-indigo-200 space-y-3">
+                            <PermToggles perms={editPermissions} onChange={setEditPermissions} />
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => {
+                                  updateAdminPermissions(
+                                    admin.id,
+                                    editPermissions.length === MODULOS_PERMISSAO.length ? ['all'] : editPermissions
+                                  );
+                                  setEditPermissionsFor(null);
+                                }}
+                                className="flex-1 bg-slate-900 text-white p-2.5 rounded-xl text-[10px] font-black uppercase hover:bg-black transition-all"
+                              >
+                                Salvar permissões
+                              </button>
+                              <button
+                                onClick={() => setEditPermissionsFor(null)}
+                                className="px-4 bg-white border border-slate-200 text-slate-600 p-2.5 rounded-xl text-[10px] font-black uppercase hover:bg-slate-50 transition-all"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </React.Fragment>
                     ))}
                     {(users || []).filter(u => u.role === 'ADMIN' && u.id !== 'master').length === 0 && (
                       <p className="text-[10px] text-slate-400 font-black uppercase text-center py-4">Nenhum administrador extra cadastrado</p>
@@ -494,7 +690,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                 </div>
                 <button
                   onClick={handleSaveSecondaryPassword}
-                  disabled={isSavingSecondaryPass || !secondaryPassword.trim() || secondaryPassword.trim() !== confirmSecondaryPassword.trim()}
+                  disabled={isSavingSecondaryPass || secondaryPassword.trim().length < 8 || secondaryPassword.trim() !== confirmSecondaryPassword.trim()}
                   className="w-full bg-amber-500 text-white p-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-amber-600 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSavingSecondaryPass ? (
@@ -704,6 +900,17 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                     <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
                   </label>
                 </div>
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <p className="text-xs font-black uppercase text-slate-900 mb-2">Tipo de Corte</p>
+                  <select
+                    className="w-full p-3 bg-white border-2 border-slate-400 rounded-xl font-black text-sm text-slate-900"
+                    value={settings?.cutMode === 'full' ? 'full' : 'partial'}
+                    onChange={e => updateSettings({ ...settings, cutMode: e.target.value })}
+                  >
+                    <option value="partial">Parcial (padrão — não engole o fim do cupom)</option>
+                    <option value="full">Total (corta de ponta a ponta)</option>
+                  </select>
+                </div>
                 <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
                   <div>
                     <p className="text-xs font-black uppercase text-slate-900">Abrir gaveta de dinheiro</p>
@@ -726,11 +933,84 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                     <option value={8}>8 — Escura</option>
                   </select>
                 </div>
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <p className="text-xs font-black uppercase text-slate-900 mb-2">Codepage (Acentuação)</p>
+                  <select
+                    className="w-full p-3 bg-white border-2 border-slate-400 rounded-xl font-black text-sm text-slate-900"
+                    value={settings?.codepage || '850'}
+                    onChange={e => updateSettings({ ...settings, codepage: e.target.value })}
+                  >
+                    <option value="850">PC850 — Multilingual (padrão)</option>
+                    <option value="860">PC860 — Português</option>
+                    <option value="utf8">UTF-8 (impressoras modernas)</option>
+                  </select>
+                  <p className="text-[10px] text-slate-500 mt-1">Evita acentos corrompidos (ï¿½) na bobina</p>
+                </div>
               </div>
             </div>
-            <div className="bg-slate-900 p-10 rounded-3xl text-white flex flex-col items-center justify-center gap-4">
-              <Printer size={48} className="text-purple-400" />
-              <p className="text-xs text-center text-white/40 uppercase font-black tracking-widest">Prévia do cupom térmico aparecerá aqui</p>
+            <div className="bg-slate-900 p-8 rounded-3xl text-white">
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-3">
+                  <Receipt size={24} className="text-amber-400" />
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-widest">Emissão Fiscal (NF-e / NFC-e / SAT)</p>
+                    <p className="text-[10px] text-white/40 font-bold mt-0.5">Opcional — confirme o modelo com seu contador</p>
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                  <input
+                    type="checkbox"
+                    className="sr-only peer"
+                    checked={settings?.fiscalEmission === true}
+                    onChange={e => updateSettings({ ...settings, fiscalEmission: e.target.checked })}
+                  />
+                  <div className="w-11 h-6 bg-slate-600 rounded-full peer peer-checked:bg-amber-500 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
+                </label>
+              </div>
+              <div className={`space-y-4 ${settings?.fiscalEmission === true ? '' : 'opacity-40 pointer-events-none'}`}>
+                <div>
+                  <label className="text-[10px] font-black uppercase text-white/60 mb-1 block">Modelo Fiscal</label>
+                  <select
+                    className="w-full p-3 bg-white/10 border border-white/20 rounded-xl font-black text-sm text-white"
+                    value={settings?.fiscalModel || 'NF-E'}
+                    onChange={e => updateSettings({ ...settings, fiscalModel: e.target.value })}
+                  >
+                    <option value="NF-E">NF-e</option>
+                    <option value="NFC-E">NFC-e</option>
+                    <option value="SAT">SAT (CF-e)</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-black uppercase text-white/60 mb-1 block">Número (sequência)</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      className="w-full p-3 bg-white/10 border border-white/20 rounded-xl font-bold text-sm text-white"
+                      value={settings?.fiscalNumber || ''}
+                      onChange={e => updateSettings({ ...settings, fiscalNumber: e.target.value.replace(/\D/g, '').slice(0, 9) })}
+                      placeholder="000001"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black uppercase text-white/60 mb-1 block">Série</label>
+                    <input
+                      type="text"
+                      className="w-full p-3 bg-white/10 border border-white/20 rounded-xl font-bold text-sm text-white uppercase"
+                      value={settings?.fiscalSeries || ''}
+                      onChange={e => updateSettings({ ...settings, fiscalSeries: e.target.value.toUpperCase().slice(0, 3) })}
+                      placeholder="A1"
+                    />
+                  </div>
+                </div>
+                <div className="p-4 bg-white/5 rounded-xl border border-white/10">
+                  <p className="text-[10px] font-black uppercase text-white/50 leading-relaxed">
+                    Quando ativado, o cupom térmico passa a exibir o cabeçalho fiscal (modelo, número e série).
+                    Este sistema não emite documentos fiscais oficiais — o valor fiscal é emitido pela
+                    impressora fiscal ou SAT homologado. Mantenha desligado até seu contador confirmar o modelo.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -849,6 +1129,111 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
         )}
 
         {/* ── MANUTENÇÃO ── */}
+        {activeSubTab === 'backup' && (
+          <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-2xl space-y-6 animate-slideUp">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
+                <Database size={20} className="text-blue-600" /> Backup na Nuvem
+              </h3>
+              <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 bg-slate-100 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                <CloudUpload size={12} /> Diário automático às 03:15
+              </span>
+            </div>
+
+            <p className="text-[11px] font-semibold text-slate-500 leading-relaxed">
+              Cópia completa do banco de dados (usuários, pedidos, carteira, estoque, fiado, caixa e auditoria)
+              salva no Google Cloud Storage. O sistema faz isso sozinho todos os dias; aqui você pode
+              disparar manualmente, baixar e restaurar.
+            </p>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                onClick={handleBackupAgora}
+                disabled={backupExecutando}
+                className="inline-flex items-center gap-2 px-6 py-3.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-500/30 transition-all"
+              >
+                {backupExecutando ? <Loader2 size={15} className="animate-spin" /> : <CloudUpload size={15} />}
+                {backupExecutando ? 'Gerando backup...' : 'Fazer backup agora'}
+              </button>
+              <button
+                onClick={refreshBackupsNuvem}
+                disabled={backupsLoading}
+                className="inline-flex items-center gap-2 px-4 py-3.5 bg-white border-2 border-slate-200 text-slate-600 hover:border-slate-300 rounded-2xl font-black text-xs uppercase tracking-widest transition-all"
+              >
+                <RefreshCw size={14} className={backupsLoading ? 'animate-spin' : ''} /> Atualizar lista
+              </button>
+            </div>
+
+            {/* Último backup */}
+            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-wrap items-center gap-x-6 gap-y-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Último backup</span>
+              {backupsNuvem.length > 0 ? (
+                <>
+                  <span className="text-xs font-black text-slate-800">{backupsNuvem[0].nome.replace('backups/', '')}</span>
+                  <span className="text-xs font-bold text-slate-500">
+                    {backupsNuvem[0].atualizadoEm ? new Date(backupsNuvem[0].atualizadoEm).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
+                  </span>
+                  <span className="text-xs font-bold text-blue-600">{(backupsNuvem[0].tamanho / 1024 / 1024).toFixed(2)} MB</span>
+                </>
+              ) : (
+                <span className="text-xs font-bold text-slate-400">Nenhum backup encontrado ainda (o primeiro diário será gerado às 03:15).</span>
+              )}
+            </div>
+
+            {/* Lista */}
+            <div>
+              <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-900 mb-3">
+                Backups disponíveis ({backupsNuvem.length})
+              </h4>
+              {backupsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 size={22} className="animate-spin text-slate-300" />
+                </div>
+              ) : backupsNuvem.length === 0 ? (
+                <p className="text-xs font-semibold text-slate-400 text-center py-6 bg-slate-50 rounded-2xl">
+                  Nenhum backup disponível.
+                </p>
+              ) : (
+                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                  {backupsNuvem.map((b) => (
+                    <div key={b.nome} className="flex items-center justify-between gap-3 bg-slate-50 border border-slate-100 rounded-2xl p-3.5 hover:border-blue-200 transition-all">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+                          <FileJson size={16} className="text-blue-600" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-black text-slate-800 truncate">{b.nome.replace('backups/', '')}</p>
+                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                            {b.atualizadoEm ? new Date(b.atualizadoEm).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''} • {(b.tamanho / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => handleBaixarBackup(b.nome)}
+                          className="p-2.5 bg-white border border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-200 rounded-xl transition-all"
+                          title="Baixar backup"
+                        >
+                          <Download size={14} />
+                        </button>
+                        {b.nome.includes('diario-') && (
+                          <button
+                            onClick={() => { setRestoreNuvemTarget(b); setRestoreNuvemPassword(''); setRestoreNuvemConfirm(false); }}
+                            className="p-2.5 bg-amber-50 border border-amber-200 text-amber-600 hover:bg-amber-100 rounded-xl transition-all"
+                            title="Restaurar este backup"
+                          >
+                            <RotateCcw size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {activeSubTab === 'maintenance' && (
           <>
           {/* ── CONTROLE DO SISTEMA (modo manutenção) ── */}
@@ -1147,7 +1532,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
 
       </div>
 
-      {/* CONFIRMAÇÃO DE RESTAURAÇÃO */}
+      {/* CONFIRMAÇÃO DE RESTAURAÇÃO (ponto local) */}
       {restoreTarget && (
         <div className="fixed inset-0 z-[5000] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center animate-fadeIn">
@@ -1174,6 +1559,63 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                 className="flex-1 py-4 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest transition-all flex items-center justify-center gap-2"
               >
                 <RotateCcw size={15} /> Restaurar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* CONFIRMAÇÃO DE RESTAURAÇÃO (backup na nuvem) */}
+      {restoreNuvemTarget && (
+        <div className="fixed inset-0 z-[5000] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center animate-fadeIn">
+            <div className="w-16 h-16 mx-auto mb-5 bg-amber-100 rounded-2xl flex items-center justify-center">
+              <CloudDownload size={28} className="text-amber-600" />
+            </div>
+            <h3 className="text-lg font-black uppercase tracking-wide text-slate-900 mb-2">Restaurar Backup?</h3>
+            <p className="text-sm font-semibold text-slate-500 leading-relaxed mb-2">
+              Todos os dados voltarão para: <span className="text-slate-900 font-black uppercase">{restoreNuvemTarget.nome.replace('backups/', '')}</span>
+            </p>
+            <p className="text-[11px] font-bold text-slate-400 leading-relaxed mb-5">
+              Antes de restaurar, o sistema salva um snapshot de segurança do estado atual.
+              Esta ação substitui os dados atuais no banco. Requer senha mestra.
+            </p>
+
+            <label className="text-[10px] font-black text-slate-900 uppercase mb-1 block text-left">Senha mestra</label>
+            <input
+              type="password"
+              className="w-full p-4 bg-slate-50 border-2 border-slate-200 focus:border-amber-400 rounded-2xl font-black text-sm text-slate-900 outline-none transition-all mb-4"
+              value={restoreNuvemPassword}
+              onChange={e => setRestoreNuvemPassword(e.target.value)}
+              placeholder="••••••••"
+            />
+
+            <label className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4 cursor-pointer mb-6">
+              <input
+                type="checkbox"
+                checked={restoreNuvemConfirm}
+                onChange={e => setRestoreNuvemConfirm(e.target.checked)}
+                className="w-4 h-4 accent-amber-500"
+              />
+              <span className="text-[11px] font-black text-amber-700 uppercase tracking-wide">
+                Entendi: os dados atuais serão substituídos
+              </span>
+            </label>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setRestoreNuvemTarget(null)}
+                disabled={restoreNuvemLoading}
+                className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-black uppercase text-xs tracking-widest transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleRestaurarBackup}
+                disabled={restoreNuvemLoading || !restoreNuvemConfirm}
+                className="flex-1 py-4 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white rounded-2xl font-black uppercase text-xs tracking-widest transition-all flex items-center justify-center gap-2"
+              >
+                {restoreNuvemLoading ? <Loader2 size={15} className="animate-spin" /> : <CloudDownload size={15} />}
+                {restoreNuvemLoading ? 'Restaurando...' : 'Restaurar'}
               </button>
             </div>
           </div>

@@ -3,9 +3,9 @@ import { NavItem } from './AdminCommon';
 import {
   Users, Package, ShoppingCart, DollarSign, LogOut, Settings,
   Database, BarChart3, Home, Shield, Truck, CreditCard, Landmark, Activity, AlertTriangle,
-  BookOpen, Download
+  BookOpen
 } from 'lucide-react';
-import { usePWAInstall, SystemRole } from '../PWAInstallProvider';
+import { SystemRole } from '../PWAInstallProvider';
 import { AppDownloadButton } from '../AppDownloadModal';
 
 interface AdminSidebarProps {
@@ -26,36 +26,13 @@ interface AdminSidebarProps {
   userRole?: SystemRole;
 }
 
-const InstallButtonSidebar: React.FC<{ userRole?: SystemRole }> = ({ userRole }) => {
-  const { isInstallable, isInstalled, install } = usePWAInstall();
-  if (!isInstallable || isInstalled) return null;
-  const isAdmin = userRole === 'admin';
-  return (
-    <div className="flex flex-col gap-2">
-      {isAdmin && (
-        <button
-          onClick={() => install('user')}
-          className="w-full flex items-center gap-2 px-3 py-2.5 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-sky-500/20 hover:brightness-110 active:scale-[0.98] transition-all"
-        >
-          <Download size={16} /> Instalar App (Usuário)
-        </button>
-      )}
-      <button
-        onClick={() => install(isAdmin ? 'admin' : 'user')}
-        className="w-full flex items-center gap-2 px-3 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-500/20 hover:brightness-110 active:scale-[0.98] transition-all"
-      >
-        <Download size={16} /> {isAdmin ? 'Instalar Painel Admin' : 'Instalar Aplicativo'}
-      </button>
-    </div>
-  );
-};
-
 export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   activeTab, setActiveTab, pendingOrdersCount, pendingDepositsCount, logout, appName, userName,
   isOpen, onClose, onOpenSales, permissions = [], isMaster = false, isImageBg = false, primaryColor = '#10b981',
   userRole = 'admin'
 }) => {
-  const hasPermission = (perm: string) => isMaster || permissions.includes(perm);
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
+  const hasPermission = (perm: string) => isMaster || permissions.includes('all') || permissions.includes(perm);
   const isSalesRestricted = userRole === 'manager';
 
   const renderHome = () => <NavItem icon={Home} label="Início" active={activeTab === 'home'} onClick={() => setActiveTab('home')} />;
@@ -132,8 +109,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         </nav>
 
         <div className="mt-auto pt-4 border-t border-slate-200 flex flex-col gap-3">
-            <AppDownloadButton variant="full" label="Baixar App (Setup)" />
-            <InstallButtonSidebar userRole={userRole} />
+            {!isStandalone && <AppDownloadButton variant="full" label="Baixar App (Setup)" />}
             <div className="flex items-center gap-3 px-2">
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-white text-sm shadow-sm"
                   style={{ backgroundColor: primaryColor }}>

@@ -1,7 +1,9 @@
-import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode, useRef } from 'react';
 import { User, Product, Order, PrisonUnit, UserRole, CartItem, OrderStatus, AppConfig, Supplier, Expense, AuditLog, InmateLocation, SystemMessage, ThemeOption, Message, Notification, WalletTransaction, toUserRole } from '../types';
 import { cleanProductName, normalizeName, stringSimilarity, compressImageFile, fileToBase64, formatarMoeda, getNetworkTime } from '../utils';
+import { listarVendasOffline, salvarVendaOffline, removerVendaOffline, marcarErroVendaOffline, VendaOffline } from '../utils/offlineQueue';
 import { queuePendingUpload, listPendingUploads, removePendingUpload, attachPendingUploadDoc } from '../services/localStorageService';
+import { comprimirImagem } from '../utils/imageCompress';
 import { ASSPEN_INFO, INITIAL_UNITS } from '../constants';
 import { db, auth, storage } from '../firebase';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
@@ -14,6 +16,7 @@ const fnBuscarLoginInfo = httpsCallable(functions, 'buscarLoginInfo');
 const fnRegistrarUsuario = httpsCallable(functions, 'registrarUsuario');
 const fnCriarPrimeiroAdmin = httpsCallable(functions, 'criarPrimeiroAdmin');
 const fnCriarAdmin = httpsCallable(functions, 'criarAdmin');
+  const fnAtualizarPermissoesAdmin = httpsCallable(functions, 'atualizarPermissoesAdmin');
 const fnAlterarSenha = httpsCallable(functions, 'alterarSenha');
 const fnRedefinirSenhaAdmin = httpsCallable(functions, 'redefinirSenhaAdmin');
 const fnRedefinirSenhaPublica = httpsCallable(functions, 'redefinirSenhaPublica');
@@ -29,6 +32,9 @@ const fnProcessarVendaAdmin = httpsCallable(functions, 'processarVendaAdmin');
 const fnEstornarVenda = httpsCallable(functions, 'estornarVenda');
 const fnValidarSenhaMestra = httpsCallable(functions, 'validarSenhaMestra');
 const fnDefinirSenhaMestra = httpsCallable(functions, 'definirSenhaMestra');
+const fnResetarSistemaTotal = httpsCallable(functions, 'resetarSistemaTotal');
+const fnListarBackups = httpsCallable(functions, 'listarBackups');
+const fnBaixarBackup = httpsCallable(functions, 'baixarBackup');
 
 // Interface para dados da nota fiscal
 export interface InvoiceData {
@@ -413,8 +419,8 @@ interface StoreContextType {
     logout: () => void;
     registerUser: (userData: Partial<User>, docFile: File | null) => Promise<{ success: boolean; message: string }>;
     recoverPassword: (identifier: string) => Promise<{ success: boolean; message: string }>;
-    validateRecovery: (userCpf: string, prisonerCpf: string) => Promise<User>;
-    resetUserPassword: (userCpf: string, prisonerCpf: string, newPass: string) => Promise<void>;
+    validateRecovery: (userCpf: string, prisonerCpf: string, nomeCompleto: string) => Promise<User>;
+    resetUserPassword: (userCpf: string, prisonerCpf: string, newPass: string, nomeCompleto: string) => Promise<void>;
 
     addToCart: (product: Product, quantity?: number) => void;
     removeFromCart: (productId: string) => void;
@@ -456,6 +462,7 @@ interface StoreContextType {
     resetFinance: () => Promise<void>;
 
     createAdminUser: (userData: Partial<User>) => Promise<void>;
+    updateAdminPermissions: (userId: string, permissions: string[]) => Promise<void>;
 
     sendSystemMessage: (msg: Partial<SystemMessage>) => Promise<void>;
     sendMessage: (msg: Message) => Promise<void>;
@@ -472,7 +479,7 @@ interface StoreContextType {
     depositToWallet: (amount: number, proofFile: File) => Promise<void>;
     approveWalletTransaction: (transactionId: string) => Promise<void>;
     rejectWalletTransaction: (transactionId: string) => Promise<void>;
-    withdrawWalletCredit: (userId: string, amount: number, reason: string) => Promise<void>;
+    withdrawWalletCredit: (userId: string, amount: number, reason: string, senhaMestra?: string) => Promise<void>;
     getWalletTransactions: (userId?: string) => Promise<WalletTransaction[]>;
     attachAdminProof: (kind: 'orders' | 'wallet_transactions', docId: string, ownerId: string, file: File) => Promise<string>;
     reenviarComprovante: (kind: 'orders' | 'wallet_transactions', docId: string, file: File) => Promise<string>;
@@ -501,8 +508,16 @@ interface StoreContextType {
     loadMoreOrders: () => void;
     loadMoreExpenses: () => void;
     loadMoreProducts: () => void;
+    usersLimit: number;
+    cotaCritica: boolean;
+    loadMoreUsers: () => void;
+    expandUsersLimit: (limite: number) => void;
     importInmatesCsv: (file: File) => Promise<void>;
-    addWalletCreditDirectly: (userId: string, amount: number, reason: string) => Promise<void>;
+    addWalletCreditDirectly: (userId: string, amount: number, reason: string, senhaMestra?: string) => Promise<void>;
+    registrarVendaOffline: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'MIXED' | 'FIADO', total: number, payments?: { method: string; amount: number }[], change?: number, customerAccountId?: string) => Promise<Order | null>;
+    sincronizarVendasOffline: (incluirErros?: boolean) => Promise<{ ok: boolean; sincronizadas: number; comErro: number; total: number }>;
+    vendasOfflinePendentes: number;
+    vendasOfflineComErro: number;
 
 }
 
@@ -532,6 +547,11 @@ const DEFAULT_CONFIG: AppConfig = {
     receiptMainTitleOrder: 'RECIBO DE VENDA',
     receiptMainTitleExpense: 'RECIBO DE PAGAMENTO',
     receiptFooter: 'Conferir os itens no ato da entrega. Não aceitamos reclamações posteriores.',
+
+    fiscalEmission: false,
+    fiscalModel: 'NF-E',
+    fiscalNumber: '',
+    fiscalSeries: '',
 
     logoUrl: '',
     showUserCredits: true,
@@ -617,10 +637,25 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const [ordersLimit, setOrdersLimit] = useState(50);
     const [expensesLimit, setExpensesLimit] = useState(50);
     const [productsLimit, setProductsLimit] = useState(500);
+    // Escala: com 1.500+ usuários, o stream admin de users não pode ficar
+    // preso em 500 (busca client-side não acharia o resto). Cresce sob demanda.
+    const [usersLimit, setUsersLimit] = useState(500);
+
+    // ── Guarda de cota (Firebase Spark/uso): se uma leitura/escrita falhar por
+    // cota excedida, o app avisa o admin (banner) em vez de quebrar em silêncio.
+    const cotaCriticaRef = useRef(false);
+    const [cotaCritica, setCotaCritica] = useState(false);
+    const marcaCotaCritica = useCallback(() => {
+        if (cotaCriticaRef.current) return;
+        cotaCriticaRef.current = true;
+        setCotaCritica(true);
+    }, []);
 
     const loadMoreOrders = () => setOrdersLimit((prev: number) => prev + 50);
     const loadMoreExpenses = () => setExpensesLimit((prev: number) => prev + 50);
     const loadMoreProducts = () => setProductsLimit((prev: number) => prev + 500);
+    const loadMoreUsers = () => setUsersLimit((prev: number) => prev + 500);
+    const expandUsersLimit = (limite: number) => setUsersLimit((prev: number) => Math.max(prev, limite));
 
     const logoutTimerRef = useRef<any>(null);
     const unsubscribeRefs = useRef<(() => void)[]>([]);
@@ -842,12 +877,16 @@ return false;
             throw new Error('Tipo de arquivo não permitido (JPG, PNG, HEIC ou PDF).');
         }
 
+        // Comprime fotos antes do envio (menos Storage, uploads mais rápidos);
+        // nunca lança erro — em qualquer falha devolve o arquivo original.
+        const arquivoFinal = await comprimirImagem(file);
+
         try {
             const uid = auth.currentUser?.uid || currentUser?.authUid || currentUser?.id || 'anonimo';
             const folder = (path || 'uploads').replace(/^\/+|\/+$/g, '');
             const fileName = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`;
             const fileRef = storageRef(storage, `${folder}/${uid}/${fileName}`);
-            await uploadBytes(fileRef, file);
+            await uploadBytes(fileRef, arquivoFinal);
             return await getDownloadURL(fileRef);
         } catch (error: any) {
             console.warn("[uploadFile] Falha no upload para Storage:", error?.message || error);
@@ -859,7 +898,7 @@ return false;
                     fileName: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`,
                     kind: meta?.kind,
                     docId: meta?.docId,
-                    blob: file,
+                    blob: arquivoFinal,
                 });
                 showNotification('Conexão instável: o comprovante foi guardado e será enviado automaticamente quando a internet voltar.', 'info');
             } catch (e2) {
@@ -903,8 +942,9 @@ return false;
         const pasta = kind === 'orders' ? 'comprovantes_pix' : 'wallet_proofs';
         const ext = '.' + (file.name.split('.').pop() || 'jpg').toLowerCase();
         const fileName = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`;
+        const arquivoFinal = await comprimirImagem(file);
         const fileRef = storageRef(storage, `${pasta}/${ownerId}/${fileName}`);
-        await uploadBytes(fileRef, file);
+        await uploadBytes(fileRef, arquivoFinal);
         const url = await getDownloadURL(fileRef);
         await updateDoc(doc(db, kind, docId), { [CAMPO_PROVA[kind]]: url });
         await registrarAuditClient('ANEXAR_COMPROVANTE_ADMIN', { kind, docId }, { url });
@@ -1261,24 +1301,46 @@ return false;
         }
     };
 
+    const isAdminAllowed = (perm: string): boolean => {
+        const u = currentUser;
+        if (!u || u.role !== UserRole.ADMIN) return false;
+        if ((u as any).mainAdmin === true || u.id === 'master' || u.id === 'admin' || u.email === 'admin@mercado.com') return true;
+        const perms = u.permissions;
+        if (perms === undefined) return true; // admin legado sem o campo = acesso total
+        return perms.includes('all') || perms.includes(perm);
+    };
+
+    const requirePermission = (perm: string): boolean => {
+        if (isAdminAllowed(perm)) return true;
+        showNotification('Seu acesso foi restringido pelo administrador principal.', 'error');
+        return false;
+    };
+
     const approveUser = async (uid: string) => {
-        if (!currentUser || currentUser.role !== UserRole.ADMIN) return;
+        if (!currentUser || currentUser.role !== UserRole.ADMIN || !requirePermission('users')) return;
         try { await updateDoc(doc(db, 'users', uid), { status: 'active', approved: true }); } catch (e: any) { showNotification("Erro ao aprovar usuário", "error"); }
     };
     const suspendUser = async (uid: string, status: boolean) => {
-        if (!currentUser || currentUser.role !== UserRole.ADMIN) return;
+        if (!currentUser || currentUser.role !== UserRole.ADMIN || !requirePermission('users')) return;
         try { await updateDoc(doc(db, 'users', uid), { status: status ? 'suspended' : 'active', suspended: status }); } catch (e: any) { showNotification("Erro ao suspender usuário", "error"); }
     };
     const toggleUserCredit = async (uid: string, allow: boolean) => {
-        if (!currentUser || currentUser.role !== UserRole.ADMIN) return;
+        if (!currentUser || currentUser.role !== UserRole.ADMIN || !requirePermission('wallet')) return;
         try { await updateDoc(doc(db, 'users', uid), { allowCredit: allow }); } catch (e: any) { showNotification("Erro ao alterar crédito", "error"); }
     };
     const deleteUser = async (uid: string) => {
-        if (!currentUser || currentUser.role !== UserRole.ADMIN) return;
-        try { await updateDoc(doc(db, 'users', uid), { deleted: true, status: 'suspended' }); } catch (e: any) { showNotification("Erro ao excluir usuário", "error"); }
+        if (!currentUser || currentUser.role !== UserRole.ADMIN || !requirePermission('users')) return;
+        try {
+            const alvo = users.find(u => u.id === uid);
+            const roleAlvo = String(alvo?.role || '').toLowerCase();
+            await updateDoc(doc(db, 'users', uid), { deleted: true, status: 'suspended' });
+            if (alvo && (roleAlvo === 'admin' || roleAlvo === 'master')) {
+                await registrarAuditClient('EXCLUIR_ADMIN', { usuarioId: uid, nome: alvo.name, email: alvo.email, permissao: alvo.permissions }, { status: 'ok' });
+            }
+        } catch (e: any) { showNotification("Erro ao excluir usuário", "error"); }
     };
     const updateUserStatus = async (uid: string, s: any) => {
-        if (!currentUser || currentUser.role !== UserRole.ADMIN) return;
+        if (!currentUser || currentUser.role !== UserRole.ADMIN || !requirePermission('users')) return;
         try { await updateDoc(doc(db, 'users', uid), { status: s }); } catch (e: any) { showNotification("Erro ao atualizar status", "error"); }
     };
 
@@ -1287,6 +1349,33 @@ return false;
         try {
             const batch = writeBatch(db);
             let supplierId = '';
+
+            // Nome normalizado SEM unidade de venda no final (CX, UN, KG...) —
+            // "LEITE 1L (CX)" e "LEITE 1L UN" são o MESMO produto.
+            const normSemUnidade = (nome: string) => {
+                return normalizeName(nome).replace(/(UN|CX|PCT|PCTE|FD|FDO|DSP|UNID|CART|LT|GR|KG|ML|L|G|M|CM|MM)$/g, '');
+            };
+            // Pesos/volumes embutidos no nome devem ser compatíveis para fundir:
+            // "ARROZ TIO JOAO 5KG" NUNCA funde com "ARROZ TIO JOAO 1KG".
+            const pesosCompativeis = (a: string, b: string) => {
+                const pesos = (s: string) => (s.match(/\d+[.,]?\d*\s*(?:KG|G|ML|L|M|GR|LT|CM|MM)/gi) || []).map(m => m.replace(/\s/g, ''));
+                const pa = pesos(a), pb = pesos(b);
+                if (pa.length === 0 || pb.length === 0) return true;
+                return pa[0] === pb[0];
+            };
+            // Predicado de duplicidade (testado em dedup_test): EANs divergentes
+            // NUNCA fundem; sem EAN, exige nome equivalente (sem unidade) ou
+            // similaridade alta + peso/volume compatível.
+            const ehDuplicado = (p: Product, item: InvoiceData['items'][number]) => {
+                const eanItem = String(item.ean || item.barcode || '').replace(/^0+/, '').trim();
+                const eanProd = String(p.ean || p.barcode || '').replace(/^0+/, '').trim();
+                if (eanItem && eanProd) return eanItem === eanProd;
+                const nI = normSemUnidade(item.name);
+                const nP = normSemUnidade(p.name || '');
+                if (nI && nP && nI === nP) return true;
+                if ((p.name || '').trim().toUpperCase() === (item.name || '').trim().toUpperCase()) return true;
+                return stringSimilarity(nI, nP) >= 0.9 && pesosCompativeis(item.name, p.name || '');
+            };
 
             // 1. Fornecedor
             if (data.supplier?.name) {
@@ -1346,21 +1435,14 @@ return false;
                     continue;
                 }
 
-                const cost = Number(item.costPrice) || 0;
-                const qty = Number(item.quantity) || 0;
-                const price = cost + (cost * (profitMargin / 100));
-                const itemKey = normalizeName(item.name);
-                const cleanItemEan = item.ean ? String(item.ean).replace(/^0+/, '').trim() : '';
+                // Margem sanitizada: NaN/negativa cairia para 30% e preço viraria NaN.
+                const margemSegura = Number.isFinite(Number(profitMargin)) && Number(profitMargin) >= 0 ? Number(profitMargin) : 30;
+                const cost = Math.max(Number(item.costPrice) || 0, 0);
+                const qty = Math.max(Number(item.quantity) || 0, 0);
+                const price = cost + (cost * (margemSegura / 100));
 
                 // Busca exaustiva no cache local atualizado
-                let exIndex = localProducts.findIndex(p => {
-                    const cleanPEan = String(p.ean || p.barcode || '').replace(/^0+/, '').trim();
-                    if (cleanItemEan && cleanPEan && cleanItemEan === cleanPEan) return true;
-                    if (!cleanItemEan && !cleanPEan && normalizeName(p.name || '') === itemKey) return true;
-                    if ((p.name || '').trim().toUpperCase() === (item.name || '').trim().toUpperCase()) return true;
-                    if (stringSimilarity(normalizeName(p.name || ''), normalizeName(item.name || '')) >= 0.9) return true;
-                    return false;
-                });
+                let exIndex = localProducts.findIndex(p => ehDuplicado(p, item));
 
                 if (exIndex > -1) {
                     const ex = localProducts[exIndex];
@@ -1548,7 +1630,29 @@ return false;
         } catch (e) { console.error('Erro na normalização:', e); }
     };
     const updateAppConfig = updateSettings;
-    const downloadBackup = () => {
+    const downloadBackup = async () => {
+        // 1) Tenta baixar o BACKUP COMPLETO do servidor (diário/manual gerado
+        //    pela Cloud Function — o export local abaixo é só um recorte parcial).
+        try {
+            const listaRes: any = await fnListarBackups({});
+            const backups = (listaRes?.data?.backups || []) as { nome: string; tamanho: number }[];
+            if (backups.length > 0) {
+                const baixarRes: any = await fnBaixarBackup({ nome: backups[0].nome });
+                const url = baixarRes?.data?.url;
+                if (url) {
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = backups[0].nome.split('/').pop() || 'backup-mercado-facil.json';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    return;
+                }
+            }
+        } catch (e: any) {
+            console.warn('[backup] Servidor indisponível, usando export local parcial:', e?.message);
+        }
+        // 2) Fallback: export local dos dados em memória (parcial)
         const sanitizeUsers = (users || []).map((u: any) => {
             const { password, secondaryPassword, adminPassword, ...limpo } = u || {};
             return limpo;
@@ -1558,7 +1662,7 @@ return false;
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = `backup-mercado-facil-${new Date().toISOString().slice(0, 10)}.json`;
+        a.download = `backup-mercado-facil-parcial-${new Date().toISOString().slice(0, 10)}.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -1581,21 +1685,10 @@ return false;
     const resetSystem = async (confirm: boolean) => {
         if (!confirm || currentUser?.role !== UserRole.ADMIN) return;
         setIsLoading(true);
-        const inicio = new Date().toISOString();
         try {
-            const collections = ['products', 'orders', 'expenses', 'wallet_transactions', 'messages', 'audit_logs', 'cashier', 'cash_sessions', 'pre_registered_inmates', 'historico_geral'];
-            const totais: Record<string, number> = {};
-            for (const coll of collections) {
-                const snap = await getDocs(collection(db, coll));
-                totais[coll] = snap.docs.length;
-                for (let i = 0; i < snap.docs.length; i += 500) {
-                    const batch = writeBatch(db);
-                    const chunk = snap.docs.slice(i, i + 500);
-                    chunk.forEach(d => batch.delete(d.ref));
-                    await batch.commit();
-                }
-            }
-            await registrarAuditClient('RESET_SISTEMA_TOTAL', { totais, inicio }, { status: 'ok' });
+            // Reset agora roda NO SERVIDOR, só para admin principal, com
+            // rate limit — não é mais possível apagar o banco do cliente.
+            await fnResetarSistemaTotal({ confirmar: true });
             showNotification("Sistema resetado com sucesso!", "success");
             window.location.reload();
         } catch (e: any) {
@@ -1685,25 +1778,36 @@ return false;
                 nome: d.name || '',
                 email: d.email || '',
                 cpf: d.cpf || '',
-                senha: (d as any).password || ''
+                senha: (d as any).password || '',
+                permissions: Array.isArray((d as any).permissions) && (d as any).permissions.length
+                    ? (d as any).permissions
+                    : ['all']
             });
             showNotification('Admin criado', 'success');
         } catch (e: any) {
             showNotification('Erro ao criar admin: ' + e.message, 'error');
         }
     };
-    const validateRecovery = async (userCpf: string, prisonerCpf: string): Promise<User> => {
+    const updateAdminPermissions = async (userId: string, permissions: string[]) => {
+        try {
+            await fnAtualizarPermissoesAdmin({ userId, permissions: Array.isArray(permissions) ? permissions : [] });
+            showNotification('Permissões atualizadas', 'success');
+        } catch (e: any) {
+            showNotification('Erro ao atualizar permissões: ' + e.message, 'error');
+        }
+    };
+    const validateRecovery = async (userCpf: string, prisonerCpf: string, nomeCompleto: string): Promise<User> => {
         setIsLoading(true);
         try {
-            // Valida no servidor (CPF do usuário + CPF do interno)
-            await fnRedefinirSenhaPublica({ cpf: userCpf, cpfInterno: prisonerCpf, novaSenha: '__VALIDACAO__' });
+            // Valida no servidor (CPF do usuário + CPF do interno + nome completo cadastrado)
+            await fnRedefinirSenhaPublica({ cpf: userCpf, cpfInterno: prisonerCpf, nomeCompleto, novaSenha: '__VALIDACAO__' });
             return { id: 'validated', cpf: userCpf, name: 'Validado' } as User;
         } finally { setIsLoading(false); }
     };
 
-    const resetUserPassword = async (cpf: string, pCpf: string, pass: string) => {
+    const resetUserPassword = async (cpf: string, pCpf: string, pass: string, nomeCompleto: string) => {
         setIsLoading(true); try {
-            await fnRedefinirSenhaPublica({ cpf, cpfInterno: pCpf, novaSenha: pass });
+            await fnRedefinirSenhaPublica({ cpf, cpfInterno: pCpf, nomeCompleto, novaSenha: pass });
             showNotification("Senha alterada com sucesso!", "success");
         } catch (e: any) { throw new Error(e.message); } finally { setIsLoading(false); }
     };
@@ -1861,10 +1965,10 @@ return false;
         }
     };
 
-    const withdrawWalletCredit = async (uid: string, amount: number, reason: string) => {
+    const withdrawWalletCredit = async (uid: string, amount: number, reason: string, senhaMestra?: string) => {
         try {
             if (!currentUser || currentUser.role !== UserRole.ADMIN) throw new Error("Acesso negado.");
-            const res = await fnSacarSaldoAdmin({ userId: uid, valor: amount, motivo: reason });
+            const res = await fnSacarSaldoAdmin({ userId: uid, valor: amount, motivo: reason, senhaMestra });
             const data = res.data as any;
             if (currentUser.id === uid && data?.novoSaldo !== undefined) {
                 setCreditoCliente(data.novoSaldo);
@@ -1872,7 +1976,7 @@ return false;
             }
             showNotification("Retirada de crédito realizada.", "success");
         } catch (e: any) {
-            showNotification(e.message || "Erro ao processar retirada.", "error");
+            showNotification(mensagemErroChamada(e), "error");
         }
     };
 
@@ -2023,6 +2127,24 @@ return false;
     const removeNotification = React.useCallback((id: string) => {
         setNotifications(prev => prev.filter(n => n.id !== id));
     }, []);
+
+    // Converte erros de chamadas (httpsCallable) na mensagem REAL do servidor.
+    // Antes o erro era mascarado com "Falha ao processar crédito." — o usuário
+    // nunca sabia o motivo (senha não configurada, senha errada, limite de
+    // tentativas etc.). Agora a mensagem do HttpsError chega ao cliente e é
+    // traduzida para um texto acionável.
+    const mensagemErroChamada = (e: any): string => {
+        if (!e) return "Falha ao processar a operação. Tente novamente.";
+        const message = String(e?.message || '').replace(/^\(.*?\)\s*/, '').trim();
+        const code = String(e?.code || e?.details?.code || '').toLowerCase().replace(/functions\//, '');
+        if (/unauthenticated/i.test(code)) return "Sessão expirada. Saia e entre novamente.";
+        if (/unavailable|cancelled|deadline/i.test(code) || /unavailable|deadline|network/i.test(message)) {
+            return "Servidor sem resposta. Verifique sua internet e tente novamente.";
+        }
+        if (/resource-exhausted|rate/i.test(code)) return "Muitas tentativas em pouco tempo. Aguarde 1 minuto e tente novamente.";
+        if (message) return message;
+        return "Falha ao processar a operação. Tente novamente.";
+    };
 
     const validateMasterPassword = async (pass: string) => {
         try {
@@ -2182,6 +2304,115 @@ return false;
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // ── PDV OFFLINE ────────────────────────────────────────────────────────
+    // Vendas registradas sem internet ficam nesta fila local e sincronizam
+    // sozinhas quando a rede volta (o id da venda é o clientToken → o
+    // servidor nunca cria duplicata ao repetir a sincronização).
+    const [vendasOffline, setVendasOffline] = useState<VendaOffline[]>(() => listarVendasOffline());
+
+    const registrarVendaOffline = useCallback(async (
+        targetUserId: string,
+        items: any[],
+        paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'MIXED' | 'FIADO',
+        total: number,
+        payments?: { method: string; amount: number }[],
+        change?: number,
+        customerAccountId?: string,
+    ): Promise<Order | null> => {
+        if (!currentUser || currentUser.role !== UserRole.ADMIN) {
+            throw new Error('Acesso restrito a administradores.');
+        }
+        const agora = new Date().toISOString();
+        const venda: VendaOffline = {
+            id: `OFFLINE_${Date.now()}_${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
+            createdAt: agora,
+            targetUserId,
+            items: (items || []).map((i: any) => ({
+                productId: String(i?.productId || ''),
+                name: String(i?.name || i?.productName || 'Produto'),
+                price: Number(i?.price) || 0,
+                quantity: Number(i?.quantity) || 1,
+            })),
+            paymentMethod,
+            payments: payments || undefined,
+            change: change ?? undefined,
+            customerAccountId: customerAccountId || undefined,
+            total: Number(total) || 0,
+            status: 'pending',
+            tryCount: 0,
+        };
+        salvarVendaOffline(venda);
+        setVendasOffline((prev) => [...prev, venda]);
+        const alvo = users.find((u) => u.id === targetUserId);
+        return {
+            id: venda.id,
+            userId: targetUserId,
+            userName: alvo?.name || 'Balcão',
+            userCpf: alvo?.cpf,
+            unitId: currentUser.unitId || '',
+            items: venda.items.map((i) => ({ productId: i.productId, name: i.name, priceAtPurchase: i.price, quantity: i.quantity })),
+            total: venda.total,
+            status: 'offline_pending',
+            createdAt: agora,
+            date: agora,
+            paymentMethod: venda.paymentMethod,
+            payments: venda.payments,
+            change: venda.change,
+            offlinePending: true,
+        } as unknown as Order;
+    }, [currentUser, users]);
+
+    const sincronizarVendasOffline = useCallback(async (incluirErros = false): Promise<{ ok: boolean; sincronizadas: number; comErro: number; total: number }> => {
+        const fila = listarVendasOffline();
+        const pendentes = incluirErros ? fila : fila.filter((v) => v.status === 'pending');
+        if (!pendentes.length) return { ok: true, sincronizadas: 0, comErro: fila.filter((v) => v.status === 'error').length, total: fila.length };
+
+        let sincronizadas = 0;
+        let comErro = 0;
+        for (const v of pendentes) {
+            try {
+                const res = await fnProcessarVendaAdmin({
+                    targetUserId: v.targetUserId,
+                    items: v.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+                    clientToken: v.id,
+                    paymentMethod: v.paymentMethod,
+                    total: v.total,
+                    payments: v.payments || undefined,
+                    change: v.change ?? undefined,
+                    customerAccountId: v.customerAccountId || undefined,
+                });
+                if (!(res.data as any)?.order) throw new Error('Servidor não confirmou a venda.');
+                removerVendaOffline(v.id);
+                sincronizadas += 1;
+            } catch (e: any) {
+                marcarErroVendaOffline(v.id, e?.message || 'Falha ao sincronizar');
+                comErro += 1;
+            }
+        }
+        setVendasOffline(listarVendasOffline());
+        return { ok: true, sincronizadas, comErro, total: listarVendasOffline().length };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Auto-sincronização: ao abrir o app online e quando a conexão voltar.
+    useEffect(() => {
+        const rodar = async () => {
+            if (!currentUser || currentUser.role !== UserRole.ADMIN) return;
+            const fila = listarVendasOffline();
+            if (!fila.length) return;
+            const r = await sincronizarVendasOffline(false);
+            if (r.sincronizadas > 0) {
+                showNotification(`Vendas offline sincronizadas: ${r.sincronizadas}.`, 'success');
+            } else if (r.comErro > 0) {
+                showNotification(`${r.comErro} venda(s) offline aguardando conferência no painel.`, 'warning');
+            }
+        };
+        rodar();
+        const handler = () => setTimeout(rodar, 2500);
+        window.addEventListener('online', handler);
+        return () => window.removeEventListener('online', handler);
+    }, [currentUser, sincronizarVendasOffline, showNotification]);
+
     useEffect(() => {
         if (!authReady || !currentUser) return;
 
@@ -2197,7 +2428,20 @@ return false;
         let timer: any = null;
         let safetyTimeout: any = null;
 
-        const onErr = (label: string) => (err: Error) => console.warn(`[Firebase:${label}]`, err.message);
+        const onErr = (label: string) => (err: Error) => {
+            console.warn(`[Firebase:${label}]`, err.message);
+            // Erros de cota (quota exceeded / resource-exhausted / usage-quota)
+            // → acende o alerta de cota para o admin agir (plano Blaze).
+            const codigo = String((err as any)?.code || '');
+            const mensagem = String(err?.message || '').toLowerCase();
+            if (codigo.includes('resource-exhausted') ||
+                mensagem.includes('quota exceeded') ||
+                mensagem.includes('usage-quota') ||
+                mensagem.includes('excedida') ||
+                (codigo === 'permission-denied' && (mensagem.includes('quota') || mensagem.includes('500')))) {
+                marcaCotaCritica();
+            }
+        };
 
         const semSenhasConfig = (cfg: any) => {
             const { adminPassword, secondaryPassword, ...seguro } = cfg || {};
@@ -2254,15 +2498,18 @@ return false;
             unsubSystemMsg = onSnapshot(query(collection(db, 'systemMessages'), orderBy('createdAt', 'desc'), limit(20)), (s) => setSystemMessages(s.docs.map(d => ({ ...d.data(), id: d.id } as SystemMessage))), onErr('systemMessages'));
 
             if (currentUser?.role !== UserRole.ADMIN && currentUser) {
-                unsubMsg = onSnapshot(query(collection(db, 'messages'), where('userId', '==', currentUser.id), orderBy('createdAt', 'desc'), limit(200)), (s) => setMessages(s.docs.map(d => ({ ...d.data(), id: d.id } as Message))), onErr('messages-user'));
+                unsubMsg = onSnapshot(query(collection(db, 'messages'), where('userId', '==', currentUser.id), orderBy('createdAt', 'desc'), limit(100)), (s) => setMessages(s.docs.map(d => ({ ...d.data(), id: d.id } as Message))), onErr('messages-user'));
             }
 
             if (currentUser?.role === UserRole.ADMIN) {
                 performAutoCleanup();
                 normalizeLegacyDocuments(); // Iniciar normalização em background
-                unsubUsers = onSnapshot(query(collection(db, 'users'), limit(500)), (snapshot) => {
+                unsubUsers = onSnapshot(query(collection(db, 'users'), limit(usersLimit)), (snapshot) => {
+                    // CONSUMER_USER é sintético (venda de balcão) e NÃO pertence à
+                    // lista real de usuários — se entra, polui contagens de
+                    // familiares em relatórios/painéis (MÉDIA-2).
                     const dbUsers = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as User));
-                    setUsers([CONSUMER_USER, ...dbUsers.filter(u => (u as any).deleted !== true)]);
+                    setUsers(dbUsers.filter(u => (u as any).deleted !== true && u.id !== 'consumidor_geral' && u.id !== 'balcao_anonimo'));
                 }, onErr('users-admin'));
                 const ordersQuery = query(collection(db, 'orders'), orderBy('createdAt', 'desc'), limit(ordersLimit));
                 unsubOrders = onSnapshot(ordersQuery, (snapshot) => {
@@ -2290,7 +2537,7 @@ return false;
             }
 
             if (currentUser?.role === UserRole.ADMIN) {
-                unsubMsg = onSnapshot(query(collection(db, 'messages'), orderBy('createdAt', 'desc'), limit(200)), (s) => setMessages(s.docs.map(d => ({ ...d.data(), id: d.id } as Message))), onErr('messages'));
+                unsubMsg = onSnapshot(query(collection(db, 'messages'), orderBy('createdAt', 'desc'), limit(100)), (s) => setMessages(s.docs.map(d => ({ ...d.data(), id: d.id } as Message))), onErr('messages'));
                 unsubExpenses = onSnapshot(query(collection(db, 'expenses'), orderBy('date', 'desc'), limit(expensesLimit)), (snapshot) => {
                     const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Expense));
                     setExpenses(items.filter(e => (e as any).deleted !== true));
@@ -2315,13 +2562,13 @@ return false;
             if (unsubInmates) unsubInmates();
             if (unsubSystemMsg) unsubSystemMsg();
         };
-    }, [authReady, currentUser?.id, currentUser?.role, ordersLimit, expensesLimit, productsLimit]);
+    }, [authReady, currentUser?.id, currentUser?.role, ordersLimit, expensesLimit, productsLimit, usersLimit]);
 
     return (
         <StoreContext.Provider value={{
             currentUser, users, products, productsCache, orders, units: INITIAL_UNITS, cart, appConfig, suppliers, expenses, logs, isLoading, authLoading: isLoading, systemMessages, messages, notifications, settings: appConfig, storageUsage, serverTime,
             creditoCliente, realizarSaque, verificarCredito, finalizarVendaComCredito,
-            login, loginAdmin, loginFamiliar, logout, registerUser, recoverPassword, validateRecovery, createAdminUser, resetUserPassword,
+            login, loginAdmin, loginFamiliar, logout, registerUser, recoverPassword, validateRecovery, createAdminUser, updateAdminPermissions, resetUserPassword,
             addToCart, removeFromCart, clearCart, createOrder, searchOrders,
             clearOldData: performAutoCleanup,
             archiveOldData: archiveData,
@@ -2330,7 +2577,7 @@ return false;
             isSystemActive,
             
             updateOrderStatus, aprovarPedido, markOrderAsPrinted, deleteOrder, addProduct, updateProduct, deleteProduct, deleteExpense,
-            loadMoreOrders, loadMoreExpenses, loadMoreProducts,
+            loadMoreOrders, loadMoreExpenses, loadMoreProducts, usersLimit, loadMoreUsers, expandUsersLimit, cotaCritica,
             approveUser, updateUserStatus, toggleUserCredit, deleteUser, suspendUser,
             addSupplier, removeSupplier, addExpense, addWithdrawal, toggleFinanceEntries,
             processInvoiceImport, importXmlProduct, updateAppConfig, updateSettings: updateAppConfig,
@@ -2444,12 +2691,16 @@ return false;
                     return null;
                 }
             },
-            addWalletCreditDirectly: async (userId: string, amount: number, reason: string) => {
+            registrarVendaOffline,
+            sincronizarVendasOffline,
+            vendasOfflinePendentes: vendasOffline.filter((v) => v.status === 'pending').length,
+            vendasOfflineComErro: vendasOffline.filter((v) => v.status === 'error').length,
+            addWalletCreditDirectly: async (userId: string, amount: number, reason: string, senhaMestra?: string) => {
                 if (!currentUser || currentUser.role !== UserRole.ADMIN) throw new Error("Acesso restrito a administradores.");
                 if (!(Number(amount) > 0)) throw new Error("Valor de crédito inválido.");
 
         try {
-            const res = await fnCreditarSaldo({ userId, valor: amount, motivo: `Crédito Adicionado (Admin): ${reason}` });
+            const res = await fnCreditarSaldo({ userId, valor: amount, motivo: `Crédito Adicionado (Admin): ${reason}`, senhaMestra });
             const data = res.data as any;
             if (currentUser.id === userId && data?.novoSaldo !== undefined) {
                 setCreditoCliente(data.novoSaldo);
@@ -2458,7 +2709,7 @@ return false;
             showNotification(`Crédito de R$ ${formatarMoeda(amount)} adicionado com sucesso!`, 'success');
                 } catch (error) {
                     console.error('Erro ao adicionar crédito:', error);
-                    throw new Error("Falha ao processar crédito.");
+                    throw new Error(mensagemErroChamada(error));
                 }
             },
 

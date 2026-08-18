@@ -23,16 +23,27 @@ interface AdminUsersTabProps {
   onAddCredit: (user: User) => void;
   canManageCredits?: boolean;
   toggleExcepcionalFlag?: (userId: string, value: boolean) => void;
+  usersLimit?: number;
+  loadMoreUsers?: () => void;
+  loadAllUsers?: () => void;
 }
 
 export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
   users, orders = [], userSearch, setUserSearch, showPasswords, setShowPasswords,
   setViewingUser, setShowWithdrawalModal, approveUser, suspendUser, toggleUserCredit, deleteUser,
-  onAddCredit, canManageCredits = true, toggleExcepcionalFlag
+  onAddCredit, canManageCredits = true, toggleExcepcionalFlag,
+  usersLimit = 500, loadMoreUsers, loadAllUsers
 }) => {
   const [mainTab, setMainTab] = React.useState<'CARDS' | 'VINCULOS'>('VINCULOS');
   const [statusFilter, setStatusFilter] = React.useState<'ALL' | 'PENDING' | 'ACTIVE' | 'SUSPENDED'>('ALL');
   const [selectedUsers, setSelectedUsers] = React.useState<Set<string>>(new Set());
+
+  // Busca client-side exige TODOS os usuários no stream: quando o admin
+  // digita, expande a carga para cobrir o cadastro inteiro (escala 1.500+).
+  React.useEffect(() => {
+    if ((userSearch || '').trim().length >= 2 && loadAllUsers) loadAllUsers();
+    if (loadMoreUsers && (users || []).length >= usersLimit - 1) loadMoreUsers();
+  }, [userSearch, usersLimit]);
   const [showBulkActions, setShowBulkActions] = React.useState(false);
   const [openDropdown, setOpenDropdown] = React.useState<string | null>(null);
 
@@ -289,7 +300,13 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                         )}
                         {/* Soft Delete */}
                         <button
-                          onClick={() => { if(confirm(`EXCLUIR ${u.name}? O histórico será preservado.`)) deleteUser(u.id); }}
+                          onClick={() => {
+                          const saldo = Number(u?.walletBalance || 0);
+                          const aviso = saldo > 0
+                            ? `EXCLUIR ${u.name}? Ele(a) tem R$ ${saldo.toFixed(2).replace('.', ',')} de crédito em carteira — o saldo ficará retido (não é possível sacar após a exclusão).`
+                            : `EXCLUIR ${u.name}? O histórico será preservado.`;
+                          if (confirm(aviso)) deleteUser(u.id);
+                        }}
                           className="p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all active:scale-95"
                           title="Excluir (Soft Delete)"
                         >
@@ -434,7 +451,13 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                         Desbloquear
                       </button>
                     )}
-                    <button onClick={() => { if(confirm(`EXCLUIR ${u?.name || 'este usuário'}?`)) deleteUser(u?.id); }} className="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all active:scale-95">
+                    <button onClick={() => {
+                      const saldo = Number(u?.walletBalance || 0);
+                      const aviso = saldo > 0
+                        ? `EXCLUIR ${u?.name || 'este usuário'}? Ele(a) tem R$ ${saldo.toFixed(2).replace('.', ',')} de crédito em carteira — o saldo ficará retido (não é possível sacar após a exclusão).`
+                        : `EXCLUIR ${u?.name || 'este usuário'}? O histórico será preservado.`;
+                      if (confirm(aviso)) deleteUser(u?.id);
+                    }} className="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all active:scale-95">
                       <Trash2 size={20}/>
                     </button>
                   </div>

@@ -4,10 +4,10 @@ DollarSign, Wallet, Package, ChevronLeft, Plus, Minus, Check, Volume2, VolumeX, 
 Trash2, RefreshCw, Landmark, Lock, LogIn, LogOut, AlertTriangle, CheckCircle, 
 BookOpen, Printer, BarChart3, Calendar, Users2, Clock, Undo2, RotateCcw, PauseCircle, History } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Product, User, Order, AppConfig, CustomerAccount } from '../../types';
+import { Product, User, UserRole, Order, AppConfig, CustomerAccount } from '../../types';
 import { getCustomerAccounts } from '../../utils/customerUtils';
 import { motion, AnimatePresence } from 'framer-motion';
-import { formatarMoeda, generatePixPayload as generatePix } from '../../utils';
+import { formatarMoeda, parseMoeda, generatePixPayload as generatePix } from '../../utils';
 import { getActiveSession, openCashSession, addSupplement, addWithdrawal, closeCashSession, CashSession } from '../../utils/cashSession';
 import { imprimirComPrioridadeFiscal, abrirJanelaImpressao } from '../../utils/printUtils';
 import { useApp } from '../../context/StoreContext';
@@ -19,6 +19,7 @@ interface AdminSalesModalProps {
   products: Product[];
   orders?: Order[];
   onConfirm: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'MIXED' | 'FIADO', total: number, payments?: {method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO', amount: number}[], change?: number, customerAccountId?: string, clientToken?: string) => Promise<any>;
+  onConfirmOffline?: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'MIXED' | 'FIADO', total: number, payments?: {method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO', amount: number}[], change?: number, customerAccountId?: string) => Promise<any>;
   setPrintOrder?: (order: any) => void;
   settings?: AppConfig;
   currentUser?: User;
@@ -28,7 +29,7 @@ interface AdminSalesModalProps {
 let sharedAudioCtx: AudioContext | null = null;
 
 export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
-  isOpen, onClose, users, products, orders = [], onConfirm, setPrintOrder, settings, currentUser
+  isOpen, onClose, users, products, orders = [], onConfirm, setPrintOrder, settings, currentUser, onConfirmOffline
 }) => {
   const [carrinho, setCarrinho] = useState<any[]>([]);
   const [clienteSelecionado, setClienteSelecionado] = useState<string>('');
@@ -241,7 +242,10 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
 
   const todosClientes = useMemo(() => {
     if (!users) return [];
-    return users.filter(u => u.role !== 'ADMIN' && u.role !== 'MASTER' && u.status !== 'suspended');
+    // Consumidor geral é sintético (não vive no Firestore) — entra apenas na
+    // busca do PDV; painéis administrativos usam a lista real (sem ele).
+    const consumidor: User = { id: 'consumidor_geral', name: 'CONSUMIDOR GERAL', email: 'venda@balcao.com', role: UserRole.FAMILY, status: 'active', approved: true, cpf: '000.000.000-00', inmateName: 'CONSUMIDOR', inmateCpf: '000.000.000-00' };
+    return [consumidor, ...users.filter(u => u.role !== 'ADMIN' && u.role !== 'MASTER' && u.status !== 'suspended')];
   }, [users]);
 
   const pixChaveDisponivel = (): string => {
@@ -361,7 +365,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
       : produto.price;
 
     const preco = (produto as any).dynamicPrice
-      ? parseFloat(window.prompt(`Preço: ${produto?.name || 'Produto'}`, precoBase?.toString() || '0') || '0') || precoBase || 0
+      ? parseMoeda(window.prompt(`Preço: ${produto?.name || 'Produto'}`, precoBase?.toString() || '0')) || precoBase || 0
       : precoBase;
 
     playAddSound();
@@ -370,7 +374,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
       const existente = prev.find(item => String(item.productId) === String(produto.id));
       const qtdToAdd = forceQty || 1;
       if (existente) return prev.map(item => String(item.productId) === String(produto.id) ? { ...item, quantity: item.quantity + qtdToAdd } : item);
-      return [{ productId: produto?.id || '', name: produto?.name || 'Produto', price: preco || 0, quantity: qtdToAdd }, ...prev];
+      return [{ productId: produto?.id || '', name: produto?.name || 'Produto', price: preco || 0, quantity: qtdToAdd, imageUrl: produto?.imageUrl || '', stock: produto?.stock || 0 }, ...prev];
     });
   };
 
@@ -478,7 +482,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
   // Memoizado: o payload PIX (geração do QR) é usado várias vezes por render —
   // calcular uma única vez economiza processamento a cada tecla digitada no PDV.
   const pixPayloadCarrinho = useMemo(() => gerarPixPayload(totalCarrinho), [totalCarrinho, gerarPixPayload]);
-  const pixPayloadMisto = useMemo(() => gerarPixPayload(parseFloat(valorMisto.PIX) || 0), [valorMisto.PIX, gerarPixPayload]);
+  const pixPayloadMisto = useMemo(() => gerarPixPayload(parseMoeda(valorMisto.PIX)), [valorMisto.PIX, gerarPixPayload]);
 
   // Segurança extra: se o total do carrinho mudar com PIX pendente, exige nova confirmação
   useEffect(() => {
@@ -715,13 +719,15 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
       return;
     }
     const temPixNaVenda = formaPagamento === 'PIX'
-      || (formaPagamento === 'MIXED' && (parseFloat(valorMisto.PIX) || 0) > 0);
+|| (formaPagamento === 'MIXED' && parseMoeda(valorMisto.PIX) > 0);
     if (temPixNaVenda && !pixConfirmado) {
       alert('Confirme o recebimento do PIX antes de finalizar a venda.');
       return;
     }
     setProcessando(true);
     const targetId = clienteSelecionado || 'balcao_anonimo';
+    let paymentsArray: {method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO', amount: number}[] | undefined = undefined;
+    let changeValue: number | undefined = undefined;
     try {
       if (formaPagamento === 'FIADO') {
         if (!clienteSelecionado) throw new Error('Selecione um cliente para venda fiada.');
@@ -739,13 +745,10 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
         return;
       }
 
-      let paymentsArray: {method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO', amount: number}[] | undefined = undefined;
-      let changeValue: number | undefined = undefined;
-
       if (formaPagamento === 'MIXED') {
-        const pPix = parseFloat(valorMisto.PIX) || 0;
-        const pWallet = parseFloat(valorMisto.WALLET) || 0;
-        const pCash = parseFloat(valorMisto.CASH) || 0;
+        const pPix = parseMoeda(valorMisto.PIX);
+        const pWallet = parseMoeda(valorMisto.WALLET);
+        const pCash = parseMoeda(valorMisto.CASH);
 
         paymentsArray = [];
         if (pPix > 0) paymentsArray.push({ method: 'PIX', amount: pPix });
@@ -770,7 +773,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
            }
         }
       } else if (formaPagamento === 'CASH') {
-        const recebido = parseFloat(valorRecebido) || 0;
+        const recebido = parseMoeda(valorRecebido);
         if (recebido < totalCarrinho - 0.009) {
            const faltam = (totalCarrinho - recebido).toFixed(2);
            alert(`Valor recebido insuficiente. Faltam R$ ${faltam}. Receba ao menos o total da venda em dinheiro.`);
@@ -788,6 +791,22 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
         resetPdvFields();
       }
     } catch (e: any) {
+      // SEM INTERNET: em vez de perder a venda, oferece o registro OFFLINE
+      // (fila local + sincronização automática quando a rede voltar).
+      if (!navigator.onLine && onConfirmOffline) {
+        try {
+          const pedidoOffline = await onConfirmOffline(targetId, carrinho, formaPagamento, totalCarrinho, paymentsArray, changeValue, (formaPagamento === 'FIADO' ? selectedCustomerAccount?.id : undefined));
+          if (pedidoOffline) {
+            setUltimoPedido(pedidoOffline);
+            setUltimaVenda(pedidoOffline);
+            resetPdvFields();
+            showNotification('Venda registrada OFFLINE — será sincronizada quando a internet voltar.', 'info');
+            return;
+          }
+        } catch (e2: any) {
+          alert(e2.message || 'Não foi possível registrar a venda offline.');
+        }
+      }
       alert(e.message || 'Erro ao finalizar venda.');
     } finally { setProcessando(false); }
   };
@@ -800,14 +819,16 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
     }
   }, [ultimoPedido, settings]);
 
-  if (!isOpen) return null;
-
   // PIX pendente = venda com parte PIX (total ou mista) ainda não confirmada pelo operador
   const temPixNaVenda = formaPagamento === 'PIX'
-    || (formaPagamento === 'MIXED' && (parseFloat(valorMisto.PIX) || 0) > 0);
+    || (formaPagamento === 'MIXED' && parseMoeda(valorMisto.PIX) > 0);
   const pixPendente = temPixNaVenda && !pixConfirmado;
 
   // ── RESUMO DE VENDAS (por dia / por cliente) ──
+  // CRÍTICO: estes useMemo DEVEM ficar ANTES do `if (!isOpen) return null`.
+  // Hooks depois de retorno condicional mudam a contagem de hooks entre
+  // renders (modal aberto = N hooks, fechado = N-3) e disparam o erro
+  // React #310 "Rendered more hooks than during the previous render".
   const salesOrders = useMemo(() => {
     const agora = new Date();
     const inicio = new Date();
@@ -855,6 +876,8 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
       total: list.reduce((s, o) => s + (Number(o.total) || 0), 0),
     })).sort((a, b) => b.total - a.total);
   }, [salesOrders]);
+
+  if (!isOpen) return null;
 
   const totalPeriodo = salesOrders.reduce((s, o) => s + (Number(o.total) || 0), 0);
   const formatarHora = (dateStr: string) => {
@@ -1208,6 +1231,15 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                 ) : (
                   carrinho.map((item: any, idx: number) => (
                     <div key={item.productId || idx} className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-100 rounded-2xl">
+                      <div className="w-12 h-12 rounded-xl bg-white border border-slate-100 overflow-hidden flex-none">
+                        {item.imageUrl ? (
+                          <img src={item.imageUrl} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-slate-100">
+                            <Package size={16} className="text-slate-300" />
+                          </div>
+                        )}
+                      </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-black text-xs uppercase tracking-tight text-slate-900 truncate">{item?.name || 'Produto'}</p>
                         <div className="flex items-center gap-3 mt-1">
@@ -1445,6 +1477,25 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                 {formaPagamento === 'CASH' && (
                   <motion.div initial={{opacity:0}} animate={{opacity:1}} className="space-y-4">
                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] ml-2">Valor Recebido do Cliente</p>
+                    <div className="flex flex-wrap justify-center gap-2">
+                      {[10, 20, 50, 100].map(v => (
+                        <button
+                          key={v}
+                          type="button"
+                          onClick={() => setValorRecebido((parseMoeda(valorRecebido || '0') + v).toFixed(2))}
+                          className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl text-xs font-black text-slate-700 transition-all active:scale-95 cursor-pointer"
+                        >
+                          +R$ {v}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setValorRecebido(String(totalCarrinho))}
+                        className="px-4 py-2.5 bg-emerald-100 hover:bg-emerald-200 border border-emerald-200 rounded-xl text-xs font-black text-emerald-700 transition-all active:scale-95 cursor-pointer"
+                      >
+                        Valor Exato
+                      </button>
+                    </div>
                     <input
                       type="number"
                       placeholder="0.00"
@@ -1452,15 +1503,15 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                       value={valorRecebido}
                       onChange={e => setValorRecebido(e.target.value)}
                     />
-                    {valorRecebido && parseFloat(valorRecebido) >= totalCarrinho && (
+                    {valorRecebido && parseMoeda(valorRecebido) >= totalCarrinho && (
                       <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-[2rem] p-6 text-center animate-fadeIn">
                         <p className="text-[10px] text-emerald-500 font-black uppercase tracking-[0.4em] mb-2">Troco a Devolver</p>
-                        <p className="text-3xl font-black text-emerald-600">R$ {formatarMoeda(parseFloat(valorRecebido) - totalCarrinho)}</p>
-                        {calcularDenominacoes(parseFloat(valorRecebido) - totalCarrinho).length > 0 && (
+                        <p className="text-3xl font-black text-emerald-600">R$ {formatarMoeda(parseMoeda(valorRecebido) - totalCarrinho)}</p>
+                        {calcularDenominacoes(parseMoeda(valorRecebido) - totalCarrinho).length > 0 && (
                           <div className="mt-4 pt-4 border-t border-emerald-500/20">
                             <p className="text-[9px] font-black text-emerald-600 uppercase tracking-[0.3em] mb-3">Sugestão de Notas e Moedas</p>
                             <div className="flex flex-wrap justify-center gap-2">
-                              {calcularDenominacoes(parseFloat(valorRecebido) - totalCarrinho).map(d => (
+                              {calcularDenominacoes(parseMoeda(valorRecebido) - totalCarrinho).map(d => (
                                 <span key={d.valor} className="px-3 py-1.5 bg-white border border-emerald-200 rounded-xl text-[10px] font-black text-emerald-700">
                                   R$ {d.valor.toFixed(2).replace('.', ',')} × {d.qtd}
                                 </span>
@@ -1502,13 +1553,13 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                         />
                       </div>
                     ))}
-                    {(parseFloat(valorMisto.PIX) || 0) > 0 && (
+                    {parseMoeda(valorMisto.PIX) > 0 && (
                       <motion.div initial={{opacity:0}} animate={{opacity:1}} className="bg-blue-500/5 border border-blue-500/20 rounded-[2rem] p-6 text-center mt-6">
                         <div className="flex items-center gap-3 mb-2 justify-center">
                           <CreditCard size={18} className="text-blue-600" />
                           <span className="font-black text-[10px] uppercase tracking-[0.3em] text-blue-700">PIX — Parte da Compra</span>
                         </div>
-                        <p className="font-black text-2xl text-blue-700 mb-4">R$ {formatarMoeda(parseFloat(valorMisto.PIX) || 0)}</p>
+                        <p className="font-black text-2xl text-blue-700 mb-4">R$ {formatarMoeda(parseMoeda(valorMisto.PIX))}</p>
                         {pixPayloadMisto ? (
                           <div className="bg-white rounded-[2rem] p-4 inline-block shadow-lg border border-blue-100">
                             <QRCodeSVG

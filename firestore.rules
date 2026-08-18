@@ -28,7 +28,10 @@ service cloud.firestore {
 
     // ── USUÁRIOS ──
     // Leitura: próprio usuário ou admin. Criação: SOMENTE via Cloud Function.
-    // Atualização: admin (tudo) ou o próprio usuário APENAS em campos de perfil seguros.
+    // Atualização: admin (exceto campos sensíveis) ou o próprio usuário APENAS
+    // em campos de perfil seguros. Campos sensíveis (role, walletBalance,
+    // weeklySpent, authUid, mainAdmin) só mudam via Cloud Functions (admin SDK,
+    // ignora as regras) — impede auto-promoção e edição de saldo via cliente.
     // NUNCA é permitido ao usuário alterar role, walletBalance, weeklySpent ou authUid.
     // diff().affectedKeys() garante que só os campos permitidos MUDAM (hasOnly no doc
     // inteiro quebraria qualquer update, pois o doc contém campos fora da lista).
@@ -36,7 +39,10 @@ service cloud.firestore {
       allow get: if isAuthenticated() && (userId == request.auth.uid || resource.data.authUid == request.auth.uid || isAdmin());
       allow list: if isAuthenticated() && (isAdmin() || resource.data.authUid == request.auth.uid);
       allow create: if false;
-      allow update: if isAdmin() ||
+      allow update: if isAdmin() &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'role', 'walletBalance', 'weeklySpent', 'authUid', 'mainAdmin'
+        ]) ||
         (userMatch(userId) &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
            'name', 'phone', 'avatarUrl', 'inmateName', 'inmateCpf',
@@ -104,7 +110,10 @@ service cloud.firestore {
       allow delete: if false;
     }
     match /settings/private {
-      allow read, write: if isAdmin();
+      // Nunca acessível ao cliente (hash da senha mestra): somente a Cloud
+      // Function definirSenhaMestra (admin SDK, ignora as regras) escreve aqui,
+      // e nenhuma leitura client-side é necessária.
+      allow read, write: if false;
       allow delete: if false;
     }
     match /settings/maintenance {
@@ -167,13 +176,22 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // ── LOGS DE AUDITORIA (ações sensíveis; imutáveis) ──
-    // Criação: admin (client-side p/ zerações locais; server-side via Cloud Functions).
+// ── LOGS DE AUDITORIA (ações sensíveis; imutáveis) ──
+    // Criação: admin (client-side p/ zerÃ§Ãµes locais; server-side via Cloud Functions).
     // Edição: PROIBIDA (somente deletável por admin — ex.: reset total do sistema).
     match /audit_logs/{logId} {
       allow read, create: if isAdmin();
       allow update: if false;
       allow delete: if isAdmin();
+    }
+
+    // ── ALERTAS DO FIREBASE (Alert Center) ──
+    // Registro imutável gravado pela Cloud Function tratarAlertasFirebase
+    // (admin SDK — ignora estas regras). Cliente: somente leitura por admin.
+    match /alerts_log/{alertId} {
+      allow read: if isAdmin();
+      allow create: if false;
+      allow update, delete: if false;
     }
 
     // ── CAIXA FÍSICA, FORNECEDORES E PRÉ-CADASTROS ──

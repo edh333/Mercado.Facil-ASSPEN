@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { X, Search, Barcode, Receipt, Package, Users, CreditCard, CheckCircle, Zap, Percent, ShoppingCart, Plus, Minus, Trash2, Home, ArrowRight, Ban, UserCheck, Wallet, DollarSign } from 'lucide-react';
 import { Product, User as UserType, Order, AppConfig } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { formatarMoeda } from '../../utils';
+import { formatarMoeda, parseMoeda } from '../../utils';
 
 interface AdminSalesModalProps {
   isOpen: boolean;
@@ -10,13 +10,14 @@ interface AdminSalesModalProps {
   users: UserType[];
   products: Product[];
   onConfirm: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'MIXED', total: number, payments?: {method: string, amount: number}[], change?: number) => Promise<any>;
+  onConfirmOffline?: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'MIXED', total: number, payments?: {method: string, amount: number}[], change?: number) => Promise<any>;
   setPrintOrder?: (order: any) => void;
   settings?: AppConfig;
   currentUser?: UserType;
 }
 
 export const AdminSalesModalClassic: React.FC<AdminSalesModalProps> = ({
-  isOpen, onClose, users, products, onConfirm, setPrintOrder, settings, currentUser
+  isOpen, onClose, users, products, onConfirm, setPrintOrder, settings, currentUser, onConfirmOffline
 }) => {
   const [carrinho, setCarrinho] = useState<any[]>([]);
   const [codigoBarras, setCodigoBarras] = useState('');
@@ -83,13 +84,16 @@ export const AdminSalesModalClassic: React.FC<AdminSalesModalProps> = ({
 
   const responsaveisFiltrados = useMemo(() => {
     const termo = (buscaResponsavel || '').toLowerCase().trim();
-    if (!termo) return (users || []).filter(u => u.role !== 'ADMIN' && u.status !== 'suspended').slice(0, 5);
-    return (users || []).filter(u =>
+    // Consumidor geral é sintético (não vive no Firestore) — entra apenas na
+    // busca do PDV; painéis administrativos usam a lista real (sem ele).
+    const consumidor: UserType = { id: 'consumidor_geral', name: 'CONSUMIDOR GERAL', email: 'venda@balcao.com', role: 'FAMILY', status: 'active', approved: true, cpf: '000.000.000-00', inmateName: 'CONSUMIDOR', inmateCpf: '000.000.000-00' };
+    if (!termo) return [consumidor, ...(users || []).filter(u => u.role !== 'ADMIN' && u.status !== 'suspended')].slice(0, 5);
+    return [consumidor, ...(users || []).filter(u =>
       u.role !== 'ADMIN' && u.status !== 'suspended' &&
       ((u.name || '').toLowerCase().includes(termo) ||
        (u.cpf || '').includes(termo) ||
        (u.inmateName || u.prisonerName || '').toLowerCase().includes(termo))
-    ).slice(0, 10);
+    )].slice(0, 10);
   }, [buscaResponsavel, users]);
 
   const produtosFiltrados = useMemo(() => {
@@ -149,14 +153,13 @@ export const AdminSalesModalClassic: React.FC<AdminSalesModalProps> = ({
     if (carrinho.length === 0) return;
     setProcessando(true);
     const targetId = cliente?.id || 'balcao_anonimo';
+    let paymentsArray: {method: string, amount: number}[] | undefined = undefined;
+    let changeValue: number | undefined = undefined;
     try {
-      let paymentsArray: {method: string, amount: number}[] | undefined = undefined;
-      let changeValue: number | undefined = undefined;
-
       if (formaPagamento === 'MIXED') {
-        const pPix = parseFloat(valorMisto.PIX) || 0;
-        const pWallet = parseFloat(valorMisto.WALLET) || 0;
-        const pCash = parseFloat(valorMisto.CASH) || 0;
+        const pPix = parseMoeda(valorMisto.PIX);
+        const pWallet = parseMoeda(valorMisto.WALLET);
+        const pCash = parseMoeda(valorMisto.CASH);
 
         paymentsArray = [];
         if (pPix > 0) paymentsArray.push({ method: 'PIX', amount: pPix });
@@ -181,7 +184,7 @@ export const AdminSalesModalClassic: React.FC<AdminSalesModalProps> = ({
            return;
         }
       } else if (formaPagamento === 'CASH') {
-        const recebido = parseFloat(valorRecebido) || 0;
+        const recebido = parseMoeda(valorRecebido);
         if (recebido < totalComDesconto - 0.009) {
            const faltam = (totalComDesconto - recebido).toFixed(2);
            alert(`Valor recebido insuficiente. Faltam R$ ${faltam}. Receba ao menos o total da venda em dinheiro.`);
@@ -199,6 +202,21 @@ export const AdminSalesModalClassic: React.FC<AdminSalesModalProps> = ({
       setValorRecebido('');
       if (setPrintOrder) setPrintOrder(pedido);
     } catch (err) {
+      // SEM INTERNET: oferece o registro OFFLINE (fila local + sincronização automática).
+      if (!navigator.onLine && onConfirmOffline) {
+        try {
+          const pedidoOffline = await onConfirmOffline(targetId, carrinho, formaPagamento, totalComDesconto, paymentsArray, changeValue);
+          if (pedidoOffline) {
+            setUltimoPedido(pedidoOffline); setModalPagamento(false); setModalSucesso(true);
+            setValorMisto({ PIX: '', WALLET: '', CASH: '' });
+            setValorRecebido('');
+            if (setPrintOrder) setPrintOrder(pedidoOffline);
+            return;
+          }
+        } catch (e2: any) {
+          alert(e2.message || 'Não foi possível registrar a venda offline.');
+        }
+      }
       console.error('Erro:', err);
       alert('Erro ao finalizar venda. Verifique o estoque ou saldo.');
     }
@@ -583,10 +601,10 @@ export const AdminSalesModalClassic: React.FC<AdminSalesModalProps> = ({
                     value={valorRecebido}
                     onChange={e => setValorRecebido(e.target.value)}
                   />
-                  {valorRecebido && parseFloat(valorRecebido) >= totalComDesconto && (
+                  {valorRecebido && parseMoeda(valorRecebido) >= totalComDesconto && (
                     <div className="mt-4 bg-emerald-900/30 border border-emerald-500/50 rounded-2xl p-4 text-center">
                       <p className="text-xs font-black text-emerald-400/70 uppercase tracking-widest mb-1">Troco a Devolver</p>
-                      <p className="text-3xl font-black text-emerald-400">R$ {formatarMoeda(parseFloat(valorRecebido) - totalComDesconto)}</p>
+                      <p className="text-3xl font-black text-emerald-400">R$ {formatarMoeda(parseMoeda(valorRecebido) - totalComDesconto)}</p>
                     </div>
                   )}
                 </div>
@@ -614,10 +632,10 @@ export const AdminSalesModalClassic: React.FC<AdminSalesModalProps> = ({
 
                   <div className="pt-4 border-t border-slate-800 mt-2">
                     {(() => {
-                      const sum = (parseFloat(valorMisto.PIX)||0) + (parseFloat(valorMisto.WALLET)||0) + (parseFloat(valorMisto.CASH)||0);
+                      const sum = parseMoeda(valorMisto.PIX) + parseMoeda(valorMisto.WALLET) + parseMoeda(valorMisto.CASH);
                       const missing = totalComDesconto - sum;
                       if (missing > 0) return <p className="text-red-400 text-sm text-center font-black uppercase">Faltam R$ {formatarMoeda(missing)}</p>;
-                      if (missing < 0 && (parseFloat(valorMisto.CASH)||0) > 0) return <div className="text-center"><p className="text-emerald-400 text-lg font-black uppercase">Troco: R$ {formatarMoeda(Math.abs(missing))}</p><p className="text-[10px] text-slate-500 font-bold mt-1 uppercase">Troco subtraído do Dinheiro</p></div>;
+                      if (missing < 0 && parseMoeda(valorMisto.CASH) > 0) return <div className="text-center"><p className="text-emerald-400 text-lg font-black uppercase">Troco: R$ {formatarMoeda(Math.abs(missing))}</p><p className="text-[10px] text-slate-500 font-bold mt-1 uppercase">Troco subtraído do Dinheiro</p></div>;
                       if (missing < 0) return <p className="text-red-400 text-xs text-center font-black uppercase">Valor excedido (Dinheiro = 0, sem troco)</p>;
                       return <p className="text-emerald-400 text-lg text-center font-black uppercase">Valor Exato Atingido</p>;
                     })()}
@@ -634,7 +652,7 @@ export const AdminSalesModalClassic: React.FC<AdminSalesModalProps> = ({
                 </button>
                 <button
                   onClick={finalizar}
-                  disabled={processando || (formaPagamento === 'MIXED' && ((parseFloat(valorMisto.PIX)||0) + (parseFloat(valorMisto.WALLET)||0) + (parseFloat(valorMisto.CASH)||0)) < totalComDesconto)}
+                  disabled={processando || (formaPagamento === 'MIXED' && (parseMoeda(valorMisto.PIX) + parseMoeda(valorMisto.WALLET) + parseMoeda(valorMisto.CASH)) < totalComDesconto)}
                   className="flex-[2] py-5 rounded-[2rem] font-black text-sm uppercase tracking-widest bg-brand-success text-white hover:bg-emerald-500 transition-all shadow-[0_15px_30px_rgba(16,185,129,0.3)] disabled:opacity-50 disabled:grayscale active:scale-95 flex items-center justify-center gap-2 touch-target min-h-[44px]"
                 >
                   {processando ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <UserCheck size={20} />}

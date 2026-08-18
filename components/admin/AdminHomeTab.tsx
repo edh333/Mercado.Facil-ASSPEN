@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { OrderStatus, WalletTransaction } from '../../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
+import { ChartMount } from '../ui/ChartMount';
 import { useTheme } from '../../context/ThemeContext';
 import { formatarMoeda } from '../../utils';
 
@@ -219,7 +220,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
             </div>
             <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase italic">Visualização de Pico de Movimentação</p>
           </div>
-          <div className="h-24 w-full">
+          <ChartMount className="h-24 w-full" minHeight={96}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData}>
                 <defs>
@@ -250,11 +251,11 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
                   radius={[4, 4, 0, 0]}
                   barSize={isMaster ? 60 : 40}
                 />
-              </BarChart>
-            </ResponsiveContainer>
+</BarChart>
+              </ResponsiveContainer>
+            </ChartMount>
           </div>
-        </div>
-      )}
+        )}
 
       {/* Critical Stock Alert - Compact Card */}
       {(criticalStock.length > 0 || zeroStock > 0) && (
@@ -376,7 +377,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
             <h3 className="text-xl font-black text-[var(--text-main)] mb-8 flex items-center gap-3 uppercase tracking-tight">
               <BarChart3 className="text-blue-500" size={24}/> Fluxo de Vendas
             </h3>
-            <div className="h-72">
+            <ChartMount className="h-72" minHeight={288}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
@@ -390,7 +391,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
                   <Bar dataKey="vendas" fill="var(--primary-color)" radius={[6, 6, 0, 0]} barSize={40} />
                 </BarChart>
               </ResponsiveContainer>
-            </div>
+            </ChartMount>
           </div>
         )}
 

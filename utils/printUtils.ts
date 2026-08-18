@@ -1,3 +1,5 @@
+import { mascararCpf } from '../utils';
+
 export function formatarLinhaDupla(esquerda: string, direita: string, larguraTotal = 40): string {
   const espacosNecessarios = larguraTotal - (esquerda.length + direita.length);
   if (espacosNecessarios <= 0) return `${esquerda} ${direita}`;
@@ -8,30 +10,81 @@ export function formatarLinhaDupla(esquerda: string, direita: string, larguraTot
 export function formatarLinhaPontilhada(esquerda: string, direita: string, larguraTotal = 40): string {
   const base = `${esquerda} ${direita}`;
   if (base.length >= larguraTotal) return base;
-  return esquerda + " " + ".".repeat(larguraTotal - esquerda.length - direita.length - 1) + " " + direita;
+  // dois espaços (um de cada lado dos pontos) — nunca estoura a largura
+  const pontos = Math.max(1, larguraTotal - esquerda.length - direita.length - 2);
+  return esquerda + " " + ".".repeat(pontos) + " " + direita;
 }
 
 const ESC = "\x1B";
 const GS = "\x1D";
 
+// Tabela PC850 (Multilingual Latin-1) — a codepage de facto para térmicas
+// brasileiras. Texto UTF-8 cru (TextEncoder) sai corrompido (ï¿½) em
+// impressoras single-byte; aqui cada caractere acentuado vira o byte certo.
+// Caracteres sem mapeamento viram '?' (nunca quebram o fluxo do cupom).
+const CP850: Record<string, number> = {
+  'Ç': 0x80, 'é': 0x82, 'â': 0x83, 'ä': 0x84, 'à': 0x85, 'å': 0x86, 'ç': 0x87,
+  'ê': 0x88, 'ë': 0x89, 'è': 0x8A, 'ï': 0x8B, 'î': 0x8C, 'ì': 0x8D, 'Ä': 0x8E,
+  'Å': 0x8F, 'É': 0x90, 'æ': 0x91, 'Æ': 0x92, 'ô': 0x93, 'ö': 0x94, 'ò': 0x95,
+  'û': 0x96, 'ù': 0x97, 'ÿ': 0x98, 'Ö': 0x99, 'Ü': 0x9A, '¢': 0x9B, '£': 0x9C,
+  '¥': 0x9D, 'á': 0xA0, 'í': 0xA1, 'ó': 0xA2, 'ú': 0xA3, 'ñ': 0xA4, 'Ñ': 0xA5,
+  'ª': 0xA6, 'º': 0xA7, '¿': 0xA8, '®': 0xA9, '¬': 0xAA, '½': 0xAB, '¼': 0xAC,
+  '¡': 0xAD, '«': 0xAE, '»': 0xAF, 'Á': 0xB5, 'Â': 0xB6, 'À': 0xB7, '©': 0xB8,
+  'ã': 0xC6, 'Ã': 0xC7, '¤': 0xCF, 'ð': 0xD0, 'Ð': 0xD1, 'Ê': 0xD2, 'Ë': 0xD3,
+  'È': 0xD4, 'Í': 0xD6, 'Î': 0xD7, 'Ï': 0xD8, '¦': 0xDD, 'Ì': 0xDE, 'Ó': 0xE0,
+  'ß': 0xE1, 'Ô': 0xE2, 'Ò': 0xE3, 'õ': 0xE4, 'Õ': 0xE5, 'µ': 0xE6, 'Ú': 0xE9,
+  'Û': 0xEA, 'Ù': 0xEB, 'ý': 0xEC, 'Ý': 0xED, '¯': 0xEE, '´': 0xEF, '±': 0xF1,
+  '¾': 0xF3, '¶': 0xF4, '§': 0xF5, '÷': 0xF6, '¸': 0xF7, '°': 0xF8, '¨': 0xF9,
+  '¹': 0xFA, '³': 0xFB, '²': 0xFC, '■': 0xFD,
+};
+
+function codificarCp850(texto: string): number[] {
+  const bytes: number[] = [];
+  for (const ch of texto) {
+    const code = ch.codePointAt(0) ?? 0;
+    if (code < 0x80) { bytes.push(code); continue; }
+    const mapeado = CP850[ch];
+    bytes.push(mapeado ?? 0x3F);
+  }
+  return bytes;
+}
+
 /**
- * Gera a sequência binária ESC/POS do cupom:
- * INIT + texto + avanço de papel + corte automático + abertura de gaveta (opcional).
+ * Gera a sequência binária ESC/POS do cupom (padrão 80mm / 48 colunas):
+ * INIT → codepage (PC850/PC860) → Fonte A → alinhamento → texto → avanço de
+ * papel (guilhotina) → corte PARCIAL (padrão; não "engole" a última linha) →
+ * abertura de gaveta (opcional).
  * Retorna a string em base64 pronta para o QZ Tray (formato 'raw'/'base64').
  */
 export function montarEscPos(texto: string, config?: any): string {
   const cortar = config?.autoCutPaper !== false;
+  const cutMode = config?.cutMode === 'full' ? 'full' : 'partial';
   const gaveta = config?.drawerKick === true;
   const feeds = Math.max(2, Math.min(10, Number(config?.endFeedLines || 4)));
+  const codepage = String(config?.codepage || '850'); // '850' | '860' | 'utf8'
 
-  const encoder = new TextEncoder();
   const bytes: number[] = [];
-  const push = (s: string) => bytes.push(...Array.from(encoder.encode(s)));
-  push(ESC + "@");                                          // INIT (reset da impressora)
-  push(texto);                                              // conteúdo do cupom
-  push(ESC + "d" + String.fromCharCode(feeds));             // avança papel N linhas
-  if (cortar) push(GS + "V" + "A" + "\x00");                // corte total (GS V 65 0)
-  if (gaveta) push(ESC + "p" + "\x00" + "\x19" + "\x32");   // abre gaveta (pin 2, 25ms/50ms)
+  const push = (s: string | number[]) =>
+    Array.isArray(s) ? bytes.push(...s) : bytes.push(...Array.from(s).map(c => c.charCodeAt(0)));
+  const pushTexto = (s: string) =>
+    push(codepage === 'utf8' ? Array.from(new TextEncoder().encode(s)) : codificarCp850(s));
+
+  push(ESC + "@");                                            // INIT — reset completo
+  if (codepage !== 'utf8') {
+    push(ESC + "t" + (codepage === '860' ? "\x03" : "\x02")); // codepage: PC860 ou PC850
+  }
+  push(ESC + "M" + "\x00");                                   // Fonte A (48 colunas)
+  push(ESC + "a" + "\x00");                                   // alinhamento à esquerda
+  pushTexto(texto);                                           // conteúdo do cupom
+  push(ESC + "d" + String.fromCharCode(feeds));               // avanço de papel (guilhotina)
+  if (cortar) {
+    if (cutMode === 'full') {
+      push(GS + "V" + "A" + "\x00");                          // corte TOTAL + alimenta
+    } else {
+      push(GS + "V" + "\x01");                                // corte PARCIAL (padrão)
+    }
+  }
+  if (gaveta) push(ESC + "p" + "\x00" + "\x19" + "\x32");     // abre gaveta (pin 2)
   return btoa(String.fromCharCode(...bytes));
 }
 
@@ -176,7 +229,7 @@ export function gerarRelatorioCredito(usuarios: { name: string; cpf: string; id:
   let totalGeral = 0;
   for (const u of usuarios) {
     const nome = (u.name || '—').length > 18 ? (u.name || '—').substring(0, 15) + '...' : (u.name || '—');
-    const cpf = (u.cpf || '—').replace(/\D/g, '').slice(0, 11);
+    const cpf = mascararCpf(u.cpf);
     const saldo = (u.walletBalance || 0).toFixed(2).replace('.', ',');
     texto += `${nome.padEnd(18)}${cpf.padStart(11)}${String("R$ " + saldo).padStart(11)}\n`;
     if (titulo && u.id) {
@@ -219,7 +272,7 @@ export function imprimirRelatorioCreditoA4(
             <tr>
                 <td style="text-align:center;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;">${String(i + 1).padStart(2, '0')}</td>
                 <td style="padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;font-weight:700;text-transform:uppercase;">${String(x.name || '—').replace(/</g, '&lt;')}</td>
-                <td style="text-align:center;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;font-family:monospace;">${String(x.cpf || '—').replace(/</g, '&lt;')}</td>
+                <td style="text-align:center;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;font-family:monospace;">${String(mascararCpf(x.cpf)).replace(/</g, '&lt;')}</td>
                 <td style="text-align:center;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:11px;">${x.status === 'active' ? 'Ativo' : x.status === 'pending' ? 'Pendente' : 'Suspenso'}</td>
                 <td style="text-align:right;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;font-weight:800;color:${Number(x.walletBalance || 0) > 0 ? '#059669' : '#94a3b8'};">R$ ${Number(x.walletBalance || 0).toFixed(2).replace('.', ',')}</td>
             </tr>`).join('');
@@ -355,9 +408,23 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
 
   const inst = limparLinha(config?.institutionName || config?.appName || 'MERCADO FACIL');
   const app = limparLinha(config?.appName || 'MERCADO FACIL');
-  const docName = limparLinha(config?.customReceiptDocName || 'CUPOM DE ENTREGA - NAO FISCAL');
+  const fiscalEmission = config?.fiscalEmission === true;
+  const docName = limparLinha(
+    config?.customReceiptDocName ||
+    (fiscalEmission ? `CUPOM FISCAL - ${String(config?.fiscalModel || 'NF-E')}` : 'CUPOM DE ENTREGA - NAO FISCAL')
+  );
+  // Só monta o número fiscal se houver número configurado — evita "N000000000"
+  // e "SERIE " vazios em cupons fiscais sem numeração cadastrada.
+  const fiscalId = fiscalEmission && config?.fiscalNumber
+    ? limparLinha(
+        `${String(config?.fiscalModel || 'NF-E')} N${String(config?.fiscalNumber || '').padStart(9, '0')}` +
+        (config?.fiscalSeries ? `  SERIE ${String(config?.fiscalSeries).toUpperCase()}` : ''),
+        48
+      )
+    : '';
   const cnpj = limparLinha(config?.cnpj || '', 18);
   const telefone = limparLinha(config?.contactPhone || '', 18);
+  const endereco = limparLinha(config?.address || '', 44);
 
   const status = String(data.status || '').toLowerCase();
   const cancelado = ['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'rejected', 'rejeitado'].includes(status);
@@ -367,8 +434,11 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
   cupom += `${inst}\n`;
   cupom += `${app}\n`;
   if (cnpj) cupom += `CNPJ: ${cnpj}\n`;
+  if (endereco) cupom += `${endereco}\n`;
   if (telefone) cupom += `TEL: ${telefone}\n`;
   cupom += `${docName}\n`;
+  if (!fiscalEmission) cupom += `NAO E DOCUMENTO FISCAL\n`;
+  if (fiscalId) cupom += `${fiscalId}\n`;
   cupom += `${divisorDuplo}\n`;
 
   if (cancelado) {
@@ -393,10 +463,10 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
 
   if (interno || familiar) {
     if (interno) cupom += `DESTINATARIO: ${limparLinha(interno, 34)}\n`;
-    if (inmateCpf) cupom += `CPF INTERNO:  ${limparLinha(inmateCpf, 34)}\n`;
+    if (inmateCpf) cupom += `CPF INTERNO:  ${limparLinha(mascararCpf(inmateCpf), 34)}\n`;
     if (familiar && familiar !== interno) {
       cupom += `FAMILIAR:     ${limparLinha(familiar, 34)}\n`;
-      if (userCpf) cupom += `CPF FAMILIAR: ${limparLinha(userCpf, 34)}\n`;
+      if (userCpf) cupom += `CPF FAMILIAR: ${limparLinha(mascararCpf(userCpf), 34)}\n`;
     }
     cupom += `${divisor}\n`;
   }
@@ -427,6 +497,16 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
   cupom += `${divisor}\n`;
 
   const total = Math.abs(data.total || 0);
+  const subtotal = itens.reduce((s, i) => s + (Number(i?.priceAtPurchase || i?.price || 0) * (Number(i?.quantity) || 1)), 0);
+  const desconto = subtotal - total;
+  if (Math.abs(desconto) > 0.005) {
+    cupom += formatarLinhaDupla("SUBTOTAL:", `R$ ${subtotal.toFixed(2).replace('.', ',')}`, 48) + "\n";
+    if (desconto > 0) {
+      cupom += formatarLinhaDupla("DESCONTO:", `-R$ ${desconto.toFixed(2).replace('.', ',')}`, 48) + "\n";
+    } else {
+      cupom += formatarLinhaDupla("ACRESCIMO:", `R$ ${Math.abs(desconto).toFixed(2).replace('.', ',')}`, 48) + "\n";
+    }
+  }
   cupom += formatarLinhaDupla("TOTAL PEDIDO:", `R$ ${total.toFixed(2).replace('.', ',')}`, 48) + "\n";
 
   const payments = Array.isArray(data.payments) ? data.payments : [];
@@ -444,6 +524,9 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
   } else {
     const pagamento = data.paymentMethod === 'WALLET' ? 'CARTEIRA' : data.paymentMethod === 'PIX' ? 'PIX' : data.paymentMethod === 'FIADO' ? 'FIADO' : 'DINHEIRO';
     cupom += formatarLinhaDupla("PAGAMENTO:", pagamento, 48) + "\n";
+    if (data.change !== undefined && data.change !== null && Number(data.change) > 0) {
+      cupom += formatarLinhaPontilhada("TROCO", `R$ ${Number(data.change).toFixed(2).replace('.', ',')}`, 48) + "\n";
+    }
   }
 
   const saldoAnterior = data.walletBalanceBefore;
@@ -471,7 +554,7 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
   cupom += `AUTH: ${authHash}\n`;
   if (cnpj) cupom += `CNPJ: ${cnpj}\n`;
   cupom += `${divisorDuplo}\n`;
-  cupom += `       FIM DO CUPOM - BOBINA 48mm\n`;
+  cupom += `       FIM DO CUPOM - BOBINA 80MM      \n`;
   cupom += `\n`.repeat(6);
   return cupom;
 }
@@ -490,17 +573,65 @@ export async function imprimirCupomTectoy(conteudo: string, config?: any): Promi
 }
 
 /**
- * Aguarda o SDK do QZ Tray carregar (script deferido) por até `timeout` ms.
+ * Aguarda o SDK do QZ Tray carregar por até `timeout` ms.
+ * Se o SDK não existe ou já falhou recentemente, retorna falso IMEDIATAMENTE
+ * (sem espera de 4s) — corrige a demora de impressão quando o QZ não está presente.
  */
-async function waitForQz(timeout = 4000): Promise<boolean> {
+let conexaoQzCache: Promise<boolean> | null = null;
+let qzIndisponivelAte = 0;
+let pagehideInstalado = false;
+
+async function waitForQz(timeout = 1500): Promise<boolean> {
   const w = window as any;
-  if (w.qz && w.qz.websocket) return true;
+  if (!w.qz || !w.qz.websocket) return false;
+  if (Date.now() < qzIndisponivelAte) return false;
   const inicio = Date.now();
   while (Date.now() - inicio < timeout) {
+    if (w.qz?.websocket && typeof w.qz.websocket.connect === 'function') return true;
     await new Promise((r) => setTimeout(r, 120));
-    if (w.qz && w.qz.websocket) return true;
   }
-  return false;
+  return !!(w.qz?.websocket && typeof w.qz.websocket.connect === 'function');
+}
+
+/**
+ * Conexão QZ REUTILIZADA entre impressões (socket quente).
+ * A primeira impressão faz o handshake; as seguintes usam isActive() e
+ * imprimem em milissegundos em vez de re-conectar/desconectar a cada cupom.
+ */
+function conectarQz(): Promise<boolean> {
+  const qz = (window as any).qz;
+  if (!qz?.websocket) return Promise.resolve(false);
+  if (qz.websocket.isActive && qz.websocket.isActive()) return Promise.resolve(true);
+  if (conexaoQzCache) return conexaoQzCache;
+
+  conexaoQzCache = Promise.race([
+    qz.websocket
+      .connect()
+      .then(() => true)
+      .catch(() => {
+        qzIndisponivelAte = Date.now() + 10000;
+        conexaoQzCache = null;
+        return false;
+      }),
+    new Promise<boolean>((r) => {
+      setTimeout(() => {
+        if (conexaoQzCache) conexaoQzCache = null;
+        r(false);
+      }, 3000);
+    }),
+  ]);
+
+  if (!pagehideInstalado) {
+    pagehideInstalado = true;
+    window.addEventListener('pagehide', () => {
+      try {
+        const q = (window as any).qz;
+        if (q?.websocket?.disconnect) q.websocket.disconnect().catch(() => undefined);
+      } catch { /* noop */ }
+      conexaoQzCache = null;
+    });
+  }
+  return conexaoQzCache;
 }
 
 /**
@@ -511,29 +642,37 @@ async function waitForQz(timeout = 4000): Promise<boolean> {
  * Usado pela janela /print: quando retorna false, o chamador usa o fallback visual.
  */
 export async function imprimirBobinaFiscal(conteudo: string, config?: any): Promise<boolean> {
-  const disponivel = await waitForQz();
   const w = window as any;
+  const disponivel = await waitForQz();
   const qz = w.qz;
   if (!disponivel || !qz || !qz.websocket) return false;
+
+  const conectado = await conectarQz();
+  if (!conectado || !(qz.websocket.isActive && qz.websocket.isActive())) return false;
+
   try {
-    const conectado = await Promise.race([
-      qz.websocket.connect().catch(() => undefined),
-      new Promise((r) => setTimeout(() => r(undefined), 5000)),
-    ]);
-    if (!(qz.websocket.isActive && qz.websocket.isActive())) return false;
-    const configImp = {
+    const configImp: any = {
       copies: Math.max(1, Number(config?.receiptCopies || 1)),
       dotDensity: Number(config?.qzDotDensity || 6),
-    } as any;
+    };
+    // Cupons longos (muitos itens) podem estourar o buffer da impressora —
+    // o QZ envia em chunks de 1 linha quando spool está habilitado.
+    if (conteudo.length > 2500) {
+      configImp.spool = { end: '\n', size: 1 };
+    }
     const usaEscPos = config?.escposEnabled !== false;
     const data = usaEscPos
       ? [{ type: 'raw', format: 'base64', data: montarEscPos(conteudo, config) }]
       : [{ type: 'raw', format: 'plain', data: conteudo }];
     await qz.print(configImp, data);
-    await qz.websocket.disconnect().catch(() => undefined);
     return true;
   } catch (e) {
-    try { await qz.websocket.disconnect().catch(() => undefined); } catch (_) { /* noop */ }
+    // Falha → descarta a conexão cacheada para a próxima tentativa reconstruir.
+    conexaoQzCache = null;
+    if (qz.websocket.isActive && qz.websocket.isActive()) {
+      qz.websocket.disconnect().catch(() => undefined);
+    }
+    console.warn('[imprimirBobinaFiscal] Falha na impressão QZ:', e);
   }
   return false;
 }
@@ -549,11 +688,19 @@ export function abrirJanelaImpressao(
   try {
     localStorage.setItem('printItem', JSON.stringify(item));
     localStorage.setItem('appSettings', JSON.stringify(config || {}));
-    return window.open(
+    // Ticket único: garante que a janela /print existente detecte a NOVA
+    // impressão (evento 'storage' só dispara quando o valor muda) e se
+    // atualize sozinha — sem precisar recarregar/atualizar a janela.
+    localStorage.setItem('printTicket', String(Date.now() + Math.random()));
+    const win = window.open(
       '/print?print=true',
       'janelaImpressao',
       'width=480,height=800,menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes'
     );
+    if (win && !win.closed) {
+      try { win.focus(); } catch { /* noop */ }
+    }
+    return win;
   } catch (e) {
     console.warn('Falha ao abrir janela de impressão:', e);
     return null;

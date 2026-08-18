@@ -1029,25 +1029,29 @@ export const UserDashboard: React.FC = () => {
                         <MessageSquare size={18} />
                         {unreadMsg > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] w-5 h-5 rounded-full flex items-center justify-center font-black border-2 border-[var(--bg-card)] animate-bounce shadow-lg shadow-red-500/40">{unreadMsg}</span>}
                     </button>
-                    <span><InstallButton role={isAdmin ? 'admin' : 'user'} /></span>
-                    <span><AppDownloadButton className="!w-8 !h-8 sm:!w-9 sm:!h-9" /></span>
+                    {!isAdmin && !isStandalone && (
+                        <span><InstallButton role="user" /></span>
+                    )}
+                    {!isAdmin && !isStandalone && (
+                        <span><AppDownloadButton className="!w-8 !h-8 sm:!w-9 sm:!h-9" /></span>
+                    )}
                     <button onClick={() => setShowUninstallModal(true)} title="Desinstalar aplicativo" className="w-10 h-10 sm:w-12 sm:h-12 bg-slate-500/10 text-slate-500 border border-slate-500/20 rounded-2xl flex items-center justify-center hover:bg-red-500 hover:text-white hover:border-red-500 transition-all active:scale-90 shadow-sm"><Trash2 size={18} /></button>
                     <button onClick={logout} className="w-10 h-10 sm:w-12 sm:h-12 bg-red-500/10 text-red-500 border border-red-500/20 rounded-2xl flex items-center justify-center hover:bg-red-500 hover:text-white transition-all active:scale-90 shadow-sm"><LogOut size={18} /></button>
                 </div>
             </header>
 
             {/* BANNER INSTALAR APP — celulares/tablets quando ainda não instalado */}
-            {showInstallBanner && pwaInstall.isInstallable && !pwaInstall.isInstalled && (
-                <div className="md:hidden flex items-center gap-3 bg-gradient-to-r from-emerald-600 to-emerald-500 px-4 py-3 shadow-lg shadow-emerald-500/20">
-                    <div className="p-2 bg-white/20 rounded-xl text-white shrink-0"><Smartphone size={18} /></div>
+            {!isAdmin && showInstallBanner && pwaInstall.isInstallable && !pwaInstall.isInstalled && (
+                <div className="md:hidden flex items-center gap-2.5 bg-slate-900/95 backdrop-blur px-3 py-2 shadow-lg">
+                    <div className="p-1.5 bg-white/10 rounded-lg text-white shrink-0"><Smartphone size={14} /></div>
                     <div className="flex-1 min-w-0">
-                        <p className="text-white font-black text-[10px] uppercase tracking-widest">Instalar o aplicativo</p>
-                        <p className="text-emerald-100 text-[9px] font-bold uppercase tracking-wider">Deixe o ícone na tela do celular</p>
+                        <p className="text-white font-black text-[9px] uppercase tracking-widest">Instalar o aplicativo</p>
+                        <p className="text-slate-400 text-[8px] font-bold uppercase tracking-wider">Deixe o ícone na tela do celular</p>
                     </div>
-                    <button onClick={() => pwaInstall.install(isAdmin ? 'admin' : 'user')} className="bg-white text-emerald-700 font-black text-[10px] uppercase tracking-widest px-3.5 py-2.5 rounded-xl shadow-md active:scale-95 transition-all shrink-0">
+                    <button onClick={() => pwaInstall.install('user')} className="bg-emerald-500 text-white font-black text-[9px] uppercase tracking-widest px-3 py-2 rounded-lg shadow-md active:scale-95 transition-all shrink-0">
                         Instalar
                     </button>
-                    <button onClick={() => setShowInstallBanner(false)} className="text-white/70 hover:text-white p-1 shrink-0" title="Fechar"><X size={16} /></button>
+                    <button onClick={() => setShowInstallBanner(false)} className="text-slate-500 hover:text-white p-1 shrink-0" title="Fechar"><X size={14} /></button>
                 </div>
             )}
 

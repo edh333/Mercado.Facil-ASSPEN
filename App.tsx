@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from 'react';
+import React from 'react';
 import { StoreProvider, useApp } from './context/StoreContext';
 import { Login } from './pages/Login';
 import { UserRole } from './types';
@@ -10,23 +10,17 @@ import { verificarBackupAutomatico } from './utils/backupUtils';
 import { useMaintenance } from './hooks/useMaintenance';
 import { MaintenanceScreen, MaintenanceBanner } from './components/MaintenanceScreen';
 
-// Retry automático de chunks: se o navegador falhar ao baixar um módulo
-// (rede instável — causa de "tela branca" no primeiro acesso), tenta de novo
-// algumas vezes antes de desistir.
-const retryLazy = (loader: () => Promise<any>, attempts = 4, delayMs = 900): Promise<any> => {
-  const load = (remaining: number): Promise<any> => {
-    return loader().catch((err) => {
-      if (remaining <= 1) throw err;
-      console.warn('[LazyRetry] chunk falhou, tentando novamente...', err);
-      return new Promise((resolve) => setTimeout(() => resolve(load(remaining - 1)), delayMs));
-    });
-  };
-  return load(attempts);
-};
-
-const UserDashboard = lazy(() => retryLazy(() => import('./pages/UserDashboard').then(m => ({ default: m.UserDashboard }))));
-const AdminDashboard = lazy(() => retryLazy(() => import('./pages/AdminDashboard').then(m => ({ default: m.AdminDashboard }))));
-const PrintPage = lazy(() => retryLazy(() => import('./components/PrintPage').then(m => ({ default: m.PrintPage }))));
+// IMPORTANTE (definitivo — v3): TODAS as telas são carregadas de forma
+// EAGER (síncrona), sem lazy() nem Suspense. O erro "Minified React #310"
+// (Rendered more hooks...) é um bug do React 19.2.x que dispara EM
+// PRODUÇÃO quando um render é interrompido/retentado por ferramentas do
+// ecossistema: lazy + Suspense + ErrorBoundary + transições (facebook/react
+// #33580). Com zero lazy/Suspense o APP NÃO TEM A CONDIÇÃO para esse bug:
+// a árvore inicial nunca é pausada pelo React, e nenhum PC, navegador ou
+// filtro de rede consegue mais forçá-la.
+import { AdminDashboard } from './pages/AdminDashboard';
+import { PrintPage } from './components/PrintPage';
+import { UserDashboard } from './pages/UserDashboard';
 
 const FullScreenLoader: React.FC = () => (
   <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#f8fafc' }}>
@@ -53,19 +47,31 @@ const MainApp: React.FC = () => {
     }
   }, [currentUser]);
 
+// CRÍTICO — todos os hooks SEMPRE no topo, incondicionais!
+// O erro #310 (Rendered more hooks...) disparava porque `useMaintenance`
+// ficava DEPOIS dos retornos condicionais: quando o estado de auth mudava
+// entre dois renders (loader → admin, login → admin, ou replay de recovery
+// do React após um erro), o MainApp renderizava com contagem diferente de
+// hooks e o React abortava com #310 exatamente no useState do
+// useMaintenance. Com os hooks alinhados, QUALQUER re-render tem SEMPRE a
+// mesma sequência — o #310 é impossível de ocorrer aqui.
+  const { maintenance, loading: maintenanceLoading, inativo, podeOperar, reativar } = useMaintenance(currentUser);
+
   const urlParams = new URLSearchParams(window.location.search);
   const isPrint =
     urlParams.get('print') === 'true' ||
     window.location.pathname.startsWith('/print');
+  // App instalado como "usuário" (/?mode=user): mesmo um ADMIN deve abrir a
+  // frente de caixa do usuário — o admin troca para o painel pelos próprios
+  // mecanismos do app (instalação separada do Painel Admin / toggle no site).
+  const modoUsuario = urlParams.get('mode') === 'user';
 
   if (isPrint) {
     return (
-      <Suspense fallback={<FullScreenLoader />}>
-        <div className="print-mode-root bg-white min-h-screen">
-          <PrintPage />
-          <style>{`body { background: white !important; } #root { height: 100%; }`}</style>
-        </div>
-      </Suspense>
+      <div className="print-mode-root bg-white min-h-screen">
+        <PrintPage />
+        <style>{`body { background: white !important; } #root { height: 100%; }`}</style>
+      </div>
     );
   }
 
@@ -77,17 +83,12 @@ const MainApp: React.FC = () => {
     return <Login />;
   }
 
-  if (currentUser.role !== UserRole.ADMIN) {
-    return (
-      <Suspense fallback={<FullScreenLoader />}>
-        <UserDashboard />
-      </Suspense>
-    );
+  if (currentUser.role !== UserRole.ADMIN || modoUsuario) {
+    return <UserDashboard />;
   }
 
   // Modo manutenção: só afeta ADMINS. Quem desativou (ou o master) continua
   // operando e vê a faixa de reativação; usuários comuns nunca são bloqueados.
-  const { maintenance, loading: maintenanceLoading, inativo, podeOperar, reativar } = useMaintenance(currentUser);
   if (maintenanceLoading) {
     return <FullScreenLoader />;
   }
@@ -102,9 +103,7 @@ const MainApp: React.FC = () => {
       <NotificationSystem />
       <ErrorBoundary>
         {inativo && podeOperar && <MaintenanceBanner maintenance={maintenance} onReativar={reativar} />}
-        <Suspense fallback={<FullScreenLoader />}>
-          <AdminDashboard />
-        </Suspense>
+        <AdminDashboard />
       </ErrorBoundary>
     </>
   );

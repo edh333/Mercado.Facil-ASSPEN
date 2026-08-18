@@ -7,10 +7,11 @@ import { collection, query, orderBy, onSnapshot, doc, updateDoc, writeBatch, set
 import { db } from '../firebase';
 import { useTheme } from '../context/ThemeContext';
 import { OnlineStatusIndicator } from '../components/OnlineStatusIndicator';
-import { InstallButton } from '../components/InstallButton';
+import { OfflineSalesBanner } from '../components/admin/OfflineSalesBanner';
+
 import { AppDownloadButton } from '../components/AppDownloadModal';
 import { UninstallModal } from '../components/UninstallModal';
-import { Menu, X, Banknote, Trash2 } from 'lucide-react';
+import { Menu, X, Banknote, Trash2, BarChart3, FileText, AlertTriangle, ArrowUpRight } from 'lucide-react';
 
 // Import all modular subcomponents
 import { AdminSidebar } from '../components/admin/AdminSidebar';
@@ -23,6 +24,7 @@ import { AdminUsersTab } from '../components/admin/AdminUsersTab';
 import { AdminFinanceTab } from '../components/admin/AdminFinanceTab';
 import { AdminWalletTab } from '../components/admin/AdminWalletTab';
 import { AdminReportsTab } from '../components/admin/AdminReportsTab';
+import { AdminSalesDashboard } from '../components/admin/AdminSalesDashboard';
 import { AdminSettingsTab } from '../components/admin/AdminSettingsTab';
 import { AdminSalesModal } from '../components/admin/AdminSalesModal';
 import { AdminOrderDetailsModal } from '../components/admin/AdminOrderDetailsModal';
@@ -62,6 +64,7 @@ function getLocalDateStr() {
 
 export function AdminDashboard() {
   const { colors } = useTheme();
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
   
   // 1. Core Destructured Values from StoreContext
   const {
@@ -89,6 +92,7 @@ export function AdminDashboard() {
     showNotification,
     deleteOrder,
     createAdminUser,
+    updateAdminPermissions,
     removeSupplier,
     resetStock,
     resetFinance,
@@ -119,7 +123,15 @@ export function AdminDashboard() {
     importInmatesCsv,
     loadMoreOrders,
     loadMoreExpenses,
-    loadMoreProducts
+    loadMoreProducts,
+    usersLimit,
+    loadMoreUsers,
+    expandUsersLimit,
+    cotaCritica,
+    registrarVendaOffline,
+    sincronizarVendasOffline,
+    vendasOfflinePendentes,
+    vendasOfflineComErro
   } = useApp();
 
   // 2. Local State Management
@@ -162,6 +174,7 @@ export function AdminDashboard() {
   const [manualCreditTarget, setManualCreditTarget] = useState<User | null>(null);
   const [showWithdrawalModal, setShowWithdrawalModal] = useState<any>(null);
   const [withdrawalAmount, setWithdrawalAmount] = useState('');
+  const [withdrawalPassword, setWithdrawalPassword] = useState('');
   const [withdrawalReason, setWithdrawalReason] = useState('Retirada administrativa');
   
   const [newAdminPassword, setNewAdminPassword] = useState('');
@@ -176,6 +189,7 @@ export function AdminDashboard() {
     individualSearch: '',
     selectedUser: null as User | null
   });
+  const [reportsMode, setReportsMode] = useState<'visual' | 'formal'>('visual');
   const [showReportModal, setShowReportModal] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [showUninstallModal, setShowUninstallModal] = useState(false);
@@ -278,7 +292,11 @@ export function AdminDashboard() {
 
   // 5. Permission Helpers
   const hasPermission = (perm: string) => {
-    return isMaster || (currentUser?.permissions || []).includes(perm);
+    if (isMaster) return true;
+    const perms = currentUser?.permissions;
+    if (perms === undefined) return true; // admin legado (sem campo) = acesso total
+    if (perms.includes('all')) return true;
+    return perms.includes(perm);
   };
 
   // ATALHOS GLOBAIS F1-F12 + '?' — funcionam em qualquer aba do painel.
@@ -356,6 +374,24 @@ export function AdminDashboard() {
     return res;
   };
 
+  // 6b. Venda OFFLINE (sem internet): registra na fila local; sincroniza
+  // automaticamente quando a conexão voltar (servidor valida e deduplica).
+  const handleConfirmOfflineSale = async (
+    targetUserId: string,
+    items: any[],
+    paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'MIXED' | 'FIADO',
+    total: number,
+    payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO'; amount: number }[],
+    change?: number,
+    customerAccountId?: string
+  ) => {
+    const res = await registrarVendaOffline(targetUserId, items, paymentMethod, total, payments, change, customerAccountId);
+    if (!res) {
+      throw new Error('Não foi possível registrar a venda offline.');
+    }
+    return res;
+  };
+
   // 6. Action Handlers
   const handleAddInmate = async () => {
     if (!newInmate.name.trim() || !newInmate.cpf.trim()) {
@@ -392,14 +428,15 @@ export function AdminDashboard() {
     try {
       const targetId = showWithdrawalModal.userId || showWithdrawalModal.id;
       if (showWithdrawalModal.isDeposit) {
-        await addWalletCreditDirectly(targetId, amount, withdrawalReason || 'Adição manual');
+        await addWalletCreditDirectly(targetId, amount, withdrawalReason || 'Adição manual', withdrawalPassword);
       } else if (showWithdrawalModal.isRefund) {
-        await addWalletCreditDirectly(targetId, amount, withdrawalReason || 'Estorno administrativo');
+        await addWalletCreditDirectly(targetId, amount, withdrawalReason || 'Estorno administrativo', withdrawalPassword);
       } else {
-        await withdrawWalletCredit(targetId, amount, withdrawalReason);
+        await withdrawWalletCredit(targetId, amount, withdrawalReason, withdrawalPassword);
       }
       setShowWithdrawalModal(null);
       setWithdrawalAmount('');
+      setWithdrawalPassword('');
       setWithdrawalReason('Retirada administrativa');
       showNotification('Operação realizada com sucesso!', 'success');
     } catch (error: any) {
@@ -495,8 +532,8 @@ export function AdminDashboard() {
       showNotification('As senhas não coincidem.', 'error');
       return;
     }
-    if (trimmedPass.length < 4) {
-      showNotification('A senha deve ter pelo menos 4 caracteres.', 'error');
+    if (trimmedPass.length < 6) {
+      showNotification('A senha deve ter pelo menos 6 caracteres.', 'error');
       return;
     }
     try {
@@ -518,13 +555,16 @@ export function AdminDashboard() {
     setShowReportModal(true);
   };
 
-  const handleExportExcel = () => {
-    if (!reportConfig.type) return showNotification('Selecione um tipo de relatório primeiro.', 'error');
-    if (reportConfig.type !== 'SALES_CSV') {
+  const handleExportExcel = (typeOverride?: string, startDate?: string, endDate?: string) => {
+    const tipo = typeOverride || reportConfig.type;
+    const ini = startDate ?? reportConfig.startDate;
+    const fim = endDate ?? reportConfig.endDate;
+    if (!tipo) return showNotification('Selecione um tipo de relatório primeiro.', 'error');
+    if (tipo !== 'SALES_CSV') {
       setShowReportModal(true);
       return;
     }
-    const csv = buildSalesCsv(orders, users, reportConfig.startDate, reportConfig.endDate);
+    const csv = buildSalesCsv(orders, users, ini, fim);
     if (!csv || !csv.csv || csv.linhas.length === 0) return showNotification('Nenhuma venda encontrada para o período.', 'error');
     const blob = new Blob([csv.csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -706,7 +746,7 @@ export function AdminDashboard() {
         isOpen={isMobileMenuOpen}
         onClose={() => setIsMobileMenuOpen(false)}
         onOpenSales={() => setShowSalesModal(true)}
-        permissions={currentUser?.permissions || []}
+        permissions={currentUser?.permissions === undefined ? ['all'] : currentUser.permissions}
         isMaster={isMaster}
         primaryColor={settings?.primaryColor || '#10b981'}
         userRole={userRole}
@@ -714,7 +754,26 @@ export function AdminDashboard() {
 
       {/* Main Administrative Container */}
       <div className="flex-1 lg:pl-72 flex flex-col min-h-screen w-full relative">
+
+        {/* Alerta profissional de cota: o sistema detectou limite do plano
+            (Spark) — em vez de falhar silenciosamente, orienta a ação certa. */}
+        {cotaCritica && (
+          <div className="sticky top-0 z-40 px-6 py-3 bg-amber-500 text-white flex items-center gap-3 shadow-lg">
+            <AlertTriangle size={18} className="shrink-0" />
+            <p className="text-[11px] font-black uppercase tracking-wide leading-snug flex-1">
+              Cota gratuita do Firebase atingida hoje. Partes do sistema podem ficar temporariamente indisponíveis até a cota renovar (meia-noite UTC). Para funcionamento livre e permanente (1.500 usuários/dia), ative o plano Blaze: Firebase Console → Usage e Billing → Upgrade.
+            </p>
+            <button onClick={() => window.open('https://console.firebase.google.com/u/0/project/_/usage/billing', '_blank')} className="shrink-0 bg-white text-amber-600 px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-amber-50 transition-all">
+              Ativar agora
+            </button>
+          </div>
+        )}
         
+        {/* Vendas OFFLINE pendentes/sincronização */}
+        <div className="px-6 pt-4">
+          <OfflineSalesBanner />
+        </div>
+
         {/* Dynamic Header */}
         <header className="sticky top-0 bg-white border-b border-slate-200 z-30 px-6 py-4 flex items-center justify-between transition-all duration-300 shadow-sm">
           <div className="flex items-center gap-4">
@@ -747,9 +806,7 @@ export function AdminDashboard() {
           </div>
           
           <div className="flex items-center gap-4 flex-wrap justify-end">
-            <span><AppDownloadButton variant="full" label="Baixar App" /></span>
-            <span><InstallButton variant="full" role="user" label="Instalar App (Usuário)" /></span>
-            <span><InstallButton variant="full" role="admin" label="Instalar Painel Admin" /></span>
+            {!isStandalone && <span><AppDownloadButton variant="full" label="Baixar App" /></span>}
             <button onClick={() => setShowUninstallModal(true)} title="Desinstalar aplicativo" className="w-10 h-10 bg-slate-500/10 text-slate-500 border border-slate-500/20 rounded-2xl flex items-center justify-center hover:bg-red-500 hover:text-white hover:border-red-500 transition-all active:scale-90 shadow-sm"><Trash2 size={18} /></button>
             <OnlineStatusIndicator />
           </div>
@@ -866,6 +923,9 @@ export function AdminDashboard() {
                   suspendUser={suspendUser}
                   toggleUserCredit={toggleUserCredit}
                   deleteUser={deleteUser}
+                  usersLimit={usersLimit}
+                  loadMoreUsers={loadMoreUsers}
+                  loadAllUsers={() => expandUsersLimit(2000)}
                   toggleExcepcionalFlag={(userId, value) => updateDoc(doc(db, 'users', userId), { autorizacaoExcepcional: value })}
                   onAddCredit={(user) => {
                     if (!isMaster) {
@@ -914,14 +974,41 @@ export function AdminDashboard() {
               )}
 
               {activeTab === 'reports' && hasPermission('reports') && (
-                <AdminReportsTab
-                  reportConfig={reportConfig}
-                  setReportConfig={setReportConfig}
-                  users={users}
-                  handleOpenReport={handleOpenReport}
-                  handleExportExcel={handleExportExcel}
-                  settings={settings}
-                />
+                <>
+                  <div className="flex gap-2 mb-6 print:hidden">
+                    <button
+                      onClick={() => setReportsMode('visual')}
+                      className={`px-5 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 ${reportsMode === 'visual' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'}`}
+                    >
+                      <BarChart3 size={16} /> Painel Visual
+                    </button>
+                    <button
+                      onClick={() => setReportsMode('formal')}
+                      className={`px-5 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 ${reportsMode === 'formal' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'}`}
+                    >
+                      <FileText size={16} /> Relatórios Formais
+                    </button>
+                  </div>
+                  {reportsMode === 'visual' ? (
+                    <AdminSalesDashboard
+                      orders={orders}
+                      onExportCsv={(startDate, endDate) => {
+                        setReportConfig({ ...reportConfig, startDate, endDate, type: 'SALES_CSV' });
+                        handleExportExcel('SALES_CSV', startDate, endDate);
+                      }}
+                      showNotification={showNotification}
+                    />
+                  ) : (
+                    <AdminReportsTab
+                      reportConfig={reportConfig}
+                      setReportConfig={setReportConfig}
+                      users={users}
+                      handleOpenReport={handleOpenReport}
+                      handleExportExcel={handleExportExcel}
+                      settings={settings}
+                    />
+                  )}
+                </>
               )}
 
               {activeTab === 'bi' && hasPermission('reports') && (isMaster || userRole === 'admin') && (
@@ -969,6 +1056,7 @@ export function AdminDashboard() {
                   users={users}
                   deleteUser={deleteUser}
                   createAdminUser={createAdminUser}
+                  updateAdminPermissions={updateAdminPermissions}
                   handleDownloadSource={handleDownloadSource}
                   handleBuildExe={handleBuildExe}
                   updateSettings={updateSettings}
@@ -995,6 +1083,7 @@ export function AdminDashboard() {
           products={products}
           orders={orders}
           onConfirm={handleConfirmDirectSale}
+          onConfirmOffline={handleConfirmOfflineSale}
           setPrintOrder={setPrintOrder}
           settings={settings}
           currentUser={currentUser || undefined}
@@ -1062,8 +1151,8 @@ export function AdminDashboard() {
       <ManualCreditModal
         user={manualCreditTarget}
         onClose={() => setManualCreditTarget(null)}
-        onConfirm={async (userId, valor, motivo) => {
-          await addWalletCreditDirectly(userId, valor, motivo);
+        onConfirm={async (userId, valor, motivo, senhaMestra) => {
+          await addWalletCreditDirectly(userId, valor, motivo, senhaMestra);
           showNotification(`Crédito de R$ ${valor.toFixed(2)} inserido com sucesso!`, 'success');
         }}
       />
@@ -1134,6 +1223,8 @@ export function AdminDashboard() {
         setWithdrawalAmount={setWithdrawalAmount}
         withdrawalReason={withdrawalReason}
         setWithdrawalReason={setWithdrawalReason}
+        withdrawalPassword={withdrawalPassword}
+        setWithdrawalPassword={setWithdrawalPassword}
         handleWithdrawal={handleWithdrawal}
 
         showRefundModal={showRefundModal}

@@ -23,6 +23,7 @@ export const AdminCapacityPanel: React.FC = () => {
 
   const [showCleanupModal, setShowCleanupModal] = useState(false);
   const [diasLimpeza, setDiasLimpeza] = useState(90);
+  const [apagarArquivos, setApagarArquivos] = useState(true);
   const [cleanupRunning, setCleanupRunning] = useState(false);
   const [cleanupResult, setCleanupResult] = useState<any>(null);
   const [cleanupErro, setCleanupErro] = useState('');
@@ -80,7 +81,7 @@ export const AdminCapacityPanel: React.FC = () => {
     setCleanupResult(null);
     try {
       const fn = httpsCallable(getFunctions(), 'limparDadosAntigos');
-      const res = await fn({ dias: diasLimpeza });
+      const res = await fn({ dias: diasLimpeza, apagarArquivos });
       const data = res.data as any;
       if (data && !data.ok) throw new Error(data.mensagem || 'Falha ao limpar dados antigos.');
       setCleanupResult(data);
@@ -213,6 +214,7 @@ export const AdminCapacityPanel: React.FC = () => {
               <p className="flex items-start gap-2"><Download size={14} className="text-emerald-600 shrink-0 mt-0.5" /> <span>1º — O sistema cria uma <b>cópia de segurança completa</b> (arquivo JSON no Storage com link de download válido por 7 dias).</span></p>
               <p className="flex items-start gap-2"><ShieldCheck size={14} className="text-emerald-600 shrink-0 mt-0.5" /> <span>2º — Grava uma <b>cópia permanente em historico_geral</b> (trilha de auditoria, nunca se perde).</span></p>
               <p className="flex items-start gap-2"><Trash2 size={14} className="text-red-500 shrink-0 mt-0.5" /> <span>3º — Remove da operação os <b>pedidos, depósitos e despesas mais antigos</b> do que o período escolhido. Pedidos pendentes de análise <b>nunca</b> são removidos.</span></p>
+              <p className="flex items-start gap-2"><Download size={14} className="text-amber-500 shrink-0 mt-0.5" /> <span>4º — Quando marcada a opção abaixo, <b>os comprovantes (arquivos) dos registros arquivados são apagados do armazenamento</b>, liberando a cota do plano. A trilha de auditoria no histórico preserva os dados; documentos de identidade <b>nunca</b> são apagados.</span></p>
             </div>
 
             <div>
@@ -259,6 +261,12 @@ export const AdminCapacityPanel: React.FC = () => {
                       </div>
                     </div>
                     <p className="text-[10px] text-emerald-600 leading-relaxed">Cópia de segurança salva em <b>historico_geral</b> (permanente) e, quando disponível, arquivo JSON no Storage.</p>
+                    {(cleanupResult.arquivosApagados > 0 || cleanupResult.arquivosFalha > 0) && (
+                      <p className="text-[10px] text-slate-600 leading-relaxed bg-white rounded-xl py-2 px-3 border border-emerald-200">
+                        Arquivos de comprovante apagados do armazenamento: <b>{fmt(cleanupResult.arquivosApagados || 0)}</b>
+                        {cleanupResult.arquivosFalha > 0 && <> ({fmt(cleanupResult.arquivosFalha)} com falha — espaço não liberado nesses; serão apagados na próxima limpeza)</>}.
+                      </p>
+                    )}
                     {cleanupResult.backupUrl ? (
                       <a
                         href={cleanupResult.backupUrl}
@@ -279,7 +287,20 @@ export const AdminCapacityPanel: React.FC = () => {
             )}
 
             {!cleanupResult && (
-              <div className="flex flex-col sm:flex-row gap-3">
+              <>
+                <label className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={apagarArquivos}
+                    onChange={e => setApagarArquivos(e.target.checked)}
+                    disabled={cleanupRunning}
+                    className="mt-0.5 w-4 h-4 accent-red-600 shrink-0"
+                  />
+                  <span className="text-[11px] font-bold text-red-700 leading-relaxed">
+                    Apagar também os <b>comprovantes (arquivos)</b> dos registros arquivados — libera o armazenamento do plano (é o que evita encher a cota). Documentos de identidade <b>nunca</b> são apagados.
+                  </span>
+                </label>
+                <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={() => setShowCleanupModal(false)}
                   disabled={cleanupRunning}
@@ -294,7 +315,8 @@ export const AdminCapacityPanel: React.FC = () => {
                 >
                   {cleanupRunning ? <><Loader2 size={16} className="animate-spin" /> Backup + Limpando...</> : <><ShieldCheck size={16} /> Confirmar Backup + Limpeza</>}
                 </button>
-              </div>
+                </div>
+              </>
             )}
           </div>
         </div>

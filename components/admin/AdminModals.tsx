@@ -2,7 +2,7 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import {
   X, Check, Upload, ImageIcon, Barcode,
-  MinusCircle, RefreshCw, Loader2, Lock, Package, Key, PlusCircle, Printer
+  MinusCircle, RefreshCw, Loader2, Lock, Package, Key, PlusCircle, Printer, KeyRound, ShieldCheck
 } from 'lucide-react';
 import { Product, Expense, Order } from '../../types';
 import { compressImageFile, fileToBase64, normalizeName } from '../../utils';
@@ -26,6 +26,8 @@ interface AdminModalsProps {
   setWithdrawalAmount: (val: string) => void;
   withdrawalReason: string;
   setWithdrawalReason: (val: string) => void;
+  withdrawalPassword: string;
+  setWithdrawalPassword: (val: string) => void;
   handleWithdrawal: () => void;
 
   showRefundModal: Order | null;
@@ -51,7 +53,7 @@ interface AdminModalsProps {
 export const AdminModals: React.FC<AdminModalsProps> = ({
   showProductModal, setShowProductModal, editingProduct, setEditingProduct,
   addProduct, updateProduct, products,
-  showWithdrawalModal, setShowWithdrawalModal, withdrawalAmount, setWithdrawalAmount, withdrawalReason, setWithdrawalReason, handleWithdrawal,
+  showWithdrawalModal, setShowWithdrawalModal, withdrawalAmount, setWithdrawalAmount, withdrawalReason, setWithdrawalReason, withdrawalPassword, setWithdrawalPassword, handleWithdrawal,
   showRefundModal, setShowRefundModal, refundReason, setRefundReason, isProcessingRefund, handleRefundOrder,
   showAuthModal, setShowAuthModal, authPass, setAuthPass, handleAuthConfirm,
   viewingReceipt, setViewingReceipt, printOrder, setPrintOrder, settings
@@ -124,14 +126,21 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
   const handleProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!productForm.name.trim()) return;
+    const costNum = parseFloat(String(productForm.cost).replace(',', '.')) || 0;
+    const marginNum = parseFloat(String(productForm.margin).replace(',', '.')) || 30;
+    const stockNum = Math.round(parseFloat(String(productForm.stock).replace(',', '.'))) || 0;
+    const priceNum = productForm.price
+      ? parseFloat(String(productForm.price).replace(',', '.'))
+      : costNum + (costNum * marginNum / 100);
+
+    // Validação positiva: preço/custo não podem ser negativos (nem NaN/Infinity).
+    const valoresValidos = [costNum, marginNum, stockNum, priceNum].every(v => Number.isFinite(v) && v >= 0);
+    if (!valoresValidos || priceNum <= 0) {
+      alert('Valores inválidos: o preço deve ser maior que zero e nenhum valor pode ser negativo.');
+      return;
+    }
     setIsProductLoading(true);
     try {
-      const costNum = parseFloat(productForm.cost) || 0;
-      const marginNum = parseFloat(productForm.margin) || 30;
-      const stockNum = parseInt(productForm.stock) || 0;
-      const priceNum = productForm.price
-        ? parseFloat(productForm.price)
-        : costNum + (costNum * marginNum / 100);
 
       const productData: Product = {
         id: editingProduct?.id || crypto.randomUUID(),
@@ -474,7 +483,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
       {showWithdrawalModal && (
         <ModalShell
           open
-          onClose={() => setShowWithdrawalModal(null)}
+          onClose={() => { setShowWithdrawalModal(null); setWithdrawalPassword(''); }}
           title={showWithdrawalModal.isDeposit ? 'Adicionar Crédito' : showWithdrawalModal.isRefund ? 'Estornar Valor' : 'Retirar Saldo'}
           subtitle={showWithdrawalModal.userName || undefined}
           icon={showWithdrawalModal.isDeposit ? <PlusCircle size={22}/> : showWithdrawalModal.isRefund ? <RefreshCw size={22}/> : <MinusCircle size={22}/>}
@@ -511,18 +520,39 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                                   onChange={e => setWithdrawalReason(e.target.value)}
                                 ></textarea>
                             </div>
+                            {(showWithdrawalModal.isDeposit || showWithdrawalModal.isRefund || !showWithdrawalModal.isDeposit && !showWithdrawalModal.isRefund) && (
+                            <div>
+                                <label className="text-slate-600 font-black text-[10px] uppercase tracking-widest mb-3 block flex items-center gap-1.5">
+                                  <Lock size={12}/> Senha Secundária (obrigatória)
+                                </label>
+                                <div className="relative group">
+                                  <KeyRound size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-amber-500"/>
+                                  <input
+                                    type="password"
+                                    className="w-full px-12 py-5 bg-slate-100 border-2 border-slate-200 group-focus-within:border-amber-500 group-focus-within:ring-4 group-focus-within:ring-amber-500/20 rounded-2xl font-black text-lg text-slate-900 outline-none transition-all placeholder:text-slate-400"
+                                    placeholder="••••••••"
+                                    value={withdrawalPassword}
+                                    onChange={e => setWithdrawalPassword(e.target.value)}
+                                    autoComplete="off"
+                                  />
+                                </div>
+                                <p className="mt-2 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                                  <ShieldCheck size={12}/> Validada no servidor — exigida por segurança em movimentação de saldo
+                                </p>
+                            </div>
+                            )}
                         </div>
 
                       <div className="flex flex-col gap-3 pt-2">
                           <button
                             onClick={handleWithdrawal}
-                            disabled={!withdrawalAmount || Number(withdrawalAmount) <= 0}
+                            disabled={!withdrawalAmount || Number(withdrawalAmount) <= 0 || withdrawalPassword.trim().length < 8}
                             className={`w-full py-5 font-black rounded-2xl shadow-lg flex items-center justify-center gap-3 uppercase text-[11px] tracking-widest transition-all active:scale-[0.98] touch-target ${showWithdrawalModal.isDeposit ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:brightness-110' : showWithdrawalModal.isRefund ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:brightness-110' : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:brightness-110'} disabled:opacity-40 disabled:cursor-not-allowed`}
                           >
                             <Check size={20}/> Confirmar Operação
                           </button>
                           <button
-                            onClick={() => setShowWithdrawalModal(null)}
+                            onClick={() => { setShowWithdrawalModal(null); setWithdrawalPassword(''); }}
                             className="w-full py-4 bg-slate-100 text-slate-600 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all touch-target active:scale-[0.98]"
                           >
                             Cancelar

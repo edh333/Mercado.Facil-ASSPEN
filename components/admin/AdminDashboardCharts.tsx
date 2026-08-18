@@ -3,6 +3,7 @@ import { db } from '../../firebase';
 import { collection, query, where, getDocs, orderBy, Timestamp } from 'firebase/firestore';
 import { Order } from '../../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import { ChartMount } from '../ui/ChartMount';
 import { TrendingUp, CreditCard, DollarSign, AlertTriangle, BarChart3, PieChart as PieChartIcon, Loader2 } from 'lucide-react';
 import { AdminCapacityPanel } from './AdminCapacityPanel';
 
@@ -209,22 +210,24 @@ export const AdminDashboardCharts: React.FC = () => {
           {dailySales.length === 0 ? (
             <div className="h-72 flex items-center justify-center text-slate-400 font-bold text-sm">Nenhum dado no período</div>
           ) : (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={dailySales} margin={{ top: 5, right: 5, left: -10, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#94a3b8' }} interval="preserveStartEnd" />
-                <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} tickFormatter={(v: number) => `R$ ${v.toLocaleString('pt-BR')}`} />
-                <Tooltip
-                  formatter={(value: number) => [fmt(value), 'Faturamento']}
-                  contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
-                />
-                <Bar dataKey="total" radius={[6, 6, 0, 0]} maxBarSize={32}>
-                  {dailySales.map((entry, i) => (
-                    <Cell key={i} fill={entry.total > 0 ? '#10b981' : '#f1f5f9'} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <ChartMount minHeight={300}>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={dailySales} margin={{ top: 5, right: 5, left: -10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#94a3b8' }} interval="preserveStartEnd" />
+                    <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} tickFormatter={(v: number) => `R$ ${v.toLocaleString('pt-BR')}`} />
+                    <Tooltip
+                      formatter={(value: number) => [fmt(value), 'Faturamento']}
+                      contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
+                    />
+                    <Bar dataKey="total" radius={[6, 6, 0, 0]} maxBarSize={32}>
+                      {dailySales.map((entry, i) => (
+                        <Cell key={i} fill={entry.total > 0 ? '#10b981' : '#f1f5f9'} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartMount>
           )}
         </div>
 
@@ -238,28 +241,30 @@ export const AdminDashboardCharts: React.FC = () => {
             <div className="h-72 flex items-center justify-center text-slate-400 font-bold text-sm">Nenhum dado no período</div>
           ) : (
             <div className="flex flex-col items-center">
-              <ResponsiveContainer width="100%" height={260}>
-                <PieChart>
-                  <Pie
-                    data={paymentBreakdown}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    paddingAngle={4}
-                    dataKey="amount"
-                    nameKey="method"
-                  >
-                    {paymentBreakdown.map((entry, i) => (
-                      <Cell key={i} fill={entry.color} stroke="#fff" strokeWidth={2} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value: number) => [fmt(value), 'Valor']}
-                    contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+              <ChartMount minHeight={260}>
+                <ResponsiveContainer width="100%" height={260}>
+                  <PieChart>
+                    <Pie
+                      data={paymentBreakdown}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={4}
+                      dataKey="amount"
+                      nameKey="method"
+                    >
+                      {paymentBreakdown.map((entry, i) => (
+                        <Cell key={i} fill={entry.color} stroke="#fff" strokeWidth={2} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value: number) => [fmt(value), 'Valor']}
+                      contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </ChartMount>
               <div className="flex flex-wrap justify-center gap-4 mt-2">
                 {paymentBreakdown.map((entry, i) => (
                   <div key={i} className="flex items-center gap-2">
