@@ -29,6 +29,18 @@ jobs:
       - name: Instalar dependências
         run: npm ci
 
+      # Portão de qualidade: se lint ou testes falharem, o release NÃO é publicado.
+      - name: Lint (typecheck)
+        run: npm run lint
+
+      - name: Testes da web (vitest)
+        run: npm test
+
+      - name: Testes das Cloud Functions (vitest)
+        shell: pwsh
+        run: npm test
+        working-directory: functions
+
       # O Vite injeta as variáveis no build — o .env é montado a partir dos secrets
       - name: Montar .env a partir dos secrets
         shell: pwsh
