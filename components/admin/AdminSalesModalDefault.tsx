@@ -7,9 +7,9 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Product, User, UserRole, Order, AppConfig, CustomerAccount } from '../../types';
 import { getCustomerAccounts } from '../../utils/customerUtils';
 import { motion, AnimatePresence } from 'framer-motion';
-import { formatarMoeda, parseMoeda, generatePixPayload as generatePix } from '../../utils';
+import { formatarMoeda, parseMoeda, generatePixPayload as generatePix, isAdminRole } from '../../utils';
 import { getActiveSession, openCashSession, addSupplement, addWithdrawal, closeCashSession, CashSession } from '../../utils/cashSession';
-import { imprimirComPrioridadeFiscal, abrirJanelaImpressao } from '../../utils/printUtils';
+import { imprimirSilenciosoFiscal, imprimirComPrioridadeFiscal } from '../../utils/printUtils';
 import { useApp } from '../../context/StoreContext';
 
 interface AdminSalesModalProps {
@@ -18,7 +18,7 @@ interface AdminSalesModalProps {
   users: User[];
   products: Product[];
   orders?: Order[];
-  onConfirm: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'MIXED' | 'FIADO', total: number, payments?: {method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO', amount: number}[], change?: number, customerAccountId?: string, clientToken?: string) => Promise<any>;
+  onConfirm: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'MIXED' | 'FIADO', total: number, payments?: {method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO', amount: number}[], change?: number, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }) => Promise<any>;
   onConfirmOffline?: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'MIXED' | 'FIADO', total: number, payments?: {method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO', amount: number}[], change?: number, customerAccountId?: string) => Promise<any>;
   setPrintOrder?: (order: any) => void;
   settings?: AppConfig;
@@ -52,7 +52,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
   const [productModalSearch, setProductModalSearch] = useState('');
 
   // ── Novas opções PDV: estorno, última venda, suspensas ──
-  const { refundOrder, showNotification } = useApp();
+  const { refundOrder, showNotification, validateMasterPassword } = useApp();
   const [ultimaVenda, setUltimaVenda] = useState<Order | null>(null);
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [refundSearch, setRefundSearch] = useState('');
@@ -87,6 +87,12 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
   const [customerAccountSearch, setCustomerAccountSearch] = useState('');
   const [customerAccountsLoaded, setCustomerAccountsLoaded] = useState(false);
 
+  // ── Fiado: confirmação de senha (admin/secundária) antes de finalizar ──
+  const [confirmandoFiado, setConfirmandoFiado] = useState(false);
+  const [senhaFiado, setSenhaFiado] = useState('');
+  const [senhaFiadoErro, setSenhaFiadoErro] = useState('');
+  const [senhaFiadoProcessando, setSenhaFiadoProcessando] = useState(false);
+
   // Token de idempotência da venda: gerado UMA vez por venda lógica (muda quando
   // o carrinho/cliente/pagamento mudam). Reenvios da MESMA venda (timeout/retry
   // após resposta perdida) reutilizam o token e o servidor devolve o pedido já
@@ -104,14 +110,80 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
     }
   }, [isOpen, customerAccountsLoaded]);
 
-  // Reset fiado + PIX state when payment modal closes
+  // ── Venda em Dupla (Split Joint Wallet) State ──
+  const [isJointWalletMode, setIsJointWalletMode] = useState(false);
+  const [secondUserId, setSecondUserId] = useState('');
+  const [secondUserSearch, setSecondUserSearch] = useState('');
+  const [secondWalletAmountInput, setSecondWalletAmountInput] = useState('');
+  const [confirmandoJointSenha, setConfirmandoJointSenha] = useState(false);
+  const [jointSenhaAdmin, setJointSenhaAdmin] = useState('');
+  const [jointSenhaAdminErro, setJointSenhaAdminErro] = useState('');
+  const [jointSenhaProcessando, setJointSenhaProcessando] = useState(false);
+  const [jointAdminAuthorized, setJointAdminAuthorized] = useState(false);
+
+  const filteredSecondUsers = useMemo(() => {
+    if (!secondUserSearch || secondUserSearch.length < 2) return [];
+    const query = secondUserSearch.toLowerCase().trim();
+    return users.filter(u =>
+      u.id !== clienteSelecionado &&
+      ((u.name || '').toLowerCase().includes(query) ||
+       (u.cpf || '').includes(query) ||
+       (u.inmateCpf || '').includes(query) ||
+       (u.inmateName || '').toLowerCase().includes(query))
+    ).slice(0, 10);
+  }, [users, secondUserSearch, clienteSelecionado]);
+
+  const secondUserObj = useMemo(() => {
+    return users.find(u => u.id === secondUserId) || null;
+  }, [users, secondUserId]);
+
+  const handleAutorizarJointWallet = async () => {
+    setJointSenhaProcessando(true);
+    setJointSenhaAdminErro('');
+    try {
+      const senha = (jointSenhaAdmin || '').trim();
+      if (!senha) {
+        setJointSenhaAdminErro('Digite a senha para autorizar.');
+        return;
+      }
+      const ok = await validateMasterPassword(senha);
+      if (!ok) {
+        setJointSenhaAdminErro('Senha incorreta. Tente novamente.');
+        return;
+      }
+      setJointAdminAuthorized(true);
+      setIsJointWalletMode(true);
+      setConfirmandoJointSenha(false);
+      const clienteObj = users.find(u => u.id === clienteSelecionado);
+      const saldo1 = clienteObj ? (clienteObj.walletBalance || 0) : 0;
+      const falta = Math.max(0, totalCarrinho - Math.max(0, saldo1));
+      setSecondWalletAmountInput(falta.toFixed(2));
+    } catch (e: any) {
+      setJointSenhaAdminErro(e.message || 'Erro ao validar senha.');
+    } finally {
+      setJointSenhaProcessando(false);
+    }
+  };
+
+  // Reset fiado + PIX + Venda em Dupla state when payment modal closes
   useEffect(() => {
     if (!modalPagamento) {
       setSelectedCustomerAccount(null);
       setCustomerAccountSearch('');
+      setConfirmandoFiado(false);
+      setSenhaFiado('');
+      setSenhaFiadoErro('');
       setPixConfirmado(false);
       setValorMisto({ PIX: '', WALLET: '', CASH: '' });
       setValorRecebido('');
+      setIsJointWalletMode(false);
+      setSecondUserId('');
+      setSecondUserSearch('');
+      setSecondWalletAmountInput('');
+      setConfirmandoJointSenha(false);
+      setJointSenhaAdmin('');
+      setJointSenhaAdminErro('');
+      setJointAdminAuthorized(false);
     }
   }, [modalPagamento]);
 
@@ -245,7 +317,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
     // Consumidor geral é sintético (não vive no Firestore) — entra apenas na
     // busca do PDV; painéis administrativos usam a lista real (sem ele).
     const consumidor: User = { id: 'consumidor_geral', name: 'CONSUMIDOR GERAL', email: 'venda@balcao.com', role: UserRole.FAMILY, status: 'active', approved: true, cpf: '000.000.000-00', inmateName: 'CONSUMIDOR', inmateCpf: '000.000.000-00' };
-    return [consumidor, ...users.filter(u => u.role !== 'ADMIN' && u.role !== 'MASTER' && u.status !== 'suspended')];
+    return [consumidor, ...users.filter(u => !isAdminRole(u.role) && u.status !== 'suspended')];
   }, [users]);
 
   const pixChaveDisponivel = (): string => {
@@ -303,6 +375,43 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
   }, [products, codigoProduto]);
 
   const cliente = useMemo(() => todosClientes.find(u => u.id === clienteSelecionado), [todosClientes, clienteSelecionado]);
+
+  // Conta de fiado que corresponde ao consumidor JÁ selecionado no PDV
+  // (casamento por CPF normalizado e, sem CPF, por nome exato). Garante que a
+  // venda fiada "use o consumidor selecionado" — sem seleção duplicada.
+  const contaFiadoDoCliente = useMemo(() => {
+    if (!cliente) return null;
+    const cpf = (cliente.cpf || '').replace(/\D/g, '');
+    if (cpf) {
+      const porCpf = customerAccounts.find(a => (a.cpf || '').replace(/\D/g, '') === cpf);
+      if (porCpf) return porCpf;
+    }
+    const nome = (cliente.name || '').trim().toLowerCase();
+    if (nome) {
+      const porNome = customerAccounts.find(a => (a.nome || '').trim().toLowerCase() === nome);
+      if (porNome) return porNome;
+    }
+    return null;
+  }, [cliente, customerAccounts]);
+
+  // Pré-seleciona automaticamente a conta de fiado do consumidor escolhido.
+  useEffect(() => {
+    if (formaPagamento === 'FIADO' && contaFiadoDoCliente && !selectedCustomerAccount) {
+      setSelectedCustomerAccount(contaFiadoDoCliente);
+      setCustomerAccountSearch(contaFiadoDoCliente.nome);
+    }
+  }, [formaPagamento, contaFiadoDoCliente, selectedCustomerAccount]);
+
+  // Ao escolher uma conta de fiado manualmente, vincula o consumidor (usuário)
+  // correspondente — venda e débito fiado ficam na MESMA pessoa.
+  const vincularConsumidorAoFiado = (ca: CustomerAccount) => {
+    const cpf = (ca.cpf || '').replace(/\D/g, '');
+    const alvo = todosClientes.find(u =>
+      (cpf && (u.cpf || '').replace(/\D/g, '') === cpf) ||
+      (!cpf && (u.name || '').trim().toLowerCase() === (ca.nome || '').trim().toLowerCase())
+    );
+    if (alvo) setClienteSelecionado(alvo.id);
+  };
 
   const filteredCustomerAccounts = useMemo(() => {
     const term = customerAccountSearch.toLowerCase().trim();
@@ -706,6 +815,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
     setPixConfirmado(false);
     setSelectedCustomerAccount(null);
     setCustomerAccountSearch('');
+    setConfirmandoFiado(false);
     setPreviewProduto(null);
     setShowProductModal(false);
     setProductModalSearch('');
@@ -718,9 +828,9 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
       alert('Configure a chave PIX (CNPJ ou chave aleatória) nas Configurações antes de vender no PIX.');
       return;
     }
-    const temPixNaVenda = formaPagamento === 'PIX'
-|| (formaPagamento === 'MIXED' && parseMoeda(valorMisto.PIX) > 0);
-    if (temPixNaVenda && !pixConfirmado) {
+    const temPixLocal = formaPagamento === 'PIX'
+      || (formaPagamento === 'MIXED' && parseMoeda(valorMisto.PIX) > 0);
+    if (temPixLocal && !pixConfirmado) {
       alert('Confirme o recebimento do PIX antes de finalizar a venda.');
       return;
     }
@@ -729,6 +839,21 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
     let paymentsArray: {method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO', amount: number}[] | undefined = undefined;
     let changeValue: number | undefined = undefined;
     try {
+      // ── Venda em Dupla: monta o payload do débito compartilhado (só WALLET) ──
+      let jointWalletPayload: { secondUserId: string; secondWalletAmount: number } | undefined = undefined;
+      if (formaPagamento === 'WALLET') {
+        const segundaParcela = parseMoeda(secondWalletAmountInput);
+        if (isJointWalletMode && jointAdminAuthorized && secondUserId && segundaParcela > 0) {
+          if (secondUserId === targetId) throw new Error('O 2º devedor deve ser diferente do cliente principal.');
+          const clienteObj = users.find(u => u.id === targetId);
+          const saldo1 = Math.max(0, clienteObj?.walletBalance || 0);
+          if (saldo1 + segundaParcela < totalCarrinho - 0.009) {
+            throw new Error(`Saldo combinado insuficiente: R$ ${(saldo1 + segundaParcela).toFixed(2).replace('.', ',')} não cobre o total de R$ ${totalCarrinho.toFixed(2).replace('.', ',')}.`);
+          }
+          jointWalletPayload = { secondUserId, secondWalletAmount: Math.round(segundaParcela * 100) / 100 };
+        }
+      }
+
       if (formaPagamento === 'FIADO') {
         if (!clienteSelecionado) throw new Error('Selecione um cliente para venda fiada.');
         if (!selectedCustomerAccount) throw new Error('Selecione um cliente de fiado.');
@@ -784,7 +909,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
         }
       }
 
-      const pedido = await onConfirm(targetId, carrinho, formaPagamento, totalCarrinho, paymentsArray, changeValue, undefined, saleToken);
+      const pedido = await onConfirm(targetId, carrinho, formaPagamento, totalCarrinho, paymentsArray, changeValue, undefined, saleToken, jointWalletPayload);
       if (pedido) {
         setUltimoPedido(pedido);
         setUltimaVenda(pedido);
@@ -811,11 +936,59 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
     } finally { setProcessando(false); }
   };
 
-  // AUTO-IMPRESSÃO com PRIORIDADE FISCAL: tenta a bobina (QZ Tray) primeiro;
-  // sem QZ, abre a janela de impressão profissional (ou imprime na própria tela se popup bloqueado).
+  // Confirma a venda FIADA após validar a senha (admin/secundária) no servidor.
+  const executarVendaFiado = async () => {
+    setSenhaFiadoProcessando(true);
+    setSenhaFiadoErro('');
+    try {
+      const senha = (senhaFiado || '').trim();
+      if (!senha) {
+        setSenhaFiadoErro('Digite a senha para finalizar.');
+        return;
+      }
+      if (!selectedCustomerAccount) throw new Error('Selecione um cliente de fiado.');
+      const ok = await validateMasterPassword(senha);
+      if (!ok) {
+        setSenhaFiadoErro('Senha incorreta. Tente novamente.');
+        return;
+      }
+      const pedido = await onConfirm(clienteSelecionado, carrinho, 'FIADO', totalCarrinho, undefined, undefined, selectedCustomerAccount.id, saleToken);
+      if (pedido) {
+        setUltimoPedido(pedido);
+        setUltimaVenda(pedido);
+        resetPdvFields();
+      }
+    } catch (e: any) {
+      if (!navigator.onLine && onConfirmOffline) {
+        try {
+          const pedidoOffline = await onConfirmOffline(clienteSelecionado, carrinho, 'FIADO', totalCarrinho, undefined, undefined, selectedCustomerAccount?.id);
+          if (pedidoOffline) {
+            setUltimoPedido(pedidoOffline);
+            setUltimaVenda(pedidoOffline);
+            resetPdvFields();
+            showNotification('Venda registrada OFFLINE — será sincronizada quando a internet voltar.', 'info');
+          }
+        } catch (e2: any) {
+          setSenhaFiadoErro(e2.message || 'Não foi possível registrar a venda offline.');
+        }
+        return;
+      }
+      if (/senha/i.test(String(e?.message || '')) || /password/i.test(String(e?.message || ''))) {
+        setSenhaFiadoErro(e.message);
+      } else {
+        setSenhaFiadoErro(e.message || 'Erro ao finalizar venda.');
+      }
+    } finally {
+      setSenhaFiadoProcessando(false);
+    }
+  };
+
+  // AUTO-IMPRESSÃO SILENCIOSA: tenta a bobina (QZ Tray) ou o Electron (silent)
+  // SEM abrir janela de impressão. O cupom de sucesso SEMPRE aparece na tela com
+  // o botão "Bobina 48mm (Fiscal)" — a janela só abre quando o operador pedir.
   useEffect(() => {
     if (ultimoPedido && settings?.autoPrint !== false) {
-      imprimirComPrioridadeFiscal({ type: 'CUPOM', data: ultimoPedido }, settings).catch(console.error);
+      imprimirSilenciosoFiscal({ type: 'CUPOM', data: ultimoPedido }, settings).catch(console.error);
     }
   }, [ultimoPedido, settings]);
 
@@ -1029,7 +1202,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
           <div className="w-24 h-24 rounded-full bg-slate-100 flex items-center justify-center mb-6 border border-slate-200 shadow-inner">
             <Lock size={48} className="text-slate-400" />
           </div>
-          <h2 className="text-2xl font-black text-slate-800 mb-2 uppercase tracking-tight">Caixa Fechado</h2>
+          <h2 className="text-2xl font-bold text-slate-800 mb-2 tracking-tight">Caixa Fechado</h2>
           <p className="text-slate-500 text-sm mb-1 text-center max-w-sm">
             Para iniciar as vendas, informe o valor inicial em dinheiro na gaveta.
           </p>
@@ -1120,10 +1293,10 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                           className="w-full p-4 flex items-center justify-between hover:bg-emerald-50 border-b border-slate-100 last:border-0 transition-colors cursor-pointer"
                         >
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-bold text-sm text-slate-600">{u.name?.[0]?.toUpperCase()}</div>
+                            <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center font-bold text-sm text-emerald-700">{(u.inmateName || u.prisonerName || u.name)?.[0]?.toUpperCase()}</div>
                             <div className="text-left">
-                              <p className="font-bold text-xs uppercase text-slate-900">{u?.name || 'Usuário'}</p>
-                              <p className="text-[9px] text-slate-400">Interno: {u.inmateName || u.prisonerName || 'N/A'}</p>
+                              <p className="font-black text-xs uppercase text-slate-900">{(u.inmateName || u.prisonerName || u.name || 'Usuário').toUpperCase()}</p>
+                              <p className="text-[9px] text-slate-400">Familiar: {u?.name || '—'}</p>
                             </div>
                           </div>
                           <p className="font-black text-xs text-emerald-600">R$ {formatarMoeda(u.walletBalance || 0)}</p>
@@ -1188,13 +1361,13 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                               <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center mb-2">
                                 <Package size={20} className="text-slate-300" />
                               </div>
-                              <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest">Sem Foto</span>
+                              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Sem Foto</span>
                             </div>
                           )}
-                          {!isOut && p.stock <= 5 && <span className="absolute top-2 left-2 bg-amber-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase">Baixo Estoque</span>}
+                          {!isOut && p.stock <= 5 && <span className="absolute top-2 left-2 bg-amber-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase">Baixo Estoque</span>}
                           {isOut && <span className="absolute inset-0 bg-black/60 flex items-center justify-center font-black text-[10px] uppercase tracking-widest text-white">Esgotado</span>}
                         </div>
-                        {p.brand && <p className="text-[8px] font-black uppercase tracking-widest mb-1 opacity-60" style={{ color: corPrincipal }}>{p.brand}</p>}
+                        {p.brand && <p className="text-[10px] font-black uppercase tracking-widest mb-1 opacity-60" style={{ color: corPrincipal }}>{p.brand}</p>}
                         <p className="font-bold text-[11px] uppercase tracking-tight text-slate-800 line-clamp-1 w-full text-center">{p?.name || 'Produto'}</p>
                         <p className="font-black text-lg mt-1" style={{ color: corPrincipal }}>R$ {formatarMoeda(p.price)}</p>
                         <p className="text-[9px] font-bold text-slate-400 mt-0.5 uppercase tracking-widest">{p.stock || 0} em estoque</p>
@@ -1427,7 +1600,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                               }}
                               className="w-full py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold rounded-xl text-sm transition-all active:scale-95 flex items-center justify-center gap-2"
                             >
-                              {pixCopied ? 'CÓDIGO COPIADO COM SUCESSO!' : 'COPIAR CHAVE PIX COPIA E COLA'}
+                              {pixCopied ? 'C├ôDIGO COPIADO COM SUCESSO!' : 'COPIAR CHAVE PIX COPIA E COLA'}
                             </button>
                           </div>
                         )}
@@ -1437,7 +1610,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                         <AlertTriangle size={28} className="text-amber-500 mx-auto mb-3" />
                         <p className="font-black text-[11px] uppercase tracking-[0.2em] text-amber-600 mb-2">Nenhuma chave PIX cadastrada</p>
                         <p className="text-[11px] font-bold text-slate-500 leading-relaxed">
-                          Cadastre a chave PIX (CNPJ ou chave aleatória) em <b>Configurações → Pagamentos</b> para gerar o QR Code.
+                          Cadastre a chave PIX (CNPJ ou chave aleat├│ria) em <b>Configura├º├Áes ÔåÆ Pagamentos</b> para gerar o QR Code.
                         </p>
                       </div>
                     )}
@@ -1450,14 +1623,14 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                         <div className="flex items-center justify-center gap-3 mb-3">
                           <span className={`w-3 h-3 rounded-full ${pixConfirmado ? 'bg-white animate-pulse' : 'bg-amber-400 animate-pulse'}`}></span>
                           <p className={`font-black text-[11px] uppercase tracking-[0.35em] ${pixConfirmado ? 'text-white' : 'text-slate-600'}`}>
-                            {pixConfirmado ? 'PIX Confirmado — Valor Recebido' : 'Aguardando Confirmação'}
+                            {pixConfirmado ? 'PIX Confirmado ÔÇö Valor Recebido' : 'Aguardando Confirma├º├úo'}
                           </p>
                         </div>
                         {pixConfirmado ? (
                           <p className="text-white font-black text-2xl tracking-tighter mb-1">R$ {formatarMoeda(totalCarrinho)}</p>
                         ) : (
                           <p className="text-[11px] font-bold text-slate-500 leading-relaxed mb-1">
-                            Após o cliente escanear o QR Code, confirme que o valor<br/>chegou na sua conta para liberar a finalização.
+                            Ap├│s o cliente escanear o QR Code, confirme que o valor<br/>chegou na sua conta para liberar a finaliza├º├úo.
                           </p>
                         )}
                         {!pixConfirmado && (
@@ -1509,11 +1682,11 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                         <p className="text-3xl font-black text-emerald-600">R$ {formatarMoeda(parseMoeda(valorRecebido) - totalCarrinho)}</p>
                         {calcularDenominacoes(parseMoeda(valorRecebido) - totalCarrinho).length > 0 && (
                           <div className="mt-4 pt-4 border-t border-emerald-500/20">
-                            <p className="text-[9px] font-black text-emerald-600 uppercase tracking-[0.3em] mb-3">Sugestão de Notas e Moedas</p>
+                            <p className="text-[9px] font-black text-emerald-600 uppercase tracking-[0.3em] mb-3">Sugest├úo de Notas e Moedas</p>
                             <div className="flex flex-wrap justify-center gap-2">
                               {calcularDenominacoes(parseMoeda(valorRecebido) - totalCarrinho).map(d => (
                                 <span key={d.valor} className="px-3 py-1.5 bg-white border border-emerald-200 rounded-xl text-[10px] font-black text-emerald-700">
-                                  R$ {d.valor.toFixed(2).replace('.', ',')} × {d.qtd}
+                                  R$ {d.valor.toFixed(2).replace('.', ',')} ├ù {d.qtd}
                                 </span>
                               ))}
                             </div>
@@ -1526,10 +1699,10 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
 
                 {formaPagamento === 'MIXED' && (
                   <motion.div initial={{opacity:0}} animate={{opacity:1}} className="space-y-4 bg-slate-50 p-6 rounded-[2.5rem] border border-slate-200">
-                    <p className="text-[10px] text-slate-500 font-black uppercase text-center mb-6 tracking-[0.3em]">Composição do Pagamento</p>
+                    <p className="text-[10px] text-slate-500 font-black uppercase text-center mb-6 tracking-[0.3em]">Composi├º├úo do Pagamento</p>
                     {([
                       { key: 'PIX', label: 'PIX', color: 'blue' },
-                      { key: 'WALLET', label: 'Créditos', color: 'emerald' },
+                      { key: 'WALLET', label: 'Cr├®ditos', color: 'emerald' },
                       { key: 'CASH', label: 'Dinheiro', color: 'slate' },
                     ] as const).map(({ key, label, color }) => (
                       <div key={key} className="flex items-center gap-4 bg-slate-50 p-3 rounded-[1.5rem] border border-slate-200/30">
@@ -1557,7 +1730,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                       <motion.div initial={{opacity:0}} animate={{opacity:1}} className="bg-blue-500/5 border border-blue-500/20 rounded-[2rem] p-6 text-center mt-6">
                         <div className="flex items-center gap-3 mb-2 justify-center">
                           <CreditCard size={18} className="text-blue-600" />
-                          <span className="font-black text-[10px] uppercase tracking-[0.3em] text-blue-700">PIX — Parte da Compra</span>
+                          <span className="font-black text-[10px] uppercase tracking-[0.3em] text-blue-700">PIX ÔÇö Parte da Compra</span>
                         </div>
                         <p className="font-black text-2xl text-blue-700 mb-4">R$ {formatarMoeda(parseMoeda(valorMisto.PIX))}</p>
                         {pixPayloadMisto ? (
@@ -1574,12 +1747,12 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                         ) : (
                           <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
                             <AlertTriangle size={22} className="text-amber-500 mx-auto mb-2" />
-                            <p className="text-[10px] font-black text-amber-600 uppercase tracking-wider">Nenhuma chave PIX cadastrada. Cadastre em Configurações → Pagamentos.</p>
+                            <p className="text-[10px] font-black text-amber-600 uppercase tracking-wider">Nenhuma chave PIX cadastrada. Cadastre em Configura├º├Áes ÔåÆ Pagamentos.</p>
                           </div>
                         )}
                         <div className={`mt-4 rounded-2xl p-5 border-2 transition-all duration-300 ${pixConfirmado ? 'bg-emerald-500 border-emerald-500' : 'bg-slate-50 border-slate-200'}`}>
                           <p className={`font-black text-[10px] uppercase tracking-[0.3em] ${pixConfirmado ? 'text-white' : 'text-slate-600'}`}>
-                            {pixConfirmado ? 'PIX Confirmado — Valor Recebido' : 'Aguardando Confirmação'}
+                            {pixConfirmado ? 'PIX Confirmado ÔÇö Valor Recebido' : 'Aguardando Confirma├º├úo'}
                           </p>
                           {!pixConfirmado && (
                             <button
@@ -1626,10 +1799,10 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="font-bold text-slate-900 text-sm truncate">{ca.nome}</p>
-                                <p className="text-[10px] text-slate-500">Tel: {ca.telefone || '—'} • Limite: R$ {formatarMoeda(ca.creditLimit)}</p>
+                                <p className="text-[10px] text-slate-500">Tel: {ca.telefone || 'ÔÇö'} ÔÇó Limite: R$ {formatarMoeda(ca.creditLimit)}</p>
                               </div>
                               <div className="text-right">
-                                <p className="text-[10px] font-black text-slate-400 uppercase">Dívida</p>
+                                <p className="text-[10px] font-black text-slate-400 uppercase">D├¡vida</p>
                                 <p className={`font-black text-sm ${isOverLimit ? 'text-red-600' : 'text-slate-900'}`}>R$ {formatarMoeda(ca.currentDebt || 0)}</p>
                               </div>
                             </button>
@@ -1642,15 +1815,15 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="font-black text-slate-900 text-sm">{selectedCustomerAccount.nome}</p>
-                            <p className="text-[10px] text-slate-500">{selectedCustomerAccount.telefone || '—'}</p>
+                            <p className="text-[10px] text-slate-500">{selectedCustomerAccount.telefone || 'ÔÇö'}</p>
                           </div>
                           <span className={`text-[9px] font-black px-3 py-1.5 rounded-lg uppercase tracking-wider ${(selectedCustomerAccount.currentDebt || 0) >= (selectedCustomerAccount.creditLimit || 0) ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                            {(selectedCustomerAccount.creditLimit || 0) > 0 ? `R$ ${formatarMoeda((selectedCustomerAccount.creditLimit || 0) - (selectedCustomerAccount.currentDebt || 0))} disponível` : 'Sem limite'}
+                            {(selectedCustomerAccount.creditLimit || 0) > 0 ? `R$ ${formatarMoeda((selectedCustomerAccount.creditLimit || 0) - (selectedCustomerAccount.currentDebt || 0))} dispon├¡vel` : 'Sem limite'}
                           </span>
                         </div>
                         <div className="flex justify-between text-xs">
                           <span className="font-semibold text-slate-500">Limite: R$ {formatarMoeda(selectedCustomerAccount.creditLimit)}</span>
-                          <span className="font-black text-red-600">Dívida Atual: R$ {formatarMoeda(selectedCustomerAccount.currentDebt || 0)}</span>
+                          <span className="font-black text-red-600">D├¡vida Atual: R$ {formatarMoeda(selectedCustomerAccount.currentDebt || 0)}</span>
                         </div>
                         <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
                           <div className={`h-full rounded-full transition-all ${(selectedCustomerAccount.currentDebt || 0) >= selectedCustomerAccount.creditLimit ? 'bg-red-500' : 'bg-emerald-500'}`}
@@ -1696,7 +1869,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                       ) : (
                         <>
                           <Check size={24} />
-                          {pixPendente ? 'AGUARDANDO CONFIRMAÇÃO PIX'
+                          {pixPendente ? 'AGUARDANDO CONFIRMA├ç├âO PIX'
                             : (formaPagamento === 'WALLET' && (cliente?.walletBalance || 0) < totalCarrinho) ? 'SALDO INSUFICIENTE'
                             : 'FINALIZAR VENDA'}
                         </>
@@ -1704,7 +1877,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                     </button>
                     {pixPendente && (
                       <p className="text-center text-[9px] font-black text-amber-600 uppercase tracking-widest">
-                        Confirme o recebimento do PIX acima para liberar a finalização
+                        Confirme o recebimento do PIX acima para liberar a finaliza├º├úo
                       </p>
                     )}
                   </div>
@@ -1816,7 +1989,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
             <div className="p-8 border-t border-slate-100 bg-slate-50/50 flex gap-4 shrink-0">
                 <button
                   onClick={() => {
-                    abrirJanelaImpressao({ type: 'CUPOM', data: ultimoPedido }, settings);
+                    imprimirComPrioridadeFiscal({ type: 'CUPOM', data: ultimoPedido }, settings).catch(console.error);
                   }}
                   className="flex-1 py-5 rounded-2xl font-black text-white text-[10px] uppercase tracking-widest shadow-[0_15px_30px_rgba(0,0,0,0.15)] hover:brightness-110 transition-all active:scale-95 flex items-center justify-center gap-3 border border-emerald-400/20"
                   style={{ backgroundColor: corPrincipal }}
@@ -1853,7 +2026,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
           >
             <div className="flex justify-between items-center pb-4 border-b border-slate-100 mb-4 shrink-0">
               <div>
-                <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight"><Search size={18} className="inline-block mr-1.5 -mt-0.5 text-emerald-600" />Catálogo de Produtos</h3>
+                <h3 className="text-lg font-bold text-slate-800 tracking-tight"><Search size={18} className="inline-block mr-1.5 -mt-0.5 text-emerald-600" />Catálogo de Produtos</h3>
                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Selecione os produtos para adicionar ao carrinho (F4 para fechar)</p>
               </div>
               <button
@@ -1900,7 +2073,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                         <img src={p.imageUrl || 'https://placehold.co/200'} className="w-full h-full object-contain" alt={p.name} />
                         {isOutOfStock && (
                           <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                            <span className="text-[8px] font-black bg-white text-black px-3 py-1 rounded-lg uppercase">Esgotado</span>
+                            <span className="text-[10px] font-black bg-white text-black px-3 py-1 rounded-lg uppercase">Esgotado</span>
                           </div>
                         )}
                       </div>
@@ -2138,7 +2311,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                                 </>
                               )}
                               {estaCancelado(o) && (
-                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-2 py-1 rounded-md">Estornada</span>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-2 py-1 rounded-md">Estornada</span>
                               )}
                             </div>
                           </div>

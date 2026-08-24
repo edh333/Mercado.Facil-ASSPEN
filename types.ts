@@ -143,6 +143,13 @@ export interface Order {
   change?: number;
   walletBalanceBefore?: number;
   walletBalanceAfter?: number;
+  jointWallet?: {
+    secondUserId: string;
+    secondUserName?: string;
+    secondUserCpf?: string;
+    secondWalletAmount: number;
+    firstWalletAmount?: number;
+  };
   deleted?: boolean;
 }
 

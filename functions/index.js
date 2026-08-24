@@ -1250,7 +1250,15 @@ exports.processarVendaAdmin = onCall(async (request) => {
       }
 
     let userData = null;
+    let userData2 = null;
     let clienteFiadoNome = null;
+
+    const jointWalletReq = request.data?.jointWallet;
+    const hasJointWallet = jointWalletReq && typeof jointWalletReq === "object" && String(jointWalletReq.secondUserId || "").trim() && Number(jointWalletReq.secondWalletAmount) > 0;
+    const secondUserId = hasJointWallet ? String(jointWalletReq.secondUserId).trim() : null;
+    const secondWalletAmount = hasJointWallet ? Number(jointWalletReq.secondWalletAmount) : 0;
+    const firstUserWalletAmount = hasJointWallet ? Math.max(0, arredondar(walletPortion - secondWalletAmount)) : walletPortion;
+
     if (((walletPortion > 0 || paymentMethod === "WALLET") || (paymentMethod === "FIADO" && !isConsumer)) && !isConsumer) {
       const uSnap = await t.get(db.collection("users").doc(targetUserId));
       if (uSnap.exists) {
@@ -1259,14 +1267,27 @@ exports.processarVendaAdmin = onCall(async (request) => {
         throw new Error("Usuário não encontrado.");
       }
       if (walletPortion > 0) {
-        if (Number(userData.walletBalance || 0) < walletPortion) throw new Error("Saldo insuficiente na carteira.");
-        // Limite semanal de compras com carteira vale TAMBÉM para o PDV administrativo
-        // (mesma regra do comprarComCarteira; isento apenas com autorização excepcional).
+        if (Number(userData.walletBalance || 0) < firstUserWalletAmount) throw new Error("Saldo insuficiente na carteira do 1º devedor.");
         if (!userData.autorizacaoExcepcional) {
           const cfgSnap = await t.get(db.collection("settings").doc("general"));
           const cfg = cfgSnap.exists ? cfgSnap.data() : {};
-          verificarLimiteSemanal(userData.weeklySpent || 0, walletPortion, cfg.weeklyWalletLimit);
+          verificarLimiteSemanal(userData.weeklySpent || 0, firstUserWalletAmount, cfg.weeklyWalletLimit);
         }
+      }
+    }
+
+    if (hasJointWallet && secondUserId) {
+      if (secondUserId === targetUserId) throw new Error("O 2º devedor deve ser diferente do 1º usuário.");
+      const uSnap2 = await t.get(db.collection("users").doc(secondUserId));
+      if (!uSnap2.exists) throw new Error("2º devedor da venda em dupla não encontrado.");
+      userData2 = { ...uSnap2.data(), id: uSnap2.id };
+      if (Number(userData2.walletBalance || 0) < secondWalletAmount) {
+        throw new Error("Saldo insuficiente na carteira do 2º devedor.");
+      }
+      if (!userData2.autorizacaoExcepcional) {
+        const cfgSnap = await t.get(db.collection("settings").doc("general"));
+        const cfg = cfgSnap.exists ? cfgSnap.data() : {};
+        verificarLimiteSemanal(userData2.weeklySpent || 0, secondWalletAmount, cfg.weeklyWalletLimit);
       }
     }
 
@@ -1301,27 +1322,47 @@ exports.processarVendaAdmin = onCall(async (request) => {
 
     debitarEstoque(t, itensComPreco);
 
-let walletBalanceBefore, walletBalanceAfter;
+    let walletBalanceBefore, walletBalanceAfter;
     if (userData) {
       walletBalanceBefore = arredondar(Number(userData.walletBalance || 0));
-      walletBalanceAfter = walletPortion > 0
-        ? arredondar(Number(userData.walletBalance || 0) - walletPortion)
+      walletBalanceAfter = firstUserWalletAmount > 0
+        ? arredondar(Number(userData.walletBalance || 0) - firstUserWalletAmount)
         : walletBalanceBefore;
     }
-    if (walletPortion > 0 && userData) {
+    if (firstUserWalletAmount > 0 && userData) {
       t.update(db.collection("users").doc(targetUserId), {
         walletBalance: walletBalanceAfter,
-        weeklySpent: arredondar((userData.weeklySpent || 0) + walletPortion),
+        weeklySpent: arredondar((userData.weeklySpent || 0) + firstUserWalletAmount),
       });
       await registrarTransacaoCarteira(t, db.collection("wallet_transactions").doc(), {
         userId: targetUserId,
         inmateCpf: cleanCpf(userData.inmateCpf || userData.prisonerCpf || userData.cpf || ""),
-        amount: -walletPortion,
+        amount: -firstUserWalletAmount,
         proofUrl: "",
         status: "approved",
         createdAt: new Date().toISOString(),
         type: "withdrawal",
-        description: "Compra PDV Administrativo",
+        description: hasJointWallet ? `Compra PDV em Dupla (Parte 1: R$ ${firstUserWalletAmount.toFixed(2)})` : "Compra PDV Administrativo",
+        payerName: caller.name || "Administrador",
+        payerId: caller.id,
+      });
+    }
+
+    if (hasJointWallet && userData2 && secondUserId && secondWalletAmount > 0) {
+      const secondBalanceAfter = arredondar(Number(userData2.walletBalance || 0) - secondWalletAmount);
+      t.update(db.collection("users").doc(secondUserId), {
+        walletBalance: secondBalanceAfter,
+        weeklySpent: arredondar((userData2.weeklySpent || 0) + secondWalletAmount),
+      });
+      await registrarTransacaoCarteira(t, db.collection("wallet_transactions").doc(), {
+        userId: secondUserId,
+        inmateCpf: cleanCpf(userData2.inmateCpf || userData2.prisonerCpf || userData2.cpf || ""),
+        amount: -secondWalletAmount,
+        proofUrl: "",
+        status: "approved",
+        createdAt: new Date().toISOString(),
+        type: "withdrawal",
+        description: `Compra PDV em Dupla (Parte 2 com ${userData?.name || "1º Devedor"})`,
         payerName: caller.name || "Administrador",
         payerId: caller.id,
       });
@@ -1343,17 +1384,20 @@ let walletBalanceBefore, walletBalanceAfter;
       t.update(refSessaoCaixa(sessaoCaixa), payload);
     }
 
+    const jointWalletSnapshot = hasJointWallet && userData2 ? {
+      secondUserId,
+      secondUserName: userData2.name || userData2.inmateName || "Devedor 2",
+      secondUserCpf: userData2.cpf || userData2.inmateCpf || "000.000.000-00",
+      secondWalletAmount,
+      firstWalletAmount: firstUserWalletAmount,
+    } : null;
+
     const novoPedido = {
       id: orderId,
       userId: targetUserId,
       userName: isConsumer ? "CONSUMIDOR FINAL" : (userData?.name || clienteFiadoNome || "Consumidor"),
       userCpf: isConsumer ? "000.000.000-00" : (userData?.cpf || "000.000.000-00"),
       unitId: isConsumer ? "1" : (userData?.selectedUnitId || userData?.unitId || "1"),
-      unitName: "Unidade Prisional",
-      status: "paid",
-      createdAt: new Date().toISOString(),
-      date: new Date().toISOString(),
-      items: itensComPreco,
       total,
       paymentMethod,
       ...(paymentMethod === "MIXED" ? { payments } : {}),
@@ -1365,6 +1409,7 @@ let walletBalanceBefore, walletBalanceAfter;
       ...pixConfirmacao,
       ...(walletBalanceBefore !== undefined ? { walletBalanceBefore } : {}),
       ...(walletBalanceAfter !== undefined ? { walletBalanceAfter } : {}),
+      ...(jointWalletSnapshot ? { jointWallet: jointWalletSnapshot } : {}),
       ...(paymentMethod === "FIADO" && customerAccountId ? { customerAccountId } : {}),
     };
 
