@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { formatarMoeda } from '../../utils';
 import { Product, Supplier } from '../../types';
+import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
 
 interface AdminProductsTabProps {
   products: Product[];
@@ -35,6 +36,7 @@ export const AdminProductsTab: React.FC<AdminProductsTabProps> = ({
 }) => {
   const [categoryFilter, setCategoryFilter] = React.useState('ALL');
   const [supplierFilter, setSupplierFilter] = React.useState('ALL');
+  const [confirmarEstoque, setConfirmarEstoque] = React.useState(false);
   const [xmlPreview, setXmlPreview] = React.useState<{ name: string; cost: number; qty: number }[]>([]);
   const [xmlPreviewLoading, setXmlPreviewLoading] = React.useState(false);
 
@@ -241,12 +243,20 @@ return (
                   <div className="p-3 bg-[var(--bg-main)] rounded-2xl text-[var(--text-muted)] group-hover:text-emerald-500 transition-colors"><RefreshCw size={20}/></div>
                   <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-main)]">Mesclar</span>
               </button>
-              <button onClick={() => { if(confirm('ZERAR ESTOQUE DE TUDO?')) handleResetStock(); }} className="col-span-2 bg-red-500/5 border border-red-500/20 p-4 rounded-2xl flex items-center justify-center gap-3 hover:bg-red-500 text-red-600 hover:text-white transition-all active:scale-95 group">
+              <button onClick={() => setConfirmarEstoque(true)} className="col-span-2 bg-red-500/5 border border-red-500/20 p-4 rounded-2xl flex items-center justify-center gap-3 hover:bg-red-500 text-red-600 hover:text-white transition-all active:scale-95 group">
                   <AlertTriangle size={18}/>
                   <span className="text-[10px] font-black uppercase tracking-widest">Zerar Estoque Geral</span>
               </button>
           </div>
       </div>
+
+      <ConfirmacaoDestrutiva
+        isOpen={confirmarEstoque}
+        titulo="Zerar Estoque de Todos os Produtos"
+        descricao="Todos os produtos ficarão com estoque ZERO e desaparecerão da loja dos familiares até serem repostos. Esta ação NÃO pode ser desfeita."
+        onConfirm={() => { setConfirmarEstoque(false); handleResetStock(); }}
+        onClose={() => setConfirmarEstoque(false)}
+      />
 
       {/* Grid / List of Products */}
       <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6' : 'bg-[var(--bg-card)] rounded-[2.5rem] border border-[var(--border-color)] shadow-sm overflow-hidden'}>

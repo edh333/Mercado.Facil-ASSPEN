@@ -7,6 +7,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { Expense, Order, Supplier } from '../../types';
 import { ModalShell } from '../ui/ModalShell';
 import { getRecentSessions, CashSession } from '../../utils/cashSession';
+import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
 
 interface AdminFinanceTabProps {
   expenses: Expense[];
@@ -36,6 +37,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
 }) => {
   const { colors } = useTheme();
   const [activeSubTab, setActiveSubTab] = useState<'ALL' | 'ENTRIES' | 'EXITS'>('ALL');
+  const [confirmacao, setConfirmacao] = useState<null | 'FINANCEIRO' | 'CREDITOS'>(null);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [printReceipt, setPrintReceipt] = useState<any>(null);
   const [cashSessions, setCashSessions] = useState<CashSession[]>([]);
@@ -214,22 +216,14 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
             {isMaster && (
               <>
                 <button
-                  onClick={() => {
-                    if (confirm('ZERAR TODO O FINANCEIRO?\n\nIsso apaga TODOS os lançamentos de despesas e sessões de caixa registradas. Esta ação não pode ser desfeita.\n\nContinuar?')) {
-                      resetFinance();
-                    }
-                  }}
+                  onClick={() => setConfirmacao('FINANCEIRO')}
                   className="flex-1 md:flex-none bg-red-50 text-red-600 border border-red-200 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl flex items-center justify-center gap-2 hover:bg-red-100 active:scale-95 transition-all"
                   title="Apagar todos os lançamentos de despesas e caixa"
                 >
                   <X size={18}/> Zerar Lançamentos
                 </button>
                 <button
-                  onClick={() => {
-                    if (confirm('ZERAR TODOS OS CRÉDITOS DOS FAMILIARES?\n\nIsso zera o saldo da carteira de TODOS os usuários. Esta ação não pode ser desfeita.\n\nContinuar?')) {
-                      resetCredits();
-                    }
-                  }}
+                  onClick={() => setConfirmacao('CREDITOS')}
                   className="flex-1 md:flex-none bg-amber-50 text-amber-700 border border-amber-200 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl flex items-center justify-center gap-2 hover:bg-amber-100 active:scale-95 transition-all"
                   title="Zerar o saldo da carteira de todos os familiares"
                 >
@@ -784,6 +778,22 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
           <div className="fim-do-cupom-corte" style={{ height: '1px', marginTop: '4mm' }}></div>
         </div>
       )}
+
+      <ConfirmacaoDestrutiva
+        isOpen={confirmacao === 'FINANCEIRO'}
+        titulo="Zerar Todo o Financeiro"
+        descricao="Isso apaga TODOS os lançamentos de despesas e sessões de caixa registradas no sistema. Os relatórios e a prestação de contas perderão o histórico. Esta ação NÃO pode ser desfeita."
+        onConfirm={() => { setConfirmacao(null); resetFinance(); }}
+        onClose={() => setConfirmacao(null)}
+      />
+      <ConfirmacaoDestrutiva
+        isOpen={confirmacao === 'CREDITOS'}
+        titulo="Zerar Créditos dos Familiares"
+        descricao="Isso zera o SALDO DA CARTEIRA de TODOS os usuários de uma vez. Famíliares ficarão sem créditos para compras. Esta ação NÃO pode ser desfeita."
+        palavraChave="ZERAR CREDITOS"
+        onConfirm={() => { setConfirmacao(null); resetCredits(); }}
+        onClose={() => setConfirmacao(null)}
+      />
     </div>
   );
 };
