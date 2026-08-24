@@ -256,6 +256,14 @@ export const formatarMoeda = (valor: number): string => {
   return centavos.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
+/** Verifica se o role de um documento de usuário é administrador.
+ *  O Firestore pode conter 'admin', 'ADMIN', 'master' ou 'MASTER' —
+ *  comparação case-insensitive para nunca vazar admin em listas de familiares. */
+export const isAdminRole = (role?: string | null | undefined): boolean => {
+  const r = String(role || '').trim().toLowerCase();
+  return r === 'admin' || r === 'master';
+};
+
 /** Converte entrada de valor monetário (aceita vírgula ou ponto) em número.
  *  Com vírgula: o ponto é separador de milhar ("1.234,56"). Sem vírgula: o
  *  ponto é decimal ("129.90") — padrão de teclados internacionais. */

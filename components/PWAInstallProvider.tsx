@@ -43,6 +43,7 @@ function buildManifest(role?: SystemRole) {
 export const PWAInstallProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [novaVersao, setNovaVersao] = useState(false);
 
   const isIOS = useMemo(() => {
     const ua = navigator.userAgent;
@@ -52,6 +53,20 @@ export const PWAInstallProvider: React.FC<{ children: ReactNode }> = ({ children
   useEffect(() => {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+
+    // ── AVISO DE NOVA VERSÃO ──────────────────────────────────────────
+    // O sw.js usa skipWaiting: quando um deploy novo chega, o SW novo
+    // assume o controle e 'controllerchange' dispara. Em vez de recarregar
+    // à força (poderia interromper uma venda no PDV), mostramos um aviso
+    // discreto e o operador aplica a atualização no melhor momento.
+    const jaTinhaController = !!navigator.serviceWorker?.controller;
+    const onControllerChange = () => {
+      if (!jaTinhaController) return; // primeira instalação não é "update"
+      setNovaVersao(true);
+    };
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
     }
 
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
@@ -77,6 +92,9 @@ export const PWAInstallProvider: React.FC<{ children: ReactNode }> = ({ children
       window.removeEventListener('beforeinstallprompt', handler);
       window.removeEventListener('appinstalled', installedHandler);
       mediaQuery.removeEventListener('change', changeHandler);
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+      }
     };
   }, []);
 
@@ -118,6 +136,17 @@ export const PWAInstallProvider: React.FC<{ children: ReactNode }> = ({ children
   return (
     <PWAInstallContext.Provider value={{ isInstallable: !!deferredPrompt || isIOS, isInstalled, install }}>
       {children}
+      {novaVersao && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[9999] bg-slate-900 text-white pl-5 pr-3 py-3 rounded-2xl shadow-2xl flex items-center gap-3 text-xs font-bold border border-slate-700 animate-fadeIn">
+          <span>🔄 Nova versão do sistema disponível</span>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-1.5 rounded-xl font-black uppercase tracking-widest text-[10px] transition-colors active:scale-95"
+          >
+            Atualizar agora
+          </button>
+        </div>
+      )}
     </PWAInstallContext.Provider>
   );
 };

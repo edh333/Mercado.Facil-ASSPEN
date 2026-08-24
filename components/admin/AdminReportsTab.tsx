@@ -7,6 +7,7 @@ import {
 import { User } from '../../types';
 import { useTheme } from '../../context/ThemeContext';
 import { gerarRelatorioCredito, imprimirCupom, imprimirRelatorioCreditoA4 } from '../../utils/printUtils';
+import { isAdminRole } from '../../utils';
 
 interface AdminReportsTabProps {
   reportConfig: any;
@@ -51,7 +52,7 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
   const termo = (creditSearch || '').trim().toLowerCase();
   const digitosTermo = termo.replace(/\D/g, '');
   const creditList = (users || []).filter(u => {
-    if (u.role === 'ADMIN' || u.role === 'MASTER' || u.role === 'master') return false;
+    if (isAdminRole(u.role)) return false;
     if (termo) {
       const nomeOk = (u.name || '').toLowerCase().includes(termo);
       const cpfOk = digitosTermo.length > 0 && (u.cpf || '').replace(/\D/g, '').includes(digitosTermo);
@@ -112,7 +113,7 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
   return (
     <div className="animate-slideUp space-y-8 pb-20">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm">
-            <h2 className="text-xl font-black text-[var(--text-main)] flex items-center gap-2 uppercase tracking-tight">
+            <h2 className="text-xl font-bold text-[var(--text-main)] flex items-center gap-2 tracking-tight">
                 <ClipboardList size={24} className="text-emerald-400"/> Central de Relatórios
             </h2>
             <div className="flex items-center gap-2 text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest bg-[var(--bg-main)] px-4 py-2 rounded-xl border border-[var(--border-color)]">
@@ -169,7 +170,10 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
                                 </div>
                                 {showUserDropdown && (
                                     <div className="border border-[var(--border-color)] rounded-2xl mt-2 max-h-48 overflow-y-auto bg-[var(--bg-card)] shadow-2xl absolute w-full z-50 custom-scrollbar">
-                                        {(users || []).filter(u => (u.name || '').toLowerCase().includes((reportConfig.individualSearch || '').toLowerCase()) || (u.cpf || '').includes(reportConfig.individualSearch || '')).map(u => (
+                                        {(users || []).filter(u => !isAdminRole(u.role) && (
+                                            (u.name || '').toLowerCase().includes((reportConfig.individualSearch || '').toLowerCase()) ||
+                                            (u.cpf || '').replace(/\D/g, '').includes((reportConfig.individualSearch || '').replace(/\D/g, ''))
+                                        )).map(u => (
                                             <div key={u.id} className="p-4 hover:bg-[var(--bg-main)] cursor-pointer text-xs font-black border-b border-[var(--border-color)] last:border-0 flex justify-between uppercase" onClick={() => { setReportConfig({...reportConfig, selectedUser: u, individualSearch: u?.name || ''}); setShowUserDropdown(false); }}>
                                                 <span className="text-[var(--text-main)]">{u?.name || 'Usuário'}</span>
                                                 <span className="text-[9px] text-[var(--text-muted)] font-mono">CPF: {u?.cpf || '—'}</span>
@@ -291,7 +295,7 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
                                 className={`py-3 px-2 rounded-2xl font-black text-[9px] uppercase tracking-wider transition-all text-center ${reportConfig.type === f.id ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20' : 'bg-[var(--bg-card)] text-[var(--text-muted)] border border-[var(--border-color)] hover:bg-[var(--bg-main)]'}`}
                             >
                                 <span className="block">{f.label}</span>
-                                <span className={`block text-[8px] mt-0.5 tracking-widest ${reportConfig.type === f.id ? 'text-white/60' : 'opacity-50'}`}>{f.desc}</span>
+                                <span className={`block text-[10px] mt-0.5 tracking-widest ${reportConfig.type === f.id ? 'text-white/60' : 'opacity-50'}`}>{f.desc}</span>
                             </button>
                         ))}
                     </div>

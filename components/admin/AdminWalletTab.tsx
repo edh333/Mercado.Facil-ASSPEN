@@ -162,7 +162,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
           <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-transparent pointer-events-none" />
           <div className="relative z-10">
             <p className="text-slate-500 font-black text-[10px] uppercase tracking-[0.2em] mb-1">Sistema de Créditos</p>
-            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter leading-none">Fluxo de Carteira</h3>
+            <h3 className="text-xl font-bold text-slate-900 tracking-tight leading-none">Fluxo de Carteira</h3>
           </div>
           <CreditCard size={40} className="text-blue-500/30 relative z-10 transform group-hover:rotate-12 transition-transform duration-500" />
         </div>
@@ -170,7 +170,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
 
       {/* ─── Header & Sub-Tabs ─── */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
-        <h2 className="text-xl font-black text-slate-900 flex items-center gap-3 uppercase tracking-tight">
+        <h2 className="text-xl font-bold text-slate-900 flex items-center gap-3 tracking-tight">
           <div className="p-2 bg-emerald-100 rounded-xl">
             <CreditCard size={20} className="text-emerald-600" />
           </div>
@@ -223,7 +223,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                 <Wallet size={20} className="text-indigo-600" />
               </div>
               <div>
-                <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Saldos e Créditos</h2>
+                <h2 className="text-xl font-bold text-slate-900 tracking-tight">Saldos e Créditos</h2>
                 <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mt-1">
                   Quem tem crédito na carteira e quem deve no fiado — visão consolidada
                 </p>
@@ -274,7 +274,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                       </div>
                       <div className="text-right shrink-0">
                         <p className="font-black text-emerald-600">R$ {formatarMoeda(Number(u.walletBalance) || 0)}</p>
-                        <span className={`inline-block mt-1 px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border ${u.status === 'active' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-500 border-red-200'}`}>
+                        <span className={`inline-block mt-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${u.status === 'active' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-500 border-red-200'}`}>
                           {u.status === 'active' ? 'Ativo' : u.status || '—'}
                         </span>
                       </div>
@@ -329,7 +329,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                           </div>
                           <div className="text-right shrink-0">
                             <p className="font-black text-red-600">R$ {formatarMoeda(divida)}</p>
-                            <span className={`inline-block mt-1 px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border ${a.status === 'blocked' ? 'bg-red-50 text-red-500 border-red-200' : 'bg-amber-50 text-amber-600 border-amber-200'}`}>
+                            <span className={`inline-block mt-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${a.status === 'blocked' ? 'bg-red-50 text-red-500 border-red-200' : 'bg-amber-50 text-amber-600 border-amber-200'}`}>
                               {a.status === 'blocked' ? 'Bloqueado' : 'Ativo'}
                             </span>
                           </div>
@@ -389,7 +389,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                     </div>
                   </td>
                   <td className="p-6 text-center">
-                    <span className={`px-4 py-2 rounded-full text-[8px] font-black uppercase tracking-[0.2em] border ${tx.type === 'deposit' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-500 border-red-200'}`}>
+                    <span className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border ${tx.type === 'deposit' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-500 border-red-200'}`}>
                       {tx.type === 'deposit' ? '↑ Crédito' : tx.type === 'purchase' ? '↓ Compra' : '↓ Retirada'}
                     </span>
                   </td>
@@ -399,7 +399,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                     </span>
                   </td>
                   <td className="p-6 text-center">
-                    <span className={`px-4 py-2 rounded-full text-[8px] font-black uppercase tracking-[0.2em] border inline-flex items-center gap-1.5 ${
+                    <span className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border inline-flex items-center gap-1.5 ${
                       tx.status === 'approved' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' :
                       tx.status === 'pending'  ? 'bg-amber-50 text-amber-600 border-amber-200' :
                                                  'bg-red-50 text-red-500 border-red-200'
@@ -460,7 +460,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                 <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">
                   {new Date(tx.createdAt).toLocaleDateString('pt-BR')} • {new Date(tx.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
                 </div>
-                <span className={`px-3 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest border ${tx.type === 'deposit' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-500 border-red-200'}`}>
+                <span className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${tx.type === 'deposit' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-500 border-red-200'}`}>
                   {tx.type === 'deposit' ? '↑ Crédito' : '↓ Débito'}
                 </span>
               </div>
@@ -473,13 +473,13 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
 
               <div className="flex justify-between items-center mt-2 border-t border-slate-100 pt-4">
                 <div className="flex flex-col">
-                  <p className="text-[8px] font-black text-slate-400 uppercase mb-1 tracking-widest">Valor Total</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Valor Total</p>
                   <p className={`font-black text-xl tracking-tighter ${tx.amount > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                     {tx.amount > 0 ? '+' : ''} R$ {(Math.abs(tx.amount) || 0).toFixed(2).replace('.', ',')}
                   </p>
                 </div>
                 <div className="flex flex-col items-end">
-                  <span className={`px-3 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest border flex items-center gap-1.5 mb-3 ${
+                  <span className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border flex items-center gap-1.5 mb-3 ${
                     tx.status === 'approved' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' :
                     tx.status === 'pending'  ? 'bg-amber-50 text-amber-600 border-amber-200' :
                                                'bg-red-50 text-red-500 border-red-200'

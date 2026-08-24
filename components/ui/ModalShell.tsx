@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 interface ModalShellProps {
@@ -52,7 +53,10 @@ export const ModalShell: React.FC<ModalShellProps> = ({
 
   if (!open) return null;
 
-  return (
+  // Portal no <body>: modais renderizados DENTRO de containers com stacking
+  // context próprio (ex.: sidebar com z-50) ficavam presos atrás do conteúdo —
+  // mesmo com z-index 9999. Portar para o body resolve o modal "apareceu atrás".
+  return createPortal((
     <div className="modal-container">
       <div className="modal-overlay" onClick={() => closeOnBackdrop && onClose()}></div>
       <div className={`modal-content modal-shell-fixed relative w-full ${SIZE_CLASS[size]} bg-white overflow-hidden flex flex-col max-h-[90vh] rounded-2xl shadow-2xl animate-scaleIn`}>
@@ -92,5 +96,5 @@ export const ModalShell: React.FC<ModalShellProps> = ({
         )}
       </div>
     </div>
-  );
+  ), document.body);
 };

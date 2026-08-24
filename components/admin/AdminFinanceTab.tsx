@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   DollarSign, Landmark, ArrowDownCircle, Printer, Search, Filter, Plus, X, Check, ArrowRightCircle,
-  Calendar, FileText, TrendingUp, TrendingDown, Receipt, Download, Upload, Wallet, AlertTriangle
+  Calendar, FileText, TrendingUp, TrendingDown, Receipt, Download, Upload, Wallet, AlertTriangle, Loader2
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { Expense, Order, Supplier } from '../../types';
@@ -59,8 +59,12 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
     debitAccount: 'CAIXA'
   });
 
+  const [isSubmittingExpense, setIsSubmittingExpense] = useState(false);
+
   const handleExpenseSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingExpense) return; // trava anti-duplo-clique: nunca registra duas vezes
+    setIsSubmittingExpense(true);
     try {
         const amountNum = parseFloat(String(expenseForm.amount).replace(',', '.'));
         if (isNaN(amountNum) || amountNum <= 0) {
@@ -90,6 +94,8 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
         showNotification("Lançamento efetuado com sucesso!", "success");
     } catch (err: any) {
         showNotification(err?.message || "Erro ao processar lançamento.", "error");
+    } finally {
+        setIsSubmittingExpense(false);
     }
   };
 
@@ -195,7 +201,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
       {/* Upper Dashboard */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm relative overflow-hidden">
         <div className="absolute top-0 left-0 w-32 h-32 bg-emerald-600 rounded-full blur-[60px] -ml-16 -mt-16 opacity-10"></div>
-        <h2 className="text-xl font-black text-[var(--text-main)] flex items-center gap-2 uppercase tracking-tight relative z-10">
+        <h2 className="text-xl font-bold text-[var(--text-main)] flex items-center gap-2 tracking-tight relative z-10">
             <DollarSign size={24} className="text-emerald-600"/> Painel Financeiro
         </h2>
         <div className="flex flex-wrap gap-3 w-full md:w-auto relative z-10">
@@ -316,7 +322,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
                     title={`Saídas: R$ ${d.dayExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
                   />
                 </div>
-                <span className="text-[8px] font-black text-[var(--text-muted)] uppercase">{d.dayName}</span>
+                <span className="text-[10px] font-black text-[var(--text-muted)] uppercase">{d.dayName}</span>
               </div>
             ))}
           </div>
@@ -600,10 +606,11 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => { const f = document.getElementById('expense-form-submit') as HTMLButtonElement; f?.click(); }}
-                className="px-8 py-3 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white font-black uppercase text-[10px] tracking-widest shadow-lg shadow-red-500/25 transition-all active:scale-95 flex items-center gap-2"
+                disabled={isSubmittingExpense}
+                onClick={() => { if (isSubmittingExpense) return; const f = document.getElementById('expense-form-submit') as HTMLButtonElement; f?.click(); }}
+                className="px-8 py-3 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white font-black uppercase text-[10px] tracking-widest shadow-lg shadow-red-500/25 transition-all active:scale-95 flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                <Check size={16} /> Registrar Despesa
+                {isSubmittingExpense ? <><Loader2 size={16} className="animate-spin" /> Registrando...</> : <><Check size={16} /> Registrar Despesa</>}
               </button>
             </>
           }

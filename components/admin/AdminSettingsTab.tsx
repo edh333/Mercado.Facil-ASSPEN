@@ -13,6 +13,7 @@ import {
   excluirPontoRestauracao, baixarPontoRestauracao, baixarBackupLocal, importarPontoRestauracao,
   aplicarChavesLocal, formatarDataPonto
 } from '../../utils/backupUtils';
+import { isAdminRole } from '../../utils';
 
 const MODULOS_PERMISSAO: { key: string; label: string }[] = [
   { key: 'orders', label: 'Pedidos' },
@@ -145,7 +146,16 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
   const [isSavingSecondaryPass, setIsSavingSecondaryPass] = React.useState(false);
 
   // ── Ponto de Restauração ──
-  const [pontosRestauracao, setPontosRestauracao] = React.useState<PontoRestauracao[]>([]);
+        const [pontosRestauracao, setPontosRestauracao] = React.useState<PontoRestauracao[]>([]);
+        const [, setTickManutencao] = React.useState(0);
+
+        // ── SAÚDE DA MANUTENÇÃO PREVENTIVA ──
+        // Guarda a data da última manutenção localmente e avisa quando passa
+        // de 30 dias (rotina recomendada: verificar-saude.bat + limpeza).
+        const CHAVE_MANUTENCAO = 'mf-ultima-manutencao';
+        const ultimaManutencaoStr = typeof localStorage !== 'undefined' ? localStorage.getItem(CHAVE_MANUTENCAO) : null;
+        const diasDesdeManutencao = ultimaManutencaoStr ? Math.floor((Date.now() - Number(ultimaManutencaoStr)) / 86400000) : null;
+        const manutencaoAtrasada = diasDesdeManutencao === null || (diasDesdeManutencao ?? 0) > 30;
   const [restoreTarget, setRestoreTarget] = React.useState<PontoRestauracao | null>(null);
   const fileInputRestoreRef = React.useRef<HTMLInputElement>(null);
 
@@ -353,7 +363,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
           <div className="w-24 h-24 bg-slate-100 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-inner">
             <Lock size={48} className="text-slate-400" />
           </div>
-          <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter mb-3">Acesso Restrito</h3>
+          <h3 className="text-2xl font-bold text-slate-900 tracking-tight mb-3">Acesso Restrito</h3>
           <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-10 leading-relaxed">
             Esta área contém configurações sensíveis do sistema.<br />
             Autentique-se como administrador para continuar.
@@ -382,7 +392,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                 <Settings size={28} />
               </div>
               <div>
-                <h2 className="text-xl md:text-2xl font-black text-white flex items-center gap-3 uppercase tracking-tight">
+                <h2 className="text-xl md:text-2xl font-bold text-white flex items-center gap-3 tracking-tight">
                   Painel de Configurações
                 </h2>
                 <p className="text-[9px] md:text-[10px] text-slate-400 font-black mt-1 uppercase tracking-widest">
@@ -530,7 +540,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                     </div>
                   )}
                   <div className="space-y-2">
-                    {(users || []).filter(u => u.role === 'ADMIN' && u.id !== 'master').map(admin => (
+                    {(users || []).filter(u => isAdminRole(u.role) && u.id !== 'master').map(admin => (
                       <React.Fragment key={admin.id}>
                         <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
                           <div className="min-w-0">
@@ -538,7 +548,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                             <p className="text-[10px] text-slate-500">{admin.email}</p>
                             <div className="flex flex-wrap gap-1 mt-1">
                               {!admin.permissions || admin.permissions.length === 0 || admin.permissions.includes('all') ? (
-                                <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${admin.permissions?.includes('all') ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                                <span className={`text-[10px] font-black uppercase px-1.5 py-0.5 rounded ${admin.permissions?.includes('all') ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
                                   {admin.permissions?.includes('all') ? 'Acesso total' : 'Sem permissões'}
                                 </span>
                               ) : (
@@ -546,7 +556,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                                   const mod = MODULOS_PERMISSAO.find(m => m.key === p);
                                   if (!mod) return null;
                                   return (
-                                    <span key={p} className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700">
+                                    <span key={p} className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700">
                                       {mod.label}
                                     </span>
                                   );
@@ -597,7 +607,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                         )}
                       </React.Fragment>
                     ))}
-                    {(users || []).filter(u => u.role === 'ADMIN' && u.id !== 'master').length === 0 && (
+                    {(users || []).filter(u => isAdminRole(u.role) && u.id !== 'master').length === 0 && (
                       <p className="text-[10px] text-slate-400 font-black uppercase text-center py-4">Nenhum administrador extra cadastrado</p>
                     )}
                   </div>
@@ -1358,6 +1368,33 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                 <Database size={20} className="text-indigo-600" /> Manutenção do Sistema
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* AVISO DE MANUTENÇÃO PREVENTIVA — verde em dia, âmbar quando passa de 30 dias */}
+              <div className={`mb-4 p-4 rounded-2xl border-2 flex flex-wrap items-center justify-between gap-3 ${manutencaoAtrasada ? 'bg-amber-50 border-amber-300' : 'bg-emerald-50 border-emerald-200'}`}>
+                <div className="flex items-center gap-3">
+                  <div className={`p-2.5 rounded-xl text-white ${manutencaoAtrasada ? 'bg-amber-500' : 'bg-emerald-600'}`}>
+                    {manutencaoAtrasada ? <AlertTriangle size={20} /> : <Check size={20} />}
+                  </div>
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-wide text-slate-800">
+                      {manutencaoAtrasada ? '⚠ Manutenção recomendada' : '✓ Sistema em dia'}
+                    </p>
+                    <p className="text-[10px] font-bold text-slate-500">
+                      {diasDesdeManutencao === null
+                        ? 'Nenhuma manutenção registrada. Rode "verificar-saude.bat" no computador.'
+                        : `Última manutenção há ${diasDesdeManutencao} dia(s). Recomendado a cada 30 dias.`}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    localStorage.setItem(CHAVE_MANUTENCAO, String(Date.now()));
+                    setTickManutencao(Date.now());
+                  }}
+                  className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-sm"
+                >
+                  Registrar manutenção feita
+                </button>
+              </div>
                 <button onClick={backupSystem} className="p-6 border-2 border-indigo-50 bg-indigo-50/50 rounded-2xl flex flex-col items-center gap-3 hover:bg-indigo-100 transition-all">
                   <div className="bg-indigo-600 text-white p-3 rounded-xl"><HardDrive size={24} /></div>
                   <span className="text-[10px] font-black uppercase">Backup JSON</span>
@@ -1365,6 +1402,23 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                 <button onClick={() => handleProtectedAction(clearOldData)} className="p-6 border-2 border-slate-900 bg-slate-900 text-white rounded-2xl flex flex-col items-center gap-3 hover:bg-black transition-all">
                   <div className="bg-white text-slate-900 p-3 rounded-xl"><Download size={24} /></div>
                   <span className="text-[10px] font-black uppercase">Arquivar e Limpar</span>
+                </button>
+                <button onClick={async () => {
+                  if (!window.confirm('Limpar caches locais e renovar o sistema? Nenhum dado é apagado — vendas, produtos e usuários ficam intactos. O app recarrega em seguida.')) return;
+                  try {
+                    if ('caches' in window) {
+                      const chaves = await caches.keys();
+                      await Promise.all(chaves.map(k => caches.delete(k)));
+                    }
+                    if ('serviceWorker' in navigator) {
+                      const regs = await navigator.serviceWorker.getRegistrations();
+                      await Promise.all(regs.map(r => r.unregister()));
+                    }
+                  } catch { /* segue para reload mesmo se cache indisponível */ }
+                  window.location.reload();
+                }} className="p-6 border-2 border-emerald-50 bg-emerald-50/50 rounded-2xl flex flex-col items-center gap-3 hover:bg-emerald-100 transition-all">
+                  <div className="bg-emerald-600 text-white p-3 rounded-xl"><RefreshCw size={24} /></div>
+                  <span className="text-[10px] font-black uppercase">Renovar Sistema</span>
                 </button>
                 <button onClick={() => handleProtectedAction(resetStock)} className="p-6 border-2 border-orange-50 bg-orange-50/50 rounded-2xl flex flex-col items-center gap-3 hover:bg-orange-100">
                   <div className="bg-orange-600 text-white p-3 rounded-xl"><RefreshCw size={24} /></div>
@@ -1386,7 +1440,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
             </div>
             <div className="space-y-6">
               <div className="bg-slate-900 p-8 rounded-3xl text-white">
-                <h4 className="text-lg font-black mb-2 uppercase">Portabilidade</h4>
+                <h4 className="text-lg font-bold mb-2">Portabilidade</h4>
                 <p className="text-xs text-white/50 mb-4">Baixe o código para rodar offline.</p>
                 <button onClick={handleDownloadSource} className="w-full bg-white text-slate-900 p-3 rounded-xl font-black text-xs uppercase mb-2">Download Fonte</button>
                 <button onClick={handleBuildExe} className="w-full bg-white/10 text-white p-3 rounded-xl font-black text-xs uppercase">Build EXE</button>
@@ -1539,7 +1593,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
             <div className="w-16 h-16 mx-auto mb-5 bg-amber-100 rounded-2xl flex items-center justify-center">
               <RotateCcw size={28} className="text-amber-600" />
             </div>
-            <h3 className="text-lg font-black uppercase tracking-wide text-slate-900 mb-2">Restaurar Sistema?</h3>
+            <h3 className="text-lg font-bold tracking-wide text-slate-900 mb-2">Restaurar Sistema?</h3>
             <p className="text-sm font-semibold text-slate-500 leading-relaxed mb-2">
               O sistema voltará para o ponto: <span className="text-slate-900 font-black uppercase">{restoreTarget.label}</span>
             </p>
@@ -1571,7 +1625,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
             <div className="w-16 h-16 mx-auto mb-5 bg-amber-100 rounded-2xl flex items-center justify-center">
               <CloudDownload size={28} className="text-amber-600" />
             </div>
-            <h3 className="text-lg font-black uppercase tracking-wide text-slate-900 mb-2">Restaurar Backup?</h3>
+            <h3 className="text-lg font-bold tracking-wide text-slate-900 mb-2">Restaurar Backup?</h3>
             <p className="text-sm font-semibold text-slate-500 leading-relaxed mb-2">
               Todos os dados voltarão para: <span className="text-slate-900 font-black uppercase">{restoreNuvemTarget.nome.replace('backups/', '')}</span>
             </p>

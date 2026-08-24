@@ -35,6 +35,7 @@ import { AdminReportPreviewModal } from '../components/admin/AdminReportPreviewM
 import { AdminCashTab } from '../components/admin/AdminCashTab';
 import { AdminDashboardCharts } from '../components/admin/AdminDashboardCharts';
 import { AdminStockAlertsTab } from '../components/admin/AdminStockAlertsTab';
+import { AdminMessagesTab } from '../components/admin/AdminMessagesTab';
 import { AdminCustomersTab } from '../components/admin/AdminCustomersTab';
 import { AdminModals } from '../components/admin/AdminModals';
 import { ManualCreditModal } from '../components/admin/ManualCreditModal';
@@ -84,6 +85,8 @@ export function AdminDashboard() {
     updateProduct,
     deleteProduct,
     importXmlProduct,
+    previewXmlImport,
+    sanitizeCatalog,
     addExpense,
     updateSettings,
     clearOldData,
@@ -131,7 +134,9 @@ export function AdminDashboard() {
     registrarVendaOffline,
     sincronizarVendasOffline,
     vendasOfflinePendentes,
-    vendasOfflineComErro
+    vendasOfflineComErro,
+    messages,
+    sendMessage
   } = useApp();
 
   // 2. Local State Management
@@ -273,7 +278,7 @@ export function AdminDashboard() {
         setActiveTab('home');
       }
     } else if (userRole === 'manager' && !isMaster) {
-      if (['cash', 'inmates', 'users', 'finance', 'wallet', 'customers', 'reports', 'bi', 'settings'].includes(activeTab)) {
+      if (['cash', 'inmates', 'users', 'messages', 'finance', 'wallet', 'customers', 'reports', 'bi', 'settings'].includes(activeTab)) {
         setActiveTab('home');
       }
     }
@@ -314,6 +319,7 @@ export function AdminDashboard() {
       'wallet': 'wallet',
       'reports': 'reports',
       'customers': 'finance',
+      'messages': 'users',
       'stock_alerts': 'products'
     };
     const needPerm = tabPermissions[tab];
@@ -364,9 +370,10 @@ export function AdminDashboard() {
     payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO'; amount: number }[], 
     change?: number,
     customerAccountId?: string,
-    clientToken?: string
+    clientToken?: string,
+    jointWallet?: { secondUserId: string; secondWalletAmount: number }
   ) => {
-    const res = await adminDirectSale(targetUserId, items, paymentMethod, total, payments, change, customerAccountId, clientToken);
+    const res = await adminDirectSale(targetUserId, items, paymentMethod, total, payments, change, customerAccountId, clientToken, jointWallet);
     if (!res) {
       throw new Error('Erro ao processar venda no caixa.');
     }
@@ -740,6 +747,7 @@ export function AdminDashboard() {
         setActiveTab={setActiveTab}
         pendingOrdersCount={orderPendingCount}
         pendingDepositsCount={depositPendingCount}
+        pendingUsersCount={stats.pendingUsersCount}
         logout={logout}
         appName={settings?.appName || 'Mercado Fácil'}
         userName={currentUser?.name || 'Administrador'}
@@ -753,7 +761,7 @@ export function AdminDashboard() {
       />
 
       {/* Main Administrative Container */}
-      <div className="flex-1 lg:pl-72 flex flex-col min-h-screen w-full relative">
+      <div className="flex-1 lg:ml-64 flex flex-col min-h-screen w-full relative">
 
         {/* Alerta profissional de cota: o sistema detectou limite do plano
             (Spark) — em vez de falhar silenciosamente, orienta a ação certa. */}
@@ -775,18 +783,19 @@ export function AdminDashboard() {
         </div>
 
         {/* Dynamic Header */}
-        <header className="sticky top-0 bg-white border-b border-slate-200 z-30 px-6 py-4 flex items-center justify-between transition-all duration-300 shadow-sm">
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
-              className="lg:hidden text-slate-500 hover:bg-slate-800 p-2.5 rounded-xl border border-slate-200 touch-target"
+        <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 px-4 sm:px-6 py-3 flex items-center justify-between backdrop-blur transition-all duration-300">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="lg:hidden text-slate-500 hover:bg-slate-100 p-2 rounded-lg border border-slate-200 touch-target"
             >
-              {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+              {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
             <div>
-              <h2 className="text-lg font-black tracking-tight uppercase leading-none text-slate-900">
+              <h2 className="text-base font-bold tracking-tight leading-tight text-slate-900">
                 {activeTab === 'home' && 'Painel Geral'}
                 {activeTab === 'orders' && 'Gerenciamento de Pedidos'}
+                {activeTab === 'messages' && 'Comunicados & Mensagens'}
                 {activeTab === 'products' && 'Catálogo de Produtos'}
                 {activeTab === 'cash' && 'Controle de Caixa / Gaveta'}
                 {activeTab === 'inmates' && 'Cadastro de Internos'}
@@ -799,21 +808,21 @@ export function AdminDashboard() {
                 {activeTab === 'customers' && 'Conta de Clientes (Fiado / Crédito)'}
                 {activeTab === 'settings' && 'Parâmetros Administrativos'}
               </h2>
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1">
+              <p className="text-xs text-slate-500">
                 {(settings as any)?.institutionName || 'Mercado Fácil ASSPEN'} • Sistema de Gestão Penitenciária
               </p>
             </div>
           </div>
           
-          <div className="flex items-center gap-4 flex-wrap justify-end">
+          <div className="flex items-center gap-3 flex-wrap justify-end">
             {!isStandalone && <span><AppDownloadButton variant="full" label="Baixar App" /></span>}
-            <button onClick={() => setShowUninstallModal(true)} title="Desinstalar aplicativo" className="w-10 h-10 bg-slate-500/10 text-slate-500 border border-slate-500/20 rounded-2xl flex items-center justify-center hover:bg-red-500 hover:text-white hover:border-red-500 transition-all active:scale-90 shadow-sm"><Trash2 size={18} /></button>
+            <button onClick={() => setShowUninstallModal(true)} title="Desinstalar aplicativo" className="w-9 h-9 text-slate-500 border border-slate-200 rounded-lg flex items-center justify-center hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all active:scale-90"><Trash2 size={17} /></button>
             <OnlineStatusIndicator />
           </div>
         </header>
 
         {/* Dynamic Page/Tab Content Switcher */}
-        <main className="flex-1 p-6 lg:p-8 max-w-7xl w-full mx-auto pb-24">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-6xl w-full mx-auto pb-24">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
@@ -873,6 +882,7 @@ export function AdminDashboard() {
                   xmlFile={xmlFile}
                   setXmlFile={setXmlFile}
                   handleImportXML={handleImportXML}
+                  previewXmlImport={previewXmlImport}
                   margin={margin}
                   setMargin={setMargin}
                   onPrintCatalog={() => {
@@ -883,6 +893,7 @@ export function AdminDashboard() {
                     abrirJanelaImpressao({ type: 'CATALOGO', data: products }, settings);
                   }}
                   mergeDuplicateProducts={mergeDuplicateProducts}
+                  sanitizeCatalog={sanitizeCatalog}
                   handleResetStock={() => handleProtectedAction(resetStock, 'STOCK')}
                   loadMoreProducts={loadMoreProducts}
                 />
@@ -934,6 +945,14 @@ export function AdminDashboard() {
                     }
                     setManualCreditTarget(user);
                   }}
+                />
+              )}
+
+              {activeTab === 'messages' && hasPermission('users') && (
+                <AdminMessagesTab
+                  users={users}
+                  messages={messages}
+                  sendMessage={sendMessage}
                 />
               )}
 

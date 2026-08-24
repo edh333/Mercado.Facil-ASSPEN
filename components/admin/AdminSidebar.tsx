@@ -3,7 +3,7 @@ import { NavItem } from './AdminCommon';
 import {
   Users, Package, ShoppingCart, DollarSign, LogOut, Settings,
   Database, BarChart3, Home, Shield, Truck, CreditCard, Landmark, Activity, AlertTriangle,
-  BookOpen
+  BookOpen, MessageSquare
 } from 'lucide-react';
 import { SystemRole } from '../PWAInstallProvider';
 import { AppDownloadButton } from '../AppDownloadModal';
@@ -13,6 +13,7 @@ interface AdminSidebarProps {
   setActiveTab: (tab: string) => void;
   pendingOrdersCount: number;
   pendingDepositsCount: number;
+  pendingUsersCount?: number;
   logout: () => void;
   appName: string;
   userName: string;
@@ -27,7 +28,7 @@ interface AdminSidebarProps {
 }
 
 export const AdminSidebar: React.FC<AdminSidebarProps> = ({
-  activeTab, setActiveTab, pendingOrdersCount, pendingDepositsCount, logout, appName, userName,
+  activeTab, setActiveTab, pendingOrdersCount, pendingDepositsCount, pendingUsersCount = 0, logout, appName, userName,
   isOpen, onClose, onOpenSales, permissions = [], isMaster = false, isImageBg = false, primaryColor = '#10b981',
   userRole = 'admin'
 }) => {
@@ -42,7 +43,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   const renderSalesButton = () => hasPermission('sales') && (
     <button
       onClick={onOpenSales}
-      className="w-full mt-3 mb-3 text-white p-3.5 rounded-xl flex items-center justify-center gap-2 font-bold text-xs tracking-wide shadow-md hover:brightness-110 transition-all active:scale-[0.98]"
+      className="w-full mt-2 mb-2 text-white p-3 rounded-lg flex items-center justify-center gap-2 font-semibold text-[13px] shadow-sm hover:brightness-110 transition-all active:scale-[0.98]"
       style={{ backgroundColor: primaryColor }}
     >
       <ShoppingCart size={16}/> <span>Venda Direta (PDV)</span>
@@ -59,19 +60,19 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         />
       )}
 
-      <aside className={`w-72 h-[100dvh] p-5 flex flex-col fixed left-0 top-0 overflow-y-auto z-50 transition-transform duration-300 ease-in-out no-scrollbar border-r border-slate-200 shadow-lg bg-white ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
-        <div className="mb-6 flex items-center gap-3 shrink-0 px-2">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-sm border border-slate-200"
-              style={{ backgroundColor: primaryColor, color: '#ffffff' }}>
-                <Shield size={22}/>
+      <aside className={`w-64 h-[100dvh] flex flex-col fixed left-0 top-0 overflow-y-auto z-50 transition-transform duration-300 ease-in-out no-scrollbar border-r border-slate-200 bg-[#f7f9f7] ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+        <div className="flex items-center gap-2.5 px-5 py-5 shrink-0">
+            <div className="flex size-9 items-center justify-center rounded-lg text-white shadow-sm"
+              style={{ backgroundColor: primaryColor }}>
+                <Shield size={20}/>
             </div>
             <div>
-                <h1 className="text-base font-bold tracking-tight leading-none text-slate-900">{appName}</h1>
-                <p className="text-[10px] text-slate-700 font-black tracking-wide mt-1">PAINEL ADMINISTRATIVO</p>
+                <h1 className="text-sm font-bold tracking-tight leading-tight text-slate-900">{appName}</h1>
+                <p className="text-xs text-slate-500">Painel Administrativo</p>
             </div>
         </div>
 
-        <nav className="flex-1 space-y-0.5">
+        <nav className="flex-1 space-y-1 px-3">
             {isSalesRestricted ? (
               <>
                 {renderHome()}
@@ -91,15 +92,16 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
                 {hasPermission('cash') && <NavItem icon={Landmark} label="Caixa / Gaveta" active={activeTab === 'cash'} onClick={() => setActiveTab('cash')} />}
 
-                <div className="my-2 border-t border-slate-200 h-px mx-2"></div>
+                <div className="my-2 border-t border-slate-200 h-px mx-1"></div>
 
                 {hasPermission('inmates') && <NavItem icon={Shield} label="Gestão de Internos" active={activeTab === 'inmates'} onClick={() => setActiveTab('inmates')} />}
-                {hasPermission('users') && <NavItem icon={Users} label="Gestão de Familiares" active={activeTab === 'users'} onClick={() => setActiveTab('users')} />}
+                {hasPermission('users') && <NavItem icon={Users} label="Gestão de Familiares" active={activeTab === 'users'} onClick={() => setActiveTab('users')} badge={pendingUsersCount} />}
+                {hasPermission('users') && <NavItem icon={MessageSquare} label="Comunicados" active={activeTab === 'messages'} onClick={() => setActiveTab('messages')} />}
                 {hasPermission('finance') && <NavItem icon={DollarSign} label="Fluxo de Caixa" active={activeTab === 'finance'} onClick={() => setActiveTab('finance')} />}
                 {hasPermission('wallet') && <NavItem icon={CreditCard} label="Carteira & Créditos" active={activeTab === 'wallet'} onClick={() => setActiveTab('wallet')} badge={pendingDepositsCount} />}
                 {hasPermission('finance') && userRole !== 'operator' && <NavItem icon={BookOpen} label="Contas a Pagar" active={activeTab === 'customers'} onClick={() => setActiveTab('customers')} />}
 
-                <div className="my-2 border-t border-slate-200 h-px mx-2"></div>
+                <div className="my-2 border-t border-slate-200 h-px mx-1"></div>
 
                 {hasPermission('reports') && <NavItem icon={BarChart3} label="Relatórios" active={activeTab === 'reports'} onClick={() => setActiveTab('reports')} />}
                 {hasPermission('reports') && (isMaster || userRole === 'admin') && <NavItem icon={Activity} label="Dashboard BI" active={activeTab === 'bi'} onClick={() => setActiveTab('bi')} />}
@@ -108,21 +110,22 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             )}
         </nav>
 
-        <div className="mt-auto pt-4 border-t border-slate-200 flex flex-col gap-3">
+        <div className="mt-auto border-t border-slate-200 p-3 flex flex-col gap-2">
             {!isStandalone && <AppDownloadButton variant="full" label="Baixar App (Setup)" />}
-            <div className="flex items-center gap-3 px-2">
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-white text-sm shadow-sm"
+            <div className="flex items-center gap-2.5 px-1">
+                <div className="flex size-9 items-center justify-center rounded-lg font-bold text-white text-sm shadow-sm"
                   style={{ backgroundColor: primaryColor }}>
                   {userName[0]}
                 </div>
                 <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold text-slate-900 leading-tight truncate">{userName}</p>
-                    <p className="text-[10px] text-slate-700 font-black mt-0.5">Administrador</p>
+                    <p className="truncate text-sm font-semibold leading-tight text-slate-900">{userName}</p>
+                    <p className="text-xs capitalize text-slate-500">Administrador</p>
                 </div>
             </div>
-            <button onClick={logout} className="w-full flex items-center gap-2 px-3 py-2.5 text-slate-600 hover:bg-slate-100 rounded-xl transition-all font-semibold text-sm border border-slate-200">
-                <LogOut size={18}/> Sair do Painel
+            <button onClick={logout} className="w-full flex items-center gap-2 px-3 py-2 text-slate-500 hover:bg-black/5 hover:text-slate-900 rounded-lg transition-colors text-[13px]">
+                <LogOut size={16}/> Sair do Painel
             </button>
+            <p className="mt-1 px-2 text-center text-[9px] text-slate-400">Desenvolvido por Edevaldo de Lima Almeida</p>
         </div>
       </aside>
     </>

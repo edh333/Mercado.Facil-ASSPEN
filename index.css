@@ -130,11 +130,11 @@
   --primary-light: rgba(16, 185, 129, 0.1);
   --primary-dark: #059669;
   
-  --bg-card: #ffffff;
-  --bg-main: #f1f5f9;
-  --text-main: #0f172a;
-  --text-muted: #64748b;
-  --border-color: #e2e8f0;
+--bg-card: #ffffff;
+  --bg-main: #f7f7f4;
+  --text-main: #1c2621;
+  --text-muted: #7f8b84;
+  --border-color: #e8e6e1;
   --bg-input: rgba(0, 0, 0, 0.03);
   
   --overlay-bg: rgba(0, 0, 0, 0.5);
@@ -153,6 +153,24 @@
 html {
   scroll-behavior: smooth;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* ═══ COMPORTAMENTO DE APP NATIVO (PWA instalado) ═══
+   Sem elástico/pull-to-refresh, sem seleção acidental de interface,
+   respeitando as áreas seguras (notch/barra do iPhone e Android). */
+body {
+  overscroll-behavior-y: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+body input, body textarea, body select, body [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+body {
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
 }
 
 body { 
@@ -1059,5 +1077,88 @@ select option {
   }
 }
 
+/* ═══════════════════════════════════════════════════════════
+   POLISH PROFISSIONAL v2.6 — Tipografia, Foco e Impressão
+   ═══════════════════════════════════════════════════════════ */
+
+/* Números tabulares: valores monetários alinham verticalmente em
+   listas/cupons/relatórios (dígito tem largura fixa — sem "dança" de R$) */
+.tnum, input[type="number"], .font-mono {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+
+/* Renderização de texto mais nítida em telas de PDV (monitores distantes) */
+body {
+  text-rendering: optimizeLegibility;
+}
+
+/* Seleção de texto com identidade da marca */
+::selection {
+  background: rgba(16, 185, 129, 0.25);
+}
+
+/* ═══ FOCO VISÍVEL PROFISSIONAL (navegação por teclado F1-F12 do PDV)
+   Só aparece via teclado (focus-visible), nunca polui o clique do mouse */
+:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+button:focus:not(:focus-visible),
+input:focus:not(:focus-visible),
+select:focus:not(:focus-visible),
+textarea:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Firefox: scrollbars discretas equivalentes ao WebKit já definido */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 116, 139, 0.4) transparent;
+}
+
+/* ═══ IMPRESSÃO TÉRMICA/A4 — robustez anti-corte ═══ */
+@media print {
+  /* Linhas de item nunca são cortadas no meio entre páginas */
+  tr, td, th, .cupom-row {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Preserva cores de fundo intencionais (faixas do cupom gerencial) */
+  .cupom-gerencial-print, #print-root {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Métrica monoespaçada estável para bobina (48 colunas exatas) */
+  .cupom-gerencial-print pre,
+  .cupom-gerencial-print code {
+    font-family: 'Consolas', 'Courier New', Courier, monospace !important;
+    font-size: 9.5pt !important;
+    line-height: 1.25 !important;
+    letter-spacing: 0 !important;
+    white-space: pre-wrap !important;
+    word-break: break-word !important;
+  }
+}
 
 
+
+
+/* ═══════════════════════════════════════════════════════════
+   PROFILE ASSPEN 2026 - Janelas Modernas (estética shadcn)
+   Aplaina raios exagerados das janelas para o padrão do 2º sistema
+   ═══════════════════════════════════════════════════════════ */
+
+.rounded-3xl { border-radius: 1rem; }
+.rounded-\[2rem\] { border-radius: 1.125rem; }
+.rounded-\[2\.5rem\] { border-radius: 1.25rem; }
+.rounded-\[3rem\] { border-radius: 1.5rem; }
+.rounded-\[1\.75rem\] { border-radius: 1rem; }
+.rounded-\[4rem\] { border-radius: 2rem; }
+.rounded-premium-lg { border-radius: 20px; }
+.rounded-premium-xl { border-radius: 24px; }
+
+.modal-container .modal-content { border-radius: 20px !important; }

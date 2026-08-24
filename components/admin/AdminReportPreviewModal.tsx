@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { X, Printer, FileText, TrendingUp, TrendingDown, Package, Users, Download, Calendar, BarChart3, PieChart, Activity, FileSpreadsheet, Landmark, Wallet } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { User } from '../../types';
+import { isAdminRole } from '../../utils';
 import { buildMonthlyDre, buildSalesCsv, buildStockAbc } from '../../context/StoreContext';
 
 const PAYMENT_LABELS: Record<string, string> = {
@@ -86,7 +87,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
         const totalEntries = (orders || []).filter(o => statusReceita(o.status)).reduce((a, b) => a + (Number(b.total) || 0), 0);
         const totalExits = (expenses || []).reduce((a, b) => a + (Number(b.amount) || 0), 0);
         const ordersCount = (orders || []).filter(o => statusReceita(o.status)).length;
-        const newUsers = (users || []).filter((u: User) => u.role === 'FAMILY' && u.createdAt && new Date(u.createdAt) >= new Date(Date.now() - 30 * 86400000)).length;
+        const newUsers = (users || []).filter((u: User) => !isAdminRole(u.role) && u.createdAt && new Date(u.createdAt) >= new Date(Date.now() - 30 * 86400000)).length;
         const outOfStock = (products || []).filter((p: any) => (p.stock || 0) <= 0).length;
         const net = totalEntries - totalExits;
 
@@ -261,7 +262,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                                         </div>
                                     </td>
                                     <td className="p-5">
-                                        <span className={`px-3 py-1 rounded-lg font-black text-[8px] uppercase tracking-widest shadow-sm ${item.type === 'ENTRY' ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' : 'bg-red-500/10 text-red-600 border border-red-500/20'}`}>
+                                        <span className={`px-3 py-1 rounded-lg font-black text-[10px] uppercase tracking-widest shadow-sm ${item.type === 'ENTRY' ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' : 'bg-red-500/10 text-red-600 border border-red-500/20'}`}>
                                             {item.type === 'ENTRY' ? 'Entrada' : 'Saída'}
                                         </span>
                                     </td>
@@ -292,11 +293,11 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                  </div>
                  <div className="relative z-10 grid grid-cols-2 gap-4 w-full md:w-auto">
                     <div className="bg-white/5 p-4 rounded-2xl border border-white/10 text-right backdrop-blur-sm">
-                        <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1">Total Entradas</p>
+                        <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Total Entradas</p>
                         <p className="text-sm font-black text-white">+ R$ {report.summary.totalEntries.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
                     </div>
                     <div className="bg-white/5 p-4 rounded-2xl border border-white/10 text-right backdrop-blur-sm">
-                        <p className="text-[8px] font-black text-red-400 uppercase tracking-widest mb-1">Total Saídas</p>
+                        <p className="text-[10px] font-black text-red-400 uppercase tracking-widest mb-1">Total Saídas</p>
                         <p className="text-sm font-black text-white">- R$ {report.summary.totalExits.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
                     </div>
                  </div>
@@ -420,7 +421,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                                         <td className="p-4 text-[10px] font-black text-[var(--text-main)]">{l.NUMERO_CUPOM}</td>
                                         <td className="p-4 text-[10px] font-black font-mono text-[var(--text-muted)]">{l.CPF_CLIENTE}</td>
                                         <td className="p-4">
-                                            <span className="px-2.5 py-1 rounded-lg font-black text-[8px] uppercase tracking-widest bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">{l.FORMA_PAGAMENTO}</span>
+                                            <span className="px-2.5 py-1 rounded-lg font-black text-[10px] uppercase tracking-widest bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">{l.FORMA_PAGAMENTO}</span>
                                         </td>
                                         <td className="p-4 text-right text-[10px] font-black text-[var(--text-muted)]">{l['ALIQUOTA_ESTIMADA(%)']}%</td>
                                         <td className="p-4 text-right text-[10px] font-black text-amber-600">R$ {l.IMPOSTO_ESTIMADO}</td>
@@ -486,7 +487,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                                     <tr key={idx} className="hover:bg-[var(--bg-main)]/30 transition-all">
                                         <td className="p-4">
                                             <p className="text-[11px] font-black uppercase text-[var(--text-main)] tracking-tight max-w-[220px] truncate">{l.name}</p>
-                                            {l.qtdVendida === 0 && <span className="text-[8px] font-black text-red-500 uppercase tracking-widest">Sem giro no período</span>}
+                                            {l.qtdVendida === 0 && <span className="text-[10px] font-black text-red-500 uppercase tracking-widest">Sem giro no período</span>}
                                         </td>
                                         <td className="p-4 text-right text-[11px] font-black text-[var(--text-main)]">{l.qtdVendida}</td>
                                         <td className="p-4 text-right text-[11px] font-black text-emerald-600">R$ {l.receita.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
@@ -511,7 +512,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
 
     const renderUsersCredits = () => {
         const lista = (users || [])
-            .filter((u: User) => u.role === 'FAMILY' || u.role === 'user' || u.role === 'USER')
+            .filter((u: User) => !isAdminRole(u.role))
             .map(u => ({ u, saldo: Number(u.walletBalance) || 0, gastoSemanal: Number(u.weeklySpent) || 0 }))
             .sort((a, b) => b.saldo - a.saldo);
         const ativos = lista.filter(x => x.u.status === 'active').length;
@@ -581,11 +582,11 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                                         <td className="p-5 text-[10px] font-black text-[var(--text-muted)]">{String(idx + 1).padStart(2, '0')}</td>
                                         <td className="p-5">
                                             <p className="text-[11px] font-black uppercase text-[var(--text-main)] tracking-tight max-w-[200px] truncate">{x.u.name || '—'}</p>
-                                            {x.u.inmateName && <p className="text-[8px] font-bold text-[var(--text-muted)] uppercase tracking-widest truncate max-w-[200px]">PUP: {x.u.inmateName}</p>}
+                                            {x.u.inmateName && <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest truncate max-w-[200px]">PUP: {x.u.inmateName}</p>}
                                         </td>
                                         <td className="p-5 text-[10px] font-black font-mono text-[var(--text-muted)]">{x.u.cpf || '—'}</td>
                                         <td className="p-5">
-                                            <span className={`px-3 py-1 rounded-lg font-black text-[8px] uppercase tracking-widest border ${statusBadge(x.u.status)}`}>{statusLabel(x.u.status)}</span>
+                                            <span className={`px-3 py-1 rounded-lg font-black text-[10px] uppercase tracking-widest border ${statusBadge(x.u.status)}`}>{statusLabel(x.u.status)}</span>
                                         </td>
                                         <td className={`p-5 text-right font-black text-sm tracking-tighter ${x.saldo > 0 ? 'text-emerald-600' : 'text-[var(--text-muted)]'}`}>R$ {x.saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                                         <td className="p-5 text-right font-black text-sm tracking-tighter text-amber-600">R$ {x.gastoSemanal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
@@ -613,7 +614,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
 
     const printUsersCredits = () => {
         const lista = (users || [])
-            .filter((u: User) => u.role === 'FAMILY' || u.role === 'user' || u.role === 'USER')
+            .filter((u: User) => !isAdminRole(u.role))
             .map(u => ({ name: u.name || '—', cpf: u.cpf || '—', status: u.status, saldo: Number(u.walletBalance) || 0, gastoSemanal: Number(u.weeklySpent) || 0 }))
             .sort((a, b) => b.saldo - a.saldo);
         const totalSaldo = lista.reduce((a, b) => a + b.saldo, 0);
@@ -860,8 +861,8 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                     <div>
                         <h3 className="text-lg font-black uppercase tracking-tighter leading-none">{report.title}</h3>
                         <div className="flex items-center gap-3 mt-1">
-                            <span className="px-2.5 py-0.5 bg-[var(--primary-color)]/20 text-[var(--primary-color)] rounded-full text-[8px] font-black uppercase tracking-widest">{report.period}</span>
-                            <span className="text-[8px] font-black text-[var(--bg-card)] opacity-40 uppercase tracking-[0.2em]">Cód: {Math.random().toString(36).substr(2, 6).toUpperCase()}</span>
+                            <span className="px-2.5 py-0.5 bg-[var(--primary-color)]/20 text-[var(--primary-color)] rounded-full text-[10px] font-black uppercase tracking-widest">{report.period}</span>
+                            <span className="text-[10px] font-black text-[var(--bg-card)] opacity-40 uppercase tracking-[0.2em]">Cód: {Math.random().toString(36).substr(2, 6).toUpperCase()}</span>
                         </div>
                     </div>
                 </div>
@@ -883,7 +884,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                 <div className="toolbar-recibo-superior p-6 border-t border-[var(--border-color)] flex flex-col sm:flex-row justify-between items-center bg-[var(--bg-card)] gap-4 shrink-0">
                     <div className="flex items-center gap-3 opacity-40">
                         <Activity size={14} className="text-[var(--text-muted)]"/>
-                        <p className="text-[8px] font-black text-[var(--text-muted)] uppercase tracking-[0.3em] text-center sm:text-left leading-relaxed">
+                        <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-[0.3em] text-center sm:text-left leading-relaxed">
                             © Mercado Fácil - Gestão Penitenciária de Alta Performance
                         </p>
                     </div>

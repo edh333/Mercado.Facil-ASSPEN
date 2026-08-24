@@ -97,9 +97,9 @@ export const AdminShortcutsModal: React.FC<AdminShortcutsModalProps> = ({ isOpen
             <Keyboard size={24}/>
           </div>
           <div>
-            <h3 className="text-lg font-black uppercase tracking-tighter leading-none">Navegação Global F1–F12</h3>
+            <h3 className="text-lg font-bold tracking-tight leading-none">Navegação Global F1–F12</h3>
             <div className="flex items-center gap-3 mt-1">
-              <span className="px-2.5 py-0.5 bg-[var(--primary-color)]/20 text-[var(--primary-color)] rounded-full text-[8px] font-black uppercase tracking-widest">Funciona em qualquer tela</span>
+              <span className="px-2.5 py-0.5 bg-[var(--primary-color)]/20 text-[var(--primary-color)] rounded-full text-[10px] font-black uppercase tracking-widest">Funciona em qualquer tela</span>
             </div>
           </div>
         </div>

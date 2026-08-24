@@ -7,6 +7,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { Product } from '../../types';
 import { formatarMoeda } from '../../utils';
+import { imprimirSilenciosoFiscal, imprimirComPrioridadeFiscal } from '../../utils/printUtils';
 
 interface UserCartModalProps {
     isCartOpen: boolean;
@@ -167,33 +168,44 @@ export const UserCartModal: React.FC<UserCartModalProps> = ({
         showNotification('Operação cancelada', 'error');
     };
 
-    const triggerAutoPrint = (orderIdVal: string, orderItems: any[], totalVal: number, method: string) => {
+    const buildPrintPayload = (orderIdVal: string, orderItems: any[], totalVal: number, method: string) => ({
+        type: 'CUPOM',
+        data: {
+            id: orderIdVal,
+            items: orderItems,
+            total: totalVal,
+            paymentMethod: method === 'WALLET' ? 'WALLET' : 'PIX',
+            userName: currentUser?.name || '',
+            inmateName: currentUser?.inmateName || currentUser?.prisonerName || '',
+            inmateLocation: location,
+            deliveryLocation: location,
+            createdAt: new Date().toISOString(),
+            walletBalanceBefore: currentUser?.walletBalance || 0,
+            walletBalanceAfter: currentUser?.walletBalance || 0,
+            operatorName: currentUser?.name || 'ADMIN'
+        }
+    });
+
+    const triggerAutoPrint = async (orderIdVal: string, orderItems: any[], totalVal: number, method: string) => {
         try {
-            const printPayload = {
-                type: 'CUPOM',
-                data: {
-                    id: orderIdVal,
-                    items: orderItems,
-                    total: totalVal,
-                    paymentMethod: method === 'WALLET' ? 'WALLET' : 'PIX',
-                    userName: currentUser?.name || '',
-                    inmateName: currentUser?.inmateName || currentUser?.prisonerName || '',
-                    inmateLocation: location,
-                    deliveryLocation: location,
-                    createdAt: new Date().toISOString(),
-                    walletBalanceBefore: currentUser?.walletBalance || 0,
-                    walletBalanceAfter: currentUser?.walletBalance || 0,
-                    operatorName: currentUser?.name || 'ADMIN'
-                }
-            };
-            localStorage.setItem('printItem', JSON.stringify(printPayload));
-            localStorage.setItem('appSettings', JSON.stringify(settings || {}));
-            const printWindow = window.open('/print', '_blank', 'width=400,height=600');
-            if (!printWindow) {
-                showNotification('Popup bloqueado. Permita popups para impressão automática.', 'error');
+            // Auto-impressão SEMPRE silenciosa (QZ Tray / Electron silent) —
+            // nunca abre popup nem diálogo do navegador sem o operador pedir.
+            setLastPrintPayload({ items: orderItems, total: totalVal, method });
+            const ok = await imprimirSilenciosoFiscal(buildPrintPayload(orderIdVal, orderItems, totalVal, method), settings);
+            if (!ok) {
+                console.warn('Auto-print silencioso indisponível — cupom disponível no botão do painel.');
             }
         } catch (e) {
             console.warn('Auto-print falhou:', e);
+        }
+    };
+
+    const printNow = async (orderIdVal: string, orderItems: any[], totalVal: number, method: string) => {
+        // Botão do painel de sucesso: tenta a fiscal, depois Electron silent,
+        // e só por último abre a janela de impressão (ação explícita do operador).
+        const ok = await imprimirComPrioridadeFiscal(buildPrintPayload(orderIdVal, orderItems, totalVal, method), settings);
+        if (!ok) {
+            showNotification('Cupom enviado para o diálogo de impressão do navegador.', 'info');
         }
     };
 
@@ -375,7 +387,7 @@ export const UserCartModal: React.FC<UserCartModalProps> = ({
                                     <div className="bg-blue-900/30 p-4 rounded-xl border border-blue-800 text-center">
                                         <p className="font-black text-xs text-blue-300 uppercase tracking-wider mb-1">Comprovante de Pagamento</p>
                                         <p className="text-[10px] text-blue-400 font-bold">Anexe a foto do comprovante PIX para confirmar o crédito</p>
-                                        <p className="text-[8px] text-red-400 font-black mt-2 uppercase tracking-wider">AVISO LEGAL: Comprovante falso é CRIME — Estelionato (Art. 171) e Falsificação (Art. 297 do CP)</p>
+                                        <p className="text-[10px] text-red-400 font-black mt-2 uppercase tracking-wider">AVISO LEGAL: Comprovante falso é CRIME — Estelionato (Art. 171) e Falsificação (Art. 297 do CP)</p>
                                     </div>
 
                                     <div
@@ -548,7 +560,7 @@ export const UserCartModal: React.FC<UserCartModalProps> = ({
                         /* PROOF STAGE */
                         <div className="space-y-3">
                             {cartPaymentMethod === 'PIX' ? (
-                                <><p className="text-[8px] text-red-400 font-black text-center uppercase tracking-wider">AVISO LEGAL: Comprovante falso é CRIME — Estelionato (Art. 171) e Falsificação (Art. 297 do CP)</p>
+                                <><p className="text-[10px] text-red-400 font-black text-center uppercase tracking-wider">AVISO LEGAL: Comprovante falso é CRIME — Estelionato (Art. 171) e Falsificação (Art. 297 do CP)</p>
                                 <div onClick={() => document.getElementById('proof-upload')?.click()} className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${localProofFile ? 'border-emerald-500 bg-emerald-500/10' : 'border-slate-700 bg-slate-800 hover:border-emerald-400'}`}>
                                     <input type="file" id="proof-upload" ref={fileInputRef} className="hidden" accept="image/*,.pdf" onChange={e => {
                                         const file = e.target.files?.[0];
@@ -795,12 +807,12 @@ export const UserCartModal: React.FC<UserCartModalProps> = ({
                             </div>
 
                             <div className="flex flex-col gap-2">
-                                {settings?.autoPrint && lastPrintPayload && (
+                                {lastPrintPayload && (
                                     <button
                                         onClick={() => {
-                                            triggerAutoPrint(orderId, lastPrintPayload.items, lastPrintPayload.total, lastPrintPayload.method);
+                                            void printNow(orderId, lastPrintPayload.items, lastPrintPayload.total, lastPrintPayload.method);
                                         }}
-                                        className="w-full py-3 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                                        className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-bold text-xs tracking-wide shadow-lg shadow-slate-900/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                                     >
                                         <Printer size={16} /> Imprimir Cupom
                                     </button>
@@ -817,7 +829,7 @@ export const UserCartModal: React.FC<UserCartModalProps> = ({
                                             fileInputRef.current.value = '';
                                         }
                                     }}
-                                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-emerald-500/30 active:scale-[0.98] transition-all"
+                                    className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold text-xs tracking-wide shadow-lg shadow-emerald-500/30 active:scale-[0.98] transition-all"
                                 >
                                     Continuar Comprando
                                 </button>

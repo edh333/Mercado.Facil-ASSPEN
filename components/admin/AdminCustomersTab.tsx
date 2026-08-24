@@ -147,13 +147,13 @@ export function AdminCustomersTab() {
   const riskColor = riskPct < 30 ? 'bg-emerald-500' : riskPct < 60 ? 'bg-amber-500' : 'bg-red-500';
   const riskBg = riskPct < 30 ? 'from-emerald-50 to-emerald-100/50 border-emerald-200' : riskPct < 60 ? 'from-amber-50 to-amber-100/50 border-amber-200' : 'from-red-50 to-red-100/50 border-red-200';
   const riskText = riskPct < 30 ? 'text-emerald-700' : riskPct < 60 ? 'text-amber-700' : 'text-red-700';
-  const riskHex = riskPct < 30 ? '#10b981' : riskPct < 60 ? '#f59e0b' : '#ef4444';
+  const riskHex = riskPct < 30 ? '#059669' : riskPct < 60 ? '#d97706' : '#dc2626';
 
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-        <h2 className="text-xl font-black text-slate-900 flex items-center gap-3 uppercase tracking-tight">
+        <h2 className="text-xl font-bold text-slate-900 flex items-center gap-3 tracking-tight">
           <CreditCard size={24} className="text-emerald-500" /> Contas a Pagar
         </h2>
         <button
@@ -208,7 +208,7 @@ export function AdminCustomersTab() {
 
       {/* Filtros Rápidos */}
       <div className="flex flex-wrap items-center gap-2">
-        <Filter size={14} className="text-slate-400" />
+        <Filter size={14} className="text-slate-500" />
         {([
           { key: 'all', label: 'Todos' },
           { key: 'debtors', label: 'Com Dívida' },
@@ -223,13 +223,13 @@ export function AdminCustomersTab() {
 
       {/* Search */}
       <div className="relative w-full sm:w-[480px]">
-        <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+        <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
         <input
           type="text"
           placeholder="BUSCAR CLIENTE POR NOME OU CPF..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="w-full pl-12 pr-4 py-4 rounded-2xl bg-white border border-slate-200 text-slate-900 font-bold text-sm placeholder:text-slate-400 outline-none focus:border-emerald-500 transition-all shadow-sm uppercase tracking-widest"
+          className="w-full pl-12 pr-4 py-4 rounded-2xl bg-white border border-slate-200 text-slate-900 font-bold text-sm placeholder:text-slate-500 outline-none focus:border-emerald-500 transition-all shadow-sm uppercase tracking-widest"
         />
       </div>
 
@@ -240,7 +240,7 @@ export function AdminCustomersTab() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-16 text-center">
-          <CreditCard size={48} className="mx-auto mb-4 text-slate-300" />
+          <CreditCard size={48} className="mx-auto mb-4 text-slate-400" />
           <p className="font-black text-slate-900 text-lg uppercase tracking-tight mb-1">
             {search ? 'Nenhum cliente encontrado' : 'Nenhum cliente cadastrado'}
           </p>
@@ -260,14 +260,14 @@ export function AdminCustomersTab() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-bold text-slate-900 text-sm truncate">{c.nome}</p>
-                      {c.status === 'blocked' && <span className="text-[8px] font-black text-red-500 bg-red-50 px-2 py-0.5 rounded uppercase tracking-wider border border-red-200">Bloqueado</span>}
+                      {c.status === 'blocked' && <span className="text-[10px] font-black text-red-600 bg-red-50 px-2 py-0.5 rounded uppercase tracking-wider border border-red-200">Bloqueado</span>}
                     </div>
                     <p className="text-[10px] font-semibold text-slate-500">{c.telefone || '—'}</p>
                     <div className="flex items-center gap-4 mt-1.5 flex-wrap">
                       <span className="text-xs font-black text-red-600">
                         Dívida: R$ {formatarMoeda(c.currentDebt || 0)}
                       </span>
-                      <span className="text-[10px] text-slate-400 font-semibold">
+                      <span className="text-[10px] text-slate-600 font-semibold">
                         Limite: R$ {formatarMoeda(c.creditLimit || 0)}
                       </span>
                     </div>
@@ -294,7 +294,7 @@ export function AdminCustomersTab() {
                     </button>
                     <button
                       onClick={() => handleDelete(c.id)}
-                      className="p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all active:scale-95"
+                      className="p-2.5 text-slate-500 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all active:scale-95"
                       title="Excluir"
                     >
                       <Trash2 size={16} />

@@ -4,7 +4,7 @@ import {
   PlusCircle, ShieldCheck, CheckSquare, Square, Link2, BarChart2, Download, Lock, Unlock,
   MoreVertical
 } from 'lucide-react';
-import { formatarMoeda } from '../../utils';
+import { formatarMoeda, isAdminRole } from '../../utils';
 import { User, Order } from '../../types';
 
 interface AdminUsersTabProps {
@@ -50,7 +50,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
   const filteredUsers = React.useMemo(() => {
     const termo = (userSearch || '').toLowerCase();
     return (users || []).filter(u => {
-      const notAdmin = u.role !== 'ADMIN' && u.role !== 'MASTER' && u.role !== 'master';
+      const notAdmin = !isAdminRole(u.role);
       const matchSearch = (u.name || '').toLowerCase().includes(termo) ||
                          (u.cpf || '').includes(userSearch || '') ||
                          (u.inmateName || '').toLowerCase().includes(termo);
@@ -126,7 +126,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
 
       {/* ─── Main Tab Toggle ─── */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
-        <h2 className="text-xl font-black text-slate-900 flex items-center gap-2 uppercase tracking-tight">
+        <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2 tracking-tight">
           <Users size={24} className="text-emerald-500" /> Gestão de Usuários
         </h2>
         <div className="flex bg-slate-100 rounded-2xl p-1 border border-slate-200">
@@ -235,7 +235,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                       </div>
                     </td>
                     <td className="p-5 text-center">
-                      <span className={`px-3 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest border ${statusBadge(u.status || '')}`}>
+                      <span className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${statusBadge(u.status || '')}`}>
                         {u.status === 'active' ? 'Ativo' : u.status === 'suspended' ? 'Bloqueado' : 'Pendente'}
                       </span>
                     </td>
@@ -367,7 +367,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 mb-1">
                       <h3 className="font-black text-base text-slate-900 uppercase tracking-tight truncate">{u?.name || 'Sem nome'}</h3>
-                      <span className={`text-[8px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest border ${statusBadge(u.status || '')}`}>{({ active: 'Ativo', pending: 'Pendente', suspended: 'Suspenso' } as any)[u.status] || u.status}</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest border ${statusBadge(u.status || '')}`}>{({ active: 'Ativo', pending: 'Pendente', suspended: 'Suspenso' } as any)[u.status] || u.status}</span>
                     </div>
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-tight truncate">CPF: {u?.cpf || '—'} • Tel: {u?.phone || '—'}</p>
                     {u?.address ? (

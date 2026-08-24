@@ -22,17 +22,38 @@ interface AdminProductsTabProps {
   setMargin: (m: string) => void;
   onPrintCatalog: () => void;
   mergeDuplicateProducts: () => Promise<void>;
+  sanitizeCatalog: () => Promise<number>;
   handleResetStock: () => void;
   loadMoreProducts?: () => void;
+  previewXmlImport?: (file: File) => Promise<{ name: string; cost: number; qty: number }[]>;
 }
 
 export const AdminProductsTab: React.FC<AdminProductsTabProps> = ({
   products, suppliers, searchTerm, setSearchTerm, viewMode, setViewMode,
   setShowProductModal, setEditingProduct, deleteProduct,
-  xmlFile, setXmlFile, handleImportXML, margin, setMargin, onPrintCatalog, mergeDuplicateProducts, handleResetStock, loadMoreProducts
+  xmlFile, setXmlFile, handleImportXML, margin, setMargin, onPrintCatalog, mergeDuplicateProducts, sanitizeCatalog, handleResetStock, loadMoreProducts, previewXmlImport
 }) => {
   const [categoryFilter, setCategoryFilter] = React.useState('ALL');
   const [supplierFilter, setSupplierFilter] = React.useState('ALL');
+  const [xmlPreview, setXmlPreview] = React.useState<{ name: string; cost: number; qty: number }[]>([]);
+  const [xmlPreviewLoading, setXmlPreviewLoading] = React.useState(false);
+
+  // Ao selecionar um XML, lê a NFe e mostra o CUSTO de cada item.
+  // O preço de venda é calculado AO VIVO com a margem digitada:
+  // custo R$ 10 + margem 50% → venda R$ 15,00.
+  React.useEffect(() => {
+    if (!xmlFile || !previewXmlImport) { setXmlPreview([]); return; }
+    let ativo = true;
+    setXmlPreviewLoading(true);
+    previewXmlImport(xmlFile)
+      .then(items => { if (ativo) setXmlPreview(items || []); })
+      .catch(() => { if (ativo) setXmlPreview([]); })
+      .finally(() => { if (ativo) setXmlPreviewLoading(false); });
+    return () => { ativo = false; };
+  }, [xmlFile]);
+
+  const margemPct = Math.max(parseFloat(margin) || 0, 0);
+  const precoComMargem = (custo: number) => custo * (1 + margemPct / 100);
 
   const categories = React.useMemo(() => {
     const cats = new Set((products || []).map(p => p.category).filter(Boolean));
@@ -43,8 +64,8 @@ export const AdminProductsTab: React.FC<AdminProductsTabProps> = ({
     return {
       total: (products || []).length,
       available: (products || []).filter(p => p.available !== false).length,
-      stockOut: (products || []).filter(p => p.stock <= 0).length,
-      lowStock: (products || []).filter(p => p.stock > 0 && p.stock <= 5).length
+      stockOut: (products || []).filter(p => (p.stock ?? 0) <= 0).length,
+      lowStock: (products || []).filter(p => (p.stock ?? 0) > 0 && (p.stock ?? 0) <= 5).length
     };
   }, [products]);
 
@@ -83,14 +104,14 @@ return (
                 <AlertTriangle size={14}/> Estoque Baixo
               </p>
               <p className="text-2xl font-black text-amber-700 tracking-tighter">{stats.lowStock}</p>
-              <p className="text-[8px] font-black text-slate-800 mt-1 uppercase">Produtos precisam reposição</p>
+              <p className="text-[10px] font-black text-slate-800 mt-1 uppercase">Produtos precisam reposição</p>
           </div>
       </div>
 
       {/* Main Header & Search */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm">
         <div className="flex items-center gap-4">
-          <h2 className="text-xl font-black text-[var(--text-main)] flex items-center gap-2 uppercase tracking-tight">
+          <h2 className="text-xl font-bold text-[var(--text-main)] flex items-center gap-2 tracking-tight">
             <Package size={24} className="text-emerald-500"/> Catálogo de Produtos
           </h2>
           <div className="hidden sm:flex bg-[var(--bg-main)] rounded-xl p-1 border border-[var(--border-color)]">
@@ -154,6 +175,7 @@ return (
                 <span className="text-[10px] uppercase font-black block mb-1 text-[var(--text-main)] text-center">Margem (%)</span>
                 <input
                   type="number"
+                  min="0"
                   className="w-full p-4 bg-[var(--bg-card)] border-2 border-[var(--border-color)] focus:border-emerald-500 rounded-2xl text-sm font-bold text-[var(--text-main)] text-center outline-none transition-all"
                   value={margin}
                   onChange={e => setMargin(e.target.value)}
@@ -164,6 +186,49 @@ return (
                    <Check size={18}/> Processar NFe
                </button>
             </div>
+
+            {/* PRÉVIA: custo detectado no XML → preço de venda com a margem digitada */}
+            {xmlPreviewLoading && (
+              <p className="mt-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Lendo NFe e conferindo preços...</p>
+            )}
+            {!xmlPreviewLoading && xmlPreview.length > 0 && (
+              <div className="mt-4 bg-[var(--bg-main)] border border-[var(--border-color)] rounded-2xl p-4">
+                <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-main)] flex items-center gap-1.5">
+                    <Check size={13} className="text-emerald-500"/> Prévia da Nota — {xmlPreview.length} itens detectados
+                  </p>
+                  <p className="text-[10px] font-bold text-slate-500">
+                    Custo médio: <span className="font-black text-slate-700">{formatarMoeda(xmlPreview.reduce((s, i) => s + i.cost, 0) / xmlPreview.length)}</span>
+                    {' · '}Margem {margemPct}% → <span className="font-black text-emerald-600">preço de venda abaixo</span>
+                  </p>
+                </div>
+                <div className="overflow-x-auto max-h-56 overflow-y-auto custom-scrollbar">
+                  <table className="w-full text-xs">
+                    <thead className="sticky top-0 bg-[var(--bg-main)]">
+                      <tr className="text-left text-[9px] font-black uppercase tracking-widest text-slate-400 border-b border-[var(--border-color)]">
+                        <th className="py-2 pr-2">Produto</th>
+                        <th className="py-2 pr-2 text-right">Qtd</th>
+                        <th className="py-2 pr-2 text-right">Custo Un.</th>
+                        <th className="py-2 text-right text-emerald-600">Venda (+{margemPct}%)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {xmlPreview.slice(0, 100).map((it, i) => (
+                        <tr key={i} className="border-b border-[var(--border-color)]/50 last:border-0">
+                          <td className="py-1.5 pr-2 font-bold text-[var(--text-main)] truncate max-w-[220px]">{it.name}</td>
+                          <td className="py-1.5 pr-2 text-right font-bold text-slate-500">{it.qty}</td>
+                          <td className="py-1.5 pr-2 text-right font-black text-[var(--text-main)]">{formatarMoeda(it.cost)}</td>
+                          <td className="py-1.5 text-right font-black text-emerald-600">{formatarMoeda(precoComMargem(it.cost))}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+            <button onClick={() => { if(confirm('Zerar preço/custo de TODOS os produtos com valor absurdo (>R$ 100 mil)? Use após NFe corrompida dar preços gigantescos.')) void sanitizeCatalog(); }} className="mt-3 w-full md:w-auto px-4 py-2.5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all bg-amber-500/10 text-amber-600 border border-amber-500/30 hover:bg-amber-500 hover:text-white flex items-center justify-center gap-2">
+                <AlertTriangle size={14}/> Sanitizar Preços Corrompidos
+            </button>
           </div>
 
           {/* Quick Actions */}
@@ -212,7 +277,7 @@ return (
                     </div>
                 )}
                 {(product?.stock || 0) <= 0 && product?.available !== false && (
-                    <div className="absolute top-4 right-4 bg-red-600 text-white text-[8px] font-black px-3 py-1.5 rounded-xl shadow-lg uppercase tracking-widest animate-pulse">Esgotado</div>
+                    <div className="absolute top-4 right-4 bg-red-600 text-white text-[10px] font-black px-3 py-1.5 rounded-xl shadow-lg uppercase tracking-widest animate-pulse">Esgotado</div>
                 )}
              </div>
 
@@ -221,13 +286,13 @@ return (
 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-2 flex-wrap">
                     {!product.barcode && !product.ean ? (
-                      <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 flex items-center gap-1">
+                      <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg bg-red-500/10 text-red-600 border border-red-500/20 flex items-center gap-1">
                         <AlertTriangle size={10}/> SEM CÓDIGO
                       </span>
                     ) : (
                       <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg bg-[var(--bg-main)] text-[var(--text-muted)] border border-[var(--border-color)]">EAN: {product.barcode || product.ean || '—'}</span>
                     )}
-                    {product.category && <span className="text-[10px] font-black px-2 py-0.5 rounded-lg uppercase tracking-tighter bg-emerald-500/10 text-emerald-400">{product.category}</span>}
+                    {product.category && <span className="text-[10px] font-black px-2 py-0.5 rounded-lg uppercase tracking-tighter bg-emerald-500/10 text-emerald-700">{product.category}</span>}
                   </div>
                   {product.brand ? (
                     <div>
@@ -250,18 +315,18 @@ return (
                     <div className="text-center">
                         <p className="text-[10px] font-black uppercase text-[var(--text-muted)] mb-1">Estoque</p>
                         <div className="flex flex-col items-center">
-                          <p className={`font-black text-lg ${product.stock <= 0 ? 'text-red-600' : product.stock <= (product.minStock || 5) ? 'text-amber-600' : 'text-[var(--text-main)]'}`}>
-                              {product.stock} <span className="text-[10px] font-bold text-[var(--text-muted)]">UN</span>
+                          <p className={`font-black text-lg ${(product.stock ?? 0) <= 0 ? 'text-red-600' : (product.stock ?? 0) <= (product.minStock || 5) ? 'text-amber-600' : 'text-[var(--text-main)]'}`}>
+                              {product.stock ?? 0} <span className="text-[10px] font-bold text-[var(--text-muted)]">UN</span>
                           </p>
-                          {product.stock > 0 && product.stock <= (product.minStock || 5) && (
-                            <span className="text-[7px] font-black text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded mt-1 uppercase tracking-wider">Crítico</span>
+                          {(product.stock ?? 0) > 0 && (product.stock ?? 0) <= (product.minStock || 5) && (
+                            <span className="text-[10px] font-black text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded mt-1 uppercase tracking-wider">Crítico</span>
                           )}
-                          {product.stock <= 0 && (
-                            <span className="text-[7px] font-black text-white bg-red-600 px-2 py-0.5 rounded mt-1 uppercase tracking-wider">Esgotado</span>
+                          {(product.stock ?? 0) <= 0 && (
+                            <span className="text-[10px] font-black text-white bg-red-600 px-2 py-0.5 rounded mt-1 uppercase tracking-wider">Esgotado</span>
                           )}
                         </div>
                         {product.lastSoldAt && (
-                          <p className="text-[8px] text-[var(--text-muted)] mt-1">Últ. venda: {product.lastSoldAt ? new Date(product.lastSoldAt).toLocaleDateString('pt-BR') : '—'}</p>
+                          <p className="text-[10px] text-[var(--text-muted)] mt-1">Últ. venda: {product.lastSoldAt ? new Date(product.lastSoldAt).toLocaleDateString('pt-BR') : '—'}</p>
                         )}
                     </div>
                     <div className="flex gap-2">

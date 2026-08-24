@@ -124,10 +124,10 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
         <div className="absolute top-0 left-0 w-32 h-32 bg-emerald-500 rounded-full blur-[60px] -ml-16 -mt-16 opacity-10"></div>
 
         <div className="relative z-10">
-          <h2 className="text-2xl font-black text-[var(--text-main)] flex items-center gap-3 uppercase tracking-tighter">
+          <h2 className="text-2xl font-bold text-[var(--text-main)] flex items-center gap-3 tracking-tight">
             <ShoppingCart size={28} className="text-emerald-500"/> Controle de Pedidos
           </h2>
-          <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-[0.3em] mt-1 ml-1">Monitoramento em Tempo Real de Vendas</p>
+          <p className="text-sm font-medium text-[var(--text-muted)] mt-1 ml-1">Monitoramento em Tempo Real de Vendas</p>
         </div>
 
         <div className="flex flex-col md:flex-row items-center gap-4 w-full xl:w-auto relative z-10">
@@ -174,7 +174,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
 {/* Search Input */}
       <div className="relative group">
         <div className="absolute left-6 top-1/2 -translate-y-1/2 bg-[var(--bg-card)] p-3 rounded-2xl border-2 border-[var(--border-color)] group-focus-within:border-emerald-500 transition-all duration-300 z-10 shadow-sm">
-          <Search className="text-[var(--text-muted)] group-focus-within:text-emerald-400 transition-colors" size={22} />
+          <Search className="text-[var(--text-muted)] group-focus-within:text-emerald-600 transition-colors" size={22} />
         </div>
         <input
           className="w-full pl-24 pr-8 py-6 bg-[var(--bg-card)] border-2 border-[var(--border-color)] focus:border-emerald-500 rounded-[3rem] text-sm font-black text-[var(--text-main)] outline-none transition-all placeholder:text-[var(--text-muted)] placeholder:font-medium uppercase tracking-[0.2em] shadow-inner"
@@ -208,7 +208,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
             <div className="flex-1 space-y-6">
               {/* Customer Info */}
               <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-[var(--bg-main)] border border-[var(--border-color)] flex items-center justify-center text-[var(--text-muted)] shrink-0 group-hover:bg-emerald-500/10 group-hover:text-emerald-400 transition-colors">
+                  <div className="w-12 h-12 rounded-2xl bg-[var(--bg-main)] border border-[var(--border-color)] flex items-center justify-center text-[var(--text-muted)] shrink-0 group-hover:bg-emerald-500/10 group-hover:text-emerald-600 transition-colors">
                       <UserCheck size={24}/>
                   </div>
                   <div className="min-w-0">
@@ -248,7 +248,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
               </div>
 
               {/* Date & Time */}
-              <div className="flex items-center gap-3 pl-2 opacity-50">
+              <div className="flex items-center gap-3 pl-2">
                 <Clock size={16} className="text-[var(--text-muted)]"/>
                 <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">
                   {order.date ? new Date(order.date).toLocaleDateString('pt-BR') : '—'} <span className="mx-2 text-[var(--text-muted)]">|</span> {order.date ? new Date(order.date).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}) : '—'}
@@ -262,7 +262,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                 <div>
                   <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest mb-1">Valor Total</p>
                   <h3 className="text-2xl font-black text-[var(--text-main)] tracking-tighter">
-                    <span className="text-xs opacity-40 mr-1">R$</span>
+                    <span className="text-xs opacity-75 mr-1">R$</span>
                     {(Number(order.total) || 0).toFixed(2).replace('.', ',')}
                   </h3>
                 </div>

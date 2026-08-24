@@ -9,6 +9,7 @@ import {
   formatarMoeda,
   generatePixPayload,
   mascararCpf,
+  isAdminRole,
 } from '../utils';
 import { montarEscPos, gerarCupomEntregaRaw } from '../utils/printUtils';
 
@@ -219,5 +220,23 @@ describe('montarEscPos (ESC/POS 80mm)', () => {
     cupom.split('\n').forEach(linha => {
       expect(linha.length).toBeLessThanOrEqual(48);
     });
+  });
+});
+
+describe('isAdminRole', () => {
+  it('reconhece admin/master em qualquer formato gravado no Firestore', () => {
+    expect(isAdminRole('ADMIN')).toBe(true);
+    expect(isAdminRole('admin')).toBe(true);
+    expect(isAdminRole('Master')).toBe(true);
+    expect(isAdminRole('MASTER')).toBe(true);
+    expect(isAdminRole(' master ')).toBe(true);
+  });
+
+  it('rejeita familiares e valores inválidos', () => {
+    expect(isAdminRole('FAMILY')).toBe(false);
+    expect(isAdminRole('FAMILIAR')).toBe(false);
+    expect(isAdminRole('')).toBe(false);
+    expect(isAdminRole(undefined)).toBe(false);
+    expect(isAdminRole(null)).toBe(false);
   });
 });

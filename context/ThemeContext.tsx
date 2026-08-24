@@ -15,10 +15,12 @@ const ThemeContext = createContext<ThemeContextData>({} as ThemeContextData);
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { settings } = useApp();
 
-  const themeId = settings?.theme || ThemeOption.POLICE_MT;
-  const themeData = THEME_COLORS[themeId] || THEME_COLORS[ThemeOption.POLICE_MT];
+  // Visual institucional ASSPEN: verde como padrão (novas instalações e
+  // configurações antigas sem tema definido).
+  const themeId = settings?.theme || ThemeOption.MODERN_GREEN;
+  const themeData = THEME_COLORS[themeId] || THEME_COLORS[ThemeOption.MODERN_GREEN];
 
-  const DEFAULT_PRIMARY = '#10b981';
+  const DEFAULT_PRIMARY = '#0e7a4d';
   const rawPrimary = String(settings?.primaryColor || '').trim();
   const primaryColor = /^#[0-9a-fA-F]{6}$/.test(rawPrimary) ? rawPrimary : DEFAULT_PRIMARY;
 
@@ -30,13 +32,13 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     root.style.setProperty('--primary-color', primaryColor);
     root.style.setProperty('--secondary-color', primaryColor);
 
-    // Light mode premium colors (corporativo claro)
-    root.style.setProperty('--bg-main', '#f8fafc');              // slate-50
+    // Light mode premium colors (estética asspen/shadcn — fundo quente, tinta escura, bordas sutis)
+    root.style.setProperty('--bg-main', '#f7f7f4');              // warm background
     root.style.setProperty('--bg-card', '#ffffff');              // white
     root.style.setProperty('--bg-input', 'rgba(0,0,0,0.03)');
-    root.style.setProperty('--text-main', '#0f172a');            // slate-900
-    root.style.setProperty('--text-muted', '#64748b');           // slate-500
-    root.style.setProperty('--border-color', '#e2e8f0');         // slate-200
+    root.style.setProperty('--text-main', '#1c2621');            // dark green-ink
+    root.style.setProperty('--text-muted', '#7f8b84');           // gray-green
+    root.style.setProperty('--border-color', '#e8e6e1');         // warm light border
     root.style.setProperty('--glass-border', 'rgba(0,0,0,0.08)');
 
     // Wallpaper Global

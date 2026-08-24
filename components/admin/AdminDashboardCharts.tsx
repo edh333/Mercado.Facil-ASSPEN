@@ -155,7 +155,7 @@ export const AdminDashboardCharts: React.FC = () => {
           <BarChart3 size={24} className="text-emerald-600" />
         </div>
         <div>
-          <h2 className="text-2xl font-black text-slate-900 tracking-tight">Dashboard de BI</h2>
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Dashboard de BI</h2>
           <p className="text-sm text-slate-500 font-semibold">Inteligência de vendas · últimos 30 dias</p>
         </div>
       </div>

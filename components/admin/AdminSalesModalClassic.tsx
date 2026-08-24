@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { X, Search, Barcode, Receipt, Package, Users, CreditCard, CheckCircle, Zap, Percent, ShoppingCart, Plus, Minus, Trash2, Home, ArrowRight, Ban, UserCheck, Wallet, DollarSign } from 'lucide-react';
 import { Product, User as UserType, Order, AppConfig } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { formatarMoeda, parseMoeda } from '../../utils';
+import { formatarMoeda, parseMoeda, isAdminRole } from '../../utils';
 
 interface AdminSalesModalProps {
   isOpen: boolean;
@@ -87,9 +87,9 @@ export const AdminSalesModalClassic: React.FC<AdminSalesModalProps> = ({
     // Consumidor geral é sintético (não vive no Firestore) — entra apenas na
     // busca do PDV; painéis administrativos usam a lista real (sem ele).
     const consumidor: UserType = { id: 'consumidor_geral', name: 'CONSUMIDOR GERAL', email: 'venda@balcao.com', role: 'FAMILY', status: 'active', approved: true, cpf: '000.000.000-00', inmateName: 'CONSUMIDOR', inmateCpf: '000.000.000-00' };
-    if (!termo) return [consumidor, ...(users || []).filter(u => u.role !== 'ADMIN' && u.status !== 'suspended')].slice(0, 5);
+    if (!termo) return [consumidor, ...(users || []).filter(u => !isAdminRole(u.role) && u.status !== 'suspended')].slice(0, 5);
     return [consumidor, ...(users || []).filter(u =>
-      u.role !== 'ADMIN' && u.status !== 'suspended' &&
+      !isAdminRole(u.role) && u.status !== 'suspended' &&
       ((u.name || '').toLowerCase().includes(termo) ||
        (u.cpf || '').includes(termo) ||
        (u.inmateName || u.prisonerName || '').toLowerCase().includes(termo))
@@ -250,12 +250,12 @@ export const AdminSalesModalClassic: React.FC<AdminSalesModalProps> = ({
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-3 px-3 sm:px-6 py-2 rounded-2xl bg-slate-800/50 border border-slate-700">
             <div className="text-right">
-              <p className="text-[7px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest">Itens</p>
+              <p className="text-[10px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest">Itens</p>
               <p className="font-black text-base sm:text-lg leading-none">{carrinho.reduce((a,b) => a + b.quantity, 0)}</p>
             </div>
             <div className="w-px h-8 bg-slate-700 mx-1 sm:mx-2" />
             <div className="text-right">
-              <p className="text-[7px] sm:text-[9px] font-black text-emerald-400 uppercase tracking-widest">Total</p>
+              <p className="text-[10px] sm:text-[9px] font-black text-emerald-400 uppercase tracking-widest">Total</p>
               <p className="font-black text-lg sm:text-2xl leading-none text-emerald-400">R$ {formatarMoeda(totalComDesconto)}</p>
             </div>
           </div>
@@ -405,7 +405,7 @@ export const AdminSalesModalClassic: React.FC<AdminSalesModalProps> = ({
                     <Minus size={18} strokeWidth={3}/>
                   </button>
                   <div className="w-10 flex flex-col items-center">
-                    <span className="text-[7px] font-black text-slate-500 uppercase leading-none mb-1">Qtd</span>
+                    <span className="text-[10px] font-black text-slate-500 uppercase leading-none mb-1">Qtd</span>
                     <span className="font-black text-xl text-white leading-none">{quantidade}</span>
                   </div>
                   <button
@@ -441,13 +441,13 @@ export const AdminSalesModalClassic: React.FC<AdminSalesModalProps> = ({
                           <div className="w-10 h-10 rounded-xl bg-slate-600/50 flex items-center justify-center mb-2">
                             <Package size={20} className="text-slate-400"/>
                           </div>
-                          <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Sem Foto</span>
+                          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Sem Foto</span>
                         </div>
                       )}
-                      {p.stock <= 5 && p.stock > 0 && <span className="absolute top-2 left-2 bg-amber-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase">Baixo Estoque</span>}
+                      {p.stock <= 5 && p.stock > 0 && <span className="absolute top-2 left-2 bg-amber-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase">Baixo Estoque</span>}
                       {p.stock === 0 && <span className="absolute inset-0 bg-black/60 flex items-center justify-center font-black text-[10px] uppercase tracking-widest">Esgotado</span>}
                     </div>
-                    {p.brand && <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest mb-1 opacity-80">{p.brand}</p>}
+                    {p.brand && <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1 opacity-80">{p.brand}</p>}
                     <p className="font-bold text-[11px] uppercase tracking-tight text-slate-200 line-clamp-1 w-full text-center">{p?.name || 'Produto'}</p>
                     <p className="font-black text-lg text-emerald-400 mt-1">R$ {formatarMoeda(p.price)}</p>
                     <p className="text-[9px] font-bold text-slate-500 mt-0.5 uppercase tracking-widest">{p.stock || 0} em estoque</p>

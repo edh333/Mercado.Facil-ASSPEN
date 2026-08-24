@@ -234,7 +234,7 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
       footer={
         <div className="w-full flex items-center justify-between">
           <div className="flex flex-col">
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Identificador Interno</span>
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Identificador Interno</span>
             <span className="text-[10px] font-mono text-slate-600 font-black uppercase tracking-tight">#{transaction.id.toUpperCase()}</span>
           </div>
           <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Gestão Profissional v1.0</p>
@@ -357,7 +357,7 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
                         className="w-full h-full border-0"
                         title="Document Preview"
                       />
-                      <div className="absolute bottom-4 right-4 bg-red-600 text-white text-[8px] px-3 py-1.5 rounded-xl font-black shadow-2xl uppercase tracking-widest animate-pulse">Preview PDF</div>
+                      <div className="absolute bottom-4 right-4 bg-red-600 text-white text-[10px] px-3 py-1.5 rounded-xl font-black shadow-2xl uppercase tracking-widest animate-pulse">Preview PDF</div>
                     </div>
                   ) : (
                     <ComprovanteImg src={proofSrc} />

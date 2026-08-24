@@ -162,11 +162,16 @@ service cloud.firestore {
 
     // ── MENSAGENS (comunicação admin ↔ usuário) ──
     match /messages/{msgId} {
-      allow read: if isAuthenticated() && (isAdmin() || userMatch(resource.data.userId));
+      allow read: if isAuthenticated()
+        && (isAdmin()
+          || userMatch(resource.data.userId)
+          || resource.data.userId == 'ALL');
       allow create: if isAuthenticated()
-        && userMatch(request.resource.data.userId);
+        && (isAdmin() || userMatch(request.resource.data.userId));
       allow update: if isAuthenticated()
-        && (isAdmin() || userMatch(resource.data.userId) && request.resource.data.keys().hasOnly(['read']));
+        && (isAdmin()
+          || (userMatch(resource.data.userId) || resource.data.userId == 'ALL')
+            && request.resource.data.keys().hasOnly(['read']));
       allow delete: if isAdmin();
     }
 

@@ -256,7 +256,7 @@ export const AdminSalesDashboard: React.FC<AdminSalesDashboardProps> = ({ orders
             <Sparkles size={22} />
           </div>
           <div>
-            <h2 className="text-lg font-black text-slate-900 tracking-tight uppercase">Painel de Vendas</h2>
+            <h2 className="text-lg font-bold text-slate-900 tracking-tight">Painel de Vendas</h2>
             <p className="text-[11px] font-bold text-slate-500">{range.label} · {vendasPeriodo.length} venda(s) · {fmt(totals.receita)}</p>
             {carregando && (
               <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-1.5">

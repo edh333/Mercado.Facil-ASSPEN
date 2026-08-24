@@ -1,6 +1,5 @@
 import React from 'react';
 import { StoreProvider, useApp } from './context/StoreContext';
-import { Login } from './pages/Login';
 import { UserRole } from './types';
 import { NotificationSystem } from './components/NotificationSystem';
 import { ThemeProvider } from './context/ThemeContext';
@@ -21,6 +20,7 @@ import { MaintenanceScreen, MaintenanceBanner } from './components/MaintenanceSc
 import { AdminDashboard } from './pages/AdminDashboard';
 import { PrintPage } from './components/PrintPage';
 import { UserDashboard } from './pages/UserDashboard';
+import { Landing } from './components/Landing';
 
 const FullScreenLoader: React.FC = () => (
   <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#f8fafc' }}>
@@ -80,7 +80,8 @@ const MainApp: React.FC = () => {
   }
 
   if (!currentUser) {
-    return <Login />;
+    // Landing pública estilo ASSPEN; PWA do usuário (/?mode=user) abre direto o login.
+    return <Landing skipLanding={modoUsuario} />;
   }
 
   if (currentUser.role !== UserRole.ADMIN || modoUsuario) {

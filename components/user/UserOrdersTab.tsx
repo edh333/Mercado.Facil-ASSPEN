@@ -95,7 +95,7 @@ export const UserOrdersTab: React.FC<UserOrdersTabProps> = ({
                               <p className={`font-black text-sm ${tx.amount > 0 ? 'text-green-400' : 'text-red-400'}`}>
                                   {tx.amount > 0 ? '+' : ''} R$ {formatarMoeda(Math.abs(tx.amount))}
                               </p>
-                              <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded shadow-sm ${tx.status === 'approved' ? 'bg-green-900/50 text-green-300' : tx.status === 'pending' ? 'bg-yellow-900/50 text-yellow-300' : 'bg-red-900/50 text-red-300'}`}>
+                              <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded shadow-sm ${tx.status === 'approved' ? 'bg-green-900/50 text-green-300' : tx.status === 'pending' ? 'bg-yellow-900/50 text-yellow-300' : 'bg-red-900/50 text-red-300'}`}>
                                   {tx.status === 'approved' ? 'Confirmado' : tx.status === 'pending' ? 'Pendente' : 'Recusado'}
                               </span>
                           </div>
@@ -142,7 +142,7 @@ export const UserOrdersTab: React.FC<UserOrdersTabProps> = ({
                                   <span className="font-black text-slate-300 text-base">{(order.items || []).length} itens</span>
                                   <div className="flex flex-col items-end">
                                       {order.paymentMethod === 'WALLET' && (
-                                          <span className="text-[7px] font-black text-indigo-300 uppercase tracking-widest bg-indigo-900/30 px-1.5 py-0.5 rounded mb-1 animate-pulse border border-indigo-800">Pago com Crédito</span>
+                                          <span className="text-[10px] font-black text-indigo-300 uppercase tracking-widest bg-indigo-900/30 px-1.5 py-0.5 rounded mb-1 animate-pulse border border-indigo-800">Pago com Crédito</span>
                                       )}
                                       <span className="font-black text-white text-lg">R$ {formatarMoeda(Number(order.total) || 0)}</span>
                                   </div>

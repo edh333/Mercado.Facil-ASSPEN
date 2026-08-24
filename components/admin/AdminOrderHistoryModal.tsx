@@ -97,7 +97,7 @@ export const AdminOrderHistoryModal: React.FC<AdminOrderHistoryModalProps> = ({ 
                 </div>
                 <div className="flex flex-col items-end gap-1 shrink-0">
                   <span className="text-sm font-black text-slate-900">{formatarMoeda(Number(o.total) || 0)}</span>
-                  <span className={`text-[8px] font-black uppercase tracking-[0.15em] px-2 py-0.5 rounded-full border ${color(o.status)}`}>
+                  <span className={`text-[10px] font-black uppercase tracking-[0.15em] px-2 py-0.5 rounded-full border ${color(o.status)}`}>
                     {translate(o.status)}
                   </span>
                 </div>

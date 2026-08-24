@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { PlusCircle, Check, Wallet, ShieldCheck, AlertTriangle, Lock, KeyRound } from 'lucide-react';
 import { ModalShell } from '../ui/ModalShell';
 import { User } from '../../types';
-import { formatarMoeda } from '../../utils';
+import { formatarMoeda, isAdminRole } from '../../utils';
 
 interface ManualCreditModalProps {
   user: User | null;
@@ -72,7 +72,7 @@ export const ManualCreditModal: React.FC<ManualCreditModalProps> = ({ user, onCl
           <p className="font-black text-base uppercase tracking-tight truncate">{user.name}</p>
           <div className="flex flex-wrap items-center gap-3 mt-2">
             {user.cpf && <span className="text-[10px] font-bold text-emerald-100 font-mono">CPF: {user.cpf}</span>}
-            <span className="px-2.5 py-0.5 bg-white/15 rounded-full text-[9px] font-black uppercase tracking-widest">{user.role === 'ADMIN' ? 'Admin' : 'Familiar'}</span>
+            <span className="px-2.5 py-0.5 bg-white/15 rounded-full text-[9px] font-black uppercase tracking-widest">{isAdminRole(user.role) ? 'Admin' : 'Familiar'}</span>
           </div>
         </div>
 

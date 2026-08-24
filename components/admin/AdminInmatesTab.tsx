@@ -42,7 +42,7 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
   return (
     <div className="animate-slideUp space-y-8 pb-20">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm">
-        <h2 className="text-xl font-black text-[var(--text-main)] flex items-center gap-2 uppercase tracking-tight">
+        <h2 className="text-xl font-bold text-[var(--text-main)] flex items-center gap-2 tracking-tight">
           <Shield size={24} className="text-emerald-500"/> Gestão de Internos
         </h2>
         <div className="flex flex-wrap gap-3">
