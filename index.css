@@ -1162,3 +1162,50 @@ textarea:focus:not(:focus-visible) {
 .rounded-premium-xl { border-radius: 24px; }
 
 .modal-container .modal-content { border-radius: 20px !important; }
+
+/* ─────────────────────────────────────────────
+   CAMADA POLISH PROFISSIONAL v2.7 — UX fina
+   Micro-detalhes que separam sistema amador de produto:
+   toque mobile limpo, títulos equilibrados, rolagem contida,
+   inputs numéricos com setas ocultas (padrão caixa registradora).
+   ───────────────────────────────────────────── */
+
+/* Toque mobile sem flash cinza/azul nativo */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Títulos longos quebram em linhas equilibradas (menos "viúvas") */
+h1, h2, h3, .titulo-balanceado {
+  text-wrap: balance;
+}
+
+/* Modais e overlays: sem "scroll borboleta" (rolagem não vaza pro fundo) */
+.fixed.overflow-y-auto,
+.modal-container {
+  overscroll-behavior: contain;
+}
+
+/* Inputs numéricos estilo caixa registradora: sem setinhas do navegador */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* Botões: feedback tátil consistente em TODOS os botões primários */
+button:not(:disabled) {
+  transition: transform 0.08s ease, filter 0.15s ease;
+}
+button:not(:disabled):active:not(.no-scale) {
+  transform: scale(0.97);
+}
+
+/* Tabelas densas: zebra sutil melhora leitura de listas longas */
+.tabela-densa tbody tr:nth-child(even) {
+  background-color: rgba(148, 163, 184, 0.05);
+}

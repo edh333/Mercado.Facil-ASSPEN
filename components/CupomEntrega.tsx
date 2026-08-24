@@ -69,7 +69,9 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
         <h1 className="text-lg font-black uppercase leading-none mb-1">
           {config?.institutionName || title || 'GESTÃO ERP'}
         </h1>
-        <p className="font-black uppercase tracking-widest">{config?.appName || 'Mercado Fácil'}</p>
+        {config?.appName && config.appName.toUpperCase() !== String(config?.institutionName || '').toUpperCase() && (
+          <p className="font-black uppercase tracking-widest">{config.appName}</p>
+        )}
         <p className="font-bold uppercase mt-1 opacity-70">
           {config?.fiscalEmission === true
             ? `Cupom Fiscal - ${config?.fiscalModel || 'NF-e'}`

@@ -15,6 +15,15 @@ export function formatarLinhaPontilhada(esquerda: string, direita: string, largu
   return esquerda + " " + ".".repeat(pontos) + " " + direita;
 }
 
+/** Centraliza um texto na largura da bobina (cabeçalhos, banners, rodapé). */
+export function centrarTexto(texto: string, larguraTotal = 48): string {
+  const t = String(texto ?? '').trim();
+  if (t.length >= larguraTotal) return t.slice(0, larguraTotal);
+  const total = larguraTotal - t.length;
+  const esq = Math.floor(total / 2);
+  return ' '.repeat(esq) + t + ' '.repeat(total - esq);
+}
+
 const ESC = "\x1B";
 const GS = "\x1D";
 
@@ -102,9 +111,9 @@ export function gerarCupomFechamento(dadosCaixa: any, config?: any): string {
 
   let cupom = "";
   cupom += `========================================\n`;
-  cupom += `${inst}\n`;
-  if (appName) cupom += `${appName}\n`;
-  if (cnpj) cupom += `CNPJ: ${cnpj}\n`;
+  cupom += `${centrarTexto(inst, 40)}\n`;
+  if (appName) cupom += `${centrarTexto(appName, 40)}\n`;
+  if (cnpj) cupom += `${centrarTexto(`CNPJ: ${cnpj}`, 40)}\n`;
   cupom += `========================================\n\n`;
 
   function dataCx(valor?: any): string {
@@ -117,9 +126,8 @@ export function gerarCupomFechamento(dadosCaixa: any, config?: any): string {
     }
   }
 
-  cupom += `      RELATORIO GERENCIAL DE CAIXA      \n\n`;
-  cupom += `Operador: ${dadosCaixa.operadorNome || dadosCaixa.operatorId}\n`;
-  cupom += `Abertura: ${dataCx(dadosCaixa.openedAt)}\n`;
+  cupom += `${centrarTexto('RELATORIO GERENCIAL DE CAIXA', 40)}\n\n`;
+  cupom += `Operador: ${dadosCaixa.operadorNome || dadosCaixa.operatorId}\n`;  cupom += `Abertura: ${dataCx(dadosCaixa.openedAt)}\n`;
   if (dadosCaixa.closedAt) {
     cupom += `Fechamento: ${dataCx(dadosCaixa.closedAt)}\n`;
   }
@@ -183,7 +191,7 @@ export function gerarListaReposicao(produtos: { nome: string; estoque: number; m
 
   let texto = "";
   texto += `========================================\n`;
-  texto += `       LISTA DE REPOSICAO DE ESTOQUE     \n`;
+  texto += `${centrarTexto('LISTA DE REPOSICAO DE ESTOQUE', 40)}\n`;
   texto += `========================================\n`;
   texto += `Data: ${new Date().toLocaleDateString("pt-BR")}\n`;
   texto += `${divisor}\n\n`;
@@ -199,7 +207,7 @@ export function gerarListaReposicao(produtos: { nome: string; estoque: number; m
   texto += `\n${divisor}\n`;
   texto += `Total de itens: ${produtos.length}\n`;
   texto += `========================================\n`;
-  texto += `       FIM DA LISTA DE REPOSICAO        \n`;
+  texto += `${centrarTexto('FIM DA LISTA DE REPOSICAO', 40)}\n`;
   texto += `${adicionarFeed()}`;
 
   return texto;
@@ -216,7 +224,7 @@ export function gerarRelatorioCredito(usuarios: { name: string; cpf: string; id:
 
   let texto = "";
   texto += `========================================\n`;
-  texto += `       RELATORIO DE CREDITOS           \n`;
+  texto += `${centrarTexto('RELATORIO DE CREDITOS', 40)}\n`;
   texto += `========================================\n`;
   texto += `Data: ${new Date().toLocaleDateString("pt-BR")}\n`;
   texto += `${tituloFinal}\n`;
@@ -241,7 +249,7 @@ export function gerarRelatorioCredito(usuarios: { name: string; cpf: string; id:
   texto += `\n${divisor}\n`;
   texto += formatarLinhaDupla("TOTAL EM CREDITOS:", `R$ ${totalGeral.toFixed(2).replace('.', ',')}`) + "\n";
   texto += `========================================\n`;
-  texto += `      FIM DO RELATORIO DE CREDITOS     \n`;
+  texto += `${centrarTexto('FIM DO RELATORIO DE CREDITOS', 40)}\n`;
   texto += `${adicionarFeed()}`;
 
   return texto;
@@ -365,7 +373,7 @@ export function gerarRelatorioInadimplentes(contas: any[]): string {
 
   let texto = "";
   texto += `========================================\n`;
-  texto += `       RELATORIO DE INADIMPLENCIA       \n`;
+  texto += `${centrarTexto('RELATORIO DE INADIMPLENCIA', 40)}\n`;
   texto += `========================================\n`;
   texto += `Data: ${new Date().toLocaleDateString("pt-BR")}\n`;
   texto += `Clientes com debito: ${devedores.length}\n`;
@@ -385,7 +393,7 @@ export function gerarRelatorioInadimplentes(contas: any[]): string {
   texto += `\n${divisor}\n`;
   texto += formatarLinhaDupla("TOTAL A RECEBER:", `R$ ${totalGeral.toFixed(2).replace('.', ',')}`) + "\n";
   texto += `========================================\n`;
-  texto += `      FIM DO RELATORIO FINANCEIRO       \n`;
+  texto += `${centrarTexto('FIM DO RELATORIO FINANCEIRO', 40)}\n`;
   texto += `${adicionarFeed()}`;
 
   return texto;
@@ -431,18 +439,19 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
 
   let cupom = "";
   cupom += `${divisorDuplo}\n`;
-  cupom += `${inst}\n`;
-  cupom += `${app}\n`;
-  if (cnpj) cupom += `CNPJ: ${cnpj}\n`;
-  if (endereco) cupom += `${endereco}\n`;
-  if (telefone) cupom += `TEL: ${telefone}\n`;
-  cupom += `${docName}\n`;
-  if (!fiscalEmission) cupom += `NAO E DOCUMENTO FISCAL\n`;
-  if (fiscalId) cupom += `${fiscalId}\n`;
+  // Cabeçalho centralizado (padrão térmico profissional)
+  cupom += `${centrarTexto(inst, 48)}\n`;
+  if (app && app !== inst) cupom += `${centrarTexto(app, 48)}\n`;
+  if (cnpj) cupom += `${centrarTexto(`CNPJ: ${cnpj}`, 48)}\n`;
+  if (endereco) cupom += `${centrarTexto(endereco, 48)}\n`;
+  if (telefone) cupom += `${centrarTexto(`TEL: ${telefone}`, 48)}\n`;
+  cupom += `${centrarTexto(docName, 48)}\n`;
+  if (!fiscalEmission) cupom += `${centrarTexto('NAO E DOCUMENTO FISCAL', 48)}\n`;
+  if (fiscalId) cupom += `${centrarTexto(fiscalId, 48)}\n`;
   cupom += `${divisorDuplo}\n`;
 
   if (cancelado) {
-    cupom += `*** CUPOM CANCELADO / DEVOLVIDO ***\n`;
+    cupom += `\n${centrarTexto('* CUPOM CANCELADO / DEVOLVIDO *', 48)}\n\n`;
     cupom += `${divisor}\n`;
   }
 
@@ -570,12 +579,12 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
   }
 
   cupom += `${divisorDuplo}\n`;
-  cupom += `${String(config?.receiptFooter || 'AUTENTICO PARA CONFERENCIA').toUpperCase().slice(0, 48)}\n`;
+  cupom += `${centrarTexto(String(config?.receiptFooter || 'AUTENTICO PARA CONFERENCIA').toUpperCase().slice(0, 48), 48)}\n`;
   const authHash = `SEC-${String(data.id || 'XXXX').slice(0, 8).toUpperCase()}-${Math.floor(Date.now() / 1000).toString(36).toUpperCase()}`;
-  cupom += `AUTH: ${authHash}\n`;
-  if (cnpj) cupom += `CNPJ: ${cnpj}\n`;
+  cupom += `${centrarTexto(`AUTH: ${authHash}`, 48)}\n`;
+  if (cnpj) cupom += `${centrarTexto(`CNPJ: ${cnpj}`, 48)}\n`;
   cupom += `${divisorDuplo}\n`;
-  cupom += `       FIM DO CUPOM - BOBINA 80MM      \n`;
+  cupom += `${centrarTexto('FIM DO CUPOM - BOBINA 80MM', 48)}\n`;
   cupom += `\n`.repeat(6);
   return cupom;
 }
