@@ -11,7 +11,7 @@ import {
   mascararCpf,
   isAdminRole,
 } from '../utils';
-import { montarEscPos, gerarCupomEntregaRaw } from '../utils/printUtils';
+import { montarEscPos, gerarCupomEntregaRaw, gerarRelatorioInadimplentes } from '../utils/printUtils';
 
 describe('validateCPF', () => {
   it('aceita CPFs vÃ¡lidos', () => {
@@ -232,11 +232,50 @@ describe('isAdminRole', () => {
     expect(isAdminRole(' master ')).toBe(true);
   });
 
-  it('rejeita familiares e valores inválidos', () => {
+  it('rejeita familiares e valores invï¿½lidos', () => {
     expect(isAdminRole('FAMILY')).toBe(false);
     expect(isAdminRole('FAMILIAR')).toBe(false);
     expect(isAdminRole('')).toBe(false);
     expect(isAdminRole(undefined)).toBe(false);
     expect(isAdminRole(null)).toBe(false);
+  });
+});
+
+describe('gerarRelatorioInadimplentes (antiguidade da divida)', () => {
+  const diasAtras = (n: number) => new Date(Date.now() - n * 24 * 60 * 60 * 1000).toISOString();
+  const contas = [
+    { nome: 'RECENTE', currentDebt: 50, transactions: [{ type: 'debt', amount: 50, timestamp: diasAtras(2) }] },
+    { nome: 'VELHO', currentDebt: 200, transactions: [{ type: 'debt', amount: 200, timestamp: diasAtras(45) }] },
+    { nome: 'SEM REGISTRO', currentDebt: 80, transactions: [] },
+    { nome: 'QUITADO', currentDebt: 0, transactions: [{ type: 'payment', amount: 30, timestamp: diasAtras(1) }] },
+  ];
+
+  it('lista apenas devedores e mostra dias sem movimento', () => {
+    const r = gerarRelatorioInadimplentes(contas as any);
+    expect(r).toContain('RECENTE');
+    expect(r).toContain('VELHO');
+    expect(r).toContain('ha 2 dia(s) sem movimento');
+    expect(r).toContain('*** ha 45 dia(s)');
+    expect(r).toContain('sem movimento registrado');
+    expect(r).not.toContain('QUITADO');
+  });
+
+  it('resume por faixa de antiguidade', () => {
+    const r = gerarRelatorioInadimplentes(contas as any);
+    expect(r).toContain('ANTIGUIDADE DAS DIVIDAS');
+    expect(r).toContain('ATE 15 DIAS');
+    expect(r).toContain('MAIS DE 30 DIAS');
+    // total geral = 50 + 200 + 80
+    expect(r).toContain('330,00');
+  });
+
+  it('nenhuma linha passa de 40 colunas (bobina)', () => {
+    const r = gerarRelatorioInadimplentes(contas as any);
+    r.split('\n').forEach(l => expect(l.length).toBeLessThanOrEqual(40));
+  });
+
+  it('lista vazia nao quebra', () => {
+    const r = gerarRelatorioInadimplentes([]);
+    expect(r).toContain('Clientes com debito: 0');
   });
 });

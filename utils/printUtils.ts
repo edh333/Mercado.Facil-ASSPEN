@@ -366,10 +366,43 @@ export function imprimirRelatorioCreditoA4(
 
 /**
  * Gera cupom de 80mm com lista de clientes inadimplentes ou com saldo devedor.
+ * Inclui ANTIGUIDADE da dívida (dias desde a última movimentação na conta)
+ * e resumo por faixa — prioriza a cobrança do que está mais velho.
  */
 export function gerarRelatorioInadimplentes(contas: any[]): string {
   const divisor = "-".repeat(40);
-  const devedores = contas.filter(c => (c.currentDebt || 0) > 0).sort((a,b) => b.currentDebt - a.currentDebt);
+  const hoje = Date.now();
+  const DIA = 24 * 60 * 60 * 1000;
+
+  const diasSemMovimento = (c: any): number | null => {
+    const ts = (Array.isArray(c?.transactions) ? c.transactions : [])
+      .map((t: any) => t?.timestamp)
+      .filter(Boolean)
+      .map((v: any) => (typeof v?.toDate === 'function' ? v.toDate().getTime() : new Date(v).getTime()))
+      .filter((n: number) => Number.isFinite(n));
+    if (ts.length === 0) return null;
+    return Math.max(0, Math.floor((hoje - Math.max(...ts)) / DIA));
+  };
+
+  const devedores = contas
+    .filter(c => (c.currentDebt || 0) > 0)
+    .map(c => ({ ...c, _dias: diasSemMovimento(c) }))
+    .sort((a, b) => b.currentDebt - a.currentDebt);
+
+  // Resumo por antiguidade (conta sem movimento registrado entra na faixa crítica)
+  const faixas = [
+    { rotulo: 'ATE 15 DIAS', teste: (d: number | null) => d !== null && d <= 15 },
+    { rotulo: 'DE 16 A 30 DIAS', teste: (d: number | null) => d !== null && d >= 16 && d <= 30 },
+    { rotulo: 'MAIS DE 30 DIAS', teste: (d: number | null) => d === null || d > 30 },
+  ];
+  const resumoFaixas = faixas.map(f => {
+    const noFaixa = devedores.filter(c => f.teste(c._dias));
+    return {
+      rotulo: f.rotulo,
+      qtd: noFaixa.length,
+      total: noFaixa.reduce((s, c) => s + (Number(c.currentDebt) || 0), 0),
+    };
+  });
 
   let texto = "";
   texto += `========================================\n`;
@@ -377,9 +410,11 @@ export function gerarRelatorioInadimplentes(contas: any[]): string {
   texto += `========================================\n`;
   texto += `Data: ${new Date().toLocaleDateString("pt-BR")}\n`;
   texto += `Clientes com debito: ${devedores.length}\n`;
-  texto += `${divisor}\n\n`;
-
-  texto += `${"CLIENTE".padEnd(25)}${"DIVIDA".padStart(15)}\n`;
+  texto += `${divisor}\n`;
+  texto += `ANTIGUIDADE DAS DIVIDAS\n`;
+  for (const r of resumoFaixas) {
+    texto += `${(r.rotulo + ' ').padEnd(18, '.')} ${String(r.qtd).padStart(3)}x R$ ${r.total.toFixed(2).replace('.', ',').padStart(9)}\n`;
+  }
   texto += `${divisor}\n`;
 
   let totalGeral = 0;
@@ -387,6 +422,11 @@ export function gerarRelatorioInadimplentes(contas: any[]): string {
     const nome = c.nome.length > 25 ? c.nome.substring(0, 22) + '...' : c.nome;
     const valor = (c.currentDebt || 0).toFixed(2).replace('.', ',');
     texto += `${nome.padEnd(25)}${String("R$ " + valor).padStart(15)}\n`;
+    if (c._dias !== null) {
+      texto += `  ${c._dias > 30 ? '*** ' : '    '}ha ${c._dias} dia(s) sem movimento\n`;
+    } else {
+      texto += `      *** sem movimento registrado\n`;
+    }
     totalGeral += (c.currentDebt || 0);
   }
 
