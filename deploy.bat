@@ -1,5 +1,7 @@
 @echo off
 title MERCADO FACIL PDV - IMPLANTAÇÃO PROFISSIONAL
+:: Garante que tudo rode na pasta do projeto mesmo com "Executar como administrador"
+cd /d "%~dp0"
 echo ====================================================================
 echo               MERCADO FACIL - ESTEIRA DE DEPLOY COMPLETA            
 echo ====================================================================

@@ -1,0 +1,5 @@
+# Chaves e dados da migração Convex → Firestore (NUNCA versionar)
+serviceAccountKey.json
+export/
+deploy_result.json
+asspen-update.zip
