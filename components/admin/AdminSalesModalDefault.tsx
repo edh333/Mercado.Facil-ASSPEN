@@ -834,6 +834,13 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
       alert('Confirme o recebimento do PIX antes de finalizar a venda.');
       return;
     }
+    // BUGFIX: a Venda em Dupla NÃO pode entrar na fila offline — o enfileiramento
+    // descartaria o split e a sincronização falharia depois (saldo insuficiente),
+    // com o operador acreditando que a venda foi registrada.
+    if (formaPagamento === 'WALLET' && isJointWalletMode && jointAdminAuthorized && secondUserId && parseMoeda(secondWalletAmountInput) > 0 && !navigator.onLine) {
+      alert('A Venda em Dupla exige conexão com a internet (as duas carteiras são debitadas atomicamente no servidor). Conecte-se para finalizar.');
+      return;
+    }
     setProcessando(true);
     const targetId = clienteSelecionado || 'balcao_anonimo';
     let paymentsArray: {method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO', amount: number}[] | undefined = undefined;
@@ -861,12 +868,22 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
         if ((novaDivida || 0) > (selectedCustomerAccount.creditLimit || 0)) {
           throw new Error('Sem saldo no momento - Limite de crédito excedido.');
         }
-        const pedido = await onConfirm(clienteSelecionado, carrinho, 'FIADO', totalCarrinho, undefined, undefined, selectedCustomerAccount.id, saleToken);
-        if (pedido) {
-          setUltimoPedido(pedido);
-          setUltimaVenda(pedido);
-          resetPdvFields();
+        // BUGFIX: venda fiada exige Senha Mestra ANTES de criar a dívida.
+        // A porta existia como código morto (executarVendaFiado nunca era chamada).
+        // Offline: segue permitido (operador é admin autenticado e o servidor
+        // revalida limite/status da conta no momento da sincronização).
+        if (!navigator.onLine) {
+          const pedido = await onConfirmOffline(clienteSelecionado, carrinho, 'FIADO', totalCarrinho, undefined, undefined, selectedCustomerAccount.id);
+          if (pedido) {
+            setUltimoPedido(pedido);
+            setUltimaVenda(pedido);
+            resetPdvFields();
+            showNotification('Venda FIADA registrada OFFLINE — será sincronizada quando a internet voltar.', 'info');
+          }
+          return;
         }
+        setProcessando(false);
+        setConfirmandoFiado(true);
         return;
       }
 
@@ -2106,6 +2123,57 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* SENHA MESTRA — AUTORIZAÇÃO DE VENDA FIADA */}
+      <AnimatePresence>
+        {confirmandoFiado && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[1001] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4">
+            <motion.div initial={{ scale: 0.95, y: 16 }} animate={{ scale: 1, y: 0 }}
+              className="w-full max-w-sm bg-white rounded-[2rem] p-8 shadow-[0_40px_100px_rgba(0,0,0,0.5)] border border-slate-200 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center shrink-0">
+                  <Lock size={18} className="text-white" />
+                </div>
+                <div>
+                  <p className="font-black text-sm uppercase tracking-tight text-slate-900">Autorizar Venda Fiada</p>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Senha Mestra obrigatória</p>
+                </div>
+              </div>
+              {selectedCustomerAccount && (
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex justify-between items-center font-black text-xs tnum">
+                  <span className="uppercase text-slate-600 truncate max-w-[55%]">{selectedCustomerAccount.nome || 'Cliente Fiado'}</span>
+                  <span style={{ color: corPrincipal }}>+R$ {formatarMoeda(totalCarrinho)}</span>
+                </div>
+              )}
+              <input
+                type="password" autoFocus placeholder="••••••••"
+                className="w-full bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 p-4 rounded-2xl font-black text-center text-lg outline-none transition-colors"
+                value={senhaFiado}
+                onChange={e => { setSenhaFiado(e.target.value); setSenhaFiadoErro(''); }}
+                onKeyDown={e => { if (e.key === 'Enter') executarVendaFiado(); }}
+              />
+              {senhaFiadoErro && (
+                <p className="text-[10px] font-black text-red-600 uppercase tracking-wider flex items-center gap-1.5">
+                  <AlertTriangle size={13} /> {senhaFiadoErro}
+                </p>
+              )}
+              <div className="flex gap-2 pt-1">
+                <button type="button"
+                  onClick={() => { setConfirmandoFiado(false); setSenhaFiado(''); setSenhaFiadoErro(''); }}
+                  className="flex-1 py-3.5 rounded-2xl bg-white border-2 border-slate-200 hover:bg-slate-100 font-black text-[10px] uppercase tracking-[0.2em] text-slate-600 transition-all active:scale-95">
+                  Cancelar
+                </button>
+                <button type="button" onClick={executarVendaFiado} disabled={senhaFiadoProcessando}
+                  className="flex-1 py-3.5 rounded-2xl text-white font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 shadow-md"
+                  style={{ backgroundColor: corPrincipal }}>
+                  {senhaFiadoProcessando ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle size={14} />} Confirmar
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 
