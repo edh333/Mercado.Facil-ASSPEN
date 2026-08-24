@@ -7,76 +7,123 @@ interface CatalogoA4Props {
   config: any;
 }
 
+/**
+ * CATÁLOGO A4 PARA OS INTERNOS ESCOLHEREM
+ * Impresso pelo admin e entregue na unidade: produtos DISPONÍVEIS com o
+ * VALOR DE VENDA de cada um e campo para marcar a quantidade desejada.
+ * Preço exibido = preço praticado no dia (promoPrice quando existir).
+ */
 export const CatalogoA4: React.FC<CatalogoA4Props> = ({ products, config }) => {
-  const availableProducts = (products || []).filter(p => p.stock > 0 && p.available !== false);
+  const agora = new Date();
+  const dataEmissao = agora.toLocaleDateString('pt-BR');
+  const horaEmissao = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+  // Somente o que o interno pode realmente pedir: disponível e com estoque.
+  const availableProducts = (products || []).filter(
+    p => p.available !== false && (p.stock ?? 0) > 0
+  );
 
   const groupedProducts = availableProducts.reduce((acc, product) => {
-    const cat = product.category || 'Geral';
+    const cat = product.category || 'Diversos';
     if (!acc[cat]) acc[cat] = [];
     acc[cat].push(product);
     return acc;
   }, {} as Record<string, Product[]>);
 
-  const categories = Object.keys(groupedProducts).sort();
+  const categories = Object.keys(groupedProducts).sort((a, b) => a.localeCompare(b));
+  const instituicao = String(config?.institutionName || config?.appName || 'Mercado Fácil').toUpperCase();
 
   return (
-    <div className="bg-white p-8 max-w-[210mm] w-full mx-auto text-slate-900 font-sans shadow-xl mb-8 print:shadow-none print:m-0 print:p-8 print:max-w-none print:w-full">
-      {/* Cabeçalho do Catálogo */}
-      <div className="border-b-[6px] border-slate-900 pb-6 mb-8 flex justify-between items-end">
+    <div className="bg-white p-8 max-w-[210mm] w-full mx-auto text-slate-900 font-sans shadow-xl mb-8 print:shadow-none print:m-0 print:p-6 print:max-w-none print:w-full">
+      {/* Cabeçalho institucional */}
+      <div className="border-b-[6px] border-slate-900 pb-5 mb-6 flex justify-between items-end gap-6">
+        <div className="min-w-0">
+          <h1 className="text-[26px] font-black uppercase tracking-tighter leading-none">{instituicao}</h1>
+          <p className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-700 mt-2">
+            Lista de Compras — Produtos Disponíveis e Valores
+          </p>
+          {(config?.cnpj || config?.contactPhone) && (
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-1">
+              {config?.cnpj ? `CNPJ: ${config.cnpj}` : ''}
+              {config?.cnpj && config?.contactPhone ? ' · ' : ''}
+              {config?.contactPhone ? `Tel: ${config.contactPhone}` : ''}
+            </p>
+          )}
+        </div>
+        <div className="text-right shrink-0">
+          <p className="text-[9px] font-black uppercase text-slate-400 mb-1">Emitido em</p>
+          <p className="text-sm font-black text-slate-800 leading-none">{dataEmissao}</p>
+          <p className="text-[9px] font-bold text-slate-400 mt-1">às {horaEmissao}</p>
+        </div>
+      </div>
+
+      {/* Instruções para o interno */}
+      <div className="bg-slate-100 p-4 rounded-xl mb-7 border-l-8 border-slate-900 flex items-start gap-3">
+        <div className="w-8 h-8 rounded-lg bg-slate-900 text-white font-black text-base flex items-center justify-center shrink-0">?</div>
         <div>
-          <h1 className="text-4xl font-black uppercase tracking-tighter leading-none mb-2">Catálogo de Produtos</h1>
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-[0.3em]">
-            {config?.appName || 'Mercado Fácil'} • {new Date().toLocaleDateString('pt-BR')}
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-800">Como fazer seu pedido</p>
+          <p className="text-[11px] font-semibold text-slate-600 mt-1 leading-snug">
+            Escolha os produtos na lista abaixo e marque a quantidade desejada no quadrado à direita de cada item.
+            Os valores estão em reais (R$). Confira seu saldo disponível antes de pedir — pedidos acima do saldo não são aceitos.
           </p>
         </div>
-        <div className="text-right">
-          <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Unidade Prisional</p>
-          <div className="h-10 w-48 border-2 border-slate-200 rounded-lg flex items-center px-3 italic text-slate-300 text-[10px]">Espaço para carimbo/identificação</div>
-        </div>
       </div>
 
-      {/* Regras/Mensagem para Internos */}
-      <div className="bg-slate-100 p-4 rounded-2xl mb-8 border-l-8 border-slate-900">
-        <p className="text-[10px] font-black uppercase tracking-widest text-slate-800">Instruções para Pedido</p>
-        <p className="text-xs font-bold text-slate-600 mt-1 uppercase leading-tight">Marque a quantidade desejada no campo à direita de cada item. Verifique seu saldo antes de solicitar.</p>
-      </div>
-
-      <div className="space-y-10">
-        {categories.map(category => (
-          <div key={category} className="break-inside-avoid">
-            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-white bg-slate-900 px-4 py-2 mb-4 rounded-md inline-block shadow-md">{category}</h2>
-
-            <div className="grid grid-cols-1 gap-px bg-slate-100 border border-slate-200 rounded-xl overflow-hidden">
-              {/* Header da Tabela */}
-              <div className="grid grid-cols-[1fr,120px,80px] bg-slate-50 p-3 text-[9px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-200">
-                <span>Descrição do Produto</span>
-                <span className="text-center">Preço Unit.</span>
-                <span className="text-center">QTD.</span>
+      <div className="space-y-8">
+        {categories.map(category => {
+          const itens = [...groupedProducts[category]].sort((a, b) => (a?.name || '').localeCompare(b?.name || ''));
+          return (
+            <div key={category} className="break-inside-avoid">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-xs font-black uppercase tracking-[0.2em] text-white bg-slate-900 px-4 py-2 rounded-md shadow-md inline-block">
+                  {category}
+                </h2>
+                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                  {itens.length} {itens.length === 1 ? 'item' : 'itens'}
+                </span>
               </div>
 
-              {groupedProducts[category]
-                .sort((a, b) => (a?.name || '').localeCompare(b?.name || ''))
-                .map(p => (
-                <div key={p.id} className="grid grid-cols-[1fr,120px,80px] items-center bg-white p-3 hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-0 min-h-[50px]">
-                  <div className="pr-4">
-                    <p className="font-black text-[11px] uppercase text-slate-900 leading-tight">{p?.name || 'Produto'}</p>
-                    <div className="flex gap-2 items-center mt-1">
-                      <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Estoque: {p?.stock || 0}</span>
-                      {p?.promoPrice && <span className="bg-emerald-100 text-emerald-700 text-[7px] font-black px-1.5 py-0.5 rounded uppercase">Oferta</span>}
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <p className="font-black text-xs text-slate-900">R$ {formatarMoeda(p.price)}</p>
-                    {p.promoPrice && <p className="text-[8px] text-slate-400 line-through">R$ {formatarMoeda(p.price)}</p>}
-                  </div>
-                  <div className="border-l border-slate-100 flex justify-center">
-                    <div className="w-12 h-8 border-2 border-slate-300 rounded-md bg-slate-50"></div>
-                  </div>
+              <div className="grid grid-cols-1 gap-px bg-slate-100 border border-slate-200 rounded-xl overflow-hidden">
+                {/* Header da tabela */}
+                <div className="grid grid-cols-[1fr,110px,80px] bg-slate-50 px-3 py-2.5 text-[9px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-200">
+                  <span>Descrição do Produto</span>
+                  <span className="text-center">Valor de Venda</span>
+                  <span className="text-center">Qtd.</span>
                 </div>
-              ))}
+
+                {itens.map(p => {
+                  const temPromo = p.promoPrice !== undefined && Number(p.promoPrice) > 0 && Number(p.promoPrice) < Number(p.price);
+                  return (
+                    <div key={p.id} className="grid grid-cols-[1fr,110px,80px] items-center bg-white px-3 py-2.5 border-b border-slate-100 last:border-0 min-h-[46px] break-inside-avoid">
+                      <div className="pr-4 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-black text-[11px] uppercase text-slate-900 leading-tight">{p?.name || 'Produto'}</p>
+                          {temPromo && (
+                            <span className="bg-emerald-100 text-emerald-700 text-[7px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">Oferta</span>
+                          )}
+                        </div>
+                        {p?.brand && (
+                          <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">{p.brand}</p>
+                        )}
+                      </div>
+                      <div className="text-center tnum">
+                        <p className={`font-black text-xs ${temPromo ? 'text-emerald-600' : 'text-slate-900'}`}>
+                          R$ {formatarMoeda(temPromo ? Number(p.promoPrice) : Number(p.price))}
+                        </p>
+                        {temPromo && (
+                          <p className="text-[8px] text-slate-400 line-through font-bold">R$ {formatarMoeda(Number(p.price))}</p>
+                        )}
+                      </div>
+                      <div className="border-l border-slate-100 flex justify-center">
+                        <div className="w-12 h-8 border-2 border-slate-300 rounded-md bg-slate-50"></div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {categories.length === 0 && (
           <div className="text-center py-24 text-slate-300 font-black uppercase tracking-[0.2em] border-4 border-dashed border-slate-100 rounded-[3rem]">
@@ -85,10 +132,17 @@ export const CatalogoA4: React.FC<CatalogoA4Props> = ({ products, config }) => {
         )}
       </div>
 
-      <div className="mt-16 pt-8 border-t-2 border-slate-100 text-[9px] font-black uppercase text-slate-400 tracking-widest text-center flex justify-between items-center px-4">
-        <span>© {new Date().getFullYear()} Mercado Fácil System</span>
-        <span className="bg-slate-50 px-4 py-1 rounded-full border border-slate-200 text-slate-300 italic">Página individual do catálogo prisional</span>
+      {/* Rodapé */}
+      <div className="mt-14 pt-5 border-t-2 border-slate-100 flex justify-between items-center px-2 gap-4">
+        <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest">
+          © {agora.getFullYear()} {instituicao} · {availableProducts.length} {availableProducts.length === 1 ? 'produto disponível' : 'produtos disponíveis'}
+        </span>
+        <span className="text-[8px] font-black uppercase text-slate-300 tracking-wider text-right italic">
+          Valores válidos somente para {dataEmissao} — sujeitos a alteração conforme estoque
+        </span>
       </div>
     </div>
   );
 };
+
+export default CatalogoA4;
