@@ -134,6 +134,63 @@ function caminhoStorageDeUrl(url, bucket) {
   }
 }
 
+/**
+ * VENDA EM DUPLA: divide a parte de carteira entre o 1º e o 2º devedor.
+ * Regra crítica de segurança: a soma das parcelas NUNCA excede a parte de
+ * carteira da venda — um cliente malicioso não pode debitá-la inteira da
+ * carteira do 2º devedor (ou mais que isso). Lança Error se violado.
+ * Sem split válido, devolve tudo ao 1º devedor (emDupla: false).
+ */
+function calcularSplitVenda(walletPortion, jointWallet) {
+  const total = arredondar(walletPortion);
+  if (!jointWallet || typeof jointWallet !== "object") {
+    return { primeiraParcela: total, segundaParcela: 0, emDupla: false };
+  }
+  const secondUserId = String(jointWallet.secondUserId || "").trim();
+  const segundaParcela = arredondar(Math.max(0, Number(jointWallet.secondWalletAmount) || 0));
+  if (!secondUserId || segundaParcela <= 0) {
+    return { primeiraParcela: total, segundaParcela: 0, emDupla: false };
+  }
+  if (segundaParcela > total) {
+    throw new Error("Valor do 2º devedor excede a parte de carteira da venda.");
+  }
+  return {
+    primeiraParcela: arredondar(total - segundaParcela),
+    segundaParcela,
+    emDupla: true,
+  };
+}
+
+/**
+ * ESTORNO ciente do split: devolve a cada devedor a PRÓPRIA parcela.
+ * Funciona para WALLET puro e para MIXED com parte em carteira; ignora
+ * splits inválidos (2º devedor igual ao dono) e limita a parcela do 2º
+ * ao total de carteira (defesa em profundidade contra dados corrompidos).
+ */
+function calcularEstornoCarteira(pedido) {
+  const pm = String(pedido?.paymentMethod || "");
+  const payments = Array.isArray(pedido?.payments) ? pedido.payments : [];
+  const ehWallet = pm === "WALLET" || payments.some((p) => p.method === "WALLET");
+  if (!ehWallet) {
+    return { ehWallet: false, walletPortionTotal: 0, primeiraParcela: 0, segundaParcela: 0, secondUserId: null };
+  }
+  const walletPortionTotal = pm === "WALLET"
+    ? arredondar(Math.abs(Number(pedido.total) || 0))
+    : arredondar(payments.filter((p) => p.method === "WALLET").reduce((s, p) => s + (Math.max(0, Number(p.amount)) || 0), 0));
+  const jw = pedido?.jointWallet && pedido.jointWallet.secondUserId ? pedido.jointWallet : null;
+  let segundaParcela = 0;
+  if (jw && String(jw.secondUserId) !== String(pedido.userId)) {
+    segundaParcela = arredondar(Math.max(0, Math.min(Number(jw.secondWalletAmount) || 0, walletPortionTotal)));
+  }
+  return {
+    ehWallet: true,
+    walletPortionTotal,
+    primeiraParcela: arredondar(walletPortionTotal - segundaParcela),
+    segundaParcela,
+    secondUserId: jw ? String(jw.secondUserId) : null,
+  };
+}
+
 module.exports = {
   arredondar,
   cleanCpf,
@@ -145,4 +202,6 @@ module.exports = {
   validarSaldoSuficiente,
   calcularNovoSaldo,
   caminhoStorageDeUrl,
+  calcularSplitVenda,
+  calcularEstornoCarteira,
 };

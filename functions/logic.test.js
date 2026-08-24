@@ -13,6 +13,8 @@ import {
   validarSaldoSuficiente,
   calcularNovoSaldo,
   caminhoStorageDeUrl,
+  calcularSplitVenda,
+  calcularEstornoCarteira,
 } from "./logic.js";
 
 describe("arredondar (centavos)", () => {
@@ -238,5 +240,100 @@ describe("caminhoStorageDeUrl (segurança do apagador de comprovantes)", () => {
   it("RECUSA URL sem o padrão /o/", () => {
     const url = `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/wallet_proofs/x.jpg`;
     expect(caminhoStorageDeUrl(url, BUCKET)).toBeNull();
+  });
+});
+
+describe("calcularSplitVenda (Venda em Dupla)", () => {
+  it("sem jointWallet: tudo para o 1o devedor", () => {
+    expect(calcularSplitVenda(100, null)).toEqual({ primeiraParcela: 100, segundaParcela: 0, emDupla: false });
+    expect(calcularSplitVenda(100, undefined)).toEqual({ primeiraParcela: 100, segundaParcela: 0, emDupla: false });
+  });
+
+  it("jointWallet sem 2o devedor ou com valor zero: trata como venda simples", () => {
+    expect(calcularSplitVenda(100, { secondUserId: "  ", secondWalletAmount: 50 }).emDupla).toBe(false);
+    expect(calcularSplitVenda(100, { secondUserId: "u2", secondWalletAmount: 0 }).emDupla).toBe(false);
+    expect(calcularSplitVenda(100, { secondUserId: "u2", secondWalletAmount: -5 }).emDupla).toBe(false);
+    expect(calcularSplitVenda(100, "lixo")).toEqual({ primeiraParcela: 100, segundaParcela: 0, emDupla: false });
+  });
+
+  it("split valido divide e preserva centavos", () => {
+    expect(calcularSplitVenda(100, { secondUserId: "u2", secondWalletAmount: 30 }))
+      .toEqual({ primeiraParcela: 70, segundaParcela: 30, emDupla: true });
+    const { primeiraParcela, segundaParcela } = calcularSplitVenda(19.99, { secondUserId: "u2", secondWalletAmount: 10.005 });
+    expect(primeiraParcela + segundaParcela).toBeCloseTo(19.99, 2);
+    expect(segundaParcela).toBe(10.01);
+  });
+
+  it("SEGURANCA: RECUSA 2a parcela maior que a parte de carteira (cliente malicioso)", () => {
+    // Carrinho de R$ 50; cliente pede R$ 80 no devedor 2 -> a venda NAO acontece.
+    expect(() => calcularSplitVenda(50, { secondUserId: "u2", secondWalletAmount: 80 }))
+      .toThrow("excede");
+  });
+
+  it("parcela igual ao total e permitida (devedor 2 assume tudo)", () => {
+    expect(calcularSplitVenda(50, { secondUserId: "u2", secondWalletAmount: 50 }))
+      .toEqual({ primeiraParcela: 0, segundaParcela: 50, emDupla: true });
+  });
+});
+
+describe("calcularEstornoCarteira (estorno ciente do split)", () => {
+  it("WALLET puro sem dupla: devolve o total ao dono", () => {
+    const r = calcularEstornoCarteira({ paymentMethod: "WALLET", total: 120.5, userId: "dono" });
+    expect(r).toMatchObject({ ehWallet: true, walletPortionTotal: 120.5, primeiraParcela: 120.5, segundaParcela: 0, secondUserId: null });
+  });
+
+  it("WALLET com dupla: cada devedor recebe a propria parcela", () => {
+    const pedido = { paymentMethod: "WALLET", total: 100, userId: "dono", jointWallet: { secondUserId: "amigo", secondWalletAmount: 40 } };
+    const r = calcularEstornoCarteira(pedido);
+    expect(r.primeiraParcela).toBe(60);
+    expect(r.segundaParcela).toBe(40);
+    expect(r.secondUserId).toBe("amigo");
+  });
+
+  it("MIXED com parte em carteira + dupla: estorna so a parte de carteira, dividida", () => {
+    const pedido = {
+      paymentMethod: "MIXED",
+      total: 200,
+      userId: "dono",
+      payments: [{ method: "PIX", amount: 120 }, { method: "WALLET", amount: 80 }],
+      jointWallet: { secondUserId: "amigo", secondWalletAmount: 30 },
+    };
+    const r = calcularEstornoCarteira(pedido);
+    expect(r.ehWallet).toBe(true);
+    expect(r.walletPortionTotal).toBe(80);
+    expect(r.primeiraParcela).toBe(50);
+    expect(r.segundaParcela).toBe(30);
+  });
+
+  it("MIXED sem carteira: nada a estornar em carteira", () => {
+    const pedido = { paymentMethod: "MIXED", total: 100, payments: [{ method: "PIX", amount: 60 }, { method: "CASH", amount: 40 }] };
+    expect(calcularEstornoCarteira(pedido).ehWallet).toBe(false);
+  });
+
+  it("PIX/CASH/FIADO: nao toca carteira", () => {
+    for (const pm of ["PIX", "CASH", "FIADO"]) {
+      expect(calcularEstornoCarteira({ paymentMethod: pm, total: 50 }).ehWallet).toBe(false);
+    }
+  });
+
+  it("DEFESA: split corrompido (2o devedor = dono) NAO divide", () => {
+    const pedido = { paymentMethod: "WALLET", total: 90, userId: "dono", jointWallet: { secondUserId: "dono", secondWalletAmount: 80 } };
+    const r = calcularEstornoCarteira(pedido);
+    expect(r.segundaParcela).toBe(0);
+    expect(r.primeiraParcela).toBe(90);
+  });
+
+  it("DEFESA: parcela do 2o maior que o total de carteira e limitada ao total", () => {
+    const pedido = { paymentMethod: "WALLET", total: 50, userId: "dono", jointWallet: { secondUserId: "amigo", secondWalletAmount: 999 } };
+    const r = calcularEstornoCarteira(pedido);
+    expect(r.segundaParcela).toBe(50);
+    expect(r.primeiraParcela).toBe(0);
+  });
+
+  it("valores negativos/corrompidos nao geram estorno negativo", () => {
+    const pedido = { paymentMethod: "WALLET", total: -33, userId: "dono", jointWallet: { secondUserId: "amigo", secondWalletAmount: -9 } };
+    const r = calcularEstornoCarteira(pedido);
+    expect(r.walletPortionTotal).toBe(33);
+    expect(r.segundaParcela).toBe(0);
   });
 });

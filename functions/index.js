@@ -17,6 +17,8 @@ const {
   validarSaldoSuficiente,
   calcularNovoSaldo,
   caminhoStorageDeUrl,
+  calcularSplitVenda,
+  calcularEstornoCarteira,
 } = require("./logic");
 
 if (!admin.apps.length) {
@@ -1253,11 +1255,15 @@ exports.processarVendaAdmin = onCall(async (request) => {
     let userData2 = null;
     let clienteFiadoNome = null;
 
-    const jointWalletReq = request.data?.jointWallet;
-    const hasJointWallet = jointWalletReq && typeof jointWalletReq === "object" && String(jointWalletReq.secondUserId || "").trim() && Number(jointWalletReq.secondWalletAmount) > 0;
-    const secondUserId = hasJointWallet ? String(jointWalletReq.secondUserId).trim() : null;
-    const secondWalletAmount = hasJointWallet ? Number(jointWalletReq.secondWalletAmount) : 0;
-    const firstUserWalletAmount = hasJointWallet ? Math.max(0, arredondar(walletPortion - secondWalletAmount)) : walletPortion;
+    const jointWalletReq = request.data?.jointWallet || null;
+    const secondUserId = jointWalletReq ? String(jointWalletReq.secondUserId || "").trim() || null : null;
+    // Split calculado pela função PURA (testada): rejeita 2ª parcela maior que
+    // a parte de carteira — sem isso, um cliente malicioso podia debitar da
+    // carteira do 2º devedor mais do que o total da venda.
+    const splitVenda = calcularSplitVenda(walletPortion, jointWalletReq);
+    const hasJointWallet = splitVenda.emDupla;
+    const secondWalletAmount = splitVenda.segundaParcela;
+    const firstUserWalletAmount = splitVenda.primeiraParcela;
 
     if (((walletPortion > 0 || paymentMethod === "WALLET") || (paymentMethod === "FIADO" && !isConsumer)) && !isConsumer) {
       const uSnap = await t.get(db.collection("users").doc(targetUserId));
@@ -1744,60 +1750,53 @@ exports.estornarVenda = onCall(async (request) => {
         }
       });
 
-      if (uRef && uSnap && uSnap.exists) {
+      // ── Carteira: estorno pela função PURA (cada devedor recebe a PRÓPRIA parcela) ──
+      const estorno = calcularEstornoCarteira(pedido);
+
+      if (estorno.ehWallet && uRef && uSnap && uSnap.exists) {
         const ud = uSnap.data();
-        const walletPortionTotal = pedido.paymentMethod === "WALLET"
-          ? (Number(pedido.total) || 0)
-          : (pedido.payments || []).filter((p) => p.method === "WALLET").reduce((s, p) => s + (Number(p.amount) || 0), 0);
-        // ── Venda em Dupla: cada devedor recebe de volta a PRÓPRIA parcela ──
-        const jw = ehWallet && pedido.jointWallet && pedido.jointWallet.secondUserId
-          ? pedido.jointWallet
-          : null;
-        const segundaParcelaEstorno = jw
-          ? Math.max(0, arredondar(Math.min(Number(jw.secondWalletAmount) || 0, walletPortionTotal)))
-          : 0;
-        const uWalletPortion = Math.max(0, arredondar(walletPortionTotal - segundaParcelaEstorno));
-        const novoSaldo = arredondar(Number(ud.walletBalance || 0) + uWalletPortion);
-        const novoWeekly = Math.max(0, arredondar((ud.weeklySpent || 0) - uWalletPortion));
+        const novoSaldo = arredondar(Number(ud.walletBalance || 0) + estorno.primeiraParcela);
+        const novoWeekly = Math.max(0, arredondar((ud.weeklySpent || 0) - estorno.primeiraParcela));
         t.update(uRef, { walletBalance: novoSaldo, weeklySpent: novoWeekly });
         registrarTransacaoCarteira(t, db.collection("wallet_transactions").doc(), {
           userId: pedido.userId,
           inmateCpf: cleanCpf(ud.inmateCpf || ud.prisonerCpf || ud.cpf || ""),
-          amount: uWalletPortion,
+          amount: estorno.primeiraParcela,
           proofUrl: "",
           status: "approved",
           createdAt: new Date().toISOString(),
           type: "correction",
-          description: jw
+          description: estorno.segundaParcela > 0
             ? `Estorno Pedido #${String(orderId).slice(0, 6)} (Parte 1 - Devedor 1): ${motivo}`
             : `Estorno Pedido #${String(orderId).slice(0, 6)}: ${motivo}`,
           payerName: caller.name || "Administrador",
           payerId: caller.id,
         });
+      }
 
-        // Devolve a parcela do DEVEDOR 2 na carteira dele (mesma transação)
-        if (jw && segundaParcelaEstorno > 0 && jw.secondUserId !== pedido.userId) {
-          const jwRef = db.collection("users").doc(jw.secondUserId);
-          const jwSnap = await t.get(jwRef);
-          if (jwSnap.exists) {
-            const ud2 = jwSnap.data();
-            t.update(jwRef, {
-              walletBalance: arredondar(Number(ud2.walletBalance || 0) + segundaParcelaEstorno),
-              weeklySpent: Math.max(0, arredondar((Number(ud2.weeklySpent) || 0) - segundaParcelaEstorno)),
-            });
-            registrarTransacaoCarteira(t, db.collection("wallet_transactions").doc(), {
-              userId: jw.secondUserId,
-              inmateCpf: cleanCpf(ud2.inmateCpf || ud2.prisonerCpf || ud2.cpf || jw.secondUserCpf || ""),
-              amount: segundaParcelaEstorno,
-              proofUrl: "",
-              status: "approved",
-              createdAt: new Date().toISOString(),
-              type: "correction",
-              description: `Estorno Pedido #${String(orderId).slice(0, 6)} (Parte 2 - Devedor 2): ${motivo}`,
-              payerName: caller.name || "Administrador",
-              payerId: caller.id,
-            });
-          }
+      // Devolve a parcela do DEVEDOR 2 na carteira dele (mesma transação;
+      // independe do cadastro do Devedor 1 existir)
+      if (estorno.ehWallet && estorno.segundaParcela > 0 && estorno.secondUserId && String(estorno.secondUserId) !== String(pedido.userId)) {
+        const jwRef = db.collection("users").doc(estorno.secondUserId);
+        const jwSnap = await t.get(jwRef);
+        if (jwSnap.exists) {
+          const ud2 = jwSnap.data();
+          t.update(jwRef, {
+            walletBalance: arredondar(Number(ud2.walletBalance || 0) + estorno.segundaParcela),
+            weeklySpent: Math.max(0, arredondar((Number(ud2.weeklySpent) || 0) - estorno.segundaParcela)),
+          });
+          registrarTransacaoCarteira(t, db.collection("wallet_transactions").doc(), {
+            userId: estorno.secondUserId,
+            inmateCpf: cleanCpf(ud2.inmateCpf || ud2.prisonerCpf || ud2.cpf || pedido.jointWallet.secondUserCpf || ""),
+            amount: estorno.segundaParcela,
+            proofUrl: "",
+            status: "approved",
+            createdAt: new Date().toISOString(),
+            type: "correction",
+            description: `Estorno Pedido #${String(orderId).slice(0, 6)} (Parte 2 - Devedor 2): ${motivo}`,
+            payerName: caller.name || "Administrador",
+            payerId: caller.id,
+          });
         }
       }
 
