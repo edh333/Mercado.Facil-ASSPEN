@@ -1746,9 +1746,17 @@ exports.estornarVenda = onCall(async (request) => {
 
       if (uRef && uSnap && uSnap.exists) {
         const ud = uSnap.data();
-        const uWalletPortion = pedido.paymentMethod === "WALLET"
+        const walletPortionTotal = pedido.paymentMethod === "WALLET"
           ? (Number(pedido.total) || 0)
           : (pedido.payments || []).filter((p) => p.method === "WALLET").reduce((s, p) => s + (Number(p.amount) || 0), 0);
+        // ── Venda em Dupla: cada devedor recebe de volta a PRÓPRIA parcela ──
+        const jw = ehWallet && pedido.jointWallet && pedido.jointWallet.secondUserId
+          ? pedido.jointWallet
+          : null;
+        const segundaParcelaEstorno = jw
+          ? Math.max(0, arredondar(Math.min(Number(jw.secondWalletAmount) || 0, walletPortionTotal)))
+          : 0;
+        const uWalletPortion = Math.max(0, arredondar(walletPortionTotal - segundaParcelaEstorno));
         const novoSaldo = arredondar(Number(ud.walletBalance || 0) + uWalletPortion);
         const novoWeekly = Math.max(0, arredondar((ud.weeklySpent || 0) - uWalletPortion));
         t.update(uRef, { walletBalance: novoSaldo, weeklySpent: novoWeekly });
@@ -1760,10 +1768,37 @@ exports.estornarVenda = onCall(async (request) => {
           status: "approved",
           createdAt: new Date().toISOString(),
           type: "correction",
-          description: `Estorno Pedido #${String(orderId).slice(0, 6)}: ${motivo}`,
+          description: jw
+            ? `Estorno Pedido #${String(orderId).slice(0, 6)} (Parte 1 - Devedor 1): ${motivo}`
+            : `Estorno Pedido #${String(orderId).slice(0, 6)}: ${motivo}`,
           payerName: caller.name || "Administrador",
           payerId: caller.id,
         });
+
+        // Devolve a parcela do DEVEDOR 2 na carteira dele (mesma transação)
+        if (jw && segundaParcelaEstorno > 0 && jw.secondUserId !== pedido.userId) {
+          const jwRef = db.collection("users").doc(jw.secondUserId);
+          const jwSnap = await t.get(jwRef);
+          if (jwSnap.exists) {
+            const ud2 = jwSnap.data();
+            t.update(jwRef, {
+              walletBalance: arredondar(Number(ud2.walletBalance || 0) + segundaParcelaEstorno),
+              weeklySpent: Math.max(0, arredondar((Number(ud2.weeklySpent) || 0) - segundaParcelaEstorno)),
+            });
+            registrarTransacaoCarteira(t, db.collection("wallet_transactions").doc(), {
+              userId: jw.secondUserId,
+              inmateCpf: cleanCpf(ud2.inmateCpf || ud2.prisonerCpf || ud2.cpf || jw.secondUserCpf || ""),
+              amount: segundaParcelaEstorno,
+              proofUrl: "",
+              status: "approved",
+              createdAt: new Date().toISOString(),
+              type: "correction",
+              description: `Estorno Pedido #${String(orderId).slice(0, 6)} (Parte 2 - Devedor 2): ${motivo}`,
+              payerName: caller.name || "Administrador",
+              payerId: caller.id,
+            });
+          }
+        }
       }
 
       // FIADO: reverte a dívida gravada no servidor (vendas novas); as antigas sem customerAccountId são ignoradas

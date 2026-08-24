@@ -1052,6 +1052,24 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
 
   if (!isOpen) return null;
 
+  // ── Venda em Dupla: derivados de render (sem hooks — pós early-return) ──
+  const limparTexto = (v: any, max: number) => String(v ?? '').replace(/[\r\n]+/g, ' ').trim().toUpperCase().slice(0, max);
+  const mascararCpf = (cpf?: string) => {
+    const d = String(cpf || '').replace(/\D/g, '');
+    return d.length >= 11 ? `${'*'.repeat(d.length - 8)}.${d.slice(-8, -5)}.${d.slice(-5, -2)}-${d.slice(-2)}` : '';
+  };
+  const saldoClientePdv = Math.max(0, cliente?.walletBalance || 0);
+  const faltaCarteira = Math.max(0, totalCarrinho - saldoClientePdv);
+  const jointAtivo = formaPagamento === 'WALLET' && isJointWalletMode && jointAdminAuthorized;
+  const segundaParcela = parseMoeda(secondWalletAmountInput);
+  const limiteSemanalSegundo = Math.max(0, (settings?.weeklyWalletLimit || 300) - ((secondUserObj as any)?.weeklySpent || 0));
+  const jointValido = !!(
+    jointAtivo && secondUserId && secondUserObj && segundaParcela > 0 &&
+    segundaParcela <= (Math.max(0, secondUserObj.walletBalance || 0) + 0.009) &&
+    segundaParcela <= limiteSemanalSegundo + 0.009 &&
+    saldoClientePdv + segundaParcela >= totalCarrinho - 0.009
+  );
+
   const totalPeriodo = salesOrders.reduce((s, o) => s + (Number(o.total) || 0), 0);
   const formatarHora = (dateStr: string) => {
     try {
@@ -1647,6 +1665,201 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                   </motion.div>
                 )}
 
+                {formaPagamento === 'WALLET' && (
+                  <motion.div initial={{opacity:0}} animate={{opacity:1}} className="space-y-4">
+                    {/* Saldo atual do cliente no PDV */}
+                    <div className={`rounded-[2.5rem] p-6 text-center border-2 ${(cliente?.walletBalance || 0) >= totalCarrinho ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
+                      <p className="text-[10px] font-black uppercase tracking-[0.3em] mb-1" style={{ color: (cliente?.walletBalance || 0) >= totalCarrinho ? '#059669' : '#d97706' }}>
+                        Carteira de {limparTexto((cliente?.inmateName || cliente?.name) || 'Cliente', 26)}
+                      </p>
+                      <p className={`text-3xl font-black tracking-tight tnum ${(cliente?.walletBalance || 0) >= totalCarrinho ? 'text-emerald-700' : 'text-amber-700'}`}>
+                        R$ {formatarMoeda(cliente?.walletBalance || 0)}
+                      </p>
+                      {faltaCarteira > 0 && (
+                        <p className="mt-2 text-[11px] font-black text-amber-600 uppercase tracking-wider">
+                          Faltam R$ {formatarMoeda(faltaCarteira)} — use a Venda em Dupla abaixo
+                        </p>
+                      )}
+                    </div>
+
+                    {/* GATILHO: saldo insuficiente libera a modalidade (exige senha mestra) */}
+                    {faltaCarteira > 0 && !jointAtivo && (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmandoJointSenha(true)}
+                        disabled={!clienteSelecionado}
+                        className="w-full py-5 rounded-[2rem] bg-slate-900 hover:bg-slate-800 text-white font-black text-[11px] uppercase tracking-[0.25em] transition-all active:scale-[0.98] disabled:opacity-40 flex items-center justify-center gap-3 shadow-lg"
+                      >
+                        <Users2 size={18} /> VENDA EM DUPLA — DIVIDIR COM OUTRA CARTEIRA
+                      </button>
+                    )}
+
+                    {/* AUTORIZAÇÃO POR SENHA MESTRA */}
+                    {confirmandoJointSenha && !jointAdminAuthorized && (
+                      <div className="bg-slate-50 border-2 border-slate-200 rounded-[2rem] p-6 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <Lock size={16} className="text-slate-500 shrink-0" />
+                          <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.2em]">Senha Mestra necessária para débito em dupla</p>
+                        </div>
+                        <input
+                          type="password"
+                          autoFocus
+                          placeholder="••••••••"
+                          className="w-full bg-white border-2 border-slate-200 focus:border-emerald-500 p-4 rounded-2xl font-black text-center text-lg outline-none transition-colors"
+                          value={jointSenhaAdmin}
+                          onChange={e => { setJointSenhaAdmin(e.target.value); setJointSenhaAdminErro(''); }}
+                          onKeyDown={e => { if (e.key === 'Enter') handleAutorizarJointWallet(); }}
+                        />
+                        {jointSenhaAdminErro && (
+                          <p className="text-[10px] font-black text-red-600 uppercase tracking-wider flex items-center gap-1.5">
+                            <AlertTriangle size={13} /> {jointSenhaAdminErro}
+                          </p>
+                        )}
+                        <div className="flex gap-2">
+                          <button type="button" onClick={() => { setConfirmandoJointSenha(false); setJointSenhaAdmin(''); setJointSenhaAdminErro(''); }}
+                            className="flex-1 py-3.5 rounded-2xl bg-white border-2 border-slate-200 hover:bg-slate-100 font-black text-[10px] uppercase tracking-[0.2em] text-slate-600 transition-all active:scale-95">
+                            Cancelar
+                          </button>
+                          <button type="button" onClick={handleAutorizarJointWallet} disabled={jointSenhaProcessando}
+                            className="flex-1 py-3.5 rounded-2xl text-white font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 shadow-md"
+                            style={{ backgroundColor: corPrincipal }}>
+                            {jointSenhaProcessando ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle size={14} />} Autorizar
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* SELEÇÃO DO 2º DEVEDOR + COMPOSIÇÃO DO SPLIT */}
+                    {jointAtivo && (
+                      <div className="rounded-[2rem] border-2 p-5 space-y-4 animate-fadeIn overflow-hidden" style={{ borderColor: corPrincipal }}>
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-black text-[10px] uppercase tracking-[0.25em]" style={{ color: corPrincipal }}>Venda em Dupla Ativa</p>
+                          <button type="button"
+                            onClick={() => { setIsJointWalletMode(false); setSecondUserId(''); setSecondUserSearch(''); setSecondWalletAmountInput(''); }}
+                            className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-[9px] uppercase tracking-widest transition-all active:scale-95 flex items-center gap-1">
+                            <X size={12} /> Desativar
+                          </button>
+                        </div>
+
+                        {!secondUserId ? (
+                          <>
+                            <div className="relative">
+                              <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                              <input
+                                autoFocus
+                                placeholder="Buscar 2º devedor (nome, interno ou CPF)..."
+                                className="w-full bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 pl-11 pr-4 py-3.5 rounded-2xl text-sm font-bold outline-none transition-colors"
+                                value={secondUserSearch}
+                                onChange={e => setSecondUserSearch(e.target.value)}
+                              />
+                            </div>
+                            {secondUserSearch.length >= 2 && filteredSecondUsers.length === 0 && (
+                              <p className="text-center text-[10px] font-black text-slate-400 uppercase tracking-wider py-2">Nenhum usuário encontrado</p>
+                            )}
+                            <div className="space-y-2 max-h-56 overflow-y-auto custom-scrollbar">
+                              {filteredSecondUsers.map(u => {
+                                const limiteU = Math.max(0, (settings?.weeklyWalletLimit || 300) - ((u as any)?.weeklySpent || 0));
+                                return (
+                                  <button key={u.id} type="button"
+                                    onClick={() => { setSecondUserId(u.id); setSecondUserSearch(''); }}
+                                    className="w-full flex items-center gap-3 p-3 bg-white hover:bg-emerald-50 border-2 border-slate-100 hover:border-emerald-300 rounded-2xl text-left transition-all active:scale-[0.99]">
+                                    <UserCircle2 size={34} className="text-slate-300 shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                      <p className="font-black text-xs uppercase text-slate-900 truncate">{(u.inmateName || u.prisonerName || u.name || 'Usuário')}</p>
+                                      <p className="text-[9px] font-bold text-slate-400 truncate">Familiar: {u?.name || '—'} {(u.inmateCpf || u.cpf) ? `• CPF ${mascararCpf(u.inmateCpf || u.cpf)}` : ''}</p>
+                                    </div>
+                                    <div className="text-right shrink-0">
+                                      <p className="font-black text-xs text-emerald-600 tnum">R$ {formatarMoeda(u.walletBalance || 0)}</p>
+                                      <p className="text-[8px] font-bold text-slate-400 uppercase">Semana: R$ {formatarMoeda(limiteU)}</p>
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            {/* Devedor selecionado */}
+                            <div className="flex items-center gap-3 p-3 bg-white border-2 border-slate-100 rounded-2xl">
+                              <UserCircle2 size={38} className="shrink-0" style={{ color: corPrincipal }} />
+                              <div className="flex-1 min-w-0">
+                                <p className="font-black text-xs uppercase text-slate-900 truncate">{((secondUserObj?.inmateName || secondUserObj?.prisonerName || secondUserObj?.name) || 'Usuário')}</p>
+                                <p className="text-[9px] font-bold text-slate-400 truncate">
+                                  Saldo: R$ {formatarMoeda(secondUserObj?.walletBalance || 0)} • Semana: R$ {formatarMoeda(limiteSemanalSegundo)}
+                                </p>
+                              </div>
+                              <button type="button" onClick={() => { setSecondUserId(''); setSecondWalletAmountInput(''); }}
+                                className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-[9px] uppercase tracking-widest transition-all active:scale-95 shrink-0">
+                                Trocar
+                              </button>
+                            </div>
+
+                            {/* Valor da 2ª parte */}
+                            <div>
+                              <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2">Valor a debitar do 2º devedor</p>
+                              <input
+                                type="number" min="0" step="0.01" inputMode="decimal"
+                                placeholder="0.00"
+                                className="w-full bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 p-4 rounded-2xl font-black text-2xl text-center outline-none transition-colors tnum"
+                                value={secondWalletAmountInput}
+                                onChange={e => setSecondWalletAmountInput(e.target.value)}
+                              />
+                              <div className="flex gap-2 mt-2">
+                                {[faltaCarteira, Math.min(segundaParcela || faltaCarteira, limiteSemanalSegundo)].map((v, i) => v > 0 && (
+                                  <button key={i} type="button" onClick={() => setSecondWalletAmountInput(v.toFixed(2))}
+                                    className="px-3 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl text-[10px] font-black text-slate-700 transition-all active:scale-95">
+                                    {i === 0 ? 'Valor Exato (Falta)' : 'Máx. Semanal'}
+                                  </button>
+                                ))}
+                                <button type="button" onClick={() => setSecondWalletAmountInput('')}
+                                  className="px-3 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl text-[10px] font-black text-slate-500 transition-all active:scale-95">
+                                  Limpar
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Composição do split */}
+                            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-1.5 font-bold text-xs tnum">
+                              <div className="flex justify-between">
+                                <span className="uppercase text-slate-500">Devedor 1 ({limparTexto((cliente?.inmateName || cliente?.name) || 'Cliente', 16)})</span>
+                                <span>R$ {formatarMoeda(Math.max(0, totalCarrinho - segundaParcela))}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="uppercase text-slate-500">Devedor 2</span>
+                                <span className={segundaParcela > 0 ? 'text-emerald-600' : ''}>R$ {formatarMoeda(segundaParcela)}</span>
+                              </div>
+                              <div className="border-t border-dashed border-slate-300 pt-1.5 flex justify-between font-black">
+                                <span className="uppercase">Total</span><span>R$ {formatarMoeda(totalCarrinho)}</span>
+                              </div>
+                            </div>
+
+                            {/* Validações inline */}
+                            {!jointValido && (
+                              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2">
+                                <AlertTriangle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+                                <span className="text-[10px] font-black text-amber-700 uppercase tracking-wide leading-relaxed">
+                                  {segundaParcela <= 0 ? 'Informe o valor da 2ª parte.'
+                                    : segundaParcela > (Math.max(0, secondUserObj?.walletBalance || 0)) ? 'Valor excede o saldo do 2º devedor.'
+                                    : segundaParcela > limiteSemanalSegundo ? 'Valor excede o limite semanal do 2º devedor.'
+                                    : 'Soma das partes não cobre o total.'}
+                                </span>
+                              </div>
+                            )}
+                            {jointValido && (
+                              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2">
+                                <CheckCircle size={15} className="text-emerald-600 shrink-0" />
+                                <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider">
+                                  Débito será dividido entre as duas carteiras
+                                </span>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+
                 {formaPagamento === 'CASH' && (
                   <motion.div initial={{opacity:0}} animate={{opacity:1}} className="space-y-4">
                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] ml-2">Valor Recebido do Cliente</p>
@@ -1860,7 +2073,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                   <div className="flex-1 flex flex-col gap-2">
                     <button
                       onClick={finalizarVenda}
-                      disabled={processando || pixPendente || (formaPagamento === 'WALLET' && (((cliente as any)?.walletBalance || 0) < totalCarrinho || ((settings?.weeklyWalletLimit || 300) - ((cliente as any)?.weeklySpent || 0)) < totalCarrinho))}
+                      disabled={processando || pixPendente || (formaPagamento === 'WALLET' && !jointValido && (((cliente as any)?.walletBalance || 0) < totalCarrinho || ((settings?.weeklyWalletLimit || 300) - ((cliente as any)?.weeklySpent || 0)) < totalCarrinho))}
                       className="w-full py-6 rounded-[2rem] font-black text-base uppercase tracking-[0.4em] text-white shadow-[0_20px_40px_rgba(0,0,0,0.3)] hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-4"
                       style={{ backgroundColor: corPrincipal }}
                     >
@@ -1869,12 +2082,20 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                       ) : (
                         <>
                           <Check size={24} />
-                          {pixPendente ? 'AGUARDANDO CONFIRMA├ç├âO PIX'
+                          {pixPendente ? 'AGUARDANDO CONFIRMAÇÃO PIX'
+                            : (formaPagamento === 'WALLET' && jointValido) ? 'FINALIZAR EM DUPLA'
                             : (formaPagamento === 'WALLET' && (cliente?.walletBalance || 0) < totalCarrinho) ? 'SALDO INSUFICIENTE'
                             : 'FINALIZAR VENDA'}
                         </>
                       )}
                     </button>
+                    {(formaPagamento === 'WALLET' && jointAtivo) && (
+                      <p className={`text-center text-[9px] font-black uppercase tracking-widest ${jointValido ? 'text-emerald-600' : 'text-amber-600'}`}>
+                        {jointValido
+                          ? 'Débito compartilhado autorizado — 2 carteiras serão debitadas'
+                          : 'Complete a composição do split para liberar a finalização'}
+                      </p>
+                    )}
                     {pixPendente && (
                       <p className="text-center text-[9px] font-black text-amber-600 uppercase tracking-widest">
                         Confirme o recebimento do PIX acima para liberar a finaliza├º├úo
