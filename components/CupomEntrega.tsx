@@ -125,14 +125,25 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
           </div>
       )}
 
-      {/* LOCATION */}
+      {/* LOCATION — estilo sistema 2: caixa com cabeçalho preto + 3 colunas grandes */}
       {(data.inmateLocation || data.deliveryLocation) && (() => {
         const loc = data.inmateLocation || data.deliveryLocation;
-        const parts = [ loc.raio || loc.ray ? `RAIO ${loc.raio || loc.ray}` : null, loc.ala || loc.wing ? `ALA ${loc.ala || loc.wing}` : null, loc.cela || loc.cell ? `CELA ${loc.cela || loc.cell}` : null ].filter(Boolean);
-        if (parts.length === 0) return null;
+        const temAlgum = loc.raio || loc.ray || loc.ala || loc.wing || loc.cela || loc.cell;
+        if (!temAlgum) return null;
+        const col = (rotulo: string, valor?: string) => (
+          <div>
+            <span style={{ fontSize: '9px', fontWeight: 'normal', display: 'block' }}>{rotulo}</span>
+            <span style={{ fontSize: '14px', fontWeight: '900' }}>{(valor || '___').toUpperCase()}</span>
+          </div>
+        );
         return (
-          <div className="mb-2 p-1.5 border-2 border-black text-center bg-black text-white">
-            <p className="font-black uppercase text-xs tracking-wider">{parts.join(' — ')}</p>
+          <div className="mb-2 border-2 border-black p-1">
+            <div className="bg-black text-white text-center font-black uppercase text-[10px] py-0.5 mb-1">Localização Interna</div>
+            <div className="flex justify-around text-center px-1 pb-0.5">
+              {col('RAIO', loc.raio || loc.ray)}
+              {col('ALA', loc.ala || loc.wing)}
+              {col('CELA', loc.cela || loc.cell)}
+            </div>
           </div>
         );
       })()}
@@ -200,6 +211,19 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
                     )}
                 </>
             )}
+            {data.jointWallet && Number(data.jointWallet.secondWalletAmount) > 0 && (
+                <div className="border-t border-dashed border-black pt-1 mt-1 space-y-0.5 font-bold">
+                    <p className="font-black uppercase opacity-60">Carteira (Em Dupla)</p>
+                    <div className="flex justify-between">
+                        <span>DEVEDOR 1</span>
+                        <span>R$ {formatarMoeda(Math.max(0, Number(data.jointWallet.firstWalletAmount !== undefined ? data.jointWallet.firstWalletAmount : total - Number(data.jointWallet.secondWalletAmount))))}</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span>DEVEDOR 2: {(data.jointWallet.secondUserName || 'DEVEDOR 2').toUpperCase()}</span>
+                        <span>R$ {formatarMoeda(Number(data.jointWallet.secondWalletAmount))}</span>
+                    </div>
+                </div>
+            )}
             {saldoAnterior !== undefined && (
                 <div className="flex justify-between italic opacity-80">
                     <span>SALDO ANTERIOR:</span>
@@ -233,6 +257,17 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
              </div>
         </div>
       </div>
+
+      {/* ASSINATURA DO RECEBEDOR (padrão sistema 2 — conferência na entrega) */}
+      {!cancelado && (
+        <div className="text-center mt-8 mb-3">
+          <div className="border-t border-black w-3/4 mx-auto"></div>
+          <p className="font-black uppercase text-[9px] mt-1">Assinatura do Recebedor</p>
+          {(data.inmateName || data.prisonerName) && (
+            <p className="font-bold text-[9px] opacity-70">({data.inmateName || data.prisonerName})</p>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-col items-center print:hidden border-t border-black border-dashed w-full pt-3 mt-4">
           <div className="flex items-center gap-2 px-3 py-1 bg-black rounded-full -mt-5">

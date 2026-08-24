@@ -495,6 +495,10 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
     cupom += `${nomeLinha.padEnd(22)}${String(`${qtd} X ${precoUnit.toFixed(2).replace('.', ',')}`).padStart(12)}${String("R$ " + valor).padStart(14)}\n`;
   }
   cupom += `${divisor}\n`;
+  if (itens.length > 0) {
+    const totalQtd = itens.reduce((s, i) => s + (Number(i?.quantity) || 1), 0);
+    cupom += formatarLinhaDupla(`${itens.length} ${itens.length === 1 ? 'ITEM' : 'ITENS'} (${totalQtd} UN)`, '', 48) + "\n";
+  }
 
   const total = Math.abs(data.total || 0);
   const subtotal = itens.reduce((s, i) => s + (Number(i?.priceAtPurchase || i?.price || 0) * (Number(i?.quantity) || 1)), 0);
@@ -506,8 +510,25 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
     } else {
       cupom += formatarLinhaDupla("ACRESCIMO:", `R$ ${Math.abs(desconto).toFixed(2).replace('.', ',')}`, 48) + "\n";
     }
+    cupom += `${divisor}\n`;
   }
+  cupom += `${divisorDuplo}\n`;
   cupom += formatarLinhaDupla("TOTAL PEDIDO:", `R$ ${total.toFixed(2).replace('.', ',')}`, 48) + "\n";
+  cupom += `${divisorDuplo}\n`;
+
+  // ── VENDA EM DUPLA (débito compartilhado de carteira) ──
+  const jw = data.jointWallet;
+  if (jw && Number(jw.secondWalletAmount) > 0) {
+    const parte1 = Number(jw.firstWalletAmount !== undefined ? jw.firstWalletAmount : Math.max(0, total - Number(jw.secondWalletAmount)));
+    cupom += `CARTEIRA (EM DUPLA)\n`;
+    cupom += formatarLinhaPontilhada("DEVEDOR 1", `R$ ${Math.max(0, parte1).toFixed(2).replace('.', ',')}`, 48) + "\n";
+    const nome2 = limparLinha(jw.secondUserName || 'DEVEDOR 2', 24);
+    cupom += formatarLinhaPontilhada(`DEVEDOR 2: ${nome2}`, `R$ ${Number(jw.secondWalletAmount).toFixed(2).replace('.', ',')}`, 48) + "\n";
+    if (jw.secondUserCpf && jw.secondUserCpf !== '000.000.000-00') {
+      cupom += `CPF DEV.2: ${limparLinha(mascararCpf(jw.secondUserCpf), 36)}\n`;
+    }
+    cupom += `${divisor}\n`;
+  }
 
   const payments = Array.isArray(data.payments) ? data.payments : [];
   if (payments.length > 0) {
@@ -731,6 +752,27 @@ export async function imprimirHtmlSilencioso(conteudo: string, config?: any): Pr
     console.warn('Falha na impressão silenciosa (Electron):', e);
     return false;
   }
+}
+
+/**
+ * Impressão SILENCIOSA apenas na fiscal (QZ Tray + Electron silent).
+ * NUNCA abre janela, diálogo ou popup — usado na auto-impressão pós-venda:
+ * se não houver impressora fiscal disponível, o cupom fica apenas na tela
+ * (o operador decide imprimir pelo botão do modal de sucesso).
+ * Retorna true se imprimiu por alguma via silenciosa.
+ */
+export async function imprimirSilenciosoFiscal(
+  item: { type: string; data: any; subType?: string },
+  config?: any
+): Promise<boolean> {
+  const raw = gerarCupomEntregaRaw(item.data, config);
+  try {
+    const ok = await imprimirBobinaFiscal(raw, config);
+    if (ok) return true;
+  } catch (e) {
+    console.warn('Falha na impressão fiscal direta (silenciosa):', e);
+  }
+  return imprimirHtmlSilencioso(raw, config);
 }
 
 /**
