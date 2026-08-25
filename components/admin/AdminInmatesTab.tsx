@@ -10,10 +10,12 @@ interface AdminInmatesTabProps {
   handleAddInmate: () => void;
   deletePreRegisteredInmate: (id: string) => void;
   importInmatesCsv?: (file: File) => Promise<void>;
+  inmatesLimit?: number;
+  loadMoreInmates?: () => void;
 }
 
 export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
-  preRegisteredInmates, users, newInmate, setNewInmate, handleAddInmate, deletePreRegisteredInmate, importInmatesCsv
+  preRegisteredInmates, users, newInmate, setNewInmate, handleAddInmate, deletePreRegisteredInmate, importInmatesCsv, inmatesLimit, loadMoreInmates
 }) => {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [viewMode, setViewMode] = React.useState<'table' | 'cards'>('table');

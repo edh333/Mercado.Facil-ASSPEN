@@ -541,10 +541,15 @@ interface StoreContextType {
     adminDirectSale: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO', total: number, payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO'; amount: number }[], change?: number, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }) => Promise<Order | null>;
     loadMoreOrders: () => void;
     loadMoreExpenses: () => void;
-    loadMoreProducts: () => void;
     usersLimit: number;
     cotaCritica: boolean;
     loadMoreUsers: () => void;
+    loadMoreProducts: () => void;
+    loadMoreSuppliers: () => void;
+    loadMoreInmates: () => void;
+    productsLimit: number;
+    suppliersLimit: number;
+    inmatesLimit: number;
     expandUsersLimit: (limite: number) => void;
     importInmatesCsv: (file: File) => Promise<void>;
     addWalletCreditDirectly: (userId: string, amount: number, reason: string, senhaMestra?: string) => Promise<void>;
@@ -674,9 +679,12 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     // Escala: com 1.500+ usuÃ¡rios, o stream admin de users nÃ£o pode ficar
     // preso em 500 (busca client-side nÃ£o acharia o resto). Cresce sob demanda.
     const [usersLimit, setUsersLimit] = useState(500);
+    // Fornecedores e internos: paginação sob demanda (evita ler tudo de uma vez)
+    const [suppliersLimit, setSuppliersLimit] = useState(100);
+    const [inmatesLimit, setInmatesLimit] = useState(200);
 
-    // â”€â”€ Guarda de cota (Firebase Spark/uso): se uma leitura/escrita falhar por
-    // cota excedida, o app avisa o admin (banner) em vez de quebrar em silÃªncio.
+    // ── Guarda de cota (Firebase Spark/uso): se uma leitura/escrita falhar por
+    // cota excedida, o app avisa o admin (banner) em vez de quebrar em silêncio.
     const cotaCriticaRef = useRef(false);
     const [cotaCritica, setCotaCritica] = useState(false);
     const marcaCotaCritica = useCallback(() => {
@@ -688,6 +696,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const loadMoreOrders = () => setOrdersLimit((prev: number) => prev + 50);
     const loadMoreExpenses = () => setExpensesLimit((prev: number) => prev + 50);
     const loadMoreProducts = () => setProductsLimit((prev: number) => prev + 500);
+    const loadMoreSuppliers = () => setSuppliersLimit((prev: number) => prev + 100);
+    const loadMoreInmates = () => setInmatesLimit((prev: number) => prev + 200);
     const loadMoreUsers = () => setUsersLimit((prev: number) => prev + 500);
     const expandUsersLimit = (limite: number) => setUsersLimit((prev: number) => Math.max(prev, limite));
 
@@ -2665,21 +2675,28 @@ return false;
 
             unsubSystemMsg = onSnapshot(query(collection(db, 'systemMessages'), orderBy('createdAt', 'desc'), limit(20)), (s) => setSystemMessages(s.docs.map(d => ({ ...d.data(), id: d.id } as SystemMessage))), onErr('systemMessages'));
 
-            if (currentUser?.role !== UserRole.ADMIN && currentUser) {
+if (currentUser?.role !== UserRole.ADMIN && currentUser) {
                 const mergeMessages = (incoming: Message[]) => setMessages(prev => {
                     const map = new Map<string, Message>();
                     (prev || []).forEach(m => map.set(m.id, m));
                     incoming.forEach(m => map.set(m.id, m));
                     return Array.from(map.values()).sort((a, b) => ((b as any).createdAt || b.date || '').localeCompare((a as any).createdAt || a.date || ''));
                 });
-                unsubMsg = onSnapshot(query(collection(db, 'messages'), where('userId', '==', currentUser.id), orderBy('createdAt', 'desc'), limit(100)), (s) => mergeMessages(s.docs.map(d => ({ ...d.data(), id: d.id } as Message))), onErr('messages-user'));
-                unsubMsgAll = onSnapshot(query(collection(db, 'messages'), where('userId', '==', 'ALL'), orderBy('createdAt', 'desc'), limit(100)), (s) => mergeMessages(s.docs.map(d => ({ ...d.data(), id: d.id } as Message))), onErr('messages-broadcast'));
+
+                // UNA ÚNICA query com 'in' substitui duas listeners separadas
+                // (menor custo de leitura, mesma ordenação)
+                unsubMsg = onSnapshot(
+                    query(collection(db, 'messages'), where('userId', 'in', [currentUser.id, 'ALL']), orderBy('createdAt', 'desc'), limit(100)),
+                    (s) => mergeMessages(s.docs.map(d => ({ ...d.data(), id: d.id } as Message))),
+                    onErr('messages-merged')
+                );
             }
 
             if (currentUser?.role === UserRole.ADMIN) {
                 performAutoCleanup();
                 normalizeLegacyDocuments(); // Iniciar normalizaÃ§Ã£o em background
-                unsubUsers = onSnapshot(query(collection(db, 'users'), limit(usersLimit)), (snapshot) => {
+                // orderBy garante paginação estável ao aumentar usersLimit
+                unsubUsers = onSnapshot(query(collection(db, 'users'), orderBy('name', 'asc'), limit(usersLimit)), (snapshot) => {
                     // CONSUMER_USER Ã© sintÃ©tico (venda de balcÃ£o) e NÃƒO pertence Ã 
                     // lista real de usuÃ¡rios â€” se entra, polui contagens de
                     // familiares em relatÃ³rios/painÃ©is (MÃ‰DIA-2).
@@ -2717,8 +2734,8 @@ return false;
                     const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Expense));
                     setExpenses(items.filter(e => (e as any).deleted !== true));
                 }, onErr('expenses'));
-                unsubSup = onSnapshot(query(collection(db, 'suppliers'), orderBy('name', 'asc'), limit(500)), (snapshot) => setSuppliers(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Supplier))), onErr('suppliers'));
-                unsubInmates = onSnapshot(query(collection(db, 'pre_registered_inmates'), orderBy('name', 'asc'), limit(2000)), (snapshot) => setPreRegisteredInmates(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as any))), onErr('pre-inmates'));
+                unsubSup = onSnapshot(query(collection(db, 'suppliers'), orderBy('name', 'asc'), limit(suppliersLimit)), (snapshot) => setSuppliers(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Supplier))), onErr('suppliers'));
+                unsubInmates = onSnapshot(query(collection(db, 'pre_registered_inmates'), orderBy('name', 'asc'), limit(inmatesLimit)), (snapshot) => setPreRegisteredInmates(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as any))), onErr('pre-inmates'));
             }
         };
 
@@ -2733,7 +2750,6 @@ return false;
             if (unsubConfig) unsubConfig();
             if (unsubExpenses) unsubExpenses();
             if (unsubMsg) unsubMsg();
-            if (unsubMsgAll) unsubMsgAll();
             if (unsubSup) unsubSup();
             if (unsubInmates) unsubInmates();
             if (unsubSystemMsg) unsubSystemMsg();
@@ -2753,7 +2769,7 @@ return false;
             isSystemActive,
             
             updateOrderStatus, aprovarPedido, markOrderAsPrinted, deleteOrder, addProduct, updateProduct, deleteProduct, deleteExpense,
-            loadMoreOrders, loadMoreExpenses, loadMoreProducts, usersLimit, loadMoreUsers, expandUsersLimit, cotaCritica,
+            loadMoreOrders, loadMoreExpenses, loadMoreProducts, productsLimit, usersLimit, loadMoreUsers, expandUsersLimit, loadMoreSuppliers, loadMoreInmates, suppliersLimit, inmatesLimit, cotaCritica,
             approveUser, updateUserStatus, toggleUserCredit, deleteUser, suspendUser,
             addSupplier, removeSupplier, addExpense, addWithdrawal, toggleFinanceEntries,
             processInvoiceImport, importXmlProduct, previewXmlImport, sanitizeCatalog, updateAppConfig, updateSettings: updateAppConfig,

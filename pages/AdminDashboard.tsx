@@ -128,9 +128,12 @@ export function AdminDashboard() {
     loadMoreOrders,
     loadMoreExpenses,
     loadMoreProducts,
+    productsLimit,
     usersLimit,
     loadMoreUsers,
     expandUsersLimit,
+    inmatesLimit,
+    loadMoreInmates,
     cotaCritica,
     registrarVendaOffline,
     sincronizarVendasOffline,
@@ -914,6 +917,7 @@ export function AdminDashboard() {
                   sanitizeCatalog={sanitizeCatalog}
                   handleResetStock={() => handleProtectedAction(resetStock, 'STOCK')}
                   loadMoreProducts={loadMoreProducts}
+                  productsLimit={productsLimit}
                 />
               )}
 
@@ -935,6 +939,8 @@ export function AdminDashboard() {
                   handleAddInmate={handleAddInmate}
                   deletePreRegisteredInmate={handleDeletePreRegisteredInmate}
                   importInmatesCsv={importInmatesCsv}
+                  inmatesLimit={inmatesLimit}
+                  loadMoreInmates={loadMoreInmates}
                 />
               )}
 

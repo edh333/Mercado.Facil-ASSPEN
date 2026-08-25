@@ -26,13 +26,14 @@ interface AdminProductsTabProps {
   sanitizeCatalog: () => Promise<number>;
   handleResetStock: () => void;
   loadMoreProducts?: () => void;
+  productsLimit?: number;
   previewXmlImport?: (file: File) => Promise<{ name: string; cost: number; qty: number }[]>;
 }
 
 export const AdminProductsTab: React.FC<AdminProductsTabProps> = ({
   products, suppliers, searchTerm, setSearchTerm, viewMode, setViewMode,
   setShowProductModal, setEditingProduct, deleteProduct,
-  xmlFile, setXmlFile, handleImportXML, margin, setMargin, onPrintCatalog, mergeDuplicateProducts, sanitizeCatalog, handleResetStock, loadMoreProducts, previewXmlImport
+  xmlFile, setXmlFile, handleImportXML, margin, setMargin, onPrintCatalog, mergeDuplicateProducts, sanitizeCatalog, handleResetStock, loadMoreProducts, productsLimit, previewXmlImport
 }) => {
   const [categoryFilter, setCategoryFilter] = React.useState('ALL');
   const [supplierFilter, setSupplierFilter] = React.useState('ALL');
@@ -356,7 +357,7 @@ return (
         ))}
       </div>
 
-      {loadMoreProducts && filteredProducts.length >= 100 && (
+      {loadMoreProducts && productsLimit && filteredProducts.length >= productsLimit && (
         <div className="flex justify-center mt-12 pb-10">
           <button
             onClick={loadMoreProducts}
