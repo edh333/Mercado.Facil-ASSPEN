@@ -1568,7 +1568,22 @@ exports.registrarPedidoPix = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "Comprovante inválido. Envie a imagem do comprovante pelo aplicativo.");
   }
 
-const orderId = (crypto.randomUUID ? crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase() : Math.random().toString(36).slice(2, 14)).toUpperCase();
+  // DUPLICIDADE DE COMPROVANTE: impede que a MESMA imagem seja usada
+  // em dois pedidos diferentes (reuso de print de tela, WhatsApp, etc.).
+  // Exclui o próprio pedido (replay) e pedidos cancelados/estornados.
+  if (paymentProofUrl !== "PENDENTE_UPLOAD_LOCAL_CACHE") {
+    const provasUsadas = await db.collection("orders")
+      .where("paymentProofUrl", "==", paymentProofUrl)
+      .where("status", "not-in", ["cancelled", "cancelado", "refunded", "devolvido", "reembolsado", "rejected", "rejeitado"])
+      .limit(1)
+      .get();
+    if (!provasUsadas.empty) {
+      const jaUsado = provasUsadas.docs[0].data();
+      throw new HttpsError("already-exists", `Este comprovante já foi usado no pedido #${jaUsado.id} (${jaUsado.status}). Cada comprovante só pode confirmar uma compra.`);
+    }
+  }
+
+ const orderId = (crypto.randomUUID ? crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase() : Math.random().toString(36).slice(2, 14)).toUpperCase();
   const clientToken = lerClientToken(request.data);
   let resultado;
   try {

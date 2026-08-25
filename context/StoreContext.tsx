@@ -1499,7 +1499,10 @@ return false;
                         ...ex,
                         stock: (ex.stock || 0) + qty,
                         costPrice: cost,
-                        price: Math.max(parseFloat(price.toFixed(2)), ex.price),
+                        // A margem digitada MANDA: preço recalculado substitui o
+                        // antigo (antes o Math.max impedia o preço de CAIR quando
+                        // a nova margem era menor — valor não acompanhava a %).
+                        price: parseFloat(price.toFixed(2)),
                         supplierId: supplierId || ex.supplierId,
                         ean: item.ean || ex.ean || item.barcode || ex.barcode || '',
                         barcode: item.barcode || item.ean || ex.barcode || ex.ean || '',

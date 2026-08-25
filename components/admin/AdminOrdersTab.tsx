@@ -28,6 +28,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
 }) => {
   const [statusFilter, setStatusFilter] = React.useState<string>('ALL');
   const [dateFilter, setDateFilter] = React.useState<string>('ALL');
+  const [specificDate, setSpecificDate] = React.useState<string>(getLocalDateStr());
   const [sortOrder, setSortOrder] = React.useState<'newest' | 'oldest'>('newest');
   const { colors } = useTheme();
   const { aprovarPedido, showNotification } = useApp();
@@ -85,6 +86,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
       let matchesDate = true;
       if (dateFilter === 'TODAY') matchesDate = orderDateStr === today;
       else if (dateFilter === 'YESTERDAY') matchesDate = orderDateStr === yesterday;
+      else if (dateFilter === 'DAY') matchesDate = !!specificDate && orderDateStr === specificDate;
       else if (dateFilter === 'WEEK') matchesDate = orderDateStr >= thisWeek;
       else if (dateFilter === 'MONTH') matchesDate = orderDateStr >= thisMonth;
 
@@ -94,7 +96,17 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
       const dateB = new Date(b.createdAt || b.date || 0).getTime();
       return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
     });
-  }, [orders, searchTerm, statusFilter, dateFilter, sortOrder]);
+  }, [orders, searchTerm, statusFilter, dateFilter, specificDate, sortOrder]);
+
+  // Resumo do recorte atual: total de pedidos e soma em R$ — responde
+  // "quanto vendi no dia X?" sem exportar CSV.
+  const resumoFiltro = React.useMemo(() => {
+    const validas = filteredOrders.filter(o => !['cancelled', 'cancelado', 'cancelada', 'refunded', 'devolvido', 'reembolsado'].includes(String(o.status || '').toLowerCase()));
+    return {
+      qtd: validas.length,
+      total: validas.reduce((s, o) => s + (Number(o.total) || 0), 0)
+    };
+  }, [filteredOrders]);
 
   const exportOrdersToCSV = () => {
     const headers = ['Data', 'ID', 'Familia', 'Interno', 'CPF', 'Total', 'Status', 'Itens'];
@@ -142,11 +154,21 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
             </div>
 
             {/* Date Filter */}
-            <div className="flex bg-[var(--bg-main)] rounded-xl p-1 border border-[var(--border-color)] w-full md:w-auto overflow-x-auto custom-scrollbar gap-1">
+            <div className="flex bg-[var(--bg-main)] rounded-xl p-1 border border-[var(--border-color)] w-full md:w-auto overflow-x-auto custom-scrollbar gap-1 items-center">
                 <button onClick={() => setDateFilter('ALL')} className={`px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all shrink-0 ${dateFilter === 'ALL' ? 'bg-[var(--text-main)] text-[var(--bg-card)]' : 'text-[var(--text-muted)] hover:bg-slate-100'}`}>Todas</button>
                 <button onClick={() => setDateFilter('TODAY')} className={`px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all shrink-0 ${dateFilter === 'TODAY' ? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-100'}`}>Hoje</button>
+                <button onClick={() => setDateFilter('YESTERDAY')} className={`px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all shrink-0 ${dateFilter === 'YESTERDAY' ? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-100'}`}>Ontem</button>
                 <button onClick={() => setDateFilter('WEEK')} className={`px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all shrink-0 ${dateFilter === 'WEEK' ? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-100'}`}>Semana</button>
                 <button onClick={() => setDateFilter('MONTH')} className={`px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all shrink-0 ${dateFilter === 'MONTH' ? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-100'}`}>Mês</button>
+                {/* Vendas de UM DIA ESPECÍFICO: escolhe a data e clica em "Dia" */}
+                <input
+                    type="date"
+                    value={specificDate}
+                    onChange={e => { setSpecificDate(e.target.value); if (e.target.value) setDateFilter('DAY'); }}
+                    title="Ver as vendas de um dia específico"
+                    className="px-2 py-1.5 rounded-lg text-[10px] font-black bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-main)] outline-none focus:border-emerald-500 shrink-0 cursor-pointer"
+                />
+                <button onClick={() => setDateFilter('DAY')} className={`px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all shrink-0 ${dateFilter === 'DAY' ? 'bg-emerald-600 text-white shadow-lg' : 'text-emerald-600 hover:bg-emerald-100'}`}>Dia</button>
             </div>
 
             {/* Sort Order */}
@@ -173,7 +195,21 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
         </div>
       </div>
 
-{/* Search Input */}
+      {/* Resumo do recorte atual: quantos pedidos e quanto somou */}
+      <div className="flex flex-wrap items-center gap-4 bg-[var(--bg-card)] border-2 border-[var(--border-color)] rounded-2xl px-6 py-4 shadow-sm">
+        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Resultado:</span>
+        <span className="text-sm font-black text-[var(--text-main)]">{resumoFiltro.qtd} pedido(s)</span>
+        <span className="text-lg font-black text-emerald-600 tracking-tighter">
+          R$ {resumoFiltro.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+        </span>
+        {dateFilter === 'DAY' && specificDate && (
+          <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-xl">
+            Vendas do dia {new Date(specificDate + 'T12:00:00').toLocaleDateString('pt-BR')}
+          </span>
+        )}
+      </div>
+
+      {/* Search Input */}
       <div className="relative group">
         <div className="absolute left-6 top-1/2 -translate-y-1/2 bg-[var(--bg-card)] p-3 rounded-2xl border-2 border-[var(--border-color)] group-focus-within:border-emerald-500 transition-all duration-300 z-10 shadow-sm">
           <Search className="text-[var(--text-muted)] group-focus-within:text-emerald-600 transition-colors" size={22} />

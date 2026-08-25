@@ -867,9 +867,21 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   cursor: pointer;
 }
 
+/* AUTOFILL DO NAVEGADOR: a regra antiga pintava TODOS os campos com fundo
+   escuro (#1e293b) mesmo em telas claras — no login aparecia um "bloco/borda"
+   escura dentro do campo ao autocompletar e-mail/senha. Agora: claro por
+   padrão, escuro apenas dentro do tema .dark. */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #0f172a;
+  -webkit-box-shadow: 0 0 0px 1000px #ffffff inset;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover,
+.dark input:-webkit-autofill:focus {
   -webkit-text-fill-color: #f1f5f9;
   -webkit-box-shadow: 0 0 0px 1000px #1e293b inset;
   transition: background-color 5000s ease-in-out 0s;
@@ -935,6 +947,13 @@ select option {
     color: #000000 !important;
     box-shadow: none !important;
     text-shadow: none !important;
+    /* ANIMAÇÕES MORTAS NA IMPRESSÃO: window.print() disparado durante o
+       modalPop/backdrop-blur produzia PRIMEIRA IMPRESSÃO EM BRANCO (bug do
+       Chromium ao tirar snapshot com transform/blur ativos). */
+    animation: none !important;
+    transition: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
 
   body * {
@@ -954,9 +973,22 @@ select option {
     width: 76mm !important;
   }
 
-  /* Força a visibilidade apenas dos blocos de Cupom Térmico */
+  /* RECIBO A4 (#print-root-a4): devolve largura real de folha.
+     A regra global acima espremia o recibo em 76mm — saía só uma
+     fatia vertical do documento ("parte do texto"). */
+  html:has(#print-root-a4),
+  body:has(#print-root-a4) {
+    width: auto !important;
+    min-width: 210mm !important;
+  }
+
+  /* Força a visibilidade apenas dos blocos de Cupom Térmico.
+     O seletor com * é OBRIGATÓRIO: `body *` acima esconde DIRETO cada filho,
+     e elemento com regra direta não herda o visible do pai — sem isso o
+     recibo de despesa imprimia em branco/só parte do texto. */
   .cupom-gerencial-print,
   div.cupom-gerencial-print,
+  .cupom-gerencial-print *,
   #print-root,
   #print-root * {
     visibility: visible !important;

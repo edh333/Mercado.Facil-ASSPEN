@@ -144,7 +144,14 @@ export function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('home');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showSalesModal, setShowSalesModal] = useState(false);
-  
+
+  // Troca de aba SEMPRE volta ao topo: sem isso o navegador mantinha a posição
+  // de scroll da aba anterior e o Fluxo de Caixa (e qualquer aba) abria no fim
+  // da página.
+  React.useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }, [activeTab]);
+
   // Real-time Wallet Transactions
   const [walletTx, setWalletTx] = useState<WalletTransaction[]>([]);
   const [loadingWallet, setLoadingWallet] = useState(true);

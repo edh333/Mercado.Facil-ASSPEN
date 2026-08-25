@@ -88,6 +88,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
 
   React.useEffect(() => {
     if (showProductModal && editingProduct) {
+      priceTouchedRef.current = false;
       const priceVal = editingProduct.price || 0;
       const costVal = editingProduct.costPrice || 0;
       const marginVal = editingProduct.margin || 30;
@@ -106,6 +107,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
         category: editingProduct.category || 'Geral'
       });
     } else if (showProductModal && !editingProduct) {
+      priceTouchedRef.current = false;
       setProductForm({
         name: '',
         brand: '',
@@ -122,6 +124,16 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
       });
     }
   }, [showProductModal, editingProduct]);
+
+  // MARGEM MANDA NO PREÇO: mudar custo ou margem recalcula o preço de venda
+  // NA HORA. Digitar o preço manualmente trava o valor (o admin decide).
+  const priceTouchedRef = React.useRef(false);
+  const recalcAutoPrice = (costStr: string, marginStr: string): string => {
+    const c = parseFloat(String(costStr).replace(',', '.')) || 0;
+    const m = parseFloat(String(marginStr).replace(',', '.'));
+    if (!(c > 0) || !Number.isFinite(m) || m < 0) return '';
+    return (c * (1 + m / 100)).toFixed(2);
+  };
 
   const handleProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -423,18 +435,26 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                            <Barcode size={11}/> {scanAviso?.texto || 'Leitor ativo — aponte o leitor e escaneie (Enter)'}
                        </p>
                    </div>
-                   <PremiumInput
-                       label="Custo (R$)"
-                       value={productForm.cost}
-                       onChange={e => setProductForm({...productForm, cost: e.target.value})}
-                       type="number"
-                   />
-                   <PremiumInput
-                       label="Margem (%)"
-                       value={productForm.margin}
-                       onChange={e => setProductForm({...productForm, margin: e.target.value})}
-                       type="number"
-                   />
+                    <PremiumInput
+                        label="Custo (R$)"
+                        value={productForm.cost}
+                        onChange={e => setProductForm(f => ({
+                            ...f,
+                            cost: e.target.value,
+                            price: priceTouchedRef.current ? f.price : recalcAutoPrice(e.target.value, f.margin)
+                        }))}
+                        type="number"
+                    />
+                    <PremiumInput
+                        label="Margem (%)"
+                        value={productForm.margin}
+                        onChange={e => setProductForm(f => ({
+                            ...f,
+                            margin: e.target.value,
+                            price: priceTouchedRef.current ? f.price : recalcAutoPrice(f.cost, e.target.value)
+                        }))}
+                        type="number"
+                    />
                </div>
 
                {/* BOTTOM ROW: Estoque + Estoque Mínimo + Preço */}
@@ -451,13 +471,13 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                        onChange={e => setProductForm({...productForm, minStock: e.target.value})}
                        type="number"
                    />
-                   <PremiumInput
-                       label="Preço de Venda (R$)"
-                       value={productForm.price}
-                       onChange={e => setProductForm({...productForm, price: e.target.value})}
-                       type="number"
-                       placeholder="Deixe 0 para calcular automático"
-                   />
+                    <PremiumInput
+                        label="Preço de Venda (R$)"
+                        value={productForm.price}
+                        onChange={e => { priceTouchedRef.current = true; setProductForm({...productForm, price: e.target.value}); }}
+                        type="number"
+                        placeholder="Ajusta sozinho pela margem — digite para travar"
+                    />
                </div>
 
                {/* TOGGLES */}
@@ -686,7 +706,9 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                   <Printer size={16}/> Bobina 48mm
                 </button>
               )}
-              <button onClick={() => setTimeout(() => window.print(), 350)} className="bg-slate-700 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95 shadow-sm">
+              {/* Duplo rAF: garante layout/paint concluído ANTES do snapshot de
+                  impressão — 1ª impressão não sai mais em branco. */}
+              <button onClick={() => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => window.print(), 150)))} className="bg-slate-700 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95 shadow-sm">
                 <Printer size={16}/> Imprimir
               </button>
             </>
@@ -730,7 +752,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                         const ok = await imprimirHtmlSilencioso(gerarCupomEntregaRaw(printOrder, settings), settings);
                         if (ok) return;
                     }
-                    setTimeout(() => window.print(), 350);
+                    requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => window.print(), 150)));
                   }} className="px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-90 bg-slate-900 text-white hover:bg-slate-700 shadow-sm" title="Imprimir nesta janela">
                   <Printer size={14}/> Imprimir
                 </button>
