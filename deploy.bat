@@ -1,73 +1,56 @@
 @echo off
-title MERCADO FACIL PDV - IMPLANTAÇÃO PROFISSIONAL
-:: Garante que tudo rode na pasta do projeto mesmo com "Executar como administrador"
+setlocal EnableExtensions
+title Mercado Facil - Deploy
+
 cd /d "%~dp0"
-echo ====================================================================
-echo               MERCADO FACIL - ESTEIRA DE DEPLOY COMPLETA            
-echo ====================================================================
+
+echo ============================================================
+echo   MERCADO FACIL - DEPLOY PROFISSIONAL
+echo ============================================================
 echo.
-echo [1/6] LIMPANDO RESÍDUOS DE BUILDS ANTERIORES NO WINDOWS...
-if exist dist (
-    rd /s /q dist
-    echo - Pasta dist antiga removida com sucesso.
-) else (
-    echo - Nenhuma pasta dist anterior detectada.
+
+where node >nul 2>&1
+if errorlevel 1 (
+    echo [ERRO] Node.js nao encontrado no PATH.
+    goto :fail
 )
+
+where firebase >nul 2>&1
+if errorlevel 1 (
+    echo [ERRO] Firebase CLI nao encontrada. Instale com: npm install -g firebase-tools
+    goto :fail
+)
+
+echo [1/5] Verificando dependencias...
+if not exist "node_modules\" (
+    echo        Instalando pacotes (npm install^)...
+    call npm install || goto :fail
+)
+
+echo [2/5] Checagem de tipos (tsc^)...
+call npm run lint || goto :fail
+
+echo [3/5] Testes...
+call npm test || goto :fail
+
+echo [4/5] Build de producao...
+call npm run build || goto :fail
+
+echo [5/5] Publicando no Firebase (hosting + firestore + storage + functions^)...
+call firebase deploy --only hosting,firestore,storage,functions || goto :fail
+
 echo.
-echo [2/6] VALIDANDO SINTAXE DAS FUNÇÕES (CLOUD FUNCTIONS)...
-node --check functions\index.js
-if %errorlevel% neq 0 (
-    echo.
-    echo [ERRO CRÍTICO] SINTAXE INVÁLIDA EM functions\index.js!
-    echo O Deploy foi abortado para proteger o sistema online. Corrija o erro acima.
-    pause
-    exit /b %errorlevel%
-)
+echo ============================================================
+echo   DEPLOY CONCLUIDO COM SUCESSO!
+echo ============================================================
+goto :end
+
+:fail
 echo.
-echo [3/6] EXECUTANDO TESTES AUTOMATIZADOS (FRONTEND + CLOUD FUNCTIONS)...
-call npx vitest run tests
-if %errorlevel% neq 0 (
-    echo.
-    echo [ERRO CRÍTICO] TESTES DO FRONTEND FALHARAM!
-    echo O Deploy foi abortado para proteger o sistema online.
-    pause
-    exit /b %errorlevel%
-)
-pushd functions
-call npx vitest run
-if %errorlevel% neq 0 (
-    popd
-    echo.
-    echo [ERRO CRÍTICO] TESTES DAS CLOUD FUNCTIONS FALHARAM!
-    echo O Deploy foi abortado para proteger o sistema online.
-    pause
-    exit /b %errorlevel%
-)
-popd
-echo.
-echo [4/6] COMPILANDO PROJETO EM MODO DE PRODUÇÃO (VITE)...
-set NODE_OPTIONS=--max-old-space-size=4096
-call npm run build
-if %errorlevel% neq 0 (
-    echo.
-    echo [ERRO CRÍTICO] A COMPILAÇÃO DO VITE FALHOU COM ERROS DE CÓDIGO!
-    echo O Deploy foi abortado para proteger o sistema online. Corrija os erros acima.
-    pause
-    exit /b %errorlevel%
-)
-echo.
-echo [5/6] DEPLOY FORÇADO PARA OS SERVIDORES DO GOOGLE FIREBASE...
-echo - Hosting (site) + Cloud Functions (regras de negócio) + Storage Rules + Firestore Rules...
-call firebase deploy --force --only hosting,functions,storage,firestore:rules
-if %errorlevel% neq 0 (
-    echo.
-    echo [ERRO CRÍTICO] FALHA NA CONEXÃO OU AUTENTICAÇÃO DO FIREBASE DEPLOY!
-    pause
-    exit /b %errorlevel%
-)
-echo.
-echo [6/6] ==============================================================
-echo        IMPLANTAÇÃO CONCLUÍDA! SISTEMA ONLINE E ATUALIZADO NO AR!    
-echo ====================================================================
+echo ============================================================
+echo   DEPLOY INTERROMPIDO - corrija o erro acima e rode novamente
+echo ============================================================
+
+:end
 echo.
 pause
