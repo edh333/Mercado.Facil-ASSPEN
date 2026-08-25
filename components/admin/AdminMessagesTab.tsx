@@ -65,7 +65,11 @@ export const AdminMessagesTab: React.FC<AdminMessagesTabProps> = ({ users, messa
         read: false,
         fromAdmin: true
       });
+      // Só apaga o texto se a gravação realmente sucedeu — sendMessage
+      // agora propaga erros, então uma falha do Firestore preserva o rascunho.
       setBody('');
+    } catch (e: any) {
+      alert('Falha ao enviar a mensagem. Seu texto foi preservado — tente reenviar.');
     } finally {
       setSending(false);
     }

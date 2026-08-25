@@ -809,13 +809,21 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
             if (lastReset !== mondayStr) {
                 console.log('[WeeklyReset] Iniciando reset semanal...');
-                const qUsers = query(collection(db, 'users'), where('weeklySpent', '>', 0), limit(500));
-                let userSnaps = await getDocs(qUsers);
-
-                if (!userSnaps.empty) {
+                // Pagina além do limite de 500: com mais de 500 usuários tendo
+                // gasto na semana, os seguintes ficavam com o limite da semana
+                // anterior travados por mais uma semana (silencioso).
+                let lastDoc: import('firebase/firestore').QueryDocumentSnapshot | null = null;
+                while (true) {
+                    const qUsers = lastDoc
+                        ? query(collection(db, 'users'), where('weeklySpent', '>', 0), startAfter(lastDoc), limit(500))
+                        : query(collection(db, 'users'), where('weeklySpent', '>', 0), limit(500));
+                    const userSnaps = await getDocs(qUsers);
+                    if (userSnaps.empty) break;
                     const batch = writeBatch(db);
                     userSnaps.docs.forEach(d => batch.update(d.ref, { weeklySpent: 0 }));
                     await batch.commit();
+                    if (userSnaps.docs.length < 500) break;
+                    lastDoc = userSnaps.docs[userSnaps.docs.length - 1];
                 }
 
                 await setDoc(doc(db, 'settings', 'maintenance'), { lastWeeklyReset: mondayStr }, { merge: true });
@@ -1913,17 +1921,17 @@ return false;
 
     const sendSystemMessage = async (msg: Partial<SystemMessage>) => { try { await addDoc(collection(db, 'systemMessages'), { id: crypto.randomUUID(), createdAt: new Date().toISOString(), type: 'info', ...msg }); } catch (e: any) { console.warn("[sendSystemMessage]", e.message); } };
     const sendMessage = async (m: Message) => {
-        try {
-            const { id: _id, ...rest } = m;
-            const now = new Date().toISOString();
-            await addDoc(collection(db, 'messages'), {
-                ...rest,
-                date: rest.date || now,
-                createdAt: (rest as any).createdAt || rest.date || now,
-                read: !!rest.read,
-                fromAdmin: !!rest.fromAdmin
-            });
-        } catch (e: any) { console.warn("[sendMessage]", e.message); }
+        // PROPAGA o erro: engolir aqui fazia a tela apagar o texto como se tivesse
+        // enviado — comunicado oficial para familiar era perdido em silêncio.
+        const { id: _id, ...rest } = m;
+        const now = new Date().toISOString();
+        await addDoc(collection(db, 'messages'), {
+            ...rest,
+            date: rest.date || now,
+            createdAt: (rest as any).createdAt || rest.date || now,
+            read: !!rest.read,
+            fromAdmin: !!rest.fromAdmin
+        });
     };
     const markMessageRead = async (id: string) => { try { const msg = messages.find(m => m.id === id); if (msg) await updateDoc(doc(db, 'messages', id), { read: true }); } catch (e: any) { console.warn("[markMessageRead]", e.message); } };
 
@@ -2364,15 +2372,19 @@ return false;
             const lines = text.split('\n');
             const entries: { id: string; name: string; cpf: string }[] = [];
             const seenCpfs = new Set<string>();
+            // Deduplica também contra o banco: reimportar a planilha (ou importar
+            // CPF já cadastrado à mão) NÃO cria o interno em duplicidade.
+            const existingCpfs = new Set((preRegisteredInmates || []).map(i => String(i.cpf || '').replace(/\D/g, '')));
+            let skippedExisting = 0;
 
             for (let line of lines) {
                 const [name, cpf] = line.split(',').map(s => (s || '').trim());
                 if (name && cpf) {
                     const cleanCpf = (cpf || '').replace(/\D/g, '');
-                    if (cleanCpf.length === 11 && !seenCpfs.has(cleanCpf)) {
-                        seenCpfs.add(cleanCpf);
-                        entries.push({ id: crypto.randomUUID(), name: name.toUpperCase(), cpf: cleanCpf });
-                    }
+                    if (cleanCpf.length !== 11 || seenCpfs.has(cleanCpf)) continue;
+                    if (existingCpfs.has(cleanCpf)) { skippedExisting++; continue; }
+                    seenCpfs.add(cleanCpf);
+                    entries.push({ id: crypto.randomUUID(), name: name.toUpperCase(), cpf: cleanCpf });
                 }
             }
 
@@ -2387,7 +2399,7 @@ return false;
                 chunk.forEach(e => batch.set(doc(db, 'pre_registered_inmates', e.id), e));
                 await batch.commit();
             }
-            showNotification(`${entries.length} internos importados com sucesso!`, 'success');
+            showNotification(`${entries.length} internos importados com sucesso!${skippedExisting > 0 ? ` (${skippedExisting} jÃ¡ existentes foram ignorados)` : ''}`, 'success');
         } catch (e: any) {
             showNotification("Erro na importaÃ§Ã£o: " + e.message, "error");
         } finally {

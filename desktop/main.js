@@ -73,7 +73,9 @@ function createWindow() {
     icon: path.join(__dirname, '../public/logo.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
-      nodeIntegration: true,
+      // Renderer NÃO tem acesso ao Node: tudo via electronAPI do preload.
+      // (Zero uso de require/process no src — verificado. XSS futuro não vira RCE.)
+      nodeIntegration: false,
       contextIsolation: true
     }
   });
@@ -144,7 +146,9 @@ ipcMain.handle('save-backup', async (event, { fileName, data }) => {
   if (!fs.existsSync(backupDir)) {
     fs.mkdirSync(backupDir, { recursive: true });
   }
-  const filePath = path.join(backupDir, fileName);
+  // basename impede path traversal ("..\\..\\sistema.txt" escreveria fora da pasta).
+  const safeName = path.basename(String(fileName || 'backup.json'));
+  const filePath = path.join(backupDir, safeName);
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
   return filePath;
 });

@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { formatarMoeda } from '../../utils';
 import { Shield, Plus, Trash2, Search, UserCheck, FileUp, LayoutGrid, Smartphone } from 'lucide-react';
 
@@ -38,6 +38,19 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
 
   const totalInmates = consolidatedData.length;
   const withFamily = consolidatedData.filter(i => i.linkedUsers.length > 0).length;
+
+  // Bloqueia exclusão de interno COM família vinculada: o saldo fica nos docs
+  // dos usuários, mas cadastros futuros daquele CPF seriam barrados (Login exige
+  // pré-cadastro) e a supervisão consolidada perderia a referência. Um único
+  // diálogo — sem o duplo confirm que existia antes.
+  const handleDeleteInmate = (inmate: any) => {
+    const vinculados = inmate?.linkedUsers?.length || 0;
+    if (vinculados > 0) {
+      alert(`NÃO É POSSÍVEL REMOVER: ${vinculados} familiar(es) vinculado(s) a ${inmate?.name || 'este interno'}.\nTransfira os familiares para outro interno antes de remover.`);
+      return;
+    }
+    if (confirm(`REMOVER DEFINITIVAMENTE ${inmate?.name || 'este preso'}?`)) deletePreRegisteredInmate(inmate?.id);
+  };
 
   return (
     <div className="animate-slideUp space-y-8 pb-20">
@@ -167,7 +180,7 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
                                     </td>
                                     <td className="p-5 text-center">
                                         <button
-                                            onClick={() => { if(confirm(`REMOVER DEFINITIVAMENTE ${inmate?.name || 'este preso'}?`)) deletePreRegisteredInmate(inmate?.id); }}
+                                            onClick={() => handleDeleteInmate(inmate)}
                                             className="p-3 bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-red-500 hover:border-red-500/20 hover:bg-red-500/5 rounded-xl transition-all shadow-sm active:scale-95"
                                         >
                                             <Trash2 size={18}/>
@@ -218,7 +231,7 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
                                 </p>
                             </div>
                             <button
-                                onClick={() => { if(confirm(`REMOVER DEFINITIVAMENTE ${inmate?.name || 'este preso'}?`)) deletePreRegisteredInmate(inmate?.id); }}
+                                onClick={() => handleDeleteInmate(inmate)}
                                 className="p-3 bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-red-500 hover:border-red-500/20 hover:bg-red-500/5 rounded-xl transition-all shadow-sm active:scale-95"
                             >
                                 <Trash2 size={18}/>

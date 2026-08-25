@@ -125,7 +125,13 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
   // ── Actions ──
 
   const handleOpen = async () => {
-    if (!initialBalance || isNaN(Number(initialBalance))) return;
+    // Aceita 0 (gaveta vazia), mas rejeita vazio/NaN/negativo — o min="0"
+    // do HTML não impede digitação de "-50".
+    const valor = Number(initialBalance);
+    if (initialBalance === '' || isNaN(valor) || !(valor >= 0)) {
+      showToast('Informe um saldo inicial zero ou positivo.', 'error');
+      return;
+    }
     setActionLoading(true);
     try {
       await openCashSession(operatorId, operatorName, Number(initialBalance));
@@ -174,6 +180,12 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
 
   const handleClose = async () => {
     if (!session || !closedBalance) return;
+    // Espelha a guarda do servidor: contagem física negativa/NaN não existe.
+    const contado = Number(closedBalance);
+    if (isNaN(contado) || !(contado >= 0)) {
+      showToast('Valor contado deve ser zero ou positivo.', 'error');
+      return;
+    }
     setActionLoading(true);
     try {
       const result = await closeCashSession(session.id, Number(closedBalance));

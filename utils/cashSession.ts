@@ -63,6 +63,12 @@ export async function openCashSession(
   initialBalance: number
 ): Promise<string> {
   try {
+    // Gaveta não nasce negativa: NaN/negativo contaminaria suprimentos,
+    // sangrias e a quebra de caixa do dia inteiro. Zero é permitido.
+    const inicial = Number(initialBalance);
+    if (isNaN(inicial) || !(inicial >= 0)) {
+      throw new Error("Saldo inicial deve ser zero ou positivo.");
+    }
     // Guard: only one open session per operator
     const q = query(
       collection(db, "cash_sessions"),
@@ -81,8 +87,8 @@ export async function openCashSession(
       status: "open",
       openedAt: Timestamp.now(),
       closedAt: null,
-      initialBalance: Number(initialBalance),
-      currentBalance: Number(initialBalance),
+      initialBalance: inicial,
+      currentBalance: inicial,
       supplements: [],
       withdrawals: [],
       closedBalance: 0,
@@ -172,6 +178,12 @@ export async function closeCashSession(
   closedBalance: number
 ): Promise<{ diff: number; expected: number }> {
   try {
+    // Contagem física negativa não existe — registraria "sobra" absurda
+    // no relatório de auditoria de quebra de caixa.
+    const contado = Number(closedBalance);
+    if (isNaN(contado) || !(contado >= 0)) {
+      throw new Error("Valor contado deve ser zero ou positivo.");
+    }
     const sessionRef = doc(db, "cash_sessions", sessionId);
     const sessionSnap = await getDoc(sessionRef);
 
@@ -181,12 +193,12 @@ export async function closeCashSession(
 
     const data = sessionSnap.data() as CashSession;
     const expected = data.currentBalance;
-    const diff = Number(closedBalance) - expected;
+    const diff = contado - expected;
 
     await updateDoc(sessionRef, {
       status: "closed",
       closedAt: Timestamp.now(),
-      closedBalance: Number(closedBalance),
+      closedBalance: contado,
       expectedBalance: Number(expected),
       cashDifference: diff,
       balanceDiff: diff,

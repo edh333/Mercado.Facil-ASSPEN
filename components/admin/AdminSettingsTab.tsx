@@ -305,6 +305,36 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
     if (settings) setLocalSettings(settings);
   }, [settings]);
 
+  // ── Rascunho p/ campos de texto/número (Financeiro/Impressão/Entregas) ──
+  // Grava no Firestore só ao SAIR do campo (blur/Enter), não a cada tecla.
+  // Antes: digitar "350" publicava ao vivo 3 → 35 → 350 (bloqueando compras
+  // legítimas durante a digitação) e limpar o campo gravava NaN.
+  const [fieldDrafts, setFieldDrafts] = React.useState<Record<string, string>>({});
+  const draftValue = (field: string, current: any, fallback: any) =>
+    fieldDrafts[field] !== undefined ? fieldDrafts[field] : String(current ?? fallback ?? '');
+  const setDraft = (field: string, v: string) => setFieldDrafts(prev => ({ ...prev, [field]: v }));
+  const commitDraft = (
+    field: string,
+    opts: { num?: boolean; int?: boolean; fallback?: number; min?: number; max?: number } = {}
+  ) => {
+    const raw = fieldDrafts[field];
+    if (raw === undefined || !settings) return;
+    let value: any = raw;
+    if (opts.num || opts.int) {
+      value = opts.int ? parseInt(raw, 10) : parseFloat(raw);
+      if (isNaN(value)) value = opts.fallback ?? 0;
+      if (opts.min !== undefined) value = Math.max(opts.min, value);
+      if (opts.max !== undefined) value = Math.min(opts.max, value);
+    }
+    if ((settings as any)[field] !== value) {
+      updateSettings({ ...(settings as any), [field]: value });
+    }
+    setFieldDrafts(prev => { const next = { ...prev }; delete next[field]; return next; });
+  };
+  const commitOnEnter = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+  };
+
   const handleSaveSettings = async () => {
     setIsSaving(true);
     try {
@@ -789,8 +819,10 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                   <input
                     type="number"
                     className="w-full p-3 bg-white border-2 border-slate-400 rounded-xl font-black text-sm text-slate-900"
-                    value={settings?.weeklyWalletLimit || 300}
-                    onChange={e => updateSettings({ ...settings, weeklyWalletLimit: parseFloat(e.target.value) })}
+                    value={draftValue('weeklyWalletLimit', settings?.weeklyWalletLimit, 300)}
+                    onChange={e => setDraft('weeklyWalletLimit', e.target.value)}
+                    onBlur={() => commitDraft('weeklyWalletLimit', { num: true, fallback: 300, min: 0 })}
+                    onKeyDown={commitOnEnter}
                   />
                 </div>
               </div>
@@ -806,16 +838,19 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                   <input
                     type="number"
                     className="w-full p-3 bg-white border-2 border-slate-400 rounded-xl font-black text-sm text-slate-900"
-                    value={settings?.deliveryDays || 3}
-                    onChange={e => updateSettings({ ...settings, deliveryDays: parseInt(e.target.value) })}
+                    value={draftValue('deliveryDays', settings?.deliveryDays, 3)}
+                    onChange={e => setDraft('deliveryDays', e.target.value)}
+                    onBlur={() => commitDraft('deliveryDays', { int: true, fallback: 3, min: 0 })}
+                    onKeyDown={commitOnEnter}
                   />
                 </div>
                 <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
                   <p className="text-xs font-black uppercase text-slate-900 mb-2">Mensagem Boas-vindas</p>
                   <textarea
                     className="w-full p-3 bg-white border-2 border-slate-400 rounded-xl font-bold text-sm text-slate-900 h-24"
-                    value={settings?.welcomeMessage || ''}
-                    onChange={e => updateSettings({ ...settings, welcomeMessage: e.target.value })}
+                    value={draftValue('welcomeMessage', settings?.welcomeMessage, '')}
+                    onChange={e => setDraft('welcomeMessage', e.target.value)}
+                    onBlur={() => commitDraft('welcomeMessage')}
                     placeholder="Mensagem que aparece para novos usuários"
                   />
                 </div>
@@ -836,16 +871,19 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                   <label className="text-[10px] font-black text-slate-900 uppercase mb-1 block">Nome do Documento</label>
                   <input
                     className="w-full text-slate-800 bg-white border border-slate-300 px-4 py-3.5 rounded-xl font-medium focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 outline-none transition-all"
-                    value={settings?.customReceiptDocName || 'RECIBO'}
-                    onChange={e => updateSettings({ ...settings, customReceiptDocName: e.target.value })}
+                    value={draftValue('customReceiptDocName', settings?.customReceiptDocName, 'RECIBO')}
+                    onChange={e => setDraft('customReceiptDocName', e.target.value)}
+                    onBlur={() => commitDraft('customReceiptDocName')}
+                    onKeyDown={commitOnEnter}
                   />
                 </div>
                 <div>
                   <label className="text-[10px] font-black text-slate-900 uppercase mb-1 block">Texto de Rodapé do Cupom</label>
                   <textarea
                     className="w-full text-slate-800 bg-white border border-slate-300 px-4 py-3.5 rounded-xl font-medium focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 outline-none transition-all h-24 resize-none"
-                    value={settings?.receiptFooter || ''}
-                    onChange={e => updateSettings({ ...settings, receiptFooter: e.target.value })}
+                    value={draftValue('receiptFooter', settings?.receiptFooter, '')}
+                    onChange={e => setDraft('receiptFooter', e.target.value)}
+                    onBlur={() => commitDraft('receiptFooter')}
                     placeholder="Ex: Obrigado pela preferência!"
                   />
                 </div>
@@ -866,8 +904,10 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                     min={1}
                     max={9}
                     className="w-full p-3 bg-white border-2 border-slate-400 rounded-xl font-black text-sm text-slate-900"
-                    value={settings?.receiptCopies || 1}
-                    onChange={e => updateSettings({ ...settings, receiptCopies: Math.max(1, Math.min(9, parseInt(e.target.value) || 1)) })}
+                    value={draftValue('receiptCopies', settings?.receiptCopies, 1)}
+                    onChange={e => setDraft('receiptCopies', e.target.value)}
+                    onBlur={() => commitDraft('receiptCopies', { int: true, fallback: 1, min: 1, max: 9 })}
+                    onKeyDown={commitOnEnter}
                   />
                   <p className="text-[10px] text-slate-500 mt-1">1 = normal · 2+ para via de conferência</p>
                 </div>
@@ -878,8 +918,10 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                     min={8}
                     max={14}
                     className="w-full p-3 bg-white border-2 border-slate-400 rounded-xl font-black text-sm text-slate-900"
-                    value={settings?.receiptFontSize || 10}
-                    onChange={e => updateSettings({ ...settings, receiptFontSize: Math.max(8, Math.min(14, parseInt(e.target.value) || 10)) })}
+                    value={draftValue('receiptFontSize', settings?.receiptFontSize, 10)}
+                    onChange={e => setDraft('receiptFontSize', e.target.value)}
+                    onBlur={() => commitDraft('receiptFontSize', { int: true, fallback: 10, min: 8, max: 14 })}
+                    onKeyDown={commitOnEnter}
                   />
                 </div>
               </div>
