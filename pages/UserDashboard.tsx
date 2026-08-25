@@ -37,9 +37,18 @@ export const UserDashboard: React.FC = () => {
     const [mobileView, setMobileView] = useState<'catalog' | 'cart' | 'payment'>('catalog');
 
     // States do Carrinho e Pedido
-    const [cart, setCart] = useState<CartItem[]>([]);
+    const [cart, setCart] = useState<CartItem[]>(() => {
+        // Carrinho persiste entre sessões: familiar fecha o app e não perde a compra.
+        try {
+            const raw = localStorage.getItem(`mf_cart_${currentUser?.id || 'anon'}`);
+            const parsed = raw ? JSON.parse(raw) : [];
+            return Array.isArray(parsed) ? parsed : [];
+        } catch { return []; }
+    });
     const [isMsgOpen, setIsMsgOpen] = useState(false);
     const [showUninstallModal, setShowUninstallModal] = useState(false);
+    const [confirmarLimpar, setConfirmarLimpar] = useState(false);
+    const [catFilter, setCatFilter] = useState<string>('ALL');
     const [searchTerm, setSearchTerm] = useState('');
     const [stage, setStage] = useState<'cart' | 'location' | 'pay' | 'proof'>('cart');
     const [location, setLocation] = useState({ ray: '', wing: '', cell: '' });
@@ -237,11 +246,13 @@ export const UserDashboard: React.FC = () => {
                 }
             }
         };
-        window.addEventListener('keydown', handleKeyDown);
+        // Atalhos de teclado (F2/F4/F6/F7/F8/F9): exclusivos do modo PDV do admin.
+        // O familiar usa toque; atalhos globais só atrapalhariam no desktop.
+        if (isAdmin) window.addEventListener('keydown', handleKeyDown);
 
         return () => {
             if (unsubOrders) unsubOrders();
-            window.removeEventListener('keydown', handleKeyDown);
+            if (isAdmin) window.removeEventListener('keydown', handleKeyDown);
         };
     }, [currentUser?.id]);
 
@@ -259,13 +270,20 @@ export const UserDashboard: React.FC = () => {
     const safeMessages = Array.isArray(messages) ? messages : [];
 
     const filteredProducts = useMemo(() => {
-        const termo = (searchTerm || '').toLowerCase();
+        const termo = (searchTerm || '').toLowerCase().trim();
         return safeProducts.filter(p => {
-            const matchName = (p.name || '').toLowerCase().includes(termo);
-            const isAvailable = p.available !== false;
-            return matchName && isAvailable;
+            if (p.available === false) return false;
+            if (catFilter !== 'ALL' && (p.category || '').trim() !== catFilter) return false;
+            if (!termo) return true;
+            const alvo = `${p.name || ''} ${p.brand || ''} ${p.category || ''} ${p.description || ''}`.toLowerCase();
+            return alvo.includes(termo);
         });
-    }, [safeProducts, searchTerm]);
+    }, [safeProducts, searchTerm, catFilter]);
+
+    const categorias = useMemo(() =>
+        Array.from(new Set(safeProducts.filter(p => p.available !== false).map(p => (p.category || '').trim()).filter(Boolean)))
+            .sort((a, b) => a.localeCompare(b, 'pt-BR')),
+    [safeProducts]);
 
     const myMessages = useMemo(() => {
         return safeMessages.filter(m => m.userId === currentUser?.id || m.userId === 'ALL');
@@ -297,6 +315,12 @@ export const UserDashboard: React.FC = () => {
         }
     };
 
+    // Preço praticado: promoPrice ativo é a fonte da verdade (mesma regra do servidor).
+    const precoEfetivo = (p: any): number => {
+        const promo = Number(p?.promoPrice);
+        return Number.isFinite(promo) && promo > 0 ? promo : Number(p?.price || 0);
+    };
+
     const searchInputRef = useRef<HTMLInputElement>(null);
 
     const addToCart = (product: Product) => {
@@ -323,7 +347,7 @@ export const UserDashboard: React.FC = () => {
                 ...product,
                 productId: product.id,
                 quantity: 1,
-                priceAtPurchase: product.price
+                priceAtPurchase: precoEfetivo(product)
             }];
         });
     };
@@ -348,10 +372,17 @@ export const UserDashboard: React.FC = () => {
             searchInputRef.current?.focus();
             showNotification('Venda cancelada!', 'success');
         } else {
-            if (cart.length > 0 && !window.confirm('Deseja cancelar a venda e limpar o carrinho?')) return;
+            // Dois toques no lugar do confirm nativo do navegador: sem janela feia,
+            // com desarme automático e impossível de apagar o carrinho sem querer.
+            if (cart.length > 0 && !confirmarLimpar) {
+                setConfirmarLimpar(true);
+                window.setTimeout(() => setConfirmarLimpar(false), 3500);
+                return;
+            }
+            setConfirmarLimpar(false);
             setCart([]);
             setStage('cart');
-            showNotification('Venda cancelada!', 'success');
+            showNotification('Carrinho esvaziado!', 'success');
         }
     };
 
@@ -389,13 +420,18 @@ export const UserDashboard: React.FC = () => {
     const cartTotal = (() => {
         const cents = cart.reduce((acc, item) => {
             const prod = safeProducts.find(p => String(p.id) === String(item.productId));
-            const price = item.priceAtPurchase ?? (prod ? prod.price : (item.price || 0));
+            const price = item.priceAtPurchase ?? (prod ? precoEfetivo(prod) : (item.price || 0));
             return acc + Math.round(price * 100) * (item.quantity || 0);
         }, 0);
         return cents / 100;
     })();
 
     const totalItensNoCarrinho = (cart || []).reduce((sum, item) => sum + (item.quantity || 0), 0);
+
+    // Persistência do carrinho entre sessões
+    useEffect(() => {
+        try { localStorage.setItem(`mf_cart_${currentUser?.id || 'anon'}`, JSON.stringify(cart)); } catch { /* quota */ }
+    }, [cart, currentUser?.id]);
 
     const toggleOrderDetails = (orderId: string) => {
         setExpandedOrders(prev => prev.includes(orderId) ? prev.filter(id => id !== orderId) : [...prev, orderId]);
@@ -410,6 +446,16 @@ export const UserDashboard: React.FC = () => {
         if (s.includes('delivered') || s.includes('entregue')) return 'Entregue';
         if (s.includes('cancel')) return 'Cancelado';
         return status;
+    };
+
+    const getStatusStyle = (status: string) => {
+        const s = (status || '').toLowerCase();
+        if (s.includes('cancel')) return 'bg-red-100 text-red-700';
+        if (s.includes('deliver') || s.includes('entregue')) return 'bg-emerald-100 text-emerald-700';
+        if (s === 'paid' || s.includes('pago')) return 'bg-green-100 text-green-700';
+        if (s.includes('separa') || s.includes('prepar')) return 'bg-indigo-100 text-indigo-700';
+        if (s.includes('saiu') || s.includes('delivery')) return 'bg-sky-100 text-sky-700';
+        return 'bg-amber-100 text-amber-700';
     };
 
     const handleFinish = async () => {
@@ -445,7 +491,7 @@ export const UserDashboard: React.FC = () => {
                     return {
                         productId: i.productId,
                         quantity: i.quantity,
-                        priceAtPurchase: p ? p.price : (i.price || 0),
+                        priceAtPurchase: p ? precoEfetivo(p) : (i.price || 0),
                         name: p ? (p?.name || 'Item Removido') : (i.name || 'Item Removido'),
                         imageUrl: p ? p.imageUrl : ''
                     };
@@ -799,13 +845,36 @@ export const UserDashboard: React.FC = () => {
                     <input 
                         id="searchInput"
                         ref={searchInputRef}
-                        className="w-full pl-14 pr-6 py-4 rounded-2xl border-2 border-slate-300 focus:border-[var(--primary-color)] outline-none bg-slate-50 text-sm font-bold shadow-sm" 
+                        className="w-full pl-14 pr-12 py-4 rounded-2xl border-2 border-slate-300 focus:border-[var(--primary-color)] outline-none bg-slate-50 text-sm font-bold shadow-sm" 
                         placeholder="Buscar produto..." 
                         value={searchTerm} 
-                        onChange={handleSearchChange} 
+                        onChange={handleSearchChange}
+                        autoComplete="off" 
                     />
+                    {searchTerm && (
+                        <button onClick={() => setSearchTerm('')} title="Limpar busca" className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-slate-400 transition-all active:scale-90">
+                            <X size={16} />
+                        </button>
+                    )}
                 </div>
             </div>
+
+            {/* Chips de categoria */}
+            {categorias.length > 1 && (
+                <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: 'none' }}>
+                    {[{ id: 'ALL', label: `Tudo (${safeProducts.filter(p => p.available !== false).length})` },
+                      ...categorias.map(c => ({ id: c, label: c }))]
+                        .map(cat => (
+                            <button
+                                key={cat.id}
+                                onClick={() => setCatFilter(cat.id)}
+                                className={`shrink-0 px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wide border transition-all active:scale-95 ${catFilter === cat.id ? 'bg-[var(--primary-color)] text-white border-[var(--primary-color)] shadow-sm' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}
+                            >
+                                {cat.label}
+                            </button>
+                        ))}
+                </div>
+            )}
 
             {/* Vitrine Premium — Grid 2 colunas */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
@@ -816,6 +885,7 @@ export const UserDashboard: React.FC = () => {
                     </div>
                 ) : filteredProducts.map((p: any, idx: number) => {
                     const isOutOfStock = (p?.stock || 0) <= 0;
+                    const emOferta = Number(p?.promoPrice) > 0 && Number(p?.promoPrice) < Number(p?.price || 0);
                     return (
                         <div
                             key={p?.id || `prod-${idx}`}
@@ -824,6 +894,9 @@ export const UserDashboard: React.FC = () => {
                         >
                             <div className="w-full aspect-square rounded-lg overflow-hidden bg-slate-50 border border-slate-100 mb-2.5 relative">
                                 <img src={p.imageUrl || 'https://placehold.co/200'} className="w-full h-full object-contain" alt={p.name} loading="lazy" />
+                                {emOferta && !isOutOfStock && (
+                                    <span className="absolute top-1.5 left-1.5 bg-red-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider shadow">Oferta</span>
+                                )}
                                 {isOutOfStock && (
                                     <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
                                         <span className="text-[10px] font-bold bg-white text-slate-900 px-3 py-1 rounded-full">Esgotado</span>
@@ -833,11 +906,16 @@ export const UserDashboard: React.FC = () => {
                             <div className="flex-1 flex flex-col justify-between">
                                 <h4 className="text-slate-800 font-medium text-[13px] leading-snug line-clamp-2 mb-2">{p.name}</h4>
                                 <div className="flex items-center justify-between gap-2">
-                                    <span className="text-[var(--primary-color)] font-bold text-sm">R$ {formatarMoeda(p.price)}</span>
+                                    <div className="leading-none min-w-0">
+                                        {emOferta && (
+                                            <span className="block text-[10px] font-semibold text-slate-400 line-through mb-0.5">R$ {formatarMoeda(p.price)}</span>
+                                        )}
+                                        <span className={`font-bold text-sm ${emOferta ? 'text-red-600' : 'text-[var(--primary-color)]'}`}>R$ {formatarMoeda(precoEfetivo(p))}</span>
+                                    </div>
                                     <button
                                         onClick={(e) => { e.stopPropagation(); if (!isOutOfStock) addToCart(p); }}
                                         disabled={isOutOfStock}
-                                        className="bg-[var(--primary-color)] hover:brightness-110 text-white rounded-lg p-2 transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer shadow-sm"
+                                        className="bg-[var(--primary-color)] hover:brightness-110 text-white rounded-lg p-2 transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer shadow-sm shrink-0"
                                     >
                                         <Plus size={15} />
                                     </button>
@@ -847,84 +925,6 @@ export const UserDashboard: React.FC = () => {
                     );
                 })}
             </div>
-
-            {/* Product Catalog Modal (F4) */}
-            {isProductsModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn" onClick={() => setIsProductsModalOpen(false)}>
-                    <motion.div 
-                        initial={{ opacity: 0, scale: 0.95 }} 
-                        animate={{ opacity: 1, scale: 1 }} 
-                        className="bg-white rounded-3xl p-6 shadow-2xl max-w-5xl w-full max-h-[85vh] overflow-hidden flex flex-col border border-slate-200"
-                        onClick={e => e.stopPropagation()}
-                    >
-                        <div className="flex justify-between items-center pb-4 border-b border-slate-100 mb-4 shrink-0">
-                            <div>
-                                <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight"><Search size={18} className="inline-block mr-1.5 -mt-0.5 text-[var(--primary-color)]" />Catálogo de Produtos</h3>
-                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Selecione os produtos para adicionar ao carrinho (F4 para fechar)</p>
-                            </div>
-                            <button 
-                                onClick={() => setIsProductsModalOpen(false)}
-                                className="p-2 text-slate-400 hover:text-red-500 rounded-xl transition-all"
-                            >
-                                <X size={24} />
-                            </button>
-                        </div>
-
-                        <div className="relative mb-4 shrink-0">
-                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
-                                <Search size={18} />
-                            </div>
-                            <input 
-                                className="w-full pl-12 pr-6 py-2.5 rounded-xl border border-slate-200 focus:border-[var(--primary-color)] outline-none bg-slate-50 text-sm font-bold shadow-inner" 
-                                placeholder="Filtrar produtos no catálogo..." 
-                                value={searchTerm} 
-                                onChange={e => setSearchTerm(e.target.value)} 
-                            />
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto pr-1">
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                                {filteredProducts.length === 0 ? (
-                                    <div className="col-span-full text-center py-20 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                                        <ShoppingBag size={40} className="mx-auto mb-4 opacity-25 text-slate-400" />
-                                        <p className="font-black uppercase tracking-wider text-xs text-slate-400">Nenhum produto cadastrado</p>
-                                    </div>
-                                ) : filteredProducts.map((p: any, idx: number) => {
-                                    const isOutOfStock = (p?.stock || 0) <= 0;
-                                    return (
-                                        <div
-                                            key={p?.id || `modal-produto-${idx}`}
-                                            className={`bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-200 p-3 flex flex-col justify-between h-full relative ${isOutOfStock ? 'opacity-60 grayscale' : ''}`}
-                                        >
-                                            <div className="w-full aspect-square rounded-lg overflow-hidden bg-slate-50 border border-slate-100 mb-2.5 relative">
-                                                <img src={p.imageUrl || 'https://placehold.co/200'} className="w-full h-full object-contain" alt={p.name} loading="lazy" />
-                                                {isOutOfStock && (
-                                                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                                                        <span className="text-[10px] font-bold bg-white text-slate-900 px-3 py-1 rounded-full">Esgotado</span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <div className="flex-1 flex flex-col justify-between">
-                                                <h4 className="text-slate-800 font-medium text-[13px] leading-snug line-clamp-2 mb-2">{p.name}</h4>
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <span className="text-[var(--primary-color)] font-bold text-sm">R$ {formatarMoeda(p.price)}</span>
-                                                    <button
-                                                        onClick={() => addToCart(p)}
-                                                        disabled={isOutOfStock}
-                                                        className="bg-[var(--primary-color)] hover:brightness-110 text-white rounded-lg p-2 transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer shadow-sm"
-                                                    >
-                                                        <Plus size={15} />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    </motion.div>
-                </div>
-            )}
         </div>
     );
 
@@ -1247,7 +1247,7 @@ export const UserDashboard: React.FC = () => {
                                                 ) : (
                                                     <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-[11px] font-semibold">PIX</span>
                                                 )}
-                                                <span className={`px-3.5 py-1.5 rounded-full text-[11px] font-semibold ${order.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{order.status}</span>
+                                                <span className={`px-3.5 py-1.5 rounded-full text-[11px] font-semibold ${getStatusStyle(order.status)}`}>{getStatusLabel(order.status)}</span>
                                             </div>
                                         </div>
                                         <div className="flex justify-between items-center">
@@ -1502,8 +1502,8 @@ export const UserDashboard: React.FC = () => {
                             <p className="text-[9px] font-black text-[var(--primary-color)] uppercase tracking-widest mb-2">TOTAL GERAL</p>
                             <p className="font-black text-3xl text-slate-900">R$ {formatarMoeda(cartTotal)}</p>
                         </div>
-                        <button onClick={cancelSale} className="w-full py-3 rounded-xl font-bold text-sm bg-red-500 text-white active:scale-95 mb-2 flex items-center justify-center gap-2">
-                            <X size={14} className="inline-block mr-1.5 -mt-0.5" /> {isAdmin ? 'Cancelar (F7)' : 'Limpar Carrinho'}
+                        <button onClick={cancelSale} className={`w-full py-3 rounded-xl font-bold text-sm text-white active:scale-95 mb-2 flex items-center justify-center gap-2 transition-all ${!isAdmin && confirmarLimpar ? 'bg-red-600 ring-4 ring-red-200 animate-pulse' : 'bg-red-500'}`}>
+                            <X size={14} className="inline-block mr-1.5 -mt-0.5" /> {isAdmin ? 'Cancelar (F7)' : (confirmarLimpar ? 'Toque de novo para confirmar' : 'Limpar Carrinho')}
                         </button>
                         {isAdmin && (
                             <button onClick={() => {
