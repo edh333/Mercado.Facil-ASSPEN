@@ -80,6 +80,40 @@ const [recoveryName, setRecoveryName] = useState('');
         setFormSuccess(null);
 
         try {
+            // Primeiro admin setup
+            if (isAdmin && showFirstAdminSetup) {
+                if (firstAdminForm.name.trim().length < 3) { setFormError("Informe o nome do administrador."); setIsLoading(false); return; }
+                if (!firstAdminForm.email.includes('@') || firstAdminForm.email.length < 6) { setFormError("E-mail inválido."); setIsLoading(false); return; }
+                if (firstAdminForm.password.length < 6) { setFormError("Senha deve ter no mínimo 6 caracteres."); setIsLoading(false); return; }
+                if (firstAdminForm.password !== firstAdminForm.confirm) { setFormError("Senhas não coincidem."); setIsLoading(false); return; }
+                setLoadingMessage('Criando administrador inicial...');
+                try {
+                    const res: any = await fnCriarPrimeiroAdmin({
+                        nome: firstAdminForm.name.trim(),
+                        email: firstAdminForm.email.trim(),
+                        senha: firstAdminForm.password
+                    });
+                    if (res?.data?.ok) {
+                        setShowFirstAdminSetup(false);
+                        setAdminEmail(firstAdminForm.email.trim());
+                        setPassword(firstAdminForm.password);
+                        setFormError(null);
+                        setFormSuccess("Administrador criado! Entre com a senha definida.");
+                        showNotification('Administrador inicial criado com sucesso!', 'success');
+                    } else {
+                        throw new Error("Falha ao criar o administrador.");
+                    }
+                } catch (err: any) {
+                    const msg = err?.message || 'Erro ao criar o administrador inicial.';
+                    setFormError(msg);
+                    showNotification(msg, "error");
+                } finally {
+                    setIsLoading(false);
+                    setLoadingMessage('');
+                }
+                return;
+            }
+
             if (isAdmin) {
                 setLoadingMessage('Autenticando...');
                 await loginAdmin(adminEmail, password);
@@ -151,40 +185,6 @@ const [recoveryName, setRecoveryName] = useState('');
             if (isAdmin && String(error.message || '').toLowerCase().includes('primeiro acesso')) {
                 setShowFirstAdminSetup(true);
             }
-        } finally {
-            setIsLoading(false);
-            setLoadingMessage('');
-        }
-    };
-
-    const handleFirstAdminSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (firstAdminForm.name.trim().length < 3) { setFormError("Informe o nome do administrador."); return; }
-        if (!firstAdminForm.email.includes('@') || firstAdminForm.email.length < 6) { setFormError("E-mail inválido."); return; }
-        if (firstAdminForm.password.length < 6) { setFormError("Senha deve ter no mínimo 6 caracteres."); return; }
-        if (firstAdminForm.password !== firstAdminForm.confirm) { setFormError("Senhas não coincidem."); return; }
-        setIsLoading(true);
-        setLoadingMessage('Criando administrador inicial...');
-        try {
-            const res: any = await fnCriarPrimeiroAdmin({
-                nome: firstAdminForm.name.trim(),
-                email: firstAdminForm.email.trim(),
-                senha: firstAdminForm.password
-            });
-            if (res?.data?.ok) {
-                setShowFirstAdminSetup(false);
-                setAdminEmail(firstAdminForm.email.trim());
-                setPassword(firstAdminForm.password);
-                setFormError(null);
-                setFormSuccess("Administrador criado! Entre com a senha definida.");
-                showNotification('Administrador inicial criado com sucesso!', 'success');
-            } else {
-                throw new Error("Falha ao criar o administrador.");
-            }
-        } catch (err: any) {
-            const msg = err?.message || 'Erro ao criar o administrador inicial.';
-            setFormError(msg);
-            showNotification(msg, "error");
         } finally {
             setIsLoading(false);
             setLoadingMessage('');
@@ -325,7 +325,7 @@ const [recoveryName, setRecoveryName] = useState('');
                             </div>
                         )}
 
-                        <form onSubmit={handleSubmit} className="space-y-4">
+                        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
 
                             {/* Feedbacks */}
                             <AnimatePresence>
@@ -483,8 +483,7 @@ const [recoveryName, setRecoveryName] = useState('');
 
                             {/* Main Button */}
                             <button
-                                type="button"
-                                onClick={isAdmin && showFirstAdminSetup ? handleFirstAdminSubmit : handleSubmit}
+                                type="submit"
                                 disabled={isLoading}
                                 className={`w-full py-3.5 rounded-lg font-semibold text-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2 relative overflow-hidden group bg-[#0e7a4d] hover:bg-[#0c6a42] text-white disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer shadow-sm`}
                             >
