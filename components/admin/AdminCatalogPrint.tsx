@@ -59,7 +59,8 @@ export const AdminCatalogPrint: React.FC<AdminCatalogPrintProps> = ({ products, 
                                     </div>
                                     <div className="text-right flex-shrink-0 flex items-center gap-6">
                                         <p className="text-[10px] font-black bg-black text-white px-2 py-0.5 rounded uppercase">Estoque: {p?.stock || 0}</p>
-                                        <p className="font-black text-lg text-black">R$ {formatarMoeda(p.price).replace('.', ',')}</p>
+                                        {/* Preço praticado (promo quando ativo) — formatarMoeda já sai em pt-BR; o .replace antigo corrompia valores acima de R$ 1.000 */}
+                                        <p className="font-black text-lg text-black">R$ {formatarMoeda(Number(p?.promoPrice) > 0 ? Number(p.promoPrice) : Number(p?.price || 0))}</p>
                                     </div>
                                 </div>
                              ))}

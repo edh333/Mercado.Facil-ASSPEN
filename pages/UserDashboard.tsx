@@ -433,6 +433,29 @@ export const UserDashboard: React.FC = () => {
         try { localStorage.setItem(`mf_cart_${currentUser?.id || 'anon'}`, JSON.stringify(cart)); } catch { /* quota */ }
     }, [cart, currentUser?.id]);
 
+    // Saneamento do carrinho persistido: remove itens de produtos APAGADOS do catálogo
+    // (o checkout travava com erro "Produto não encontrado: <uuid>") e RE-PREÇA os demais
+    // com o valor praticado atual — promoção entrou ou saiu, o total exibido acompanha.
+    useEffect(() => {
+        if (!safeProducts.length) return;
+        const ids = new Set(safeProducts.map(p => String(p.id)));
+        let removidos: string[] = [];
+        setCart(prev => {
+            const proximo: CartItem[] = [];
+            for (const item of prev) {
+                if (String(item.productId).startsWith('SERVICE-')) { proximo.push(item); continue; }
+                const prod = safeProducts.find(p => String(p.id) === String(item.productId));
+                if (!prod) { removidos.push(item.name || 'Item'); continue; }
+                const novoPreco = precoEfetivo(prod);
+                const inalterado = Math.round(novoPreco * 100) === Math.round(Number(item.priceAtPurchase ?? novoPreco) * 100);
+                proximo.push(inalterado ? item : { ...item, priceAtPurchase: novoPreco });
+            }
+            const mudou = proximo.length !== prev.length || proximo.some((it, i) => it !== prev[i]);
+            return mudou ? proximo : prev;
+        });
+        if (removidos.length) showNotification(`${removidos.length} item(ns) saiu(sam) do catálogo e foi(ram) removido(s) do carrinho.`, 'error');
+    }, [safeProducts]);
+
     const toggleOrderDetails = (orderId: string) => {
         setExpandedOrders(prev => prev.includes(orderId) ? prev.filter(id => id !== orderId) : [...prev, orderId]);
     };
@@ -547,7 +570,12 @@ export const UserDashboard: React.FC = () => {
         }
     };
 
+    const depositSubmittingRef = useRef(false);
+
     const depositToWalletAction = async () => {
+        // Anti duplo-toque síncrono: dois depósitos com o mesmo comprovante
+        // criavam duas pendências; se ambas fossem aprovadas, crédito duplicado.
+        if (depositSubmittingRef.current) return;
         if (!proofFile) {
             showNotification("Por favor, anexe o comprovante PIX.", "error");
             return;
@@ -556,6 +584,13 @@ export const UserDashboard: React.FC = () => {
             showNotification("Informe o valor do deposito.", "error");
             return;
         }
+        if (depositAmount > 100000) {
+            // Mesmo teto do servidor (aprovarDeposito). Sem isso, o familiar pagava
+            // um valor que o sistema é estruturalmente proibido de aprovar.
+            showNotification("Valor acima do limite permitido por depósito (R$ 100.000,00).", "error");
+            return;
+        }
+        depositSubmittingRef.current = true;
         setIsSubmitting(true);
         try {
             await depositToWallet(depositAmount, proofFile);
@@ -566,6 +601,7 @@ export const UserDashboard: React.FC = () => {
         } catch (e: any) {
             showNotification(e?.message || 'Erro ao enviar comprovante de crédito. Tente novamente.', 'error');
         } finally {
+            depositSubmittingRef.current = false;
             setIsSubmitting(false);
         }
     };
@@ -593,12 +629,13 @@ export const UserDashboard: React.FC = () => {
 
     useEffect(() => {
         if (isCheckoutModalOpen && cartPaymentMethod === 'PIX') {
+            // A chave PIX vai INTEIRA para o gerador (CPF/CNPJ/telefone/e-mail/EVP).
+            // O strip de dígitos antigo mutilava chaves e-mail/EVP → pagamento ia pro lugar errado.
             const chavePix = (settings?.pixKeys?.[0] || settings?.cnpj || '').trim();
             if (!chavePix) return;
-            const cleanKey = chavePix.replace(/[^0-9]/g, '');
             const merchantName = settings?.appName || 'ASSOCIACAO ASSPEN MT';
             const cidade = 'PEIXOTO DE AZEVEDO';
-            const payload = generatePixPayload(cleanKey, merchantName, cidade, cartTotal, '***');
+            const payload = generatePixPayload(chavePix, merchantName, cidade, cartTotal, '***');
             setPixPayload(payload);
         }
     }, [isCheckoutModalOpen, cartPaymentMethod, cartTotal, settings]);
@@ -608,10 +645,9 @@ export const UserDashboard: React.FC = () => {
         if (isDepositOpen && depositAmount > 0) {
             const chavePix = (settings?.pixKeys?.[0] || settings?.cnpj || '').trim();
             if (!chavePix) return;
-            const cleanKey = chavePix.replace(/[^0-9]/g, '');
             const merchantName = settings?.appName || 'ASSOCIACAO ASSPEN MT';
             const cidade = 'PEIXOTO DE AZEVEDO';
-            const payload = generatePixPayload(cleanKey, merchantName, cidade, depositAmount, 'DEPOSITO');
+            const payload = generatePixPayload(chavePix, merchantName, cidade, depositAmount, 'DEPOSITO');
             setPixPayload(payload);
         }
     }, [isDepositOpen, depositAmount, settings]);
@@ -1107,13 +1143,19 @@ export const UserDashboard: React.FC = () => {
                                             </div>
                                             {depositAmount > 0 && (
                                                 <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 flex flex-col items-center">
-                                                    <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(pixPayload || 'mercadofacil')}`} className="w-36 h-36 object-contain" alt="QR PIX" />
+                                                    {pixPayload ? (
+                                                        <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(pixPayload)}`} className="w-36 h-36 object-contain" alt="QR PIX" />
+                                                    ) : (
+                                                        <div className="w-36 h-36 flex items-center justify-center text-center p-2 bg-slate-900 rounded-lg border border-red-500/40">
+                                                            <p className="text-[10px] font-bold text-red-400 uppercase">PIX indisponível. Fale com a administração.</p>
+                                                        </div>
+                                                    )}
                                                     <button onClick={() => { navigator.clipboard.writeText(pixPayload || ''); setPixCopied(true); setTimeout(() => setPixCopied(false), 2000); }} className={`w-full mt-3 py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${pixCopied ? 'bg-emerald-600 text-white' : 'bg-blue-500 text-white'}`}>
                                                         {pixCopied ? <><CheckCircle size={12} /> COPIADO!</> : <><RefreshCcw size={12} /> Copiar PIX</>}
                                                     </button>
                                                 </div>
                                             )}
-                                            <button onClick={() => { if (depositAmount <= 0) { showNotification('DIGITE O VALOR DO CRÉDITO.', 'error'); return; } setDepositStage('proof'); if (fileInputRef.current) fileInputRef.current.value = ''; }} disabled={depositAmount <= 0} className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 transition-all cursor-pointer">
+                                            <button onClick={() => { if (depositAmount <= 0) { showNotification('DIGITE O VALOR DO CRÉDITO.', 'error'); return; } if (depositAmount > 100000) { showNotification('VALOR ACIMA DO LIMITE POR DEPÓSITO (R$ 100.000,00).', 'error'); return; } setDepositStage('proof'); if (fileInputRef.current) fileInputRef.current.value = ''; }} disabled={depositAmount <= 0} className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 transition-all cursor-pointer">
                                                 <Sparkles size={14} /> Já fiz o PIX do Crédito
                                             </button>
                                         </div>
@@ -1551,13 +1593,19 @@ export const UserDashboard: React.FC = () => {
                                 </div>
                                 {depositAmount > 0 && (
                                     <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 flex flex-col items-center">
-                                        <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(pixPayload || 'mercadofacil')}`} className="w-36 h-36 object-contain" alt="QR PIX" />
+                                        {pixPayload ? (
+                                            <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(pixPayload)}`} className="w-36 h-36 object-contain" alt="QR PIX" />
+                                        ) : (
+                                            <div className="w-36 h-36 flex items-center justify-center text-center p-2 bg-slate-900 rounded-lg border border-red-500/40">
+                                                <p className="text-[10px] font-bold text-red-400 uppercase">PIX indisponível. Fale com a administração.</p>
+                                            </div>
+                                        )}
                                         <button onClick={() => { navigator.clipboard.writeText(pixPayload || ''); setPixCopied(true); setTimeout(() => setPixCopied(false), 2000); }} className={`w-full mt-3 py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${pixCopied ? 'bg-emerald-600 text-white' : 'bg-blue-500 text-white'}`}>
                                             {pixCopied ? <><CheckCircle size={12} /> COPIADO!</> : <><RefreshCcw size={12} /> Copiar PIX</>}
                                         </button>
                                     </div>
                                 )}
-                                <button onClick={() => { if (depositAmount <= 0) { showNotification('DIGITE O VALOR DO CRÉDITO.', 'error'); return; } setDepositStage('proof'); if (fileInputRef.current) fileInputRef.current.value = ''; }} disabled={depositAmount <= 0} className="w-full py-3 bg-emerald-600 text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg disabled:opacity-50">
+                                <button onClick={() => { if (depositAmount <= 0) { showNotification('DIGITE O VALOR DO CRÉDITO.', 'error'); return; } if (depositAmount > 100000) { showNotification('VALOR ACIMA DO LIMITE POR DEPÓSITO (R$ 100.000,00).', 'error'); return; } setDepositStage('proof'); if (fileInputRef.current) fileInputRef.current.value = ''; }} disabled={depositAmount <= 0} className="w-full py-3 bg-emerald-600 text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg disabled:opacity-50">
                                     <Sparkles size={14} /> Já fiz o PIX do Crédito
                                 </button>
                             </div>
@@ -1612,11 +1660,11 @@ export const UserDashboard: React.FC = () => {
             )}
 
             {isCheckoutModalOpen && (
-                <div className="fixed inset-0 z-[999] bg-black/60 backdrop-blur-sm" onClick={() => setIsCheckoutModalOpen(false)}>
+            <div className="fixed inset-0 z-[999] bg-black/60 backdrop-blur-sm" onClick={() => { setIsCheckoutModalOpen(false); setProofFile(null); }}>
                     <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 md:max-w-lg md:mx-auto bg-white rounded-2xl shadow-2xl p-4 max-h-[82vh] overflow-y-auto overflow-x-hidden flex flex-col space-y-3 z-50 border border-slate-100 font-sans" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center shrink-0">
                             <h3 className="font-black text-base uppercase tracking-tight">Finalizar Venda</h3>
-                            <button onClick={() => setIsCheckoutModalOpen(false)} className="w-7 h-7 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200"><X size={16}/></button>
+                            <button onClick={() => { setIsCheckoutModalOpen(false); setProofFile(null); }} className="w-7 h-7 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200"><X size={16}/></button>
                         </div>
 
                         <div className="flex flex-col space-y-3">
@@ -1704,6 +1752,11 @@ export const UserDashboard: React.FC = () => {
                                                 <span className="text-[10px] font-bold text-slate-700 text-left leading-tight break-all">{proofFile ? proofFile.name : 'CLIQUE AQUI PARA ENVIAR O COMPROVANTE PIX'}</span>
                                                 <input type="file" accept="image/*,.pdf" className="hidden" onChange={async e => {
                                                 const f = e.target.files?.[0]; if (!f) return;
+                                                // Mesmas regras do depósito: valida ANTES (falha tardia no
+                                                // handleFinish frustrava o usuário no fim do fluxo).
+                                                const okTipo = f.type.startsWith('image/') || f.type === 'application/pdf';
+                                                if (!okTipo) { showNotification('Formato inválido. Envia imagem (JPG/PNG) ou PDF.', 'error'); e.target.value = ''; return; }
+                                                if (f.size > 8 * 1024 * 1024) { showNotification('Arquivo muito grande. Máximo 8MB.', 'error'); e.target.value = ''; return; }
                                                 try {
                                                     const compressed = await compressImageFile(f, 0.3, 600);
                                                     setProofFile(new File([compressed], f.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));

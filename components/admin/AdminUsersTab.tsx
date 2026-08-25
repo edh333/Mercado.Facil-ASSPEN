@@ -5,6 +5,7 @@ import {
   MoreVertical
 } from 'lucide-react';
 import { formatarMoeda, isAdminRole } from '../../utils';
+import { getLocalDateStr } from './adminUtils';
 import { User, Order } from '../../types';
 
 interface AdminUsersTabProps {
@@ -111,7 +112,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
     const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `extrato_${(u.name || 'usuario').replace(/ /g,'_')}_${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `extrato_${(u.name || 'usuario').replace(/ /g,'_')}_${getLocalDateStr()}.json`;
     a.click();
     URL.revokeObjectURL(a.href);
   };

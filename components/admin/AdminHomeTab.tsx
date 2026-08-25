@@ -1,5 +1,6 @@
 import React from 'react';
 import { StatCard } from './AdminCommon';
+import { ehReceita } from './adminUtils';
 import {
   Users, Package, ShoppingCart, DollarSign, ArrowDownCircle,
   RefreshCw, MinusCircle, LayoutDashboard, Zap, Phone, ArrowRight,
@@ -69,7 +70,9 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
   // ── RESUMO DO DIA — VENDAS POR FORMA DE PAGAMENTO (HOJE) ───────────
   const todayPayments = React.useMemo(() => {
     const label: Record<string, string> = { PIX: 'Pix', CASH: 'Dinheiro', CARD: 'Cartão', WALLET: 'Carteira', FIADO: 'Fiado', MIXED: 'Misto' };
-    const validStatus = (s?: string) => !['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'reembolsado', 'rejected', 'rejeitado'].includes(String(s || '').toLowerCase());
+    // Receita = mesma definição dos cards e do Financeiro (ehReceita).
+    // Antes contava pedidos PENDENTES como dinheiro que já entrou.
+    const validStatus = (s?: string) => ehReceita(s);
     const startToday = new Date(); startToday.setHours(0, 0, 0, 0);
     const endToday = new Date(); endToday.setHours(23, 59, 59, 999);
     const map: Record<string, { label: string; amount: number }> = {};
@@ -401,7 +404,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
             <Zap size={20} className="text-yellow-500"/> Atividade Recente
           </h3>
           <div className="flex-1 overflow-y-auto space-y-4 max-h-[400px] pr-2 custom-scrollbar">
-            {(orders || []).sort((a,b) => {
+            {[...(orders || [])].sort((a,b) => {
               const dateA = a?.createdAt || a?.date || '';
               const dateB = b?.createdAt || b?.date || '';
               return new Date(dateB).getTime() - new Date(dateA).getTime();

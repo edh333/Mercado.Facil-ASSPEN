@@ -99,6 +99,11 @@ const [recoveryName, setRecoveryName] = useState('');
                 if (!legalTermAccepted) throw new Error("Aceite o termo legal.");
                 if (password.length < 6) throw new Error("Senha deve ter no mínimo 6 caracteres.");
                 if (password !== registerConfirmPassword) throw new Error("Senhas não coincidem.");
+                // O `required` do HTML não dispara em botão type=button: validar na mão.
+                if (!(regData?.name || '').trim()) throw new Error("Informe seu nome completo.");
+                if (!(regData?.phone || '').trim()) throw new Error("Informe um telefone de contato.");
+                const parentescoFinal = regData.kinship === 'Outros' ? regData.kinshipOther : regData.kinship;
+                if (!parentescoFinal || !String(parentescoFinal).trim()) throw new Error("Informe o grau de parentesco.");
 
                 setLoadingMessage('Processando cadastro...');
                 await registerUser({
@@ -125,13 +130,15 @@ const [recoveryName, setRecoveryName] = useState('');
                     await validateRecovery(recoveryUserCpf, recoveryPrisonerCpf, recoveryName);
                     setRecoveryStep(2);
                 } else {
-                    if (newPassword) {
-                        setLoadingMessage('Salvando nova senha...');
-                        if (newPassword.length < 6) throw new Error("Mínimo 6 caracteres.");
-                        if (newPassword !== confirmNewPassword) throw new Error("Senhas não coincidem.");
-                        await resetUserPassword(recoveryUserCpf, recoveryPrisonerCpf, newPassword, recoveryName);
-                    }
-                    setFormSuccess(newPassword ? "Senha alterada!" : "Acesso liberado.");
+                    // Senha vazia NUNCA conclui: antes, o fluxo avançava sem chamar
+                    // resetUserPassword e mostrava "Acesso liberado" mentirosamente.
+                    const nova = newPassword.trim();
+                    if (!nova) throw new Error("Digite a nova senha para concluir.");
+                    setLoadingMessage('Salvando nova senha...');
+                    if (nova.length < 6) throw new Error("Mínimo 6 caracteres.");
+                    if (nova !== confirmNewPassword.trim()) throw new Error("Senhas não coincidem.");
+                    await resetUserPassword(recoveryUserCpf, recoveryPrisonerCpf, nova, recoveryName);
+                    setFormSuccess("Senha alterada!");
                     setTimeout(() => setActiveTab('login'), 2500);
                 }
             } else {

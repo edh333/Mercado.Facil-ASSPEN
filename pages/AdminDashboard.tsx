@@ -11,6 +11,7 @@ import { OfflineSalesBanner } from '../components/admin/OfflineSalesBanner';
 
 import { AppDownloadButton } from '../components/AppDownloadModal';
 import { UninstallModal } from '../components/UninstallModal';
+import { ehReceita } from '../components/admin/adminUtils';
 import { Menu, X, Banknote, Trash2, BarChart3, FileText, AlertTriangle, ArrowUpRight } from 'lucide-react';
 
 // Import all modular subcomponents
@@ -425,13 +426,22 @@ export function AdminDashboard() {
     }
   };
 
+  const withdrawalProcessingRef = React.useRef(false);
+
   const handleWithdrawal = async () => {
     if (!showWithdrawalModal) return;
+    // Anti duplo clique: dois cliques rápidos = DOIS lançamentos de dinheiro.
+    if (withdrawalProcessingRef.current) return;
     const amount = parseFloat(withdrawalAmount);
     if (isNaN(amount) || amount <= 0) {
       showNotification('Insira um valor válido.', 'error');
       return;
     }
+    if (!withdrawalPassword) {
+      showNotification('Informe a senha de confirmação.', 'error');
+      return;
+    }
+    withdrawalProcessingRef.current = true;
     try {
       const targetId = showWithdrawalModal.userId || showWithdrawalModal.id;
       if (showWithdrawalModal.isDeposit) {
@@ -448,6 +458,8 @@ export function AdminDashboard() {
       showNotification('Operação realizada com sucesso!', 'success');
     } catch (error: any) {
       showNotification(error.message || 'Erro ao realizar operação.', 'error');
+    } finally {
+      withdrawalProcessingRef.current = false;
     }
   };
 
@@ -577,7 +589,7 @@ export function AdminDashboard() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `movimentacao-vendas-${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `movimentacao-vendas-${getLocalDateStr()}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -676,9 +688,8 @@ export function AdminDashboard() {
   }, [orders]);
 
   const stats = useMemo(() => {
-    const MONEY_IN = ['paid', 'pago', 'preparing', 'separacao', 'delivered', 'entregue'];
-    const moneyInFilter = (o: Order) => MONEY_IN.includes(normStatus(o.status));
-    const totalEntries = (orders || []).filter(moneyInFilter).reduce((a, b) => a + (Number(b.total) || 0), 0);
+    // Receita definida em UM lugar só (ehReceita) — cards e Financeiro agora batem.
+    const totalEntries = (orders || []).filter(o => ehReceita(o.status)).reduce((a, b) => a + (Number(b.total) || 0), 0);
     const totalExits = (expenses || []).reduce((a, b) => a + (Number(b.amount) || 0), 0);
     const pendingOrders = (orders || []).filter(o => ['pending', 'pendente'].includes(normStatus(o.status))).length;
     const pendingDeposits = (walletTx || []).filter(tx => tx.status === 'pending').length;

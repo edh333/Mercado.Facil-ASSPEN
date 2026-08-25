@@ -93,9 +93,12 @@ function validarTroco(change, cashPortion) {
   }
 }
 
-/** Lança Error se o gasto semanal + valor exceder o limite (default 300). */
+/** Lança Error se o gasto semanal + valor exceder o limite (default 300).
+ *  Limite 0 (zero) é HONRADO: bloqueia compras por carteira.
+ *  Apenas undefined/null/NaN/valor negativo caem no padrão 300. */
 function verificarLimiteSemanal(weeklySpent, valor, limite) {
-  const limiteFinal = Number(limite) || 300;
+  const numLimite = Number(limite);
+  const limiteFinal = Number.isFinite(numLimite) && numLimite >= 0 ? numLimite : 300;
   if (arredondar(Number(weeklySpent || 0) + valor) > limiteFinal) {
     throw new Error(
       `Limite semanal excedido. Disponível: R$ ${arredondar(limiteFinal - Number(weeklySpent || 0)).toFixed(2)}`

@@ -3,6 +3,7 @@ import { X, Printer, FileText, TrendingUp, TrendingDown, Package, Users, Downloa
 import { useTheme } from '../../context/ThemeContext';
 import { User } from '../../types';
 import { isAdminRole } from '../../utils';
+import { getLocalDateStr } from './adminUtils';
 import { buildMonthlyDre, buildSalesCsv, buildStockAbc } from '../../context/StoreContext';
 
 const PAYMENT_LABELS: Record<string, string> = {
@@ -91,15 +92,17 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
         const outOfStock = (products || []).filter((p: any) => (p.stock || 0) <= 0).length;
         const net = totalEntries - totalExits;
 
-        const startDateStr = config?.startDate || new Date().toISOString().split('T')[0];
-        const endDateStr = config?.endDate || new Date().toISOString().split('T')[0];
-        const periodLabel = `${new Date(startDateStr).toLocaleDateString('pt-BR')} a ${new Date(endDateStr).toLocaleDateString('pt-BR')}`;
+        // Fuso local nos dois lados: 'YYYY-MM-DD' puro era parseado como UTC meia-noite
+        // (= 21h do dia anterior no Brasil) e esticava o início do relatório.
+        const startDateStr = config?.startDate || getLocalDateStr();
+        const endDateStr = config?.endDate || getLocalDateStr();
+        const periodLabel = `${new Date(startDateStr + 'T00:00:00').toLocaleDateString('pt-BR')} a ${new Date(endDateStr + 'T00:00:00').toLocaleDateString('pt-BR')}`;
 
         let items: any[] = [];
         if (config?.type === 'FINANCIAL' || config?.type === 'GENERAL' || config?.type === 'ACCOUNTABILITY') {
             const filteredExpenses = (expenses || []).filter(e => {
                 const d = new Date(e.date || 0);
-                return d >= new Date(startDateStr) && d <= new Date(endDateStr + 'T23:59:59');
+                return d >= new Date(startDateStr + 'T00:00:00') && d <= new Date(endDateStr + 'T23:59:59');
             }).map(e => ({
                 date: e.date,
                 description: e.description || 'Despesa',
@@ -358,7 +361,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `movimentacao-vendas-${new Date().toISOString().split('T')[0]}.csv`;
+        link.download = `movimentacao-vendas-${getLocalDateStr()}.csv`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -895,7 +898,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                             const url = URL.createObjectURL(blob);
                             const link = document.createElement('a');
                             link.href = url;
-                            link.download = `relatorio-${report.title.toLowerCase().replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.json`;
+                            link.download = `relatorio-${report.title.toLowerCase().replace(/\s+/g, '-')}-${getLocalDateStr()}.json`;
                             document.body.appendChild(link);
                             link.click();
                             document.body.removeChild(link);

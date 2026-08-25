@@ -8,6 +8,7 @@ import { User } from '../../types';
 import { useTheme } from '../../context/ThemeContext';
 import { gerarRelatorioCredito, imprimirCupom, imprimirRelatorioCreditoA4 } from '../../utils/printUtils';
 import { isAdminRole } from '../../utils';
+import { getLocalDateStr } from './adminUtils';
 
 interface AdminReportsTabProps {
   reportConfig: any;
@@ -199,8 +200,8 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
                                             onClick={() => {
                                                 if (q.id !== 'custom') {
                                                     const range = getQuickDateRange(q.id) || { start: new Date(), end: new Date() };
-                                                    const startDate = range?.start ? range.start.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
-                                                    const endDate = range?.end ? range.end.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+                                                    const startDate = range?.start ? getLocalDateStr(range.start) : getLocalDateStr();
+                                                    const endDate = range?.end ? getLocalDateStr(range.end) : getLocalDateStr();
                                                     setReportConfig({
                                                         ...reportConfig,
                                                         startDate,

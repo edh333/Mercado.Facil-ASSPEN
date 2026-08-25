@@ -1318,7 +1318,10 @@ return false;
 
     const updateProduct = async (product: Product) => {
         try {
-            await setDoc(doc(db, 'products', product.id), product);
+            // merge: true — o formulário de edição não conhece todos os campos do doc
+            // (promoPrice, lastSoldAt etc.). Sobrescrever o doc inteiro APAGAVA
+            // promoções ativas e histórico de vendas a cada edição manual.
+            await setDoc(doc(db, 'products', product.id), product, { merge: true });
             showNotification("Produto atualizado!", "success");
         } catch (e: any) {
             showNotification("Erro ao atualizar produto: " + e.message, "error");

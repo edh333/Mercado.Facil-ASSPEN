@@ -39,3 +39,17 @@ export const getLocalDateStr = (dateInput?: string | Date | null) => {
     const offset = d.getTimezoneOffset() * 60000;
     return (new Date(d.getTime() - offset)).toISOString().slice(0, 10);
 };
+
+/** Fonte ÚNICA de verdade para "este pedido conta como receita?".
+ *  Antes havia 4 definições diferentes (cards do painel, financeiro, home e
+ *  extratos) — os totais das telas não batiam entre si. */
+export const ehReceita = (status: string | undefined | null): boolean => {
+    const s = String(status || '').toLowerCase();
+    if (!s) return false;
+    // Reprovados/estornados/pendentes NUNCA são receita.
+    if (s.includes('cancel') || s.includes('rejeitad') || s.includes('rejected')) return false;
+    if (s.includes('refund') || s.includes('estornad') || s.includes('devolvid') || s.includes('reembols')) return false;
+    if (s === 'pending' || s === 'pendente' || s === 'pending_payment' || s.includes('aguardando')) return false;
+    // Pipeline aprovado: pago → preparação → saiu → entregue.
+    return ['paid', 'pago', 'preparing', 'separacao', 'separação', 'out_for_delivery', 'saiu', 'delivered', 'entregue'].some(k => s === k || s.includes(k));
+};

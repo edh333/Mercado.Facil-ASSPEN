@@ -54,7 +54,10 @@ export const AdminProductsTab: React.FC<AdminProductsTabProps> = ({
     return () => { ativo = false; };
   }, [xmlFile]);
 
-  const margemPct = Math.max(parseFloat(margin) || 0, 0);
+  // MESMA normalização da gravação (StoreContext): inválida/negativa = 30%.
+  // Antes o preview mostrava 0% e a importação gravava 30% — admin via um preço e o sistema lançava outro.
+  const margemNum = parseFloat(margin);
+  const margemPct = Number.isFinite(margemNum) && margemNum >= 0 ? margemNum : 30;
   const precoComMargem = (custo: number) => custo * (1 + margemPct / 100);
 
   const categories = React.useMemo(() => {
@@ -319,7 +322,11 @@ return (
                         <p className="text-[10px] font-black uppercase text-[var(--text-muted)] mb-1">Preço PDV</p>
                         <p className="font-black text-xl text-[var(--text-main)] tracking-tighter">
                             <span className="text-xs opacity-70 mr-0.5">R$</span>
-                            {(product.price || product.costPrice || 0) > 0 ? formatarMoeda(product.price || product.costPrice || 0) : '—'}
+                            {(() => {
+                                // Mesma regra do servidor: promoPrice ativo é o preço praticado.
+                                const efetivo = Number((product as any).promoPrice) > 0 ? Number((product as any).promoPrice) : Number(product.price || 0);
+                                return efetivo > 0 ? formatarMoeda(efetivo) : '—';
+                            })()}
                         </p>
                     </div>
                     <div className="text-center">

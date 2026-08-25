@@ -112,11 +112,13 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
     setIsApproving(true);
     try {
       await onApprove(transaction.id);
-    } catch (e) {
+      onClose();
+    } catch (e: any) {
+      // Falha ao mover dinheiro NÃO fecha o modal: o admin precisa ver o erro.
       console.error('Erro ao aprovar:', e);
+      window.alert('Erro ao aprovar: ' + (e?.message || 'falha desconhecida') + '\nO modal permanecerá aberto. Tente novamente.');
     } finally {
       setIsApproving(false);
-      onClose();
     }
   };
 
@@ -126,11 +128,12 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
     setIsRejecting(true);
     try {
       await onReject(transaction.id);
-    } catch (e) {
+      onClose();
+    } catch (e: any) {
       console.error('Erro ao rejeitar:', e);
+      window.alert('Erro ao rejeitar: ' + (e?.message || 'falha desconhecida') + '\nO modal permanecerá aberto. Tente novamente.');
     } finally {
       setIsRejecting(false);
-      onClose();
     }
   };
 

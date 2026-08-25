@@ -8,6 +8,8 @@ import { Expense, Order, Supplier } from '../../types';
 import { ModalShell } from '../ui/ModalShell';
 import { getRecentSessions, CashSession } from '../../utils/cashSession';
 import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
+import { parseMoeda } from '../../utils';
+import { ehReceita } from './adminUtils';
 
 interface AdminFinanceTabProps {
   expenses: Expense[];
@@ -68,7 +70,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
     if (isSubmittingExpense) return; // trava anti-duplo-clique: nunca registra duas vezes
     setIsSubmittingExpense(true);
     try {
-        const amountNum = parseFloat(String(expenseForm.amount).replace(',', '.'));
+        const amountNum = parseMoeda(String(expenseForm.amount));
         if (isNaN(amountNum) || amountNum <= 0) {
             showNotification("Por favor, insira um valor válido.", "error");
             return;
@@ -101,10 +103,16 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
     }
   };
 
+  // Data de HOJE no fuso do Brasil, nunca no UTC (que virava "amanhã" após 21h).
+  const hojeStr = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  };
+
   const getLocalDateString = (dateInput: string | Date | undefined | null) => {
-    if (!dateInput) return new Date().toISOString().split('T')[0];
+    if (!dateInput) return hojeStr();
     const d = new Date(dateInput);
-    if (isNaN(d.getTime())) return new Date().toISOString().split('T')[0];
+    if (isNaN(d.getTime())) return hojeStr();
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   };
 
@@ -112,12 +120,14 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
   // dinheiro ainda não entrou (ou foi devolvido, ou o pedido foi recusado).
   const statusValido = (s?: string) => {
     const st = String(s || '').toLowerCase();
-    return !['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'reembolsado', 'pending', 'pending_payment', 'pendente', 'rejected', 'rejeitado'].includes(st);
+    if (['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'reembolsado', 'pending', 'pending_payment', 'pendente', 'rejected', 'rejeitado'].includes(st)) return false;
+    // Unifica com cards do painel: 'saiu p/ entrega' também é receita.
+    return ['paid', 'pago', 'preparing', 'separacao', 'separação', 'out_for_delivery', 'saiu', 'delivered', 'entregue'].some(k => st === k || st.includes(k));
   };
 
   const filteredData = useMemo(() => {
-    const startStr = financeFilters?.start || new Date().toISOString().split('T')[0];
-    const endStr = financeFilters?.end || new Date().toISOString().split('T')[0];
+    const startStr = financeFilters?.start || hojeStr();
+    const endStr = financeFilters?.end || hojeStr();
 
     const filteredExpenses = (expenses || []).filter(e => {
         const dateStr = getLocalDateString(e.date);
@@ -147,8 +157,8 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
   }, [expenses, orders, activeSubTab, financeFilters]);
 
   const cashInPeriod = useMemo(() => {
-    const startStr = financeFilters?.start || new Date().toISOString().split('T')[0];
-    const endStr = financeFilters?.end || new Date().toISOString().split('T')[0];
+    const startStr = financeFilters?.start || hojeStr();
+    const endStr = financeFilters?.end || hojeStr();
     return (cashSessions || []).filter((s) => {
       const d = s.openedAt?.toDate ? s.openedAt.toDate() : new Date(s.openedAt as any);
       if (isNaN(d.getTime())) return false;
@@ -157,8 +167,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
     });
   }, [cashSessions, financeFilters]);
 
-  const cashTotais = useMemo(() => ({
-    // Sessão aberta: saldo vivo (currentBalance). Fechada: contagem física (closedBalance).
+  const cashTotais = useMemo(() => ({    // Sessão aberta: saldo vivo (currentBalance). Fechada: contagem física (closedBalance).
     saldoFisico: cashInPeriod.reduce((s, x) => {
       if (String(x.status || '').toLowerCase() === 'open') return s + Number(x.currentBalance ?? 0);
       return s + Number(x.closedBalance ?? 0);
@@ -168,6 +177,23 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
     totalDiscrepancias: cashInPeriod.filter((x) => x.hasDiscrepancy)
       .reduce((s, x) => s + Math.abs(Number(x.cashDifference ?? x.balanceDiff ?? 0)), 0),
   }), [cashInPeriod]);
+
+  // Gráfico 7 dias — useMemo HOISTADO para o topo do componente.
+  // Era React.useMemo dentro do JSX condicional {isMaster && ...}: se isMaster
+  // mudasse após o mount, a ordem dos hooks mudava → crash do React.
+  const ultimos7Dias = useMemo(() => {
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(Date.now() - i * 86400000);
+      const dateStr = getLocalDateString(date.toISOString());
+      const dayExpenses = expenses.filter(e => getLocalDateString(e.date) === dateStr).reduce((sum, e) => sum + (e.amount || 0), 0);
+      const dayOrders = orders.filter(o => statusValido(o.status) && getLocalDateString(o.date) === dateStr).reduce((sum, o) => sum + (o.total || 0), 0);
+      const maxVal = Math.max(dayExpenses, dayOrders, 1);
+      const dayName = date.toLocaleDateString('pt-BR', { weekday: 'short' });
+      days.push({ dayName, dayExpenses, dayOrders, maxVal, dateStr });
+    }
+    return days;
+  }, [expenses, orders, financeFilters]);
 
   const exportFinanceToCSV = () => {
     const headers = ['Data', 'Tipo', 'Descrição', 'Pessoa', 'Valor'];
@@ -193,7 +219,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `financeiro_${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `financeiro_${hojeStr()}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -290,19 +316,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
             </h3>
           </div>
           <div className="flex items-end justify-between gap-2 h-32 px-2">
-            {React.useMemo(() => {
-              const days = [];
-              for (let i = 6; i >= 0; i--) {
-                const date = new Date(Date.now() - i * 86400000);
-                const dateStr = getLocalDateString(date.toISOString());
-                const dayExpenses = expenses.filter(e => getLocalDateString(e.date) === dateStr).reduce((sum, e) => sum + (e.amount || 0), 0);
-                const dayOrders = orders.filter(o => statusValido(o.status) && getLocalDateString(o.date) === dateStr).reduce((sum, o) => sum + (o.total || 0), 0);
-                const maxVal = Math.max(dayExpenses, dayOrders, 1);
-                const dayName = date.toLocaleDateString('pt-BR', { weekday: 'short' });
-                days.push({ dayName, dayExpenses, dayOrders, maxVal, dateStr });
-              }
-              return days;
-            }, [expenses, orders]).map((d, idx) => (
+            {ultimos7Dias.map((d, idx) => (
               <div key={idx} className="flex-1 flex flex-col items-center gap-2 group">
                 <div className="w-full flex flex-col-reverse gap-1 h-24 items-end justify-end">
                   <div

@@ -286,7 +286,7 @@ export function AdminCustomersTab() {
                       <DollarSign size={14} className="inline mr-1" /> Receber
                     </button>
                     <button
-                      onClick={() => setEditData({ id: c.id, nome: c.nome, cpf: c.cpf, telefone: c.telefone, creditLimit: c.creditLimit, status: c.status })}
+                      onClick={() => { setEditData({ id: c.id, nome: c.nome, cpf: c.cpf, telefone: c.telefone, creditLimit: c.creditLimit, status: c.status }); setShowModal(true); }}
                       className="p-2.5 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl border border-slate-200 transition-all active:scale-95"
                       title="Editar"
                     >

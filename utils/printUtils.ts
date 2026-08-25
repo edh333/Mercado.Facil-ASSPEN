@@ -496,7 +496,14 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
   }
 
   const dataCriacao = data.createdAt || data.date || data.data;
-  const dt = dataCriacao ? new Date(dataCriacao).toLocaleString("pt-BR") : new Date().toLocaleString("pt-BR");
+  // Aceita ISO string, Date ou Firestore Timestamp legado ({seconds}); nunca imprime "Invalid Date".
+  const dtNormalizado = (() => {
+    if (!dataCriacao) return new Date();
+    if (typeof dataCriacao === 'object' && 'seconds' in (dataCriacao as any)) return new Date((dataCriacao as any).seconds * 1000);
+    const d = new Date(dataCriacao as any);
+    return isNaN(d.getTime()) ? new Date() : d;
+  })();
+  const dt = dtNormalizado.toLocaleString("pt-BR");
   cupom += formatarLinhaDupla("DATA:", dt, 48) + "\n";
   cupom += formatarLinhaDupla("ID:", `#${String(data.id || '---').slice(0, 12).toUpperCase()}`, 48) + "\n";
   cupom += formatarLinhaDupla("OPER:", String(data.operatorName || 'ADMIN').toUpperCase().slice(0, 15), 48) + "\n";

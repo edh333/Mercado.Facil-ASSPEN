@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Order } from '../../types';
 import { mascararCpf } from '../../utils';
+import { getLocalDateStr } from './adminUtils';
 import { ChartMount } from '../ui/ChartMount';
 import { db } from '../../firebase';
 import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
@@ -203,7 +204,7 @@ export const AdminSalesDashboard: React.FC<AdminSalesDashboardProps> = ({ orders
 
   const exportCsv = () => {
     if (onExportCsv) {
-      onExportCsv(range.start.toISOString().split('T')[0], range.end.toISOString().split('T')[0]);
+      onExportCsv(getLocalDateStr(range.start), getLocalDateStr(range.end));
       return;
     }
     const linhas = vendasPeriodo.map(o => {
@@ -220,7 +221,7 @@ export const AdminSalesDashboard: React.FC<AdminSalesDashboardProps> = ({ orders
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `vendas-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `vendas-${getLocalDateStr()}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

@@ -5,6 +5,7 @@ import {
 import { useTheme } from '../../context/ThemeContext';
 import { useApp } from '../../context/StoreContext';
 import { Order, OrderStatus } from '../../types';
+import { getLocalDateStr } from './adminUtils';
 
 interface AdminOrdersTabProps {
   orders: Order[];
@@ -58,10 +59,11 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
     const isCancelled = (status: string) => ['cancelled', 'cancelado', 'cancelada'].includes(norm(status));
     const isRefunded = (status: string) => ['refunded', 'devolvido', 'reembolsado'].includes(norm(status));
 
-    const today = new Date().toISOString().split('T')[0];
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-    const thisWeek = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
-    const thisMonth = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
+    // Fuso local (BRT): toISOString virava "amanhã" após as 21h.
+    const today = getLocalDateStr();
+    const yesterday = getLocalDateStr(new Date(Date.now() - 86400000));
+    const thisWeek = getLocalDateStr(new Date(Date.now() - 7 * 86400000));
+    const thisMonth = getLocalDateStr(new Date(Date.now() - 30 * 86400000));
 
     return (orders || []).filter(o => {
       const orderDate = o.createdAt || o.date || '';
@@ -112,7 +114,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `pedidos_${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `pedidos_${getLocalDateStr()}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };

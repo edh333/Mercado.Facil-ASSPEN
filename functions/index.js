@@ -424,6 +424,14 @@ exports.registrarUsuario = onCall(async (request) => {
 
   // Validação do interno pré-cadastrado (server-side, já que o cliente ainda não está autenticado)
   const inmateCpf = cleanCpf(dados.inmateCpf);
+  if (role === "FAMILY" && inmateCpf.length !== 11) {
+    // Hardening: o vínculo com um interno pré-cadastrado é OBRIGATÓRIO para familiar.
+    // Sem isso, uma chamada direta ao callable com CPF vazio/curto criava FAMILY solta.
+    throw new HttpsError(
+      "invalid-argument",
+      "Informe o CPF do interno (11 dígitos). O interno precisa estar pré-cadastrado pela administração."
+    );
+  }
   if (inmateCpf.length === 11 && role === "FAMILY") {
     const preSnap = await db.collection("pre_registered_inmates")
       .where("cpf", "==", inmateCpf).limit(1).get();

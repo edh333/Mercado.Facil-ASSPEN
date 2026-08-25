@@ -120,7 +120,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `carteira_${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `carteira_${localDateStr(new Date())}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -135,7 +135,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `saldos_${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `saldos_${localDateStr(new Date())}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };

@@ -177,6 +177,17 @@ describe("verificarLimiteSemanal", () => {
     expect(() => verificarLimiteSemanal(299, 1, undefined)).not.toThrow();
     expect(() => verificarLimiteSemanal(299, 2, undefined)).toThrow("Limite semanal excedido");
   });
+
+  it("HONRA limite zero (bloqueia carteira) — antes 0 virava 300", () => {
+    expect(() => verificarLimiteSemanal(0, 0.01, 0)).toThrow("Limite semanal excedido");
+  });
+
+  it("aceita limite finito arbitrário e rejeita negativo/NaN (vira 300)", () => {
+    expect(() => verificarLimiteSemanal(50, 25, 100)).not.toThrow();
+    expect(() => verificarLimiteSemanal(80, 25.01, 100)).toThrow("Limite semanal excedido");
+    expect(() => verificarLimiteSemanal(299, 2, NaN)).toThrow("Limite semanal excedido");
+    expect(() => verificarLimiteSemanal(299, 2, -5)).toThrow("Limite semanal excedido");
+  });
 });
 
 describe("validarSaldoSuficiente", () => {
