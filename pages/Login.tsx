@@ -554,35 +554,49 @@ const [recoveryName, setRecoveryName] = useState('');
     );
 };
 
-// Campo de texto premium — design limpo e moderno com label visível
-const PremiumInput = ({ icon: Icon, label, value, onChange, type = "text", action }: any) => (
-    <div>
-        <label className="block text-xs font-semibold tracking-wide text-slate-500 mb-2 ml-1">{label}</label>
-        <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/70 px-3.5 transition-all focus-within:border-[#0e7a4d] focus-within:ring-2 focus-within:ring-[#0e7a4d]/10 focus-within:bg-white">
-            <Icon size={17} className="text-slate-400 shrink-0" />
-            <input
-                type={type}
-                className="flex-1 py-3 bg-transparent border-none outline-none text-sm font-semibold text-slate-900 placeholder:text-slate-400 placeholder:font-normal"
-                placeholder={label}
-                value={value}
-                onChange={onChange}
-                required
-            />
-            {action}
+// Campo de texto premium — design limpo e moderno com label visível + acessibilidade
+const PremiumInput = ({ icon: Icon, label, value, onChange, type = "text", action, id, error, required = true }: any) => {
+    const inputId = id || `input-${label.toLowerCase().replace(/\s+/g, '-')}`;
+    const errorId = error ? `${inputId}-error` : undefined;
+    return (
+        <div>
+            <label htmlFor={inputId} className="block text-xs font-semibold tracking-wide text-slate-500 mb-2 ml-1">{label}</label>
+            <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/70 px-3.5 transition-all focus-within:border-[#0e7a4d] focus-within:ring-2 focus-within:ring-[#0e7a4d]/10 focus-within:bg-white">
+                <Icon size={17} className="text-slate-400 shrink-0" aria-hidden="true" />
+                <input
+                    type={type}
+                    id={inputId}
+                    className="flex-1 py-3 bg-transparent border-none outline-none text-sm font-semibold text-slate-900 placeholder:text-slate-400 placeholder:font-normal"
+                    placeholder={label}
+                    value={value}
+                    onChange={onChange}
+                    required={required}
+                    aria-invalid={!!error}
+                    aria-describedby={errorId}
+                />
+                {action}
+            </div>
+            {error && <p id={errorId} className="mt-1.5 text-[10px] font-medium text-red-600" role="alert">{error}</p>}
         </div>
-    </div>
-);
+    );
+};
 
-// Campo select premium
-const SelectInput = ({ label, value, onChange, children, required }: any) => (
-    <div>
-        <label className="block text-xs font-semibold tracking-wide text-slate-500 mb-2 ml-1">{label}</label>
-        <div className="relative rounded-lg border border-slate-200 bg-slate-50/70 transition-all focus-within:border-[#0e7a4d] focus-within:ring-2 focus-within:ring-[#0e7a4d]/10 focus-within:bg-white">
-            <select
-                className="w-full px-3.5 py-3 bg-transparent border-none outline-none text-sm font-semibold text-slate-900 appearance-none cursor-pointer tracking-wide"
-                value={value}
-                onChange={onChange}
-                required={required}
+// Campo select premium — acessível
+const SelectInput = ({ label, value, onChange, children, required = true, id, error }: any) => {
+    const selectId = id || `select-${label.toLowerCase().replace(/\s+/g, '-')}`;
+    const errorId = error ? `${selectId}-error` : undefined;
+    return (
+        <div>
+            <label htmlFor={selectId} className="block text-xs font-semibold tracking-wide text-slate-500 mb-2 ml-1">{label}</label>
+            <div className="relative rounded-lg border border-slate-200 bg-slate-50/70 transition-all focus-within:border-[#0e7a4d] focus-within:ring-2 focus-within:ring-[#0e7a4d]/10 focus-within:bg-white">
+                <select
+                    id={selectId}
+                    className="w-full px-3.5 py-3 bg-transparent border-none outline-none text-sm font-semibold text-slate-900 appearance-none cursor-pointer tracking-wide"
+                    value={value}
+                    onChange={onChange}
+                    required={required}
+                    aria-invalid={!!error}
+                    aria-describedby={errorId}
             >
                 {children}
             </select>
@@ -590,3 +604,4 @@ const SelectInput = ({ label, value, onChange, children, required }: any) => (
         </div>
     </div>
 );
+};
