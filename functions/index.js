@@ -774,13 +774,14 @@ exports.aprovarDeposito = onCall(async (request) => {
       const uRef = db.collection("users").doc(tx.userId);
       const uSnap = await t.get(uRef);
       if (!uSnap.exists) throw new Error("Usuário não encontrado.");
-      const novoSaldo = arredondar(Number(uSnap.data().walletBalance || 0) + Number(tx.amount || 0));
-      novoSaldoFinal = novoSaldo;
+
+      // ATÔMICO: evita race condition entre aprovações simultâneas
+      t.update(uRef, { walletBalance: admin.firestore.FieldValue.increment(arredondar(tx.amount || 0)) });
+      novoSaldoFinal = arredondar(Number(uSnap.data().walletBalance || 0) + Number(tx.amount || 0));
       valorDepositado = arredondar(tx.amount || 0);
       usuarioIdDeposito = tx.userId;
 
       t.update(tRef, { status: "approved", approvedBy: caller.name || caller.id, approvedAt: new Date().toISOString() });
-      t.update(uRef, { walletBalance: novoSaldo });
     });
   } catch (e) {
     throw new HttpsError("invalid-argument", e.message || "Falha ao aprovar depósito.");
@@ -852,11 +853,12 @@ exports.creditarSaldo = onCall(async (request) => {
     const uSnap = await t.get(uRef);
     if (!uSnap.exists) throw new Error("Usuário não encontrado.");
     const ud = uSnap.data();
-    const novoSaldo = arredondar(Number(ud.walletBalance || 0) + valor);
-    novoSaldoFinal = novoSaldo;
+
+    // ATÔMICO: evita race condition entre créditos manuais simultâneos
+    t.update(uRef, { walletBalance: admin.firestore.FieldValue.increment(arredondar(valor)) });
+    novoSaldoFinal = arredondar(Number(ud.walletBalance || 0) + valor);
     saldoAnterior = arredondar(Number(ud.walletBalance || 0));
     usuarioAlvo = ud.name || userId;
-    t.update(uRef, { walletBalance: novoSaldo });
     await registrarTransacaoCarteira(t, db.collection("wallet_transactions").doc(), {
       userId,
       inmateCpf: cleanCpf(ud.inmateCpf || ud.prisonerCpf || ud.cpf),
@@ -913,11 +915,12 @@ exports.sacarSaldoAdmin = onCall(async (request) => {
     if (!uSnap.exists) throw new Error("Usuário não encontrado.");
     const ud = uSnap.data();
     if (Number(ud.walletBalance || 0) < valor) throw new Error("Saldo insuficiente.");
-    const novoSaldo = arredondar(Number(ud.walletBalance || 0) - valor);
-    novoSaldoFinal = novoSaldo;
+
+    // ATÔMICO: evita race condition entre saques simultâneos
+    t.update(uRef, { walletBalance: admin.firestore.FieldValue.increment(-arredondar(valor)) });
+    novoSaldoFinal = arredondar(Number(ud.walletBalance || 0) - valor);
     saldoAnterior = arredondar(Number(ud.walletBalance || 0));
     usuarioAlvo = ud.name || userId;
-    t.update(uRef, { walletBalance: novoSaldo });
     await registrarTransacaoCarteira(t, db.collection("wallet_transactions").doc(), {
       userId,
       inmateCpf: cleanCpf(ud.inmateCpf || ud.prisonerCpf || ud.cpf),
@@ -1486,9 +1489,13 @@ exports.comprarComCarteira = onCall(async (request) => {
 
     debitarEstoque(t, itensComPreco);
 
+    // ATÔMICO: evita race condition entre compras simultâneas (wallet + weeklySpent)
+    t.update(db.collection("users").doc(user.id), {
+      walletBalance: admin.firestore.FieldValue.increment(-arredondar(total)),
+      weeklySpent: admin.firestore.FieldValue.increment(arredondar(total))
+    });
     const novoSaldo = calcularNovoSaldo(ud.walletBalance || 0, total);
     const novoWeekly = arredondar(Number(ud.weeklySpent || 0) + total);
-    t.update(db.collection("users").doc(user.id), { walletBalance: novoSaldo, weeklySpent: novoWeekly });
     const saldoAnterior = arredondar(Number(ud.walletBalance || 0));
 
     await registrarTransacaoCarteira(t, db.collection("wallet_transactions").doc(), {
@@ -1778,9 +1785,14 @@ exports.estornarVenda = onCall(async (request) => {
 
       if (estorno.ehWallet && uRef && uSnap && uSnap.exists) {
         const ud = uSnap.data();
+
+        // ATÔMICO: estorno usa increment para evitar race condition
+        t.update(uRef, {
+          walletBalance: admin.firestore.FieldValue.increment(arredondar(estorno.primeiraParcela)),
+          weeklySpent: admin.firestore.FieldValue.increment(-arredondar(estorno.primeiraParcela))
+        });
         const novoSaldo = arredondar(Number(ud.walletBalance || 0) + estorno.primeiraParcela);
         const novoWeekly = Math.max(0, arredondar((ud.weeklySpent || 0) - estorno.primeiraParcela));
-        t.update(uRef, { walletBalance: novoSaldo, weeklySpent: novoWeekly });
         registrarTransacaoCarteira(t, db.collection("wallet_transactions").doc(), {
           userId: pedido.userId,
           inmateCpf: cleanCpf(ud.inmateCpf || ud.prisonerCpf || ud.cpf || ""),
@@ -1804,9 +1816,11 @@ exports.estornarVenda = onCall(async (request) => {
         const jwSnap = await t.get(jwRef);
         if (jwSnap.exists) {
           const ud2 = jwSnap.data();
+
+          // ATÔMICO: parcela do devedor 2 também via increment
           t.update(jwRef, {
-            walletBalance: arredondar(Number(ud2.walletBalance || 0) + estorno.segundaParcela),
-            weeklySpent: Math.max(0, arredondar((Number(ud2.weeklySpent) || 0) - estorno.segundaParcela)),
+            walletBalance: admin.firestore.FieldValue.increment(arredondar(estorno.segundaParcela)),
+            weeklySpent: admin.firestore.FieldValue.increment(-arredondar(estorno.segundaParcela))
           });
           registrarTransacaoCarteira(t, db.collection("wallet_transactions").doc(), {
             userId: estorno.secondUserId,

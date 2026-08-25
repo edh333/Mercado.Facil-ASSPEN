@@ -166,8 +166,7 @@ service cloud.firestore {
         && (isAdmin()
           || userMatch(resource.data.userId)
           || resource.data.userId == 'ALL');
-      allow create: if isAuthenticated()
-        && (isAdmin() || userMatch(request.resource.data.userId));
+      allow create: if isAdmin();
       allow update: if isAuthenticated()
         && (isAdmin()
           || (userMatch(resource.data.userId) || resource.data.userId == 'ALL')
