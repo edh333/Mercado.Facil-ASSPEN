@@ -19,8 +19,6 @@ import { QRCodeSVG } from 'qrcode.react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { OnlineStatusIndicator } from '../components/OnlineStatusIndicator';
 import { InstallButton } from '../components/InstallButton';
-import { AppDownloadButton } from '../components/AppDownloadModal';
-import { usePWAInstall } from '../components/PWAInstallProvider';
 import { UninstallModal } from '../components/UninstallModal';
 
 export const UserDashboard: React.FC = () => {
@@ -42,8 +40,6 @@ export const UserDashboard: React.FC = () => {
     const [cart, setCart] = useState<CartItem[]>([]);
     const [isMsgOpen, setIsMsgOpen] = useState(false);
     const [showUninstallModal, setShowUninstallModal] = useState(false);
-    const [showInstallBanner, setShowInstallBanner] = useState(true);
-    const pwaInstall = usePWAInstall();
     const [searchTerm, setSearchTerm] = useState('');
     const [stage, setStage] = useState<'cart' | 'location' | 'pay' | 'proof'>('cart');
     const [location, setLocation] = useState({ ray: '', wing: '', cell: '' });
@@ -282,6 +278,10 @@ export const UserDashboard: React.FC = () => {
     const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const val = e.target.value;
         setSearchTerm(val);
+
+        // Leitor de código de barras: exclusivo do modo PDV (admin).
+        // O familiar navega pela vitrine e digita o nome do produto normalmente.
+        if (!isAdmin) return;
 
         const code = val.trim();
         if (code) {
@@ -800,7 +800,7 @@ export const UserDashboard: React.FC = () => {
                         id="searchInput"
                         ref={searchInputRef}
                         className="w-full pl-14 pr-6 py-4 rounded-2xl border-2 border-slate-300 focus:border-[var(--primary-color)] outline-none bg-slate-50 text-sm font-bold shadow-sm" 
-                        placeholder="Bipe o código de barras ou digite o nome..." 
+                        placeholder="Buscar produto..." 
                         value={searchTerm} 
                         onChange={handleSearchChange} 
                     />
@@ -1017,29 +1017,11 @@ export const UserDashboard: React.FC = () => {
                         {!isAdmin && !isStandalone && (
                             <span><InstallButton role="user" /></span>
                         )}
-                        {!isAdmin && !isStandalone && (
-                            <span><AppDownloadButton className="!w-8 !h-8 sm:!w-9 sm:!h-9" /></span>
-                        )}
                         <button onClick={() => setShowUninstallModal(true)} title="Desinstalar aplicativo" className="size-10 border border-slate-200 bg-white text-slate-400 rounded-lg hidden sm:flex items-center justify-center hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all active:scale-90"><Trash2 size={17} /></button>
                         <button onClick={logout} title="Sair" className="size-10 border border-red-200 bg-white text-red-500 rounded-lg flex items-center justify-center hover:bg-red-500 hover:text-white hover:border-red-500 transition-all active:scale-90"><LogOut size={17} /></button>
                     </div>
                 </div>
             </header>
-
-            {/* BANNER INSTALAR APP — celulares/tablets quando ainda não instalado */}
-            {!isAdmin && showInstallBanner && pwaInstall.isInstallable && !pwaInstall.isInstalled && (
-                <div className="md:hidden flex items-center gap-2.5 bg-slate-900/95 backdrop-blur px-3 py-2 shadow-lg">
-                    <div className="p-1.5 bg-white/10 rounded-lg text-white shrink-0"><Smartphone size={14} /></div>
-                    <div className="flex-1 min-w-0">
-                        <p className="text-white font-black text-[9px] uppercase tracking-widest">Instalar o aplicativo</p>
-                        <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Deixe o ícone na tela do celular</p>
-                    </div>
-                    <button onClick={() => pwaInstall.install('user')} className="bg-emerald-500 text-white font-black text-[9px] uppercase tracking-widest px-3 py-2 rounded-lg shadow-md active:scale-95 transition-all shrink-0">
-                        Instalar
-                    </button>
-                    <button onClick={() => setShowInstallBanner(false)} className="text-slate-500 hover:text-white p-1 shrink-0" title="Fechar"><X size={14} /></button>
-                </div>
-            )}
 
             {/* Painel de Mensagens (Sino) */}
             <AnimatePresence>
