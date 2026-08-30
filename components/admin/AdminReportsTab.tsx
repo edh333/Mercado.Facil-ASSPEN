@@ -109,6 +109,7 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
     { id: 'SALES_CSV', name: 'Movimentação de Vendas', desc: 'CSV/Excel p/ contador: data, cupom, CPF, pagamento, imposto e valor.', icon: <FileSpreadsheet className="text-green-600" size={24}/> },
     { id: 'STOCK_ABC', name: 'Curva ABC de Estoque', desc: 'Giro dos produtos e valor do inventário parado p/ balanço patrimonial.', icon: <PieChart className="text-amber-600" size={24}/> },
     { id: 'DAILY_CLOSING', name: 'Fechamento do Dia', desc: 'Conferência de caixa diária: vendas por forma de pagamento, despesas e resultado.', icon: <Calculator className="text-cyan-600" size={24}/> },
+    { id: 'VENDAS_DIARIAS', name: 'Vendas Diárias (Detalhado)', desc: 'Evolução dia a dia: nº de vendas, itens vendidos, faturamento e ticket médio.', icon: <Landmark className="text-emerald-500" size={24}/> },
   ];
 
   return (

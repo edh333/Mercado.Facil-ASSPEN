@@ -3,8 +3,9 @@ import { X, Printer, FileText, TrendingUp, TrendingDown, Package, Users, Downloa
 import { useTheme } from '../../context/ThemeContext';
 import { User } from '../../types';
 import { isAdminRole } from '../../utils';
+import { toDate } from '../../utils/dateUtils';
 import { getLocalDateStr } from './adminUtils';
-import { buildMonthlyDre, buildSalesCsv, buildStockAbc } from '../../context/StoreContext';
+import { buildMonthlyDre, buildSalesCsv, buildStockAbc, buildDailySales, buildSalesByCategory, buildLowStock, buildProductsCatalog, buildExtratoIndividual } from '../../context/StoreContext';
 
 const PAYMENT_LABELS: Record<string, string> = {
     PIX: 'Pix',
@@ -15,12 +16,22 @@ const PAYMENT_LABELS: Record<string, string> = {
     MIXED: 'Misto'
 };
 
+// Escapa HTML para não corromper os PDFs/saída de impressão quando o dado
+// (nome de produto, categoria, familiar, descrição) contém <, > ou &.
+const esc = (v: any): string => String(v ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
 const buildDailyClosing = (orders: any[], expenses: any[], transactions: any[], startDateStr: string, endDateStr: string) => {
     const statusReceita = (s?: string) => !['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'reembolsado', 'rejected', 'rejeitado'].includes(String(s || '').toLowerCase());
     const inPeriod = (ts?: string | number) => {
         if (!ts) return false;
-        const d = new Date(ts);
-        return d >= new Date(startDateStr) && d <= new Date(endDateStr + 'T23:59:59');
+        const d = toDate(ts);
+        // Fuso local nos DOIS lados (mesma correção do fluxo de caixa):
+        // 'YYYY-MM-DD' puro era parseado como UTC meia-noite (21h do dia anterior
+        // no Brasil) e incluía pedidos do dia ANTERIOR ao início.
+        return d >= new Date(startDateStr + 'T00:00:00') && d <= new Date(endDateStr + 'T23:59:59');
     };
 
     const periodOrders = (orders || []).filter(o => statusReceita(o.status) && inPeriod(o.date));
@@ -82,13 +93,18 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
     // Pedidos cancelados/estornados/rejeitados NÃO são receita (contagem e valores).
     const statusReceita = (s?: string) => !['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'reembolsado', 'rejected', 'rejeitado'].includes(String(s || '').toLowerCase());
 
+    // Familiar selecionado no Extrato Individual (objeto completo OU apenas o id)
+    const selectedUser = config?.selectedUser && (config.selectedUser as User)?.id
+        ? config.selectedUser as User
+        : (users || []).find((u: User) => String(u.id) === String(config?.selectedUserId)) || null;
+
     const report = useMemo(() => {
         if (!config || !orders || !expenses) return null;
 
         const totalEntries = (orders || []).filter(o => statusReceita(o.status)).reduce((a, b) => a + (Number(b.total) || 0), 0);
         const totalExits = (expenses || []).reduce((a, b) => a + (Number(b.amount) || 0), 0);
         const ordersCount = (orders || []).filter(o => statusReceita(o.status)).length;
-        const newUsers = (users || []).filter((u: User) => !isAdminRole(u.role) && u.createdAt && new Date(u.createdAt) >= new Date(Date.now() - 30 * 86400000)).length;
+        const newUsers = (users || []).filter((u: User) => !isAdminRole(u.role) && u.createdAt && (toDate(u.createdAt)?.getTime() || 0) >= Date.now() - 30 * 86400000).length;
         const outOfStock = (products || []).filter((p: any) => (p.stock || 0) <= 0).length;
         const net = totalEntries - totalExits;
 
@@ -101,8 +117,8 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
         let items: any[] = [];
         if (config?.type === 'FINANCIAL' || config?.type === 'GENERAL' || config?.type === 'ACCOUNTABILITY') {
             const filteredExpenses = (expenses || []).filter(e => {
-                const d = new Date(e.date || 0);
-                return d >= new Date(startDateStr + 'T00:00:00') && d <= new Date(endDateStr + 'T23:59:59');
+                const d = toDate(e.date);
+                return d && d >= new Date(startDateStr + 'T00:00:00') && d <= new Date(endDateStr + 'T23:59:59');
             }).map(e => ({
                 date: e.date,
                 description: e.description || 'Despesa',
@@ -112,8 +128,11 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
             }));
 
             const filteredOrders = (orders || []).filter(o => {
-                const d = new Date(o.date || 0);
-                return statusReceita(o.status) && d >= new Date(startDateStr) && d <= new Date(endDateStr + 'T23:59:59');
+                const d = toDate(o.date);
+                // Fuso local nos DOIS lados (mesma correção das despesas acima):
+                // 'YYYY-MM-DD' puro era parseado como UTC meia-noite (= 21h do dia
+                // anterior no Brasil) e incluía pedidos do dia ANTERIOR ao início.
+                return statusReceita(o.status) && d && d >= new Date(startDateStr + 'T00:00:00') && d <= new Date(endDateStr + 'T23:59:59');
             }).map(o => ({
                 date: o.date,
                 description: `Venda #${(o.id || '').slice(0, 6).toUpperCase()}`,
@@ -122,7 +141,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                 person: o.userName || ''
             }));
 
-            items = [...filteredOrders, ...filteredExpenses].sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
+            items = [...filteredOrders, ...filteredExpenses].sort((a, b) => (toDate(b.date)?.getTime() || 0) - (toDate(a.date)?.getTime() || 0));
         }
 
         const reportTypes: Record<string, string> = {
@@ -138,7 +157,8 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
             'DRE_MONTHLY': 'Fechamento de Caixa Mensal (DRE Simplificado)',
             'SALES_CSV': 'Arquivo de Movimentação de Vendas (CSV/Excel)',
             'STOCK_ABC': 'Curva ABC de Estoque',
-            'DAILY_CLOSING': 'Fechamento do Dia (Conferência de Caixa)'
+            'DAILY_CLOSING': 'Fechamento do Dia (Conferência de Caixa)',
+            'VENDAS_DIARIAS': 'Vendas Diárias Detalhado'
         };
 
         const dailyClosing = config?.type === 'DAILY_CLOSING'
@@ -157,6 +177,31 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
             ? buildStockAbc(products, orders, startDateStr, endDateStr)
             : null;
 
+        const dailySales = config?.type === 'VENDAS_DIARIAS'
+            ? buildDailySales(orders, startDateStr, endDateStr)
+            : null;
+
+        const salesByCategory = config?.type === 'SALES_BY_CATEGORY'
+            ? buildSalesByCategory(orders, products, startDateStr, endDateStr)
+            : null;
+
+        const lowStock = config?.type === 'STOCK_LOW'
+            ? buildLowStock(products, startDateStr, endDateStr)
+            : null;
+
+        const productsCatalog = config?.type === 'PRODUCTS_ALL'
+            ? buildProductsCatalog(products)
+            : null;
+
+        const extrato = config?.type === 'INDIVIDUAL'
+            ? buildExtratoIndividual(selectedUser, orders, transactions, startDateStr, endDateStr)
+            : null;
+
+        // COMPRAS COLETIVAS === Vendas Diárias consolidadas (pedidos agrupados por dia)
+        const collective = config?.type === 'COLLECTIVE_PURCHASES'
+            ? buildDailySales(orders, startDateStr, endDateStr)
+            : null;
+
         return {
             type: config?.type || 'GENERAL',
             title: reportTypes[config?.type] || 'Relatório',
@@ -165,6 +210,12 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
             salesCsv,
             stockAbc,
             dailyClosing,
+            dailySales,
+            salesByCategory,
+            lowStock,
+            productsCatalog,
+            extrato,
+            collective,
             summary: {
                 totalSales: totalEntries,
                 totalExpenses: totalExits,
@@ -261,7 +312,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                                     <td className="p-5 whitespace-nowrap">
                                         <div className="flex items-center gap-2">
                                             <Calendar size={14} className="text-[var(--text-muted)] opacity-50"/>
-                                            <span className="text-[10px] font-black text-[var(--text-main)] font-mono">{new Date(item.date).toLocaleDateString('pt-BR')}</span>
+                                            <span className="text-[10px] font-black text-[var(--text-main)] font-mono">{toDate(item.date)?.toLocaleDateString('pt-BR') || ''}</span>
                                         </div>
                                     </td>
                                     <td className="p-5">
@@ -627,8 +678,8 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
         const linha = lista.map((x, i) => `
             <tr>
                 <td style="text-align:center;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;">${String(i + 1).padStart(2, '0')}</td>
-                <td style="padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;font-weight:700;text-transform:uppercase;">${x.name}</td>
-                <td style="text-align:center;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;">${x.cpf}</td>
+                <td style="padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;font-weight:700;text-transform:uppercase;">${esc(x.name)}</td>
+                <td style="text-align:center;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;">${esc(x.cpf)}</td>
                 <td style="text-align:center;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:11px;">${x.status === 'active' ? 'Ativo' : x.status === 'pending' ? 'Pendente' : 'Suspenso'}</td>
                 <td style="text-align:right;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;font-weight:700;">R$ ${x.saldo.toFixed(2)}</td>
                 <td style="text-align:right;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;">R$ ${x.gastoSemanal.toFixed(2)}</td>
@@ -817,6 +868,354 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
         }
     };
 
+    // Helper: tabela padrão profissional (título + corpo) para relatórios de tabela.
+    const renderTabelaPadrao = (titulo: string, cabecalhos: string[], alinhamentos: ('left' | 'center' | 'right')[], linhas: (string | { texto: string; classe?: string })[][], rodape: (string[] | null), vazio: string) => (
+        <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[2.5rem] overflow-hidden shadow-xl">
+            <div className="p-6 border-b border-[var(--border-color)] bg-[var(--bg-main)]/30">
+                <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--text-muted)] flex items-center gap-2">
+                    <BarChart3 size={16} className="text-emerald-600"/> {titulo}
+                </h4>
+            </div>
+            <div className="max-h-[48vh] overflow-y-auto custom-scrollbar">
+                <table className="w-full text-left">
+                    <thead className="bg-[var(--text-main)] text-[var(--bg-card)] font-black uppercase text-[9px] tracking-widest sticky top-0 z-10 shadow-lg">
+                        <tr>
+                            {cabecalhos.map((h, i) => (
+                                <th key={i} className={`p-4 ${alinhamentos[i] === 'right' ? 'text-right' : alinhamentos[i] === 'center' ? 'text-center' : 'text-left'}`}>{h}</th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--border-color)] bg-[var(--bg-card)]">
+                        {linhas.length === 0 ? (
+                            <tr><td colSpan={cabecalhos.length} className="p-20 text-center font-black uppercase text-xs opacity-30">{vazio}</td></tr>
+                        ) : linhas.map((linha, idx) => (
+                            <tr key={idx} className="hover:bg-[var(--bg-main)]/30 transition-all">
+                                {linha.map((celula, j) => (
+                                    <td key={j} className={`p-4 ${alinhamentos[j] === 'right' ? 'text-right' : alinhamentos[j] === 'center' ? 'text-center' : 'text-left'}`}>
+                                        {typeof celula === 'object'
+                                            ? <span className={`text-[11px] font-black tracking-tight ${celula.classe || 'text-[var(--text-main)]'}`}>{celula.texto}</span>
+                                            : <span className={`text-[11px] ${j === 0 ? 'font-black uppercase text-[var(--text-main)] tracking-tight' : 'font-bold text-[var(--text-main)]'}`}>{celula}</span>}
+                                    </td>
+                                ))}
+                            </tr>
+                        ))}
+                    </tbody>
+                    {rodape && (
+                        <tfoot className="bg-[var(--bg-main)]/40">
+                            <tr className="border-t-2 border-[var(--border-color)]">
+                                {rodape.map((celula, j) => (
+                                    <td key={j} className={`p-4 ${alinhamentos[j] === 'right' ? 'text-right' : alinhamentos[j] === 'center' ? 'text-center' : 'text-left'} font-black text-[11px] text-[var(--text-main)] uppercase tracking-widest`}>{celula}</td>
+                                ))}
+                            </tr>
+                        </tfoot>
+                    )}
+                </table>
+            </div>
+        </div>
+    );
+
+    const renderVendasDiarias = () => {
+        const ds = report.dailySales || report.collective;
+        if (!ds) return null;
+        const fmt = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+        return (
+            <div className="space-y-6 animate-fadeIn">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
+                        <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Vendas no Período</p>
+                        <p className="text-xl font-black text-[var(--text-main)]">{ds.totalVendas}</p>
+                    </div>
+                    <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
+                        <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Faturamento Total</p>
+                        <p className="text-xl font-black text-emerald-600">{fmt(ds.totalGeral)}</p>
+                    </div>
+                    <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
+                        <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Ticket Médio</p>
+                        <p className="text-xl font-black text-indigo-600">{fmt(ds.ticketMedio)}</p>
+                    </div>
+                </div>
+                {renderTabelaPadrao(
+                    'Vendas por Dia',
+                    ['Data', 'Nº Vendas', 'Itens Vendidos', 'Faturamento'],
+                    ['left', 'right', 'right', 'right'],
+                    ds.dias.map((dia: any) => [
+                        dia.data,
+                        String(dia.vendas),
+                        String(dia.items),
+                        { texto: fmt(dia.total), classe: 'text-emerald-600' }
+                    ]),
+                    [
+                        'TOTAL',
+                        String(ds.totalVendas),
+                        String(ds.totalItens),
+                        fmt(ds.totalGeral)
+                    ],
+                    'Nenhuma venda neste período.'
+                )}
+            </div>
+        );
+    };
+
+    const renderSalesByCategory = () => {
+        const c = report.salesByCategory;
+        if (!c) return null;
+        const fmt = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+        return (
+            <div className="space-y-6 animate-fadeIn">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
+                        <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Grupos de Produtos</p>
+                        <p className="text-xl font-black text-[var(--text-main)]">{c.linhas.length}</p>
+                    </div>
+                    <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
+                        <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Itens Vendidos</p>
+                        <p className="text-xl font-black text-amber-600">{c.totalQuantidade}</p>
+                    </div>
+                    <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
+                        <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Receita Total</p>
+                        <p className="text-xl font-black text-emerald-600">{fmt(c.totalReceita)}</p>
+                    </div>
+                </div>
+                {renderTabelaPadrao(
+                    'Faturamento por Grupo',
+                    ['Grupo', 'Itens Vendidos', 'Receita', '% do Total'],
+                    ['left', 'right', 'right', 'right'],
+                    c.linhas.map((l: any) => [
+                        l.categoria,
+                        String(l.quantidade),
+                        { texto: fmt(l.receita), classe: 'text-emerald-600' },
+                        { texto: `${c.totalReceita ? ((l.receita / c.totalReceita) * 100).toFixed(1) : 0}%`, classe: 'text-[var(--text-muted)]' }
+                    ]),
+                    ['TOTAL', String(c.totalQuantidade), fmt(c.totalReceita), '100%'],
+                    'Nenhuma venda neste período.'
+                )}
+            </div>
+        );
+    };
+
+    const renderLowStock = () => {
+        const ls = report.lowStock;
+        if (!ls) return null;
+        const fmt = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+        return (
+            <div className="space-y-6 animate-fadeIn">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
+                        <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Itens Críticos</p>
+                        <p className="text-xl font-black text-amber-600">{ls.totalCriticos}</p>
+                    </div>
+                    <div className="bg-red-500/5 p-5 rounded-2xl border border-red-500/20">
+                        <p className="text-[9px] font-black uppercase text-red-500 tracking-widest mb-1">Esgotados (estoque zero)</p>
+                        <p className="text-xl font-black text-red-500">{ls.totalZerados}</p>
+                    </div>
+                    <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
+                        <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Valor em Estoque (Custo)</p>
+                        <p className="text-xl font-black text-[var(--text-main)]">{fmt(ls.totalValorEstoque)}</p>
+                    </div>
+                </div>
+                {renderTabelaPadrao(
+                    'Produtos para Reposição',
+                    ['Produto', 'Estoque', 'Mínimo', 'Valor (Custo)'],
+                    ['left', 'right', 'right', 'right'],
+                    ls.linhas.map((l: any) => [
+                        `${l.name}${l.category ? ` · ${l.category}` : ''}`,
+                        { texto: String(l.estoque), classe: l.semEstoque ? 'text-red-500' : 'text-amber-600' },
+                        String(l.minimo),
+                        fmt(l.valorEstoque)
+                    ]),
+                    ['TOTAL', `${ls.totalCriticos} item(ns)`, '', fmt(ls.totalValorEstoque)],
+                    'Nenhum produto em estoque baixo. Tudo saudável!'
+                )}
+            </div>
+        );
+    };
+
+    const renderProductsCatalog = () => {
+        const pc = report.productsCatalog;
+        if (!pc) return null;
+        const fmt = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+        return (
+            <div className="space-y-6 animate-fadeIn">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
+                        <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Produtos Cadastrados</p>
+                        <p className="text-xl font-black text-[var(--text-main)]">{pc.totalProdutos}</p>
+                    </div>
+                    <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
+                        <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Unidades em Estoque</p>
+                        <p className="text-xl font-black text-amber-600">{pc.totalEstoque}</p>
+                    </div>
+                    <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
+                        <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Valor do Estoque (Venda)</p>
+                        <p className="text-xl font-black text-emerald-600">{fmt(pc.totalValorEstoque)}</p>
+                    </div>
+                </div>
+                {renderTabelaPadrao(
+                    'Catálogo Completo de Produtos',
+                    ['Produto', 'Categoria', 'Código', 'Estoque', 'Preço'],
+                    ['left', 'left', 'center', 'right', 'right'],
+                    pc.linhas.map((l: any) => [
+                        l.name,
+                        l.category,
+                        l.barcode || '—',
+                        { texto: String(l.estoque), classe: l.estoque <= 0 ? 'text-red-500' : l.estoque <= (5) ? 'text-amber-600' : 'text-[var(--text-main)]' },
+                        fmt(l.preco)
+                    ]),
+                    null,
+                    'Nenhum produto cadastrado.'
+                )}
+            </div>
+        );
+    };
+
+    const renderExtratoIndividual = () => {
+        const ex = report.extrato;
+        if (!ex) return (
+            <div className="p-20 text-center font-black uppercase text-xs opacity-40 space-y-2">
+                <Users size={40} className="mx-auto mb-3 text-[var(--text-muted)]"/>
+                <p>Selecione o familiar no campo de busca para gerar o extrato.</p>
+            </div>
+        );
+        const fmt = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+        return (
+            <div className="space-y-6 animate-fadeIn">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="bg-emerald-600 p-5 rounded-[2rem] shadow-xl text-white relative overflow-hidden">
+                        <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+                        <p className="text-[9px] font-black uppercase tracking-widest opacity-70 mb-1">Familiar</p>
+                        <p className="text-lg font-black uppercase tracking-tighter max-w-[220px] truncate">{ex.usuario.name}</p>
+                        {ex.usuario.inmateName && <p className="text-[9px] font-bold opacity-60 uppercase tracking-widest mt-1 truncate">PUP: {ex.usuario.inmateName}</p>}
+                    </div>
+                    <div className="bg-[var(--bg-main)]/50 p-5 rounded-[2rem] border border-[var(--border-color)]">
+                        <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Entradas no Período</p>
+                        <p className="text-2xl font-black text-emerald-600">{fmt(ex.totalEntradas)}</p>
+                    </div>
+                    <div className="bg-[var(--bg-main)]/50 p-5 rounded-[2rem] border border-[var(--border-color)]">
+                        <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Saídas no Período</p>
+                        <p className="text-2xl font-black text-red-500">{fmt(ex.totalSaidas)}</p>
+                    </div>
+                    <div className="bg-[var(--bg-main)]/50 p-5 rounded-[2rem] border border-[var(--border-color)]">
+                        <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Saldo do Período</p>
+                        <p className={`text-2xl font-black tracking-tighter ${ex.saldoPeriodo >= 0 ? 'text-[var(--primary-color)]' : 'text-orange-600'}`}>{fmt(ex.saldoPeriodo)}</p>
+                    </div>
+                </div>
+                {renderTabelaPadrao(
+                    'Movimentações',
+                    ['Data', 'Tipo', 'Descrição', 'Valor'],
+                    ['left', 'center', 'left', 'right'],
+                    ex.movs.map((m: any) => [
+                        toDate(m.date)?.toLocaleDateString('pt-BR') || '',
+                        { texto: m.type === 'ENTRY' ? 'Entrada' : 'Saída', classe: m.type === 'ENTRY' ? 'text-emerald-600' : 'text-red-500' },
+                        m.description,
+                        { texto: `${m.type === 'ENTRY' ? '+' : '-'} ${fmt(m.amount)}`, classe: m.type === 'ENTRY' ? 'text-emerald-600' : 'text-red-500' }
+                    ]),
+                    null,
+                    'Nenhuma movimentação neste período.'
+                )}
+            </div>
+        );
+    };
+
+    // Impressão profissional (fonte Segoe UI, não-monospace) para os novos relatórios.
+    const printTabelaProfissional = () => {
+        const hoje = new Date().toLocaleDateString('pt-BR');
+        let titulo = report.title;
+        let linhas: any[] = [];
+        let rodapeHtml = '';
+        let cabecalhoRow = '';
+
+        if (report.type === 'VENDAS_DIARIAS' || report.type === 'COLLECTIVE_PURCHASES') {
+            const ds = report.dailySales || report.collective;
+            if (!ds) return;
+            cabecalhoRow = '<th>Data</th><th style="text-align:center;">Vendas</th><th style="text-align:center;">Itens</th><th style="text-align:right;">Faturamento</th>';
+            linhas = ds.dias.map((d: any) => `<tr><td>${esc(d.data)}</td><td style="text-align:center;">${d.vendas}</td><td style="text-align:center;">${d.items}</td><td style="text-align:right;font-weight:700;">R$ ${d.total.toFixed(2)}</td></tr>`);
+            rodapeHtml = `<tr><td style="text-align:center;font-weight:800;">TOTAL</td><td style="text-align:center;font-weight:800;">${ds.totalVendas}</td><td style="text-align:center;font-weight:800;">${ds.totalItens}</td><td style="text-align:right;font-weight:800;color:#059669;">R$ ${ds.totalGeral.toFixed(2)}</td></tr>`;
+        } else if (report.type === 'SALES_BY_CATEGORY') {
+            const c = report.salesByCategory;
+            if (!c) return;
+            titulo = 'Vendas por Grupo';
+            cabecalhoRow = '<th>Grupo</th><th style="text-align:center;">Itens</th><th style="text-align:right;">Receita</th><th style="text-align:right;">%</th>';
+            linhas = c.linhas.map((l: any) => `<tr><td>${esc(l.categoria)}</td><td style="text-align:center;">${l.quantidade}</td><td style="text-align:right;font-weight:700;color:#059669;">R$ ${l.receita.toFixed(2)}</td><td style="text-align:right;">${c.totalReceita ? ((l.receita / c.totalReceita) * 100).toFixed(1) : 0}%</td></tr>`);
+            rodapeHtml = `<tr><td style="font-weight:800;">TOTAL</td><td style="text-align:center;font-weight:800;">${c.totalQuantidade}</td><td style="text-align:right;font-weight:800;color:#059669;">R$ ${c.totalReceita.toFixed(2)}</td><td>100%</td></tr>`;
+        } else if (report.type === 'STOCK_LOW') {
+            const ls = report.lowStock;
+            if (!ls) return;
+            titulo = 'Reposição / Inventário';
+            cabecalhoRow = '<th>Produto</th><th style="text-align:center;">Estoque</th><th style="text-align:center;">Mínimo</th><th style="text-align:right;">Valor (Custo)</th>';
+            linhas = ls.linhas.map((l: any) => `<tr><td>${esc(l.name)}</td><td style="text-align:center;color:${l.semEstoque ? '#ef4444' : '#d97706'};font-weight:700;">${l.estoque}</td><td style="text-align:center;">${l.minimo}</td><td style="text-align:right;">R$ ${l.valorEstoque.toFixed(2)}</td></tr>`);
+            rodapeHtml = `<tr><td style="font-weight:800;">TOTAL ${ls.totalCriticos} item(ns)</td><td></td><td></td><td style="text-align:right;font-weight:800;">R$ ${ls.totalValorEstoque.toFixed(2)}</td></tr>`;
+        } else if (report.type === 'PRODUCTS_ALL') {
+            const pc = report.productsCatalog;
+            if (!pc) return;
+            titulo = 'Catálogo de Produtos';
+            cabecalhoRow = '<th>Produto</th><th>Grupo</th><th style="text-align:center;">Código</th><th style="text-align:center;">Estoque</th><th style="text-align:right;">Preço</th>';
+            linhas = pc.linhas.map((l: any) => `<tr><td>${esc(l.name)}</td><td>${esc(l.category)}</td><td style="text-align:center;">${l.barcode ? esc(l.barcode) : '—'}</td><td style="text-align:center;color:${l.estoque <= 0 ? '#ef4444' : l.estoque <= 5 ? '#d97706' : '#0f172a'};font-weight:700;">${l.estoque}</td><td style="text-align:right;font-weight:700;">R$ ${l.preco.toFixed(2)}</td></tr>`);
+        } else if (report.type === 'INDIVIDUAL') {
+            const ex = report.extrato;
+            if (!ex) return;
+            titulo = `Extrato Individual — ${esc(ex.usuario.name)}`;
+            cabecalhoRow = '<th>Data</th><th style="text-align:center;">Tipo</th><th>Descrição</th><th style="text-align:right;">Valor</th>';
+            linhas = ex.movs.map((m: any) => {
+                const cor = m.type === 'ENTRY' ? '#059669' : '#ef4444';
+                return `<tr><td>${toDate(m.date)?.toLocaleDateString('pt-BR') || ''}</td><td style="text-align:center;color:${cor};font-weight:700;">${m.type === 'ENTRY' ? 'Entrada' : 'Saída'}</td><td>${esc(m.description)}</td><td style="text-align:right;color:${cor};font-weight:700;">${m.type === 'ENTRY' ? '+' : '-'} R$ ${m.amount.toFixed(2)}</td></tr>`;
+            });
+        }
+
+        if (!cabecalhoRow) return;
+
+        const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<title>${titulo}</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; color:#0f172a; padding:32px; background:#fff; }
+    .cabecalho { border-bottom:3px solid #059669; padding-bottom:16px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:flex-end; }
+    .cabecalho h1 { font-size:20px; text-transform:uppercase; letter-spacing:1px; color:#059669; }
+    .cabecalho p { font-size:12px; color:#64748b; margin-top:4px; }
+    .meta { text-align:right; font-size:11px; color:#64748b; }
+    table { width:100%; border-collapse:collapse; margin-top:8px; }
+    thead th { background:#0f172a; color:#fff; padding:10px; font-size:10px; text-transform:uppercase; letter-spacing:1px; text-align:left; }
+    td { padding:9px 10px; font-size:12px; border-bottom:1px solid #e2e8f0; }
+    tfoot td { padding:10px; font-weight:800; font-size:12px; background:#f8fafc; border-top:2px solid #0f172a; }
+    .assinatura { margin-top:48px; display:flex; justify-content:space-between; }
+    .assinatura div { width:40%; border-top:1px solid #64748b; padding-top:8px; font-size:10px; text-transform:uppercase; text-align:center; color:#475569; }
+    .rodape { margin-top:22px; text-align:center; font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:1px; }
+    @media print { body { padding:16px; } }
+</style>
+</head>
+<body>
+    <div class="cabecalho">
+        <div>
+            <h1>${titulo}</h1>
+            <p>Mercado Fácil — Gestão Penitenciária de Alta Performance</p>
+            <p>Período: ${report.period}</p>
+        </div>
+        <div class="meta">
+            <p>Emitido em: <b>${hoje}</b></p>
+        </div>
+    </div>
+    <table>
+        <thead><tr>${cabecalhoRow}</tr></thead>
+        <tbody>${linhas.join('')}</tbody>
+        ${rodapeHtml ? `<tfoot>${rodapeHtml}</tfoot>` : ''}
+    </table>
+    <div class="assinatura">
+        <div>Emitido por: ${(settings as any)?.adminName || 'Administração'}</div>
+        <div>Assinatura / Carimbo</div>
+    </div>
+    <p class="rodape">Documento gerado pelo sistema Mercado Fácil — uso interno</p>
+</body>
+</html>`;
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+            printWindow.document.write(html);
+            printWindow.document.close();
+            printWindow.print();
+        }
+    };
+
     return (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 animate-fadeIn" style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
             <div className="bg-[var(--bg-card)] w-full max-w-5xl rounded-3xl shadow-2xl flex flex-col max-h-[90vh] border border-[var(--border-color)] animate-slideUp" style={{ overflow: 'hidden' }}>
@@ -874,7 +1273,12 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                 <div className={`flex-1 overflow-y-auto custom-scrollbar ${thermalMode ? 'bg-white' : 'bg-[var(--bg-main)]/20 p-8 lg:p-12'}`}>
                     <div className={`${thermalMode ? 'max-w-[380px] mx-auto bg-white p-6 min-h-full font-mono' : ''}`} style={{ fontSize: `${fontSize}px` }}>
                         {report.type === 'GENERAL' && renderGeneral()}
-                        {(report.type === 'FINANCIAL' || ['ACCOUNTABILITY', 'INDIVIDUAL', 'STOCK_LOW', 'SALES_BY_CATEGORY'].includes(report.type)) && renderFinancial()}
+                        {(report.type === 'FINANCIAL' || report.type === 'ACCOUNTABILITY') && renderFinancial()}
+                        {report.type === 'INDIVIDUAL' && renderExtratoIndividual()}
+                        {report.type === 'STOCK_LOW' && renderLowStock()}
+                        {report.type === 'SALES_BY_CATEGORY' && renderSalesByCategory()}
+                        {report.type === 'PRODUCTS_ALL' && renderProductsCatalog()}
+                        {(report.type === 'VENDAS_DIARIAS' || report.type === 'COLLECTIVE_PURCHASES') && renderVendasDiarias()}
                         {report.type === 'USERS_CREDITS' && renderUsersCredits()}
                         {report.type === 'DRE_MONTHLY' && renderDre()}
                         {report.type === 'SALES_CSV' && renderSalesCsv()}
@@ -915,10 +1319,17 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                                 printDailyClosing();
                                 return;
                             }
+                            if (report.type === 'VENDAS_DIARIAS' || report.type === 'COLLECTIVE_PURCHASES' || report.type === 'SALES_BY_CATEGORY' || report.type === 'STOCK_LOW' || report.type === 'PRODUCTS_ALL' || report.type === 'INDIVIDUAL') {
+                                printTabelaProfissional();
+                                return;
+                            }
                             const printWindow = window.open('', '_blank');
                             if (printWindow) {
+                                // Fonte profissional (Segoe UI) quando NÃO é cupom 80mm thermal;
+                                // monospace apenas no modo cupom térmico.
                                 const thermalClass = thermalMode ? 'max-width:380px;margin:0 auto;font-family:monospace;' : '';
-                                const html = `<html><head><title>${report.title}</title><style>body{font-family:monospace;padding:40px;${thermalClass}}h1{font-size:24px;text-transform:uppercase}table{width:100%;border-collapse:collapse;margin-top:20px}th,td{padding:12px;text-align:left;border-bottom:1px solid #ddd}.entry{color:#10b981}.exit{color:#ef4444}.summary{margin-top:30px;padding:20px;background:#f8fafc;border-radius:12px}@media print{body{background:white!important;padding:20px!important}}</style></head><body><h1>${report.title}</h1><p>${report.period}</p><table>${report.items.map((i: any) => `<tr><td>${new Date(i.date).toLocaleDateString('pt-BR')}</td><td class="${i.type === 'ENTRY' ? 'entry' : 'exit'}">${i.type === 'ENTRY' ? 'Entrada' : 'Saída'}</td><td>${i.description}</td><td class="${i.type === 'ENTRY' ? 'entry' : 'exit'}">${i.type === 'ENTRY' ? '+' : '-'} R$ ${i.amount.toFixed(2)}</td></tr>`).join('')}</table><div class="summary"><h2>Resumo</h2><p>Total Entradas: R$ ${report.summary.totalEntries.toFixed(2)}</p><p>Total Saídas: R$ ${report.summary.totalExits.toFixed(2)}</p><p>Resultado Líquido: R$ ${report.summary.net.toFixed(2)}</p></div></body></html>`;
+                                const bodyFont = thermalMode ? 'font-family:monospace' : "font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif";
+                                const html = `<html><head><title>${report.title}</title><style>body{${bodyFont};padding:40px;${thermalClass}}h1{font-size:24px;text-transform:uppercase;letter-spacing:1px;border-bottom:3px solid #059669;padding-bottom:12px}h2{font-size:14px;margin-bottom:8px}.sub{color:#64748b;font-size:13px;margin-bottom:20px}table{width:100%;border-collapse:collapse;margin-top:20px}th{padding:10px;text-align:left;background:#0f172a;color:#fff;font-size:10px;text-transform:uppercase;letter-spacing:1px}td{padding:12px;text-align:left;border-bottom:1px solid #e2e8f0}.entry{color:#059669;font-weight:700}.exit{color:#ef4444;font-weight:700}.summary{margin-top:30px;padding:20px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0}.assinatura{margin-top:60px;display:flex;justify-content:space-between;font-size:13px;color:#475569}.assinatura div{width:40%;border-top:1px solid #64748b;padding-top:8px;font-size:10px;text-transform:uppercase;text-align:center}.rodape{margin-top:24px;text-align:center;color:#94a3b8;font-size:10px;text-transform:uppercase;letter-spacing:1px}@media print{body{background:white!important;padding:20px!important}}</style></head><body><h1>${report.title}</h1><p class="sub">Período: ${report.period} · Emitido em: ${new Date().toLocaleDateString('pt-BR')}</p><table>${report.items.map((i: any) => `<tr><td>${toDate(i.date)?.toLocaleDateString('pt-BR') || ''}</td><td class="${i.type === 'ENTRY' ? 'entry' : 'exit'}">${i.type === 'ENTRY' ? 'Entrada' : 'Saída'}</td><td>${esc(i.description)}</td><td class="${i.type === 'ENTRY' ? 'entry' : 'exit'}">${i.type === 'ENTRY' ? '+' : '-'} R$ ${i.amount.toFixed(2)}</td></tr>`).join('')}</table><div class="summary"><h2>Resumo do Período</h2><p>Total de Entradas: <b>R$ ${report.summary.totalEntries.toFixed(2)}</b></p><p>Total de Saídas: <b>R$ ${report.summary.totalExits.toFixed(2)}</b></p><p>Resultado Líquido: <b style="color:${report.summary.net >= 0 ? '#059669' : '#ef4444'}">R$ ${report.summary.net.toFixed(2)}</b></p></div><div class="assinatura"><div>Emitido por: ${(settings as any)?.adminName || 'Administração'}</div><div>Assinatura / Carimbo</div></div><p class="rodape">Documento gerado pelo sistema Mercado Fácil — uso interno</p></body></html>`;
                                 printWindow.document.write(html);
                                 printWindow.document.close();
                                 printWindow.print();

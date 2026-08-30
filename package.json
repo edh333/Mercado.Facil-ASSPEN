@@ -40,7 +40,6 @@
     "qrcode.react": "^4.2.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-qr-code": "^2.0.15",
     "recharts": "^3.6.0"
   },
   "devDependencies": {
@@ -51,8 +50,8 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.0.0",
     "concurrently": "^8.2.2",
-    "electron": "^31.0.0",
-    "electron-builder": "^24.13.3",
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8",
     "tailwindcss": "^4.2.1",
     "typescript": "~5.8.2",
     "vite": "^6.2.0",

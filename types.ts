@@ -228,6 +228,10 @@ export interface AppConfig {
   userDashboardBgBlur?: number; // Novo: Controle de desfoque
   userDashboardBgOpacity?: number; // Novo: Opacidade da máscara Escura/Clara
 
+  // Landing Page Customization
+  landingPageTagline?: string; // Título da landing page (ex: Aproxima você de quem você ama)
+  landingPageSubtitle?: string; // Subtítulo da landing page
+  
   // Professional Receipt Customization
   receiptMainTitleOrder?: string;
   receiptMainTitleExpense?: string;
@@ -319,4 +323,4 @@ export interface CustomerAccount {
   status: 'active' | 'blocked';
   transactions: CustomerAccountTransaction[];
   createdAt?: string;
-}
+}

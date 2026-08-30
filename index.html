@@ -19,7 +19,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firebasestorage.googleapis.com wss://*.firebaseio.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firebasestorage.googleapis.com https://*.cloudfunctions.net wss://*.firebaseio.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" />
 
   <title>ASSPEN — Vendas para familiares de presos</title>
 
@@ -47,6 +47,58 @@
     window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); window.__deferredPrompt = e; });
     window.addEventListener('appinstalled', () => { window.__deferredPrompt = null; });
   </script>
+
+  <!-- Autofill ghost outline fix - definitive -->
+  <style>
+    /* Chrome/Edge/Safari autofill */
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover,
+    input:-webkit-autofill:focus,
+    input:-webkit-autofill:active {
+      -webkit-box-shadow: 0 0 0 1000px transparent inset !important;
+      box-shadow: 0 0 0 1000px transparent inset !important;
+      -webkit-text-fill-color: inherit !important;
+      caret-color: auto !important;
+      -webkit-tap-highlight-color: transparent !important;
+      background-color: transparent !important;
+      border: none !important;
+    }
+
+    /* Firefox autofill */
+    input:-moz-autofill,
+    input:-moz-autofill:hover,
+    input:-moz-autofill:focus,
+    input:-moz-autofill:active {
+      -moz-box-shadow: 0 0 0 1000px transparent inset !important;
+      box-shadow: 0 0 0 1000px transparent inset !important;
+      -moz-text-fill-color: inherit !important;
+      caret-color: auto !important;
+      background-color: transparent !important;
+      border: none !important;
+    }
+
+    /* General input reset to prevent ghost outlines */
+    input:-webkit-autofill *,
+    input:-moz-autofill *,
+    input:-ms-autofill * {
+      -webkit-text-fill-color: inherit !important;
+      color: inherit !important;
+    }
+
+    /* Remove any outline on focused autofilled inputs */
+    input:focus {
+      outline: none !important;
+      -webkit-appearance: none !important;
+    }
+
+    /* Force transparent background on all form inputs within login/register forms */
+    form.login-form input,
+    form.register-form input,
+    form.forgot-form input {
+      background-color: transparent !important;
+      box-shadow: 0 0 0 1000px transparent inset !important;
+    }
+  </style>
 </body>
 
 </html>

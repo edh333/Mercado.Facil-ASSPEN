@@ -192,11 +192,12 @@ const [recoveryName, setRecoveryName] = useState('');
     };
 
     return (
-        <div className="min-h-screen lg:grid lg:grid-cols-[1.1fr_1fr] font-sans bg-white">
+        <div className="min-h-screen lg:grid lg:grid-cols-[1.1fr_1fr] font-sans bg-[var(--bg-main)]">
             <OnlineStatusIndicator />
 
-            {/* ── PAINEL DE MARCA (desktop) ── */}
-            <div className="relative hidden overflow-hidden bg-[#0b3d27] lg:flex lg:flex-col lg:justify-between lg:p-12">
+            {/* ── PAINEL DE MARCA (desktop) — gradiente idêntico ao das telas
+                de impressão: identidade única slate→esmeralda em todo o sistema ── */}
+            <div className="relative hidden overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950 lg:flex lg:flex-col lg:justify-between lg:p-12">
                 <div className="absolute inset-0 opacity-[0.07] bg-[radial-gradient(circle_at_1px_1px,#fff_1px,transparent_0)] bg-[length:26px_26px]"></div>
                 {settings?.loginBgUrl && settings?.loginBgType === 'image' && (
                     <div
@@ -228,10 +229,10 @@ const [recoveryName, setRecoveryName] = useState('');
                     className="relative"
                 >
                     <h2 className="text-balance text-4xl font-bold leading-tight tracking-tight text-white">
-                        Aproxima você de quem você ama.
+                        {settings?.landingPageTagline || 'Aproxima você de quem você ama.'}
                     </h2>
                     <p className="mt-4 text-balance text-white/70">
-                        Compras com praticidade e segurança para familiares de pessoas privadas de liberdade, com acompanhamento completo dos pedidos.
+                        {settings?.landingPageSubtitle || 'Compras com praticidade e segurança para familiares de pessoas privadas de liberdade, com acompanhamento completo dos pedidos.'}
                     </p>
                 </motion.div>
 
@@ -266,7 +267,7 @@ const [recoveryName, setRecoveryName] = useState('');
                 >
                     {/* Marca (mobile/tablet) */}
                     <div className="mb-6 flex items-center gap-2.5 lg:hidden">
-                        <div className="flex size-9 items-center justify-center rounded-lg bg-[#0e7a4d] text-white">
+                        <div className="flex size-9 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-500/30">
                             <Store size={18} />
                         </div>
                         <div className="leading-tight">
@@ -275,7 +276,7 @@ const [recoveryName, setRecoveryName] = useState('');
                         </div>
                     </div>
 
-                    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+                    <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xl shadow-slate-900/[0.06] sm:p-8">
 
                         {/* Abas */}
                         <AnimatePresence mode="wait">
@@ -289,14 +290,14 @@ const [recoveryName, setRecoveryName] = useState('');
                                     <button
                                         type="button"
                                         onClick={() => setActiveTab('login')}
-                                        className={`flex-1 py-2.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${activeTab === 'login' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                                        className={`flex-1 py-3.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${activeTab === 'login' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
                                     >
                                         Entrar
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => setActiveTab('register')}
-                                        className={`flex-1 py-2.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${activeTab === 'register' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                                        className={`flex-1 py-3.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${activeTab === 'register' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
                                     >
                                         Criar Conta
                                     </button>
@@ -485,7 +486,7 @@ const [recoveryName, setRecoveryName] = useState('');
                             <button
                                 type="submit"
                                 disabled={isLoading}
-                                className={`w-full py-3.5 rounded-lg font-semibold text-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2 relative overflow-hidden group bg-[#0e7a4d] hover:bg-[#0c6a42] text-white disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer shadow-sm`}
+                                className={`w-full py-3.5 rounded-xl font-semibold text-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2 relative overflow-hidden group bg-gradient-to-r from-emerald-600 to-emerald-500 hover:brightness-110 text-white disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer shadow-lg shadow-emerald-500/25`}
                             >
                                 <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
                                 {isLoading ? (
@@ -561,7 +562,7 @@ const PremiumInput = ({ icon: Icon, label, value, onChange, type = "text", actio
     return (
         <div>
             <label htmlFor={inputId} className="block text-xs font-semibold tracking-wide text-slate-500 mb-2 ml-1">{label}</label>
-            <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/70 px-3.5 transition-all focus-within:border-[#0e7a4d] focus-within:ring-2 focus-within:ring-[#0e7a4d]/10 focus-within:bg-white">
+            <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/70 px-3.5 transition-all focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/15 focus-within:bg-white">
                 <Icon size={17} className="text-slate-400 shrink-0" aria-hidden="true" />
                 <input
                     type={type}
@@ -588,7 +589,7 @@ const SelectInput = ({ label, value, onChange, children, required = true, id, er
     return (
         <div>
             <label htmlFor={selectId} className="block text-xs font-semibold tracking-wide text-slate-500 mb-2 ml-1">{label}</label>
-            <div className="relative rounded-lg border border-slate-200 bg-slate-50/70 transition-all focus-within:border-[#0e7a4d] focus-within:ring-2 focus-within:ring-[#0e7a4d]/10 focus-within:bg-white">
+            <div className="relative rounded-lg border border-slate-200 bg-slate-50/70 transition-all focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/15 focus-within:bg-white">
                 <select
                     id={selectId}
                     className="w-full px-3.5 py-3 bg-transparent border-none outline-none text-sm font-semibold text-slate-900 appearance-none cursor-pointer tracking-wide"

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '../../firebase';
 import { collection, query, where, getDocs, orderBy, Timestamp } from 'firebase/firestore';
 import { Order } from '../../types';
+import { toDate } from '../../utils/dateUtils';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { ChartMount } from '../ui/ChartMount';
 import { TrendingUp, CreditCard, DollarSign, AlertTriangle, BarChart3, PieChart as PieChartIcon, Loader2 } from 'lucide-react';
@@ -48,8 +49,9 @@ export const AdminDashboardCharts: React.FC = () => {
         const combined = [...activeOrders, ...archivedOrders].filter(o => {
           const raw = o.createdAt || o.date || '';
           if (!raw) return false;
-          const d = new Date(raw);
-          return !isNaN(d.getTime()) && d >= thirtyDaysAgo;
+          const d = toDate(raw);
+          if (!d) return false;
+          return d >= thirtyDaysAgo;
         });
 
         setAllOrders(combined);
@@ -82,8 +84,8 @@ export const AdminDashboardCharts: React.FC = () => {
     allOrders.forEach(o => {
       const raw = o.createdAt || o.date;
       if (!raw) return;
-      const d = new Date(raw);
-      if (isNaN(d.getTime())) return;
+      const d = toDate(raw);
+      if (!d) return;
       const key = d.toLocaleDateString('pt-BR');
       if (map.has(key)) {
         const entry = map.get(key)!;

@@ -353,14 +353,31 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
 
   const clientesFiltrados = useMemo(() => {
     const term = (buscaCliente || '').trim();
-    if (!term || term.length < 3) return [];
+    // Busca incremental desde o 1º caractere: digitar o começo do nome ou do
+    // CPF já retorna resultados (antes exigia 3+ caracteres e parecia "bugado",
+    // sem mostrar ninguém ao digitar apenas o início).
+    if (!term) return [];
     const termo = term.toLowerCase();
+    const somenteNumeros = /^\d+$/.test(termo);
     return todosClientes.filter(u => {
       const nome = (u.name || '').toLowerCase();
       const nomePreso = (u.inmateName || u.prisonerName || '').toLowerCase();
-      const cpf = (u.cpf || '').replace(/\D/g, '');
-      return nome.includes(termo) || nomePreso.includes(termo) || cpf.includes(termo.replace(/\D/g, ''));
-    }).slice(0, 10);
+      const cpfDigits = (u.cpf || '').replace(/\D/g, '');
+      // Se é só número (começo de CPF), casa por prefixo do CPF (mais rápido e exato);
+      // senão, busca por substring no nome do familiar e do interno.
+      if (somenteNumeros) return cpfDigits.startsWith(termo);
+      return nome.includes(termo) || nomePreso.includes(termo) || cpfDigits.includes(termo.replace(/\D/g, ''));
+    })
+      .sort((a, b) => {
+        const aNome = (a.name || '').toLowerCase();
+        const bNome = (b.name || '').toLowerCase();
+        // Quem começa com o termo vem primeiro, depois substring.
+        const aStart = aNome.startsWith(termo) ? 0 : 1;
+        const bStart = bNome.startsWith(termo) ? 0 : 1;
+        if (aStart !== bStart) return aStart - bStart;
+        return aNome.localeCompare(bNome);
+      })
+      .slice(0, 10);
   }, [todosClientes, buscaCliente]);
 
   const produtosFiltrados = useMemo(() => {

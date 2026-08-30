@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Clock, CreditCard, Loader2, FileText, Package, ChevronUp, ChevronDown, Printer, Search, XCircle } from 'lucide-react';
 import { Order } from '../../types';
 import { formatarMoeda } from '../../utils';
+import { toDate } from '../../utils/dateUtils';
 
 interface UserOrdersTabProps {
   settings: any;
@@ -30,7 +31,7 @@ export const UserOrdersTab: React.FC<UserOrdersTabProps> = ({
     const search = (searchOrder || '').toLowerCase();
     if (!search) return true;
     const orderId = (order.id || '').toLowerCase();
-    const date = new Date(order.createdAt || order.date || '').toLocaleString().toLowerCase();
+    const date = (toDate(order.createdAt || order.date)?.toLocaleString() || '').toLowerCase();
     const items = (order.items || []).map((i: any) => (i.name || '').toLowerCase()).join(' ');
     return orderId.includes(search) || date.includes(search) || items.includes(search);
   });
@@ -121,7 +122,7 @@ export const UserOrdersTab: React.FC<UserOrdersTabProps> = ({
                           <div className="flex justify-between items-start mb-4">
                                <div>
                                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pedido #{(order.id || '').slice(0, 6).toUpperCase()}</span>
-                                  <p className="font-black text-white text-sm">{new Date(order.createdAt || order.date).toLocaleString()}</p>
+                                  <p className="font-black text-white text-sm">{toDate(order.createdAt || order.date)?.toLocaleString() || ''}</p>
                                </div>
                               <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase border ${
                                   (order.status || '').includes('paid') || (order.status || '').includes('pago') ? 'bg-green-900/30 text-green-300 border-green-800' :

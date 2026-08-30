@@ -1,5 +1,6 @@
 import React from 'react';
 import { formatarMoeda } from '../utils';
+import { toDate } from '../utils/dateUtils';
 import { Printer, X, ShieldCheck, FileText, User, DollarSign, Calendar, Hash } from 'lucide-react';
 
 interface NotaPromissoriaA4Props {
@@ -73,10 +74,10 @@ export const valorPorExtenso = (valor: number): string => {
 };
 
 export const NotaPromissoriaA4: React.FC<NotaPromissoriaA4Props> = ({ data, onClose, embedded }) => {
-  const emitDate = new Date(data.dataEmissao);
-  const dueDate = new Date(data.dataVencimento);
-  const dateLong = (d: Date) => d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
-  const dateShort = (d: Date) => d.toLocaleDateString('pt-BR');
+  const emitDate = toDate(data.dataEmissao);
+  const dueDate = toDate(data.dataVencimento);
+  const dateLong = (d: Date | undefined) => d?.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }) || '';
+  const dateShort = (d: Date | undefined) => d?.toLocaleDateString('pt-BR') || '';
 
   return (
     <div id="print-root" className={embedded

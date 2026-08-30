@@ -1,5 +1,6 @@
 import React from 'react';
 import { formatarMoeda } from '../utils';
+import { toDate } from '../utils/dateUtils';
 
 interface RelatorioA4Props {
     report: any;
@@ -54,7 +55,7 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
                     <tbody>
                         {(report.items || []).map((item: any, idx: number) => (
                             <tr key={idx} className="border-b border-slate-100 last:border-0 hover:bg-slate-50 break-inside-avoid">
-                                <td className="p-2 text-[10px] font-medium whitespace-nowrap">{new Date(item.date).toLocaleDateString('pt-BR')}</td>
+                                <td className="p-2 text-[10px] font-medium whitespace-nowrap">{toDate(item.date)?.toLocaleDateString('pt-BR') || ''}</td>
                                 <td className="p-2 text-[10px] font-bold text-slate-700">{item.description}</td>
                                 <td className="p-2 text-[10px] font-black text-emerald-600 text-right">
                                     {item.type === 'ENTRY' ? `R$ ${formatarMoeda(item.amount)}` : '-'}

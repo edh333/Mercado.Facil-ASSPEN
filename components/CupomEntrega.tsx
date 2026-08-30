@@ -38,16 +38,26 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
   const pixKey = Array.isArray(config?.pixKeys) && config.pixKeys[0] ? String(config.pixKeys[0]) : '';
   const ehPix = String(data.paymentMethod || '').toUpperCase() === 'PIX';
 
-  const formatDate = (date: string | Date) => {
+  const formatDate = (date: string | Date | any) => {
     if (!date) return new Date().toLocaleString('pt-BR');
-    return new Date(date).toLocaleString('pt-BR', {
+    if (typeof date === 'object' && typeof date?.toDate === 'function') {
+      return date.toDate().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+    if (typeof date === 'object' && 'seconds' in date) {
+      return new Date(date.seconds * 1000).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return new Date().toLocaleString('pt-BR');
+    return d.toLocaleString('pt-BR', {
       day: '2-digit', month: '2-digit', year: 'numeric',
       hour: '2-digit', minute: '2-digit'
     });
   };
 
   const fontSize = config?.receiptFontSize || 10;
-  const authHash = `SEC-${(data.id || 'XXXX').slice(0,8).toUpperCase()}-${Math.floor(Date.now()/1000).toString(36).toUpperCase()}`;
+  const seedA = (data.id || 'XXXX').replace(/-/g, '').toUpperCase().slice(0, 8).padEnd(8, '0');
+  const seedB = (seedA.split('').reverse().join('') + seedA).slice(0, 8).padEnd(8, '0');
+  const authHash = `SEC-${seedA}-${seedB}`;
 
   return (
     <div

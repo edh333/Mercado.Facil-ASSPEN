@@ -3,6 +3,7 @@ import {
   Package, Search, Grid, List, Plus, Upload, Trash2, Edit, ImageIcon, Printer, AlertTriangle, Check, RefreshCw
 } from 'lucide-react';
 import { formatarMoeda } from '../../utils';
+import { toDate } from '../../utils/dateUtils';
 import { Product, Supplier } from '../../types';
 import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
 
@@ -344,7 +345,7 @@ return (
                           )}
                         </div>
                         {product.lastSoldAt && (
-                          <p className="text-[10px] text-[var(--text-muted)] mt-1">Últ. venda: {product.lastSoldAt ? new Date(product.lastSoldAt).toLocaleDateString('pt-BR') : '—'}</p>
+                          <p className="text-[10px] text-[var(--text-muted)] mt-1">Últ. venda: {product.lastSoldAt ? toDate(product.lastSoldAt)?.toLocaleDateString('pt-BR') || '—' : '—'}</p>
                         )}
                     </div>
                     <div className="flex gap-2">

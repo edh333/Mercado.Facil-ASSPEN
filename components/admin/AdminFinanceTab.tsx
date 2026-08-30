@@ -10,6 +10,7 @@ import { getRecentSessions, CashSession } from '../../utils/cashSession';
 import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
 import { parseMoeda } from '../../utils';
 import { ehReceita } from './adminUtils';
+import { toDate } from '../../utils/dateUtils';
 
 interface AdminFinanceTabProps {
   expenses: Expense[];
@@ -42,6 +43,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
   const [confirmacao, setConfirmacao] = useState<null | 'FINANCEIRO' | 'CREDITOS'>(null);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [printReceipt, setPrintReceipt] = useState<any>(null);
+  const [isPrinting, setIsPrinting] = useState(false);
   const [cashSessions, setCashSessions] = useState<CashSession[]>([]);
 
   useEffect(() => {
@@ -111,8 +113,8 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
 
   const getLocalDateString = (dateInput: string | Date | undefined | null) => {
     if (!dateInput) return hojeStr();
-    const d = new Date(dateInput);
-    if (isNaN(d.getTime())) return hojeStr();
+    const d = toDate(dateInput);
+    if (!d) return hojeStr();
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   };
 
@@ -153,7 +155,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
     else if (activeSubTab === 'ENTRIES') combined = filteredOrders;
     else combined = filteredExpenses;
 
-    return combined.sort((a,b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
+    return combined.sort((a,b) => (toDate(b.date)?.getTime() || 0) - (toDate(a.date)?.getTime() || 0));
   }, [expenses, orders, activeSubTab, financeFilters]);
 
   const cashInPeriod = useMemo(() => {
@@ -198,7 +200,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
   const exportFinanceToCSV = () => {
     const headers = ['Data', 'Tipo', 'Descrição', 'Pessoa', 'Valor'];
     const rows = filteredData.map(item => [
-      new Date(item.date || 0).toLocaleDateString('pt-BR'),
+      toDate(item.date)?.toLocaleDateString('pt-BR') || '',
       item.type === 'ENTRY' ? 'Entrada' : 'Saída',
       item.name || item.description || '',
       item.person || item.recipientName || '',
@@ -487,8 +489,8 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
                   <tr key={item.id} className="hover:bg-[var(--bg-main)]/50 transition-all group">
                     <td className="p-6 whitespace-nowrap">
                       <div className="text-[10px] font-black text-[var(--text-main)] border-l-4 border-emerald-600 pl-4">
-                          {item?.date ? new Date(item.date).toLocaleDateString('pt-BR') : '—'}<br/>
-                          <span className="text-[var(--text-muted)]">{item?.date ? new Date(item.date).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}) : '—'}</span>
+                          {item?.date ? toDate(item.date)?.toLocaleDateString('pt-BR') || '' : '—'}<br/>
+                          <span className="text-[var(--text-muted)]">{item?.date ? toDate(item.date)?.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}) || '' : '—'}</span>
                       </div>
                     </td>
                     <td className="p-6">
@@ -555,7 +557,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
                             <div>
                                 <h4 className="font-bold text-sm uppercase text-[var(--text-main)] tracking-tight">{item?.name || 'Sem descrição'}</h4>
                                 <p className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest">
-                                  {item.date ? new Date(item.date).toLocaleDateString('pt-BR') : '—'} • {item.date ? new Date(item.date).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}) : '—'}
+                                  {item.date ? toDate(item.date)?.toLocaleDateString('pt-BR') || '' : '—'} • {item.date ? toDate(item.date)?.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}) || '' : '—'}
                                 </p>
                             </div>
                         </div>
@@ -765,7 +767,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
         </ModalShell>
       )}
 
-      {printReceipt && (
+      {isPrinting && printReceipt && (
         <div className="cupom-gerencial-print" style={{ position: 'absolute', left: '-9999px', top: 0, width: '80mm', padding: '3mm', fontFamily: 'Courier New, monospace', fontSize: '10px', color: '#000', background: '#fff' }}>
           <div style={{ textAlign: 'center', marginBottom: '3mm' }}>
             <strong style={{ fontSize: '12px' }}>{settings?.institutionName || 'ASSOCIAÇÃO ASSPEN'}</strong><br />
@@ -773,7 +775,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
           </div>
           <div style={{ borderTop: '1px dashed #000', borderBottom: '1px dashed #000', padding: '2mm 0', marginBottom: '2mm' }}>
             <strong>RECIBO #{printReceipt.auditDocNumber || printReceipt.recipientDoc}</strong><br />
-            <span>Data: {new Date(printReceipt.date).toLocaleString('pt-BR')}</span><br />
+            <span>Data: {toDate(printReceipt.date)?.toLocaleString('pt-BR') || ''}</span><br />
             <span>Recebedor: {printReceipt.recipientName || 'N/I'}</span><br />
             <span>Finalidade: {printReceipt.description || 'N/I'}</span><br />
             {printReceipt.observation && <span>Obs: {printReceipt.observation}</span>}

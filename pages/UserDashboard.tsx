@@ -13,6 +13,7 @@ import { NotificationSystem } from '../components/NotificationSystem';
 
 import { generatePixPayload, formatarMoeda, compressImageFile } from '../utils';
 import { imprimirComPrioridadeFiscal } from '../utils/printUtils';
+import { toDate } from '../utils/dateUtils';
 import { collection, query, where, onSnapshot, orderBy, limit, getDocs, getDocsFromServer } from 'firebase/firestore';
 import { db } from '../firebase';
 import { QRCodeSVG } from 'qrcode.react';
@@ -155,7 +156,7 @@ export const UserDashboard: React.FC = () => {
                 const snapshot = await getDocs(q);
                 if (!snapshot.empty) {
                     const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Order)).filter(o => (o as any).deleted !== true);
-                    items.sort((a, b) => new Date(b.createdAt || b.date || 0).getTime() - new Date(a.createdAt || a.date || 0).getTime());
+                    items.sort((a, b) => (toDate(b.createdAt || b.date)?.getTime() || 0) - (toDate(a.createdAt || a.date)?.getTime() || 0));
                     setMyOrders(items.slice(0, 20));
                     setLoadingOrders(false);
                 }
@@ -165,14 +166,14 @@ export const UserDashboard: React.FC = () => {
             try {
                 const snapshot = await getDocsFromServer(q);
                 const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Order)).filter(o => (o as any).deleted !== true);
-                items.sort((a, b) => new Date(b.createdAt || b.date || 0).getTime() - new Date(a.createdAt || a.date || 0).getTime());
+                items.sort((a, b) => (toDate(b.createdAt || b.date)?.getTime() || 0) - (toDate(a.createdAt || a.date)?.getTime() || 0));
                 setMyOrders(items.slice(0, 20));
             } catch {
                 try {
                     const qFallback = query(collection(db, 'orders'), where('userId', '==', currentUser.id), limit(100));
                     const snapshot = await getDocsFromServer(qFallback);
                     const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Order)).filter(o => (o as any).deleted !== true);
-                    items.sort((a, b) => new Date(b.createdAt || b.date || 0).getTime() - new Date(a.createdAt || a.date || 0).getTime());
+                    items.sort((a, b) => (toDate(b.createdAt || b.date)?.getTime() || 0) - (toDate(a.createdAt || a.date)?.getTime() || 0));
                     setMyOrders(items.slice(0, 20));
                 } catch { console.warn("orders fetch fallback"); setLoadingOrders(false); /* offline sem cache — lista vazia */ }
             }
@@ -185,7 +186,7 @@ export const UserDashboard: React.FC = () => {
             try {
                 unsubOrders = onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
                     const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Order)).filter(o => (o as any).deleted !== true);
-                    items.sort((a, b) => new Date(b.createdAt || b.date || 0).getTime() - new Date(a.createdAt || a.date || 0).getTime());
+                    items.sort((a, b) => (toDate(b.createdAt || b.date)?.getTime() || 0) - (toDate(a.createdAt || a.date)?.getTime() || 0));
                     setMyOrders(items.slice(0, 20));
                 }, () => {});
             } catch { console.warn("orders snapshot error"); }
@@ -709,7 +710,7 @@ export const UserDashboard: React.FC = () => {
         <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '16px', width: '100%', minWidth: 0, minHeight: 'calc(100vh - 140px)' }}>
 
             {/* PAINEL ESQUERDO — 35% — DESTAQUE DO ITEM ATUAL */}
-            <div className="bg-slate-900 text-white rounded-2xl p-5 flex flex-col justify-between shadow-xl relative border border-slate-800 font-mono" style={{ width: '35%', minWidth: '280px', flexGrow: 1, flexShrink: 0, minHeight: '320px' }}>
+            <div className="bg-slate-900 text-white rounded-2xl p-5 flex flex-col justify-between shadow-xl relative border border-slate-800 font-mono" style={{ width: '100%', maxWidth: '100%', flexGrow: 1, flexBasis: '280px', flexShrink: 1, minHeight: '320px' }}>
                 {lastProd || lastItem ? (
                     <>
                         <div className="flex-1 flex flex-col items-center justify-center relative">
@@ -746,10 +747,10 @@ export const UserDashboard: React.FC = () => {
             </div>
 
             {/* PAINEL CENTRAL + SIDEBAR — 65% */}
-            <div style={{ width: '65%', flexGrow: 1, flexShrink: 0, minWidth: '300px', display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '16px' }}>
+            <div style={{ flexGrow: 1, flexBasis: '300px', flexShrink: 1, minWidth: 0, display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '16px' }}>
 
                 {/* COLUNA DA TABELA + ATALHOS */}
-                <div style={{ flex: '1 1 480px', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                <div style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
 
                     {/* BARRA DE PESQUISA */}
                     <div style={{ flexShrink: 0, marginBottom: '8px' }}>
@@ -769,7 +770,7 @@ export const UserDashboard: React.FC = () => {
                     </div>
 
                     {/* TABELA ZEBRADA CUPOM FISCAL */}
-                    <div className="max-h-[calc(100vh-320px)] overflow-y-auto border border-slate-200 rounded-xl bg-white" style={{ flex: 1, minHeight: 0 }}>
+                    <div className="max-h-[calc(100vh-320px)] overflow-x-auto overflow-y-auto border border-slate-200 rounded-xl bg-white" style={{ flex: 1, minHeight: 0 }}>
                         <table className="w-full text-[12px] font-mono">
                             <thead className="text-white font-black text-xs uppercase text-center tracking-wider sticky top-0 z-10 bg-[var(--primary-color)]">
                                 <tr>
@@ -790,9 +791,9 @@ export const UserDashboard: React.FC = () => {
                                             <td className="text-slate-800 font-bold text-xs uppercase text-left pl-4 py-3">{displayName}</td>
                                             <td className="py-3 text-center">
                                                 <div className="inline-flex items-center gap-1 mx-auto">
-                                                    <button onClick={() => updateQty(item.productId, -1)} className="w-7 h-7 rounded-full border bg-white shadow-sm flex items-center justify-center font-bold text-xs transition-all active:scale-95 text-slate-700 cursor-pointer hover:bg-red-50 hover:text-red-500 hover:border-red-300">−</button>
+                                                    <button onClick={() => updateQty(item.productId, -1)} className="w-9 h-9 rounded-full border bg-white shadow-sm flex items-center justify-center font-bold text-xs transition-all active:scale-95 text-slate-700 cursor-pointer hover:bg-red-50 hover:text-red-500 hover:border-red-300">−</button>
                                                     <span className="font-black text-sm text-slate-900 min-w-[28px] text-center">{item.quantity}</span>
-                                                    <button onClick={() => updateQty(item.productId, 1)} className="w-7 h-7 rounded-full border bg-white shadow-sm flex items-center justify-center font-bold text-xs transition-all active:scale-95 text-slate-700 cursor-pointer hover:bg-emerald-50 hover:text-[var(--primary-color)] hover:border-emerald-300">+</button>
+                                                    <button onClick={() => updateQty(item.productId, 1)} className="w-9 h-9 rounded-full border bg-white shadow-sm flex items-center justify-center font-bold text-xs transition-all active:scale-95 text-slate-700 cursor-pointer hover:bg-emerald-50 hover:text-[var(--primary-color)] hover:border-emerald-300">+</button>
                                                 </div>
                                             </td>
                                             <td className="text-slate-600 font-medium text-xs font-mono text-center py-3">R$ {formatarMoeda(displayPrice)}</td>
@@ -854,20 +855,39 @@ export const UserDashboard: React.FC = () => {
         <div className="space-y-8">
             {(settings?.enablePrisonerWallet ?? true) && (
                 <div className="sm:hidden">
-                    <div className="mb-2 flex items-center justify-between gap-3 rounded-xl border border-[var(--primary-color)]/30 bg-[var(--primary-color)]/5 p-4">
-                        <div className="leading-tight">
-                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Carteira Interna</p>
-                            <p className="text-xl font-bold tracking-tight text-slate-900">
-                                <span className="text-xs font-semibold text-slate-500 mr-0.5">R$</span>
+                    <div className="mb-2 flex items-center gap-3 rounded-xl border border-[var(--primary-color)]/30 bg-[var(--primary-color)]/5 p-3">
+                        {/* Saldo */}
+                        <div className="flex-1 min-w-0 leading-tight">
+                            <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">Saldo</p>
+                            <p className="text-lg font-bold tracking-tight text-slate-900">
+                                <span className="text-[10px] font-semibold text-slate-500 mr-0.5">R$</span>
                                 {formatarMoeda(currentUser?.walletBalance || 0)}
                             </p>
                         </div>
+
+                        {/* Ícone de Mensagens */}
+                        <button
+                            onClick={() => setIsMsgOpen(!isMsgOpen)}
+                            className="relative size-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:border-[var(--primary-color)]/40 hover:text-[var(--primary-color)] active:scale-95 transition-all shrink-0"
+                        >
+                            <MessageSquare size={17} />
+                            {unreadMsg > 0 && (
+                                <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[8px] min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center font-bold border-2 border-white">{unreadMsg}</span>
+                            )}
+                        </button>
+
+                        {/* Ícone de Instalar App */}
+                        {!isStandalone && (
+                            <InstallButton role="user" />
+                        )}
+
+                        {/* Botão Enviar Crédito */}
                         <button
                             onClick={() => { setIsDepositOpen(true); setStage('pay'); setDepositAmount(0); }}
-                            className="bg-[var(--primary-color)] text-white px-4 py-2.5 rounded-lg font-semibold text-xs shadow-sm active:scale-95 hover:brightness-110 transition-all flex items-center gap-1.5 shrink-0"
+                            className="bg-[var(--primary-color)] text-white px-3 py-2.5 rounded-xl font-semibold text-[11px] shadow-sm active:scale-95 hover:brightness-110 transition-all flex items-center gap-1 shrink-0"
                         >
-                            <Plus size={15} />
-                            <span>Enviar Crédito</span>
+                            <Plus size={14} />
+                            <span>Crédito</span>
                         </button>
                     </div>
                 </div>
@@ -996,10 +1016,6 @@ export const UserDashboard: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="sm:hidden flex items-center gap-2 rounded-full border border-[var(--primary-color)]/25 bg-[var(--primary-color)]/5 px-3 py-1.5">
-                        <p className="text-xs font-bold text-[var(--primary-color)]">R$ {formatarMoeda(currentUser?.walletBalance || 0)}</p>
-                    </div>
-
                     {(settings?.enablePrisonerWallet ?? true) && !isAdmin && (
                         <div className="hidden sm:flex items-center gap-3 rounded-full border border-slate-200 bg-slate-50 px-4 py-2">
                             <div className="text-right leading-tight">
@@ -1046,15 +1062,15 @@ export const UserDashboard: React.FC = () => {
                         >
                             <Printer size={17} />
                         </button>
-                        <button onClick={() => setIsMsgOpen(!isMsgOpen)} className="size-10 border border-slate-200 bg-white text-slate-500 rounded-lg flex items-center justify-center hover:border-[var(--primary-color)]/40 hover:text-[var(--primary-color)] transition-all active:scale-90 relative">
+                        <button onClick={() => setIsMsgOpen(!isMsgOpen)} className="hidden sm:flex size-11 border border-slate-200 bg-white text-slate-500 rounded-lg items-center justify-center hover:border-[var(--primary-color)]/40 hover:text-[var(--primary-color)] transition-all active:scale-90 relative">
                             <MessageSquare size={17} />
                             {unreadMsg > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center font-bold border-2 border-white">{unreadMsg}</span>}
                         </button>
                         {!isAdmin && !isStandalone && (
-                            <span><InstallButton role="user" /></span>
+                            <span className="hidden sm:inline-flex"><InstallButton role="user" /></span>
                         )}
-                        <button onClick={() => setShowUninstallModal(true)} title="Desinstalar aplicativo" className="size-10 border border-slate-200 bg-white text-slate-400 rounded-lg hidden sm:flex items-center justify-center hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all active:scale-90"><Trash2 size={17} /></button>
-                        <button onClick={logout} title="Sair" className="size-10 border border-red-200 bg-white text-red-500 rounded-lg flex items-center justify-center hover:bg-red-500 hover:text-white hover:border-red-500 transition-all active:scale-90"><LogOut size={17} /></button>
+                        <button onClick={() => setShowUninstallModal(true)} title="Desinstalar aplicativo" className="size-11 border border-slate-200 bg-white text-slate-400 rounded-lg hidden sm:flex items-center justify-center hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all active:scale-90"><Trash2 size={17} /></button>
+                        <button onClick={logout} title="Sair" className="size-11 border border-red-200 bg-white text-red-500 rounded-lg flex items-center justify-center hover:bg-red-500 hover:text-white hover:border-red-500 transition-all active:scale-90"><LogOut size={17} /></button>
                     </div>
                 </div>
             </header>
@@ -1091,13 +1107,13 @@ export const UserDashboard: React.FC = () => {
                                                 <div className="flex-1 min-w-0">
                                                     <p className={`text-[11px] leading-relaxed text-[var(--text-main)] ${msg.read ? '' : 'font-bold'}`}>{msg.text || (msg as any).message}</p>
                                                     <p className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-muted)] mt-1.5">
-                                                        {msg.date ? new Date(msg.date).toLocaleString('pt-BR') : ((msg as any).createdAt ? new Date((msg as any).createdAt).toLocaleString('pt-BR') : '')}
+                                                        {toDate(msg.date)?.toLocaleString('pt-BR') || ((msg as any).createdAt ? toDate((msg as any).createdAt)?.toLocaleString('pt-BR') || '' : '')}
                                                     </p>
                                                 </div>
                                                 {!msg.read && (
                                                     <button
                                                         onClick={() => markMessageRead(msg.id)}
-                                                        className="shrink-0 text-[9px] font-black uppercase tracking-widest bg-[var(--primary-color)]/10 text-[var(--primary-color)] px-2.5 py-1.5 rounded-lg hover:opacity-80 transition-all cursor-pointer"
+                                                        className="shrink-0 text-[10px] font-black uppercase tracking-widest bg-[var(--primary-color)]/10 text-[var(--primary-color)] min-h-[44px] min-w-[44px] px-3 py-2 rounded-lg hover:opacity-80 transition-all cursor-pointer"
                                                     >
                                                         Lida
                                                     </button>
@@ -1245,7 +1261,7 @@ export const UserDashboard: React.FC = () => {
                                             </div>
                                             <div>
                                                 <p className="font-semibold text-[13px] text-slate-900">{tx.type === 'deposit' ? 'Depósito' : 'Compra'}</p>
-                                                <p className="text-xs text-slate-400">{new Date(tx.createdAt).toLocaleString()}</p>
+                                                <p className="text-xs text-slate-400">{toDate(tx.createdAt)?.toLocaleString() || ''}</p>
                                                 {tx.status === 'pending' && tx.type === 'deposit' && (tx.proofUrl === 'PENDENTE_UPLOAD_LOCAL_CACHE' || !tx.proofUrl) && (
                                                     <button
                                                         onClick={() => { setResendTarget({ kind: 'wallet_transactions', docId: tx.id }); resendInputRef.current?.click(); }}
@@ -1281,7 +1297,7 @@ export const UserDashboard: React.FC = () => {
                                         <div className="flex justify-between items-center mb-4 pb-4 border-b border-slate-100">
                                             <div>
                                                 <span className="text-xs font-semibold text-slate-400">Pedido #{order.id.slice(0, 8)}</span>
-                                                <p className="font-semibold text-[13px] text-slate-900 mt-0.5">{(() => { const d = new Date(order.createdAt || order.date); return isNaN(d.getTime()) ? '' : d.toLocaleString(); })()}</p>
+                                                <p className="font-semibold text-[13px] text-slate-900 mt-0.5">{(() => { const d = toDate(order.createdAt || order.date); return d ? d.toLocaleString() : ''; })()}</p>
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 {order.paymentMethod === 'WALLET' ? (
@@ -1459,7 +1475,7 @@ export const UserDashboard: React.FC = () => {
                             <Package size={20} />
                             <span className="text-[10px] font-black uppercase mt-0.5">CATÁLOGO</span>
                         </button>
-                        <button onClick={() => { setIsCartReviewOpen(true); }} className={`flex flex-col items-center justify-center h-full flex-1 transition-colors relative ${mobileView === 'cart' ? 'text-[var(--primary-color)]' : 'text-slate-400'}`}>
+                        <button onClick={() => { setMobileView('cart'); setIsCartReviewOpen(true); }} className={`flex flex-col items-center justify-center h-full flex-1 transition-colors relative ${mobileView === 'cart' ? 'text-[var(--primary-color)]' : 'text-slate-400'}`}>
                             <ShoppingCart size={20} />
                             {totalItensNoCarrinho > 0 && <span className="absolute top-1 right-[calc(50%-24px)] bg-red-500 text-white text-[10px] w-auto min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center font-black border border-white">{totalItensNoCarrinho}</span>}
                             <span className="text-[10px] font-black uppercase mt-0.5">CUPOM</span>
@@ -1478,11 +1494,11 @@ export const UserDashboard: React.FC = () => {
 
             {/* CART REVIEW MODAL — PC e Mobile */}
             {isCartReviewOpen && (
-                <div className="fixed inset-0 z-[999] bg-black/60 backdrop-blur-sm" onClick={() => setIsCartReviewOpen(false)}>
-                    <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 md:max-w-md md:mx-auto bg-white rounded-2xl shadow-2xl p-5 max-h-[80vh] overflow-y-auto flex flex-col space-y-4 z-50 border border-slate-100" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 z-[999] bg-black/60 backdrop-blur-sm" onClick={() => { setMobileView('catalog'); setIsCartReviewOpen(false); }}>
+                    <div className="fixed inset-x-3 sm:inset-x-4 top-1/2 -translate-y-1/2 md:max-w-md md:mx-auto bg-white rounded-2xl shadow-2xl p-5 max-h-[80vh] overflow-y-auto flex flex-col space-y-4 z-50 border border-slate-100" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center shrink-0">
                             <h3 className="font-black text-base uppercase tracking-tight"><ShoppingCart size={16} className="inline-block mr-1.5 -mt-0.5 text-[var(--primary-color)]" />Revisão do Carrinho</h3>
-                            <button onClick={() => setIsCartReviewOpen(false)} className="w-7 h-7 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200"><X size={16}/></button>
+                            <button onClick={() => { setMobileView('catalog'); setIsCartReviewOpen(false); }} className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200"><X size={16}/></button>
                         </div>
 
                         {cart.length === 0 ? (
@@ -1503,11 +1519,11 @@ export const UserDashboard: React.FC = () => {
                                                 <p className="font-black text-sm text-slate-900">R$ {formatarMoeda(subtotal)}</p>
                                             </div>
                                             <div className="flex items-center gap-1 shrink-0">
-                                                <button onClick={() => updateQty(item.productId, -1)} className="w-7 h-7 rounded-full border bg-white flex items-center justify-center font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer hover:bg-red-50 hover:text-red-500 hover:border-red-300">−</button>
+                                                <button onClick={() => updateQty(item.productId, -1)} className="w-9 h-9 rounded-full border bg-white flex items-center justify-center font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer hover:bg-red-50 hover:text-red-500 hover:border-red-300">−</button>
                                                 <span className="font-black text-xs text-slate-900 min-w-[22px] text-center">{item.quantity}</span>
-                                                <button onClick={() => updateQty(item.productId, 1)} className="w-7 h-7 rounded-full border bg-white flex items-center justify-center font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer hover:bg-emerald-50 hover:text-[var(--primary-color)] hover:border-emerald-300">+</button>
+                                                <button onClick={() => updateQty(item.productId, 1)} className="w-9 h-9 rounded-full border bg-white flex items-center justify-center font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer hover:bg-emerald-50 hover:text-[var(--primary-color)] hover:border-emerald-300">+</button>
                                             </div>
-                                            <button onClick={() => removeFromCart(item.productId)} className="text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg text-[10px] font-black flex items-center gap-1 transition-all active:scale-95 shrink-0"><Trash2 size={12} /> RETIRAR</button>
+                                            <button onClick={() => removeFromCart(item.productId)} className="text-red-600 bg-red-50 hover:bg-red-100 px-3 min-h-[44px] py-2 rounded-lg text-[11px] font-black flex items-center gap-1 transition-all active:scale-95 shrink-0"><Trash2 size={12} /> RETIRAR</button>
                                         </div>
                                     );
                                 })}
@@ -1521,7 +1537,7 @@ export const UserDashboard: React.FC = () => {
                                     <span className="text-xl font-black text-slate-900">R$ {formatarMoeda(cartTotal)}</span>
                                 </div>
                                 <button onClick={() => { setIsCartReviewOpen(false); setIsCheckoutModalOpen(true); }} className="w-full py-3 bg-emerald-600 text-white font-black rounded-2xl uppercase text-xs shadow-lg active:scale-95 flex items-center justify-center gap-2 shrink-0">
-                                    <Banknote size={14} className="inline-block mr-1.5 -mt-0.5" /> AVANÇAR PARA PAGAMENTO (F9)
+                                    <Banknote size={14} className="inline-block mr-1.5 -mt-0.5" /> AVANÇAR PARA PAGAMENTO
                                 </button>
                             </>
                         )}
@@ -1532,7 +1548,7 @@ export const UserDashboard: React.FC = () => {
             {/* MOBILE PAYMENT VIEW */}
             {mobileView === 'payment' && (
                 <div className="md:hidden fixed inset-0 z-40 bg-black/40" onClick={() => setMobileView('catalog')}>
-                    <div className="absolute bottom-16 left-0 right-0 bg-white rounded-t-3xl shadow-2xl max-h-[70vh] overflow-y-auto p-4 pb-8" onClick={e => e.stopPropagation()}>
+                    <div className="absolute bottom-16 left-0 right-0 bg-white rounded-t-3xl shadow-2xl max-h-[70vh] overflow-y-auto p-4 pb-8" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }} onClick={e => e.stopPropagation()}>
                         <div className="w-12 h-1.5 bg-slate-300 rounded-full mx-auto mb-4"></div>
                         <p className="font-black text-xs uppercase text-slate-400 text-center tracking-widest mb-4"><Banknote size={12} className="inline-block mr-1.5 -mt-0.5" /> FINALIZAR PAGAMENTO</p>
                         <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 mb-4">
@@ -1544,8 +1560,8 @@ export const UserDashboard: React.FC = () => {
                             <p className="text-[9px] font-black text-[var(--primary-color)] uppercase tracking-widest mb-2">TOTAL GERAL</p>
                             <p className="font-black text-3xl text-slate-900">R$ {formatarMoeda(cartTotal)}</p>
                         </div>
-                        <button onClick={cancelSale} className={`w-full py-3 rounded-xl font-bold text-sm text-white active:scale-95 mb-2 flex items-center justify-center gap-2 transition-all ${!isAdmin && confirmarLimpar ? 'bg-red-600 ring-4 ring-red-200 animate-pulse' : 'bg-red-500'}`}>
-                            <X size={14} className="inline-block mr-1.5 -mt-0.5" /> {isAdmin ? 'Cancelar (F7)' : (confirmarLimpar ? 'Toque de novo para confirmar' : 'Limpar Carrinho')}
+                        <button onClick={cancelSale} className={`w-full py-3.5 min-h-[44px] rounded-xl font-bold text-sm text-white active:scale-95 mb-2 flex items-center justify-center gap-2 transition-all ${!isAdmin && confirmarLimpar ? 'bg-red-600 ring-4 ring-red-200 animate-pulse' : 'bg-red-500'}`}>
+                            <X size={14} className="inline-block mr-1.5 -mt-0.5" /> {isAdmin ? 'Cancelar' : (confirmarLimpar ? 'Toque de novo para confirmar' : 'Limpar Carrinho')}
                         </button>
                         {isAdmin && (
                             <button onClick={() => {
@@ -1579,7 +1595,7 @@ export const UserDashboard: React.FC = () => {
             {/* DEPOSIT MODAL — 2 etapas */}
             {isDepositOpen && (
                 <div className="fixed inset-0 z-[999] bg-black/60 backdrop-blur-sm" onClick={() => { setIsDepositOpen(false); setDepositStage('amount'); setProofFile(null); }}>
-                    <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 md:max-w-md md:mx-auto bg-slate-900 rounded-2xl shadow-2xl p-5 max-h-[85vh] overflow-y-auto flex flex-col space-y-4 z-50 border border-slate-700" onClick={e => e.stopPropagation()}>
+                    <div className="fixed inset-x-3 sm:inset-x-4 top-1/2 -translate-y-1/2 md:max-w-md md:mx-auto bg-slate-900 rounded-2xl shadow-2xl p-5 max-h-[85vh] overflow-y-auto flex flex-col space-y-4 z-50 border border-slate-700" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center shrink-0">
                             <h3 className="font-black text-base uppercase tracking-tight text-white">Enviar Crédito</h3>
                             <button onClick={() => { setIsDepositOpen(false); setDepositStage('amount'); setProofFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="w-7 h-7 bg-slate-700 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-600"><X size={16}/></button>
@@ -1661,36 +1677,36 @@ export const UserDashboard: React.FC = () => {
 
             {isCheckoutModalOpen && (
             <div className="fixed inset-0 z-[999] bg-black/60 backdrop-blur-sm" onClick={() => { setIsCheckoutModalOpen(false); setProofFile(null); }}>
-                    <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 md:max-w-lg md:mx-auto bg-white rounded-2xl shadow-2xl p-4 max-h-[82vh] overflow-y-auto overflow-x-hidden flex flex-col space-y-3 z-50 border border-slate-100 font-sans" onClick={e => e.stopPropagation()}>
+                    <div className="fixed inset-x-3 sm:inset-x-4 top-1/2 -translate-y-1/2 md:max-w-lg md:mx-auto bg-white rounded-2xl shadow-2xl p-4 sm:p-5 max-h-[85vh] overflow-y-auto overflow-x-hidden flex flex-col space-y-3 z-50 border border-slate-100 font-sans" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center shrink-0">
                             <h3 className="font-black text-base uppercase tracking-tight">Finalizar Venda</h3>
-                            <button onClick={() => { setIsCheckoutModalOpen(false); setProofFile(null); }} className="w-7 h-7 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200"><X size={16}/></button>
+                            <button onClick={() => { setIsCheckoutModalOpen(false); setProofFile(null); }} className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200"><X size={16}/></button>
                         </div>
 
                         <div className="flex flex-col space-y-3">
                             <div>
                                 <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Local de Entrega</p>
                                 <div className="flex gap-2 mb-2">
-                                    <button onClick={() => setDeliveryType('intern')} className={`flex-1 py-2 rounded-xl font-black text-[10px] uppercase tracking-wide border-2 transition-all ${deliveryType === 'intern' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-500'}`}>
-                                        <Home size={12} className="inline-block mr-1.5 -mt-0.5" /> Interno em Cela
+                                    <button onClick={() => setDeliveryType('intern')} className={`flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-wide border-2 transition-all min-h-[44px] ${deliveryType === 'intern' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-500'}`}>
+                                        <Home size={12} className="inline-block mr-1 -mt-0.5" /> Cela
                                     </button>
-                                    <button onClick={() => setDeliveryType('worker')} className={`flex-1 py-2 rounded-xl font-black text-[10px] uppercase tracking-wide border-2 transition-all ${deliveryType === 'worker' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-500'}`}>
-                                        <HardHat size={12} className="inline-block mr-1.5 -mt-0.5" /> Trabalhador
+                                    <button onClick={() => setDeliveryType('worker')} className={`flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-wide border-2 transition-all min-h-[44px] ${deliveryType === 'worker' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-500'}`}>
+                                        <HardHat size={12} className="inline-block mr-1 -mt-0.5" /> Trabalhador
                                     </button>
                                 </div>
                                 {deliveryType === 'intern' ? (
                                     <div className="flex flex-col gap-1">
-                                        <div className="flex gap-2">
-                                            <input className="flex-1 bg-slate-50 py-2 px-3 rounded-xl border border-slate-200 font-bold text-sm" placeholder="RAIO" value={location.ray} onChange={e => setLocation({...location, ray: e.target.value})} />
-                                            <input className="flex-1 bg-slate-50 py-2 px-3 rounded-xl border border-slate-200 font-bold text-sm" placeholder="ALA" value={location.wing} onChange={e => setLocation({...location, wing: e.target.value})} />
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <input className="min-w-0 bg-slate-50 py-2.5 px-3 rounded-xl border border-slate-200 font-bold text-sm min-h-[44px] truncate" placeholder="RAIO" value={location.ray} onChange={e => setLocation({...location, ray: e.target.value})} />
+                                            <input className="min-w-0 bg-slate-50 py-2.5 px-3 rounded-xl border border-slate-200 font-bold text-sm min-h-[44px] truncate" placeholder="ALA" value={location.wing} onChange={e => setLocation({...location, wing: e.target.value})} />
                                         </div>
-                                        <input className="w-full bg-slate-50 py-2 px-3 rounded-xl border border-slate-200 font-bold text-sm" placeholder="CELA" value={location.cell} onChange={e => setLocation({...location, cell: e.target.value})} />
+                                        <input className="w-full bg-slate-50 py-2.5 px-3 rounded-xl border border-slate-200 font-bold text-sm min-h-[44px] truncate" placeholder="CELA" value={location.cell} onChange={e => setLocation({...location, cell: e.target.value})} />
                                     </div>
                                 ) : (
                                     <div className="flex flex-col gap-1">
                                         <div className="grid grid-cols-2 gap-2">
                                             {['Cozinha', 'Lavanderia', 'Horta', 'Oficina', 'Almoxarifado'].map(loc => (
-                                                <button key={loc} onClick={() => setDeliveryFreeText(loc)} className={`py-2 rounded-xl font-black text-[10px] uppercase border-2 transition-all ${deliveryFreeText === loc ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'}`}>
+                                                <button key={loc} onClick={() => setDeliveryFreeText(loc)} className={`min-h-[44px] py-2 rounded-xl font-black text-[10px] uppercase border-2 transition-all ${deliveryFreeText === loc ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'}`}>
                                                     {loc}
                                                 </button>
                                             ))}
@@ -1703,10 +1719,10 @@ export const UserDashboard: React.FC = () => {
                             <div>
                                 <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Forma de Pagamento</p>
                                 <div className="grid grid-cols-2 gap-2">
-                                    <button onClick={() => setCartPaymentMethod('WALLET')} disabled={!isAdmin} className={`p-3 rounded-xl font-black text-[11px] uppercase tracking-wide border-2 transition-all active:scale-95 ${cartPaymentMethod === 'WALLET' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'} ${!isAdmin ? 'opacity-40 cursor-not-allowed grayscale' : ''}`}>
+                                    <button onClick={() => setCartPaymentMethod('WALLET')} disabled={!isAdmin} className={`min-h-[44px] py-3 rounded-xl font-black text-[11px] uppercase tracking-wide border-2 transition-all active:scale-95 ${cartPaymentMethod === 'WALLET' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'} ${!isAdmin ? 'opacity-40 cursor-not-allowed grayscale' : ''}`}>
                                         <Wallet size={12} className="inline-block mr-1.5 -mt-0.5" /> Saldo
                                     </button>
-                                    <button onClick={() => setCartPaymentMethod('PIX')} className={`p-3 rounded-xl font-black text-[11px] uppercase tracking-wide border-2 transition-all active:scale-95 ${cartPaymentMethod === 'PIX' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'}`}>
+                                    <button onClick={() => setCartPaymentMethod('PIX')} className={`min-h-[44px] py-3 rounded-xl font-black text-[11px] uppercase tracking-wide border-2 transition-all active:scale-95 ${cartPaymentMethod === 'PIX' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'}`}>
                                         <Smartphone size={12} className="inline-block mr-1.5 -mt-0.5" /> PIX
                                     </button>
                                 </div>

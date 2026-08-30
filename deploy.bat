@@ -37,7 +37,7 @@ echo [4/5] Build de producao...
 call npm run build || goto :fail
 
 echo [5/5] Publicando no Firebase (hosting + firestore + storage + functions^)...
-call firebase deploy --only hosting,firestore,storage,functions || goto :fail
+call firebase deploy --only "hosting,firestore,storage,functions" || goto :fail
 
 echo.
 echo ============================================================

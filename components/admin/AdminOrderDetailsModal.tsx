@@ -10,6 +10,7 @@ import { abrirJanelaImpressao } from '../../utils/printUtils';
 import { ModalShell } from '../ui/ModalShell';
 import ImagePreviewModal from '../ImagePreviewModal';
 import { useApp } from '../../context/StoreContext';
+import { toDate } from '../../utils/dateUtils';
 
 const ComprovanteImg: React.FC<{ src: string }> = ({ src }) => {
   const [erro, setErro] = React.useState(false);
@@ -195,7 +196,7 @@ export const AdminOrderDetailsModal: React.FC<AdminOrderDetailsModalProps> = ({
       open
       onClose={onClose}
       title={`Pedido #${(order.id || '').slice(0, 8).toUpperCase()}`}
-      subtitle={`${order.date ? new Date(order.date).toLocaleString('pt-BR') : 'DATA INDISPONÍVEL'} • ${translateStatus(order.status)}`}
+      subtitle={`${order.date ? toDate(order.date)?.toLocaleString('pt-BR') || '' : 'DATA INDISPONÍVEL'} • ${translateStatus(order.status)}`}
       icon={<ShoppingCart size={22} />}
       size="xl"
       bodyClassName="relative"

@@ -6,6 +6,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Loader2 } from 'lucide-react';
 import { verificarBackupAutomatico } from './utils/backupUtils';
+import { iniciarManutencaoAutomatica, lerUltimoRelatorio } from './utils/maintenanceService';
 import { useMaintenance } from './hooks/useMaintenance';
 import { MaintenanceScreen, MaintenanceBanner } from './components/MaintenanceScreen';
 
@@ -46,6 +47,21 @@ const MainApp: React.FC = () => {
       }
     }
   }, [currentUser]);
+
+  // AUTO-MANUTENÇÃO: roda ao abrir (1x/dia o ciclo pesado) e re-verifica a
+  // cada 6h enquanto o sistema estiver aberto. Autolimpeza + quarentena de
+  // JSON corrompido + diagnóstico de saúde, sem intervenção humana.
+  React.useEffect(() => {
+    let parar: (() => void) | undefined;
+    try {
+      parar = iniciarManutencaoAutomatica();
+      const r = lerUltimoRelatorio();
+      if (r?.avisos.length) console.warn('[Manutenção] Avisos do sistema:', r.avisos);
+    } catch {
+      /* manutenção nunca deve derrubar o app */
+    }
+    return () => parar?.();
+  }, []);
 
 // CRÍTICO — todos os hooks SEMPRE no topo, incondicionais!
 // O erro #310 (Rendered more hooks...) disparava porque `useMaintenance`

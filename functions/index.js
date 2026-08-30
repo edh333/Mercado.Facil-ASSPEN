@@ -282,7 +282,7 @@ async function salvarHashLegado(userId, hash) {
 }
 
 async function registrarTransacaoCarteira(t, ref, dados) {
-  const txId = Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+  const txId = crypto.randomUUID ? crypto.randomUUID().replace(/-/g, "").slice(0, 16).toUpperCase() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
   t.set(ref, { ...dados, id: txId });
 }
 
@@ -339,18 +339,62 @@ exports.buscarLoginInfo = onCall(async (request) => {
 });
 
 /**
+ * Autenticado — retorna os dados do próprio usuário logado (server-side).
+ * Substitui a query client-side `where('authUid', '==', uid)` que vaza PII.
+ */
+exports.buscarUsuarioAtual = onCall(async (request) => {
+  const caller = await exigirAutenticado(request);
+
+  // caller.id é o ID do documento Firestore (pode ser CPF em usuários legados).
+  // Para a query, precisamos do Firebase Auth UID (context.auth.uid).
+  const authUid = request.auth.uid;
+  const snap = await db.collection("users").where("authUid", "==", authUid).limit(1).get();
+  if (snap.empty) {
+    throw new HttpsError("not-found", "Usuário não encontrado no sistema.");
+  }
+  const doc = snap.docs[0];
+  const data = doc.data();
+  const status = String(data.status || "pending").toLowerCase();
+  if (status === "suspended") {
+    throw new HttpsError("permission-denied", "Conta suspensa. Entre em contato com a administração.");
+  }
+  if (status === "pending") {
+    throw new HttpsError("failed-precondition", "Cadastro em análise. Aguarde aprovação.");
+  }
+  return {
+    id: doc.id,
+    name: data.name || "",
+    email: data.email || "",
+    cpf: data.cpf || "",
+    role: data.role || "user",
+    status: data.status || "pending",
+    walletBalance: Number(data.walletBalance || 0),
+    weeklySpent: Number(data.weeklySpent || 0),
+    inmateName: data.inmateName || data.prisonerName || "",
+    inmateCpf: data.inmateCpf || data.prisonerCpf || "",
+    selectedUnitId: data.selectedUnitId || data.unitId || "",
+    avatarUrl: data.avatarUrl || "",
+    phone: data.phone || "",
+    mainAdmin: Boolean(data.mainAdmin),
+    permissions: data.permissions || [],
+  };
+});
+
+/**
  * Público — cria a conta no Firebase Auth + documento do usuário.
  * Com `provisionar: true`, vincula a conta a um usuário existente (migração),
  * validando a senha atual contra o hash armazenado.
  */
 exports.registrarUsuario = onCall(async (request) => {
   const ip = ipDoRequest(request);
-  verificarRateLimit("registrarUsuario:" + ip, 10);
+  verificarRateLimit("registrarUsuario:" + ip, 5);
   const dados = request.data?.dados || {};
   const senha = String(request.data?.senha || "");
   const provisionar = Boolean(request.data?.provisionar);
   const cpf = cleanCpf(dados.cpf);
   if (cpf.length === 11) verificarRateLimit("registrarUsuarioCpf:" + cpf, 3);
+  // Rate limit por e-mail para cadastros sem CPF (evita spam via IPs rotativos)
+  if (dados.email) verificarRateLimit("registrarUsuarioEmail:" + String(dados.email).toLowerCase().trim(), 3);
 
   let existente = null;
   if (cpf.length === 11) {
@@ -414,7 +458,7 @@ exports.registrarUsuario = onCall(async (request) => {
       }
       return { ok: true, vinculado: true };
     } catch (e) {
-      throw new HttpsError("internal", "Falha ao vincular conta: " + e.message);
+      throw new HttpsError("internal", "Falha ao vincular conta. Tente novamente.");
     }
   }
 
@@ -464,7 +508,7 @@ exports.registrarUsuario = onCall(async (request) => {
     const authUser = await admin.auth().createUser({ email, password: senha });
     uid = authUser.uid;
   } catch (e) {
-    throw new HttpsError("already-exists", "Falha ao criar conta: " + e.message);
+    throw new HttpsError("already-exists", "Falha ao criar conta. Tente novamente.");
   }
 
   const novo = {
@@ -511,10 +555,13 @@ exports.criarPrimeiroAdmin = onCall(async (request) => {
       if (claimSnap.exists) throw new Error("Já existe um administrador. Faça login.");
       const admins = await t.get(db.collection("users").where("role", "==", "admin").limit(1));
       if (!admins.empty) throw new Error("Já existe um administrador. Faça login.");
+      // Verifica e-mail duplicado DENTRO da transação para evitar TOCTOU
+      const emailSnap = await t.get(db.collection("users").where("email", "==", email).limit(1));
+      if (!emailSnap.empty) throw new HttpsError("already-exists", "Já existe um usuário com este e-mail.");
       t.set(claimRef, { claimed: true, claimedAt: admin.firestore.Timestamp.now() });
     });
   } catch (e) {
-    throw new HttpsError("already-exists", e.message || "Já existe um administrador. Faça login.");
+    throw new HttpsError("already-exists", "Já existe um administrador. Faça login.");
   }
 
   let authUser = null;
@@ -776,15 +823,20 @@ exports.aprovarDeposito = onCall(async (request) => {
       if (!uSnap.exists) throw new Error("Usuário não encontrado.");
 
       // ATÔMICO: evita race condition entre aprovações simultâneas
+      const saldoAntes = Number(uSnap.data().walletBalance || 0);
       t.update(uRef, { walletBalance: admin.firestore.FieldValue.increment(arredondar(tx.amount || 0)) });
-      novoSaldoFinal = arredondar(Number(uSnap.data().walletBalance || 0) + Number(tx.amount || 0));
       valorDepositado = arredondar(tx.amount || 0);
       usuarioIdDeposito = tx.userId;
 
       t.update(tRef, { status: "approved", approvedBy: caller.name || caller.id, approvedAt: new Date().toISOString() });
     });
+    // Read-after-write: lê o saldo REAL após a transação commitar
+    // (FieldValue.increment é atômico mas o snapshot dentro da transação
+    // não reflete increments concorrentes — o valor real só existe após commit).
+    const userSnapAfter = await db.collection("users").doc(usuarioIdDeposito).get();
+    novoSaldoFinal = arredondar(Number(userSnapAfter.data()?.walletBalance || 0));
   } catch (e) {
-    throw new HttpsError("invalid-argument", e.message || "Falha ao aprovar depósito.");
+    throw new HttpsError("invalid-argument", "Falha ao aprovar depósito. Tente novamente.");
   }
 
   await registrarAudit(caller.id, "LIBERAR_CREDITO_DEPOSITO", {
@@ -823,7 +875,7 @@ exports.rejeitarDeposito = onCall(async (request) => {
       });
     });
   } catch (e) {
-    throw new HttpsError("invalid-argument", e.message || "Falha ao rejeitar depósito.");
+    throw new HttpsError("invalid-argument", "Falha ao rejeitar depósito. Tente novamente.");
   }
 
   await registrarAudit(caller.id, "REJEITAR_DEPOSITO", { transacaoId: tid, usuarioId: usuarioIdDeposito }, { transacaoId: tid, usuarioId: usuarioIdDeposito, motivo });
@@ -856,7 +908,6 @@ exports.creditarSaldo = onCall(async (request) => {
 
     // ATÔMICO: evita race condition entre créditos manuais simultâneos
     t.update(uRef, { walletBalance: admin.firestore.FieldValue.increment(arredondar(valor)) });
-    novoSaldoFinal = arredondar(Number(ud.walletBalance || 0) + valor);
     saldoAnterior = arredondar(Number(ud.walletBalance || 0));
     usuarioAlvo = ud.name || userId;
     await registrarTransacaoCarteira(t, db.collection("wallet_transactions").doc(), {
@@ -872,6 +923,9 @@ exports.creditarSaldo = onCall(async (request) => {
       payerId: caller.id,
     });
   });
+  // Read-after-write: saldo REAL após commit
+  const snapAfter = await db.collection("users").doc(userId).get();
+  novoSaldoFinal = arredondar(Number(snapAfter.data()?.walletBalance || 0));
 
   await registrarAudit(caller.id, "CREDITO_MANUAL", {
     usuarioId: userId,
@@ -918,7 +972,6 @@ exports.sacarSaldoAdmin = onCall(async (request) => {
 
     // ATÔMICO: evita race condition entre saques simultâneos
     t.update(uRef, { walletBalance: admin.firestore.FieldValue.increment(-arredondar(valor)) });
-    novoSaldoFinal = arredondar(Number(ud.walletBalance || 0) - valor);
     saldoAnterior = arredondar(Number(ud.walletBalance || 0));
     usuarioAlvo = ud.name || userId;
     await registrarTransacaoCarteira(t, db.collection("wallet_transactions").doc(), {
@@ -952,6 +1005,9 @@ exports.sacarSaldoAdmin = onCall(async (request) => {
       }
     }
   });
+  // Read-after-write: saldo REAL após commit
+  const snapAfter = await db.collection("users").doc(userId).get();
+  novoSaldoFinal = arredondar(Number(snapAfter.data()?.walletBalance || 0));
 
   await registrarAudit(caller.id, "SAQUE_ADMIN", {
     usuarioId: userId,
@@ -980,9 +1036,8 @@ exports.sacarSaldoProprio = onCall(async (request) => {
     if (!uSnap.exists) throw new Error("Usuário não encontrado.");
     const ud = uSnap.data();
     validarSaldoSuficiente(ud.walletBalance || 0, valor);
-    const novoSaldo = calcularNovoSaldo(ud.walletBalance || 0, valor);
-    novoSaldoFinal = novoSaldo;
-    t.update(uRef, { walletBalance: novoSaldo });
+    novoSaldoFinal = calcularNovoSaldo(ud.walletBalance || 0, valor);
+    t.update(uRef, { walletBalance: admin.firestore.FieldValue.increment(-arredondar(valor)) });
     await registrarTransacaoCarteira(t, db.collection("wallet_transactions").doc(), {
       userId: user.id,
       inmateCpf: cleanCpf(ud.inmateCpf || ud.prisonerCpf || ud.cpf),
@@ -1025,7 +1080,9 @@ function validarItens(itens) {
 async function comprovanteEhDoUsuario(url, uid, pasta) {
   const u = String(url || "").trim();
   if (!u.startsWith("https://firebasestorage.googleapis.com/v0/b/")) return false;
-  if (!u.includes("mercado-facil-mt.appspot.com") && !u.includes("mercado-facil-mt.firebasestorage.app")) return false;
+  // Usa FUNC_BUCKET (env var do projeto) em vez de nomes hardcoded
+  const bucket = FUNC_BUCKET || "mercado-facil-mt.appspot.com";
+  if (!u.includes(bucket) && !u.includes(bucket.replace(".appspot.com", ".firebasestorage.app"))) return false;
   // Usuários migrados têm o documento com id == UID do Auth; usuários legados
   // ainda podem ter id antigo com o campo authUid apontando para o UID real.
   // O upload no app usa o UID do Auth, então a validação tem que aceitar
@@ -1348,8 +1405,8 @@ exports.processarVendaAdmin = onCall(async (request) => {
     }
     if (firstUserWalletAmount > 0 && userData) {
       t.update(db.collection("users").doc(targetUserId), {
-        walletBalance: walletBalanceAfter,
-        weeklySpent: arredondar((userData.weeklySpent || 0) + firstUserWalletAmount),
+        walletBalance: admin.firestore.FieldValue.increment(-firstUserWalletAmount),
+        weeklySpent: admin.firestore.FieldValue.increment(firstUserWalletAmount),
       });
       await registrarTransacaoCarteira(t, db.collection("wallet_transactions").doc(), {
         userId: targetUserId,
@@ -1366,10 +1423,9 @@ exports.processarVendaAdmin = onCall(async (request) => {
     }
 
     if (hasJointWallet && userData2 && secondUserId && secondWalletAmount > 0) {
-      const secondBalanceAfter = arredondar(Number(userData2.walletBalance || 0) - secondWalletAmount);
       t.update(db.collection("users").doc(secondUserId), {
-        walletBalance: secondBalanceAfter,
-        weeklySpent: arredondar((userData2.weeklySpent || 0) + secondWalletAmount),
+        walletBalance: admin.firestore.FieldValue.increment(-secondWalletAmount),
+        weeklySpent: admin.firestore.FieldValue.increment(secondWalletAmount),
       });
       await registrarTransacaoCarteira(t, db.collection("wallet_transactions").doc(), {
         userId: secondUserId,
@@ -1411,6 +1467,8 @@ exports.processarVendaAdmin = onCall(async (request) => {
 
     const novoPedido = {
       id: orderId,
+      createdAt: new Date().toISOString(),
+      status: 'paid',
       userId: targetUserId,
       userName: isConsumer ? "CONSUMIDOR FINAL" : (userData?.name || clienteFiadoNome || "Consumidor"),
       userCpf: isConsumer ? "000.000.000-00" : (userData?.cpf || "000.000.000-00"),
@@ -1436,7 +1494,7 @@ exports.processarVendaAdmin = onCall(async (request) => {
     return novoPedido;
   });
   } catch (e) {
-    throw new HttpsError("invalid-argument", e.message || "Falha ao processar a venda.");
+    throw new HttpsError("invalid-argument", "Falha ao processar a venda. Tente novamente.");
   }
 
   if (!resultado.replay) {
@@ -1539,7 +1597,7 @@ inmateName: ud.inmateName || ud.prisonerName || "",
     return novoPedido;
   });
   } catch (e) {
-    throw new HttpsError("invalid-argument", e.message || "Falha ao processar a compra.");
+    throw new HttpsError("invalid-argument", "Falha ao processar a compra. Tente novamente.");
   }
 
   if (!resultado.replay) {
@@ -1560,6 +1618,8 @@ inmateName: ud.inmateName || ud.prisonerName || "",
  */
 exports.registrarPedidoPix = onCall(async (request) => {
   const user = await exigirAutenticado(request);
+  // Rate limit: máx 5 pedidos PIX por minuto por usuário (evita spam de pedidos pendentes que travam estoque)
+  verificarRateLimit("registrarPedidoPix:" + user.id, 5, 60 * 1000);
   const itens = validarItens(request.data?.items);
   const paymentProofUrl = String(request.data?.paymentProofUrl || "").trim().slice(0, 500000);
   const inmateLocation = request.data?.inmateLocation || null;
@@ -1578,15 +1638,44 @@ exports.registrarPedidoPix = onCall(async (request) => {
   // DUPLICIDADE DE COMPROVANTE: impede que a MESMA imagem seja usada
   // em dois pedidos diferentes (reuso de print de tela, WhatsApp, etc.).
   // Exclui o próprio pedido (replay) e pedidos cancelados/estornados.
+  // FAIL-CLOSED: se a query composta falhar (índice ausente), tenta
+  // fallback sem filtro de status; se falhar de novo, rejeita o pedido.
   if (paymentProofUrl !== "PENDENTE_UPLOAD_LOCAL_CACHE") {
-    const provasUsadas = await db.collection("orders")
-      .where("paymentProofUrl", "==", paymentProofUrl)
-      .where("status", "not-in", ["cancelled", "cancelado", "refunded", "devolvido", "reembolsado", "rejected", "rejeitado"])
-      .limit(1)
-      .get();
-    if (!provasUsadas.empty) {
-      const jaUsado = provasUsadas.docs[0].data();
-      throw new HttpsError("already-exists", `Este comprovante já foi usado no pedido #${jaUsado.id} (${jaUsado.status}). Cada comprovante só pode confirmar uma compra.`);
+    try {
+      const provasUsadas = await db.collection("orders")
+        .where("paymentProofUrl", "==", paymentProofUrl)
+        .where("status", "not-in", ["cancelled", "cancelado", "refunded", "devolvido", "reembolsado", "rejected", "rejeitado"])
+        .limit(1)
+        .get();
+      if (!provasUsadas.empty) {
+        const jaUsado = provasUsadas.docs[0].data();
+        throw new HttpsError("already-exists", `Este comprovante já foi usado no pedido #${jaUsado.id} (${jaUsado.status}). Cada comprovante só pode confirmar uma compra.`);
+      }
+    } catch (e) {
+      if (e instanceof HttpsError) throw e;
+      // Índice composto ausente — fallback: busca sem filtro de status
+      // (aceita falso-positivo de pedidos cancelados como seguro)
+      logger.warn("Query composta falhou, usando fallback sem filtro de status:", e.message);
+      try {
+        const provasUsadas = await db.collection("orders")
+          .where("paymentProofUrl", "==", paymentProofUrl)
+          .limit(5)
+          .get();
+        if (!provasUsadas.empty) {
+          const ativos = provasUsadas.docs.filter(d => {
+            const s = String(d.data().status || "").toLowerCase();
+            return s !== "cancelled" && s !== "cancelado" && s !== "refunded" && s !== "devolvido" && s !== "reembolsado" && s !== "rejected" && s !== "rejeitado";
+          });
+          if (ativos.length > 0) {
+            const jaUsado = ativos[0].data();
+            throw new HttpsError("already-exists", `Este comprovante já foi usado no pedido #${ativos[0].id} (${jaUsado.status}). Cada comprovante só pode confirmar uma compra.`);
+          }
+        }
+      } catch (e2) {
+        if (e2 instanceof HttpsError) throw e2;
+        // Falha total na verificação — rejeita por segurança
+        throw new HttpsError("unavailable", "Não foi possível verificar duplicidade do comprovante. Tente novamente em instantes.");
+      }
     }
   }
 
@@ -1630,7 +1719,7 @@ paymentMethod: "PIX",
     return novoPedido;
   });
   } catch (e) {
-    throw new HttpsError("invalid-argument", e.message || "Falha ao registrar o pedido.");
+    throw new HttpsError("invalid-argument", "Falha ao registrar o pedido. Tente novamente.");
   }
 
   if (!resultado.replay) {
@@ -1690,7 +1779,7 @@ exports.aprovarPedidoPix = onCall(async (request) => {
       return atualizacao.status;
     });
   } catch (e) {
-    throw new HttpsError("invalid-argument", e.message || "Falha ao aprovar o pedido.");
+    throw new HttpsError("invalid-argument", "Falha ao aprovar o pedido. Tente novamente.");
   }
 
   await registrarAudit(
@@ -1876,7 +1965,7 @@ exports.estornarVenda = onCall(async (request) => {
       t.update(oRef, { status: "cancelled", refundReason: motivo });
     });
   } catch (e) {
-    throw new HttpsError("invalid-argument", e.message || "Falha ao estornar o pedido.");
+    throw new HttpsError("invalid-argument", "Falha ao estornar o pedido. Tente novamente.");
   }
 
   await registrarAudit(caller.id, "ESTORNAR_VENDA", { pedidoId: orderId }, { pedidoId: orderId, motivo });
@@ -1962,7 +2051,7 @@ exports.registrarPagamentoConta = onCall({
       return { dividaAnterior: dividaAtual, novoDebito };
     });
   } catch (e) {
-    throw new HttpsError("invalid-argument", e.message || "Falha ao registrar o pagamento.");
+    throw new HttpsError("invalid-argument", "Falha ao registrar o pagamento. Tente novamente.");
   }
 
   await registrarAudit(caller.id, "PAGAR_CONTA_FIADO", { clienteId: customerAccountId, amount }, resultado);
@@ -2183,7 +2272,8 @@ exports.definirSenhaMestra = onCall(async (request) => {
 exports.validarSenhaMestra = onCall(async (request) => {
   const user = await exigirAutenticado(request);
   verificarRateLimit("validarSenhaMestra:" + user.id, 10);
-  if (user.role !== "admin") {
+  const roleLower = String(user.role || "").toLowerCase();
+  if (roleLower !== "admin" && roleLower !== "master") {
     throw new HttpsError("permission-denied", "Apenas administradores podem validar a senha mestra.");
   }
   const informada = String(request.data?.senha || "");
@@ -2369,9 +2459,11 @@ exports.resetarSistemaTotal = onCall({
     throw new HttpsError("invalid-argument", "Confirmação explícita necessária.");
   }
 
+  // audit_logs e historico_geral NÃO são apagados — preservados para
+  // compliance (LGPD) e rastreabilidade de ações administrativas.
   const collections = [
     "products", "orders", "expenses", "wallet_transactions", "messages",
-    "audit_logs", "cashier", "cash_sessions", "pre_registered_inmates", "historico_geral",
+    "cashier", "cash_sessions", "pre_registered_inmates",
   ];
   const inicio = new Date().toISOString();
   const totais = {};
@@ -2650,7 +2742,7 @@ exports.restaurarBackup = onCall({
   let total = 0;
 
   for (const [col, docs] of Object.entries(dados)) {
-    if (col === "__meta" || COLS_SEM_BACKUP.has(col) || !Array.isArray(docs)) continue;
+    if (col === "__meta" || COLS_SEM_BACKUP.has(col) || COLS_SEM_BACKUP_SENSIVEIS.has(col) || !Array.isArray(docs)) continue;
     let n = 0;
     for (let i = 0; i < docs.length; i += 450) {
       const lote = docs.slice(i, i + 450);

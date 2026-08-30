@@ -42,6 +42,7 @@ import { AdminModals } from '../components/admin/AdminModals';
 import { ManualCreditModal } from '../components/admin/ManualCreditModal';
 import { executarArquivamentoLocal, shouldRunArchive } from '../utils/archiveUtils';
 import { abrirJanelaImpressao } from '../utils/printUtils';
+import { toDate } from '../utils/dateUtils';
 import { usePermissions } from '../hooks/usePermissions';
 
 const ForbiddenMessage = () => (
@@ -690,8 +691,7 @@ export function AdminDashboard() {
       if (['cancelled', 'cancelado'].includes(normStatus(o.status))) return false;
       if (!o.date) return false;
       try {
-        const d = new Date(o.date); d.setHours(0, 0, 0, 0);
-        if (isNaN(d.getTime())) return false;
+        const d = toDate(o.date); if (!d) return false; d.setHours(0, 0, 0, 0);
         return d.getTime() === now.getTime();
       } catch (e) { return false; }
     });
@@ -731,8 +731,7 @@ export function AdminDashboard() {
       const dayOrders = (orders || []).filter(o => {
         if (!o.date) return false;
         try {
-          const od = new Date(o.date);
-          if (isNaN(od.getTime())) return false;
+          const od = toDate(o.date); if (!od) return false;
           return od.getDate() === d.getDate() && od.getMonth() === d.getMonth() && !['cancelled', 'cancelado'].includes(normStatus(o.status));
         } catch (e) { return false; }
       });
@@ -760,7 +759,7 @@ export function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex font-sans overflow-x-hidden">
+    <div className="min-h-screen bg-[var(--bg-main)] text-slate-900 flex font-sans overflow-x-hidden">
       
       {/* Sidebar Integration */}
       <AdminSidebar

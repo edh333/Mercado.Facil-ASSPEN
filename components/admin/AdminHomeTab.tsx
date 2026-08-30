@@ -11,6 +11,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
 import { ChartMount } from '../ui/ChartMount';
 import { useTheme } from '../../context/ThemeContext';
 import { formatarMoeda } from '../../utils';
+import { toDate } from '../../utils/dateUtils';
 
 interface AdminHomeTabProps {
   stats: {
@@ -78,8 +79,8 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
     const map: Record<string, { label: string; amount: number }> = {};
     let total = 0;
     (orders || []).forEach(o => {
-      const d = new Date(o.date || 0);
-      if (d < startToday || d > endToday || !validStatus(o.status)) return;
+      const d = toDate(o.date);
+      if (!d || d < startToday || d > endToday || !validStatus(o.status)) return;
       const splits = Array.isArray(o.payments) && o.payments.length ? o.payments : [{ method: o.paymentMethod || 'PIX', amount: Number(o.total) || 0 }];
       splits.forEach((s: any) => {
         const m = String(s.method || 'PIX').toUpperCase();
@@ -407,7 +408,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
             {[...(orders || [])].sort((a,b) => {
               const dateA = a?.createdAt || a?.date || '';
               const dateB = b?.createdAt || b?.date || '';
-              return new Date(dateB).getTime() - new Date(dateA).getTime();
+              return (toDate(dateB)?.getTime() || 0) - (toDate(dateA)?.getTime() || 0);
             }).slice(0, 10).map((item, idx) => (
               <div key={idx} className="flex items-center justify-between p-4 bg-[var(--bg-main)] rounded-2xl border border-transparent hover:border-[var(--border-color)] transition-all group">
                 <div className="flex items-center gap-3">
@@ -429,7 +430,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
                 </div>
                 <div className="text-right">
                     <p className="font-black text-[var(--text-main)] text-xs">R$ {formatarMoeda(Number(item?.total) || 0)}</p>
-                    <p className="text-[9px] text-[var(--text-muted)] font-black uppercase">{item?.createdAt || item?.date ? new Date(item?.createdAt || item?.date).toLocaleDateString() : '—'}</p>
+                    <p className="text-[9px] text-[var(--text-muted)] font-black uppercase">{item?.createdAt || item?.date ? toDate(item?.createdAt || item?.date)?.toLocaleDateString() || '' : '—'}</p>
                 </div>
               </div>
             ))}

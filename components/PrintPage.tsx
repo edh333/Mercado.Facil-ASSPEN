@@ -30,6 +30,10 @@ export const PrintPage: React.FC = () => {
     const dialogTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const statusRef = useRef<PrintStatus>('loading');
     const [autoCloseCancelado, setAutoCloseCancelado] = useState(false);
+    // Guarda anti-duplicação: impede que dois timers/cliques disparem
+    // window.print() duas vezes para o MESMO documento (causa clássica de
+    // "a mesma página imprime duas vezes").
+    const printingRef = useRef(false);
 
     statusRef.current = status;
 
@@ -92,7 +96,7 @@ export const PrintPage: React.FC = () => {
                         } else {
                             setStatus('dialog');
                             dialogTimerRef.current = setTimeout(() => {
-                                if (!closedRef.current && mounted) window.print();
+                                if (!closedRef.current && mounted && !printingRef.current) window.print();
                             }, 500);
                         }
                     }
@@ -100,7 +104,20 @@ export const PrintPage: React.FC = () => {
                     const electronApi = (window as any).electronAPI;
                     if (electronApi?.printHtmlSilent) {
                         // Documento A4 no desktop: imprime silencioso na impressora padrão
-                        const html = document.documentElement.outerHTML;
+                        const receiptEl = document.querySelector('.print-preview');
+                        const innerHtml = receiptEl
+                            ? receiptEl.innerHTML
+                            : document.body.innerHTML;
+                        // A4 precisa de CSS embutido — sem isso o Electron imprime HTML cru sem formatação
+                        const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+                            <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+                            <style>
+                                @page { size: A4; margin: 8mm; }
+                                * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                                body { font-family: 'Inter', -apple-system, sans-serif; margin: 0; padding: 0; color: #000; background: #fff; }
+                                body > div { width: 100%; }
+                            </style>
+                        </head><body>${innerHtml}</body></html>`;
                         const res = await electronApi.printHtmlSilent(html);
                         if (mounted && res?.ok) {
                             setStatus('fiscal');
@@ -110,7 +127,7 @@ export const PrintPage: React.FC = () => {
                     }
                     setStatus('dialog');
                     dialogTimerRef.current = setTimeout(() => {
-                        if (!closedRef.current && mounted) window.print();
+                        if (!closedRef.current && mounted && !printingRef.current) window.print();
                     }, 500);
                 }
             }, 400);
@@ -138,6 +155,7 @@ export const PrintPage: React.FC = () => {
         // Terminou o diálogo de impressão do navegador → fecha a janela sozinha
         // (após pequena contagem, cancelável ao interagir com a janela).
         const onAfterPrint = () => {
+            printingRef.current = false;
             if (statusRef.current === 'error') return;
             setStatus('fiscal');
             setCloseCountdown(3);
@@ -188,15 +206,15 @@ export const PrintPage: React.FC = () => {
             if (ok) {
                 setStatus('fiscal');
                 setCloseCountdown(4);
-            } else {
-                const electronOk = await imprimirHtmlSilencioso(rawCupomRef.current, printData?.config);
-                if (electronOk) {
-                    setStatus('fiscal');
-                    setCloseCountdown(4);
                 } else {
-                    setTimeout(() => window.print(), 300);
+                    const electronOk = await imprimirHtmlSilencioso(rawCupomRef.current, printData?.config);
+                    if (electronOk) {
+                        setStatus('fiscal');
+                        setCloseCountdown(4);
+                    } else {
+                        dispararImpressaoUnica(300);
+                    }
                 }
-            }
         } finally {
             setIsFiscalPrinting(false);
         }
@@ -205,6 +223,22 @@ export const PrintPage: React.FC = () => {
     const handleDownloadTxt = () => {
         if (!rawCupomRef.current) return;
         baixarCupomTxt(rawCupomRef.current, 'cupom');
+    };
+
+    // Disparo único de impressão: cancela qualquer timer pendente e ignora
+    // chamadas repetidas enquanto o diálogo já estiver aberto.
+    const dispararImpressaoUnica = (atrasoMs = 300) => {
+        if (printingRef.current) return;
+        printingRef.current = true;
+        if (dialogTimerRef.current) { clearTimeout(dialogTimerRef.current); dialogTimerRef.current = null; }
+        if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+        closedRef.current = false;
+        setTimeout(() => {
+            try { window.print(); } finally {
+                // Libera novamente após o diálogo fechar (afterprint também reseta).
+                setTimeout(() => { printingRef.current = false; }, 1200);
+            }
+        }, atrasoMs);
     };
 
     const handleClose = () => {
@@ -236,7 +270,7 @@ export const PrintPage: React.FC = () => {
                     <h2 className="text-lg font-black text-white uppercase tracking-tight mb-3">Erro na Impressão</h2>
                     <p className="text-sm text-white/60 mb-8">{error}</p>
                     <div className="space-y-3">
-                        <button onClick={() => { setStatus('ready'); setTimeout(() => window.print(), 350); }} className="w-full bg-emerald-500 hover:bg-emerald-400 text-white px-6 py-3.5 rounded-xl font-black uppercase tracking-widest text-xs shadow-lg shadow-emerald-500/30 transition-all">
+                        <button onClick={() => { setStatus('ready'); dispararImpressaoUnica(350); }} className="w-full bg-emerald-500 hover:bg-emerald-400 text-white px-6 py-3.5 rounded-xl font-black uppercase tracking-widest text-xs shadow-lg shadow-emerald-500/30 transition-all">
                             Tentar Imprimir Novamente
                         </button>
                         <button onClick={handleClose} className="w-full bg-white/10 hover:bg-white/20 text-white px-6 py-3.5 rounded-xl font-black uppercase tracking-widest text-xs transition-all">
@@ -265,11 +299,18 @@ export const PrintPage: React.FC = () => {
             <style>{`
                 @media print {
                     @page { size: ${isCupom ? '76mm auto' : 'A4'}; margin: ${isCupom ? '0' : '10mm'}; }
+                    html, body { height: auto !important; overflow: visible !important; }
+                    .min-h-screen { min-height: 0 !important; display: block !important; }
                     body { margin: 0; padding: 0; background: white !important; }
                     .print-header, .print-toolbar { display: none !important; }
-                    .print-preview { background: white !important; padding: 0 !important; }
-                    .thermal-card { width: 76mm !important; max-width: 76mm !important; margin: 0 !important; padding: 2mm 1mm !important; box-sizing: border-box !important; box-shadow: none !important; border: none !important; border-radius: 0 !important; }
-                    * { color: black !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    .print-preview { display: block !important; background: white !important; padding: 0 !important; margin: 0 !important; overflow: visible !important; height: auto !important; max-height: none !important; }
+                    .print-preview > div { max-width: none !important; width: 100% !important; padding: 0 !important; margin: 0 !important; box-shadow: none !important; border-radius: 0 !important; --tw-ring-shadow: 0 0 #0000 !important; }
+                    .thermal-card { width: 76mm !important; max-width: 76mm !important; margin: 0 auto !important; padding: 2mm 1mm !important; box-sizing: border-box !important; box-shadow: none !important; border: none !important; border-radius: 0 !important; }
+                    .print-avoid-break { break-inside: avoid !important; page-break-inside: avoid !important; }
+                    /* Impressão FIEL às cores: mantém texto branco em caixas escuras
+                       legível no papel (o antigo "color:black !important" universal
+                       apagava o texto dentro dos blocos bg-slate-900). */
+                    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
                 }
             `}</style>
 
@@ -359,12 +400,10 @@ export const PrintPage: React.FC = () => {
                                     setStatus('fiscal');
                                     setCloseCountdown(4);
                                 } else {
-                                    closedRef.current = false;
-                                    setTimeout(() => window.print(), 300);
+                                    dispararImpressaoUnica(300);
                                 }
                             } else {
-                                closedRef.current = false;
-                                setTimeout(() => window.print(), 300);
+                                dispararImpressaoUnica(300);
                             }
                         }}
                         className="flex items-center gap-2 px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-emerald-500/25"

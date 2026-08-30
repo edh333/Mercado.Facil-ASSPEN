@@ -2,6 +2,7 @@ import React from 'react';
 import { UserRound, ShoppingBag } from 'lucide-react';
 import { Order } from '../../types';
 import { formatarMoeda } from '../../utils';
+import { toDate } from '../../utils/dateUtils';
 import { ModalShell } from '../ui/ModalShell';
 
 interface AdminOrderHistoryModalProps {
@@ -49,7 +50,7 @@ export const AdminOrderHistoryModal: React.FC<AdminOrderHistoryModalProps> = ({ 
   const cleanCpf = String(cpf || '').replace(/\D/g, '');
   const history = (orders || [])
     .filter(o => String(o.userCpf || '').replace(/\D/g, '') === cleanCpf || String(o.inmateCpf || '').replace(/\D/g, '') === cleanCpf)
-    .sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
+    .sort((a, b) => (toDate(b.date)?.getTime() || 0) - (toDate(a.date)?.getTime() || 0));
 
   const totalGasto = history
     .filter(o => ['paid', 'pago', 'preparing', 'separacao', 'delivered', 'entregue'].includes(norm(o.status)))
@@ -87,7 +88,7 @@ export const AdminOrderHistoryModal: React.FC<AdminOrderHistoryModalProps> = ({ 
                     Pedido #{String(o.id).slice(0, 8).toUpperCase()}
                   </p>
                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
-                    {o.date ? new Date(o.date).toLocaleString('pt-BR') : '—'} • {payment(o)}
+                    {o.date ? toDate(o.date)?.toLocaleString('pt-BR') || '' : '—'} • {payment(o)}
                   </p>
                   {o.items && (
                     <p className="text-[9px] font-bold text-slate-400 mt-0.5 truncate">

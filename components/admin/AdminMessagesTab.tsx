@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MessageSquare, Search, Send, Users, Megaphone, Inbox } from 'lucide-react';
 import { Message, User } from '../../types';
 import { isAdminRole } from '../../utils';
+import { toDate } from '../../utils/dateUtils';
 
 interface AdminMessagesTabProps {
   users: User[];
@@ -38,7 +39,7 @@ export const AdminMessagesTab: React.FC<AdminMessagesTabProps> = ({ users, messa
     if (!selected) return [];
     return (messages || [])
       .filter(m => m.userId === selected)
-      .sort((a, b) => new Date(a.date || a.id).getTime() - new Date(b.date || b.id).getTime());
+      .sort((a, b) => (toDate(a.date)?.getTime() || 0) - (toDate(b.date)?.getTime() || 0));
   }, [messages, selected]);
 
   const selectedUser = useMemo(() => {
@@ -239,7 +240,7 @@ export const AdminMessagesTab: React.FC<AdminMessagesTabProps> = ({ users, messa
                         <p className="text-sm font-semibold leading-relaxed whitespace-pre-wrap break-words">{msg.text || (msg as any).message}</p>
                         <div className={`mt-1.5 flex items-center justify-end gap-2 ${msg.fromAdmin ? 'text-emerald-100' : 'text-[var(--text-muted)]'}`}>
                           <p className="text-[9px] font-bold uppercase tracking-wider">
-                            {msg.date ? new Date(msg.date).toLocaleString('pt-BR') : (msg as any).createdAt ? new Date((msg as any).createdAt).toLocaleString('pt-BR') : ''}
+                            {msg.date ? toDate(msg.date)?.toLocaleString('pt-BR') || '' : (msg as any).createdAt ? toDate((msg as any).createdAt)?.toLocaleString('pt-BR') || '' : ''}
                           </p>
                           {msg.fromAdmin && selected !== ALL_USERS && (
                             <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-white/15">

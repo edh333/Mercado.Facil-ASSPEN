@@ -37,7 +37,10 @@ service cloud.firestore {
     // inteiro quebraria qualquer update, pois o doc contém campos fora da lista).
     match /users/{userId} {
       allow get: if isAuthenticated() && (userId == request.auth.uid || resource.data.authUid == request.auth.uid || isAdmin());
-      allow list: if isAuthenticated() && (isAdmin() || resource.data.authUid == request.auth.uid);
+      // list: PROIBIDO. A busca do perfil do usuário logado é feita via Cloud
+      // Function buscarUsuarioAtual (server-side). Manter list: isAuthenticated()
+      // vaza TODOS os campos PII (CPF, saldo, role) de TODOS os usuários.
+      allow list: if false;
       allow create: if false;
       allow update: if isAdmin() &&
         !request.resource.data.diff(resource.data).affectedKeys().hasAny([
@@ -170,7 +173,10 @@ service cloud.firestore {
       allow update: if isAuthenticated()
         && (isAdmin()
           || (userMatch(resource.data.userId) || resource.data.userId == 'ALL')
-            && request.resource.data.keys().hasOnly(['read']));
+            // BUGFIX: request.resource.data é o DOC INTEIRO futuro — hasOnly
+            // nele sempre falhava e o usuário nunca conseguia marcar "Lida".
+            // diff() olha apenas as chaves efetivamente alteradas.
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']));
       allow delete: if isAdmin();
     }
 

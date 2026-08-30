@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Order } from '../../types';
 import { mascararCpf } from '../../utils';
+import { toDate } from '../../utils/dateUtils';
 import { getLocalDateStr } from './adminUtils';
 import { ChartMount } from '../ui/ChartMount';
 import { db } from '../../firebase';
@@ -110,10 +111,11 @@ export const AdminSalesDashboard: React.FC<AdminSalesDashboardProps> = ({ orders
   const vendasPeriodo = useMemo(() => (pedidosBase || []).filter(o => {
     if (CANCELADOS.includes(String(o.status || '').toLowerCase())) return false;
     if (o.deleted) return false;
-    const raw = o.createdAt || o.date;
-    if (!raw) return false;
-    const d = new Date(raw);
-    return !isNaN(d.getTime()) && d >= range.start && d <= range.end;
+      const raw = o.createdAt || o.date;
+      if (!raw) return false;
+      const d = toDate(raw);
+      if (!d) return false;
+      return d >= range.start && d <= range.end;
   }), [pedidosBase, range]);
 
   const vendasAnterior = useMemo(() => {
@@ -125,8 +127,9 @@ export const AdminSalesDashboard: React.FC<AdminSalesDashboardProps> = ({ orders
       if (o.deleted) return false;
       const raw = o.createdAt || o.date;
       if (!raw) return false;
-      const d = new Date(raw);
-      return !isNaN(d.getTime()) && d >= prevStart && d <= prevEnd;
+      const d = toDate(raw);
+      if (!d) return false;
+      return d >= prevStart && d <= prevEnd;
     });
   }, [pedidosBase, range]);
 
@@ -155,8 +158,8 @@ export const AdminSalesDashboard: React.FC<AdminSalesDashboardProps> = ({ orders
       map.set(d.toLocaleDateString('pt-BR'), { total: 0, count: 0 });
     }
     vendasPeriodo.forEach(o => {
-      const d = new Date(o.createdAt || o.date);
-      const key = d.toLocaleDateString('pt-BR');
+      const d = toDate(o.createdAt || o.date);
+      const key = d?.toLocaleDateString('pt-BR') || '';
       const e = map.get(key);
       if (e) { e.total += Number(o.total) || 0; e.count += 1; }
     });
@@ -208,7 +211,7 @@ export const AdminSalesDashboard: React.FC<AdminSalesDashboardProps> = ({ orders
       return;
     }
     const linhas = vendasPeriodo.map(o => {
-      const d = new Date(o.createdAt || o.date).toLocaleDateString('pt-BR');
+      const d = toDate(o.createdAt || o.date)?.toLocaleDateString('pt-BR') || '';
       const pag = (o as any).payments?.map((p: any) => `${LABELS_PAGAMENTO[p.method] || p.method}:${Number(p.amount).toFixed(2).replace('.', ',')}`).join(' | ') || LABELS_PAGAMENTO[o.paymentMethod || ''] || o.paymentMethod || '';
       return `"${d}";"${String(o.id || '').toUpperCase()}";"${String(o.userName || o.inmateName || '').replace(/"/g, '""')}";"${mascararCpf(o.userCpf || o.inmateCpf || '')}";"${pag}";"${Number(o.total).toFixed(2).replace('.', ',')}"`;
     });

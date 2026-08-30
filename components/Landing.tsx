@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
     Store, ShieldCheck, QrCode, ClipboardCheck, Package, Building2,
     Smartphone, Tablet, Monitor, Download, ArrowRight, CheckCircle2,
-    Lock, HeartHandshake, Loader2
+    Lock, HeartHandshake, Loader2, Menu, X
 } from 'lucide-react';
 import { Login } from '../pages/Login';
 
@@ -18,6 +18,7 @@ export const Landing: React.FC<{ skipLanding?: boolean }> = ({ skipLanding }) =>
     const [authOpen, setAuthOpen] = useState(false);
     const [initialTab, setInitialTab] = useState<'login' | 'register'>('login');
     const [installing, setInstalling] = useState(false);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     useEffect(() => {
         if (skipLanding) { setAuthOpen(true); return; }
@@ -76,12 +77,32 @@ export const Landing: React.FC<{ skipLanding?: boolean }> = ({ skipLanding }) =>
                         <a href="#unidade" className="hover:text-white transition-colors">Para a unidade</a>
                         <a href="#app" className="hover:text-white transition-colors">Aplicativo</a>
                     </nav>
+                    <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden text-white min-h-[44px] min-w-[44px] p-2 rounded-lg hover:bg-white/10 transition-colors" aria-label="Menu">
+                        {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+                    </button>
                     <div className="flex items-center gap-2">
-                        <button onClick={() => abrir('login')} className="px-4 py-2 rounded-xl text-[12px] font-bold text-white border border-white/30 hover:bg-white/10 transition-colors cursor-pointer">Entrar</button>
-                        <button onClick={() => abrir('register')} className="px-4 py-2 rounded-xl text-[12px] font-bold bg-white text-[#0e7a4d] hover:bg-emerald-50 transition-colors shadow-sm cursor-pointer">Criar conta</button>
+                        <button onClick={() => abrir('login')} className="px-4 py-3 min-h-[44px] rounded-xl text-[12px] font-bold text-white border border-white/30 hover:bg-white/10 transition-colors cursor-pointer">Entrar</button>
+                        <button onClick={() => abrir('register')} className="px-4 py-3 min-h-[44px] rounded-xl text-[12px] font-bold bg-white text-[#0e7a4d] hover:bg-emerald-50 transition-colors shadow-sm cursor-pointer">Criar conta</button>
                     </div>
                 </div>
             </header>
+
+            {/* Mobile Drawer */}
+            <AnimatePresence>
+                {mobileMenuOpen && (
+                    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}
+                        className="fixed top-16 inset-x-0 z-40 bg-[#0e7a4d]/98 backdrop-blur-md border-b border-white/10 md:hidden">
+                        <nav className="flex flex-col p-4 gap-1">
+                            {['#como-funciona','#familiares','#unidade','#app'].map((href, i) => (
+                                <a key={href} href={href} onClick={() => setMobileMenuOpen(false)}
+                                    className="min-h-[44px] flex items-center py-3 px-4 rounded-xl text-sm font-semibold text-white/90 hover:bg-white/10 transition-colors">
+                                    {['Como funciona','Para familiares','Para a unidade','Aplicativo'][i]}
+                                </a>
+                            ))}
+                        </nav>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* ── HERO ── */}
             <section className="relative pt-28 pb-16 sm:pt-36 sm:pb-24 bg-gradient-to-b from-[#0e7a4d] via-[#0c6b44] to-[#0a5c3a] overflow-hidden">
@@ -102,10 +123,10 @@ export const Landing: React.FC<{ skipLanding?: boolean }> = ({ skipLanding }) =>
                             Pedidos, crédito e atendimento para familiares de pessoas privadas de liberdade — com pagamento via PIX e aprovação da unidade.
                         </p>
                         <div className="mt-8 flex flex-wrap items-center gap-3">
-                            <button onClick={() => abrir('register')} className="px-7 py-3.5 rounded-2xl bg-white text-[#0e7a4d] font-bold text-sm hover:bg-emerald-50 transition-all shadow-xl active:scale-[0.98] cursor-pointer flex items-center gap-2">
+                            <button onClick={() => abrir('register')} className="px-7 py-3.5 min-h-[44px] rounded-2xl bg-white text-[#0e7a4d] font-bold text-sm hover:bg-emerald-50 transition-all shadow-xl active:scale-[0.98] cursor-pointer flex items-center gap-2">
                                 Cadastrar como familiar <ArrowRight size={17} />
                             </button>
-                            <button onClick={() => abrir('login')} className="px-7 py-3.5 rounded-2xl border-2 border-white/40 text-white font-bold text-sm hover:bg-white/10 transition-all active:scale-[0.98] cursor-pointer">
+                            <button onClick={() => abrir('login')} className="px-7 py-3.5 min-h-[44px] rounded-2xl border-2 border-white/40 text-white font-bold text-sm hover:bg-white/10 transition-all active:scale-[0.98] cursor-pointer">
                                 Já tenho conta
                             </button>
                         </div>
@@ -225,17 +246,17 @@ export const Landing: React.FC<{ skipLanding?: boolean }> = ({ skipLanding }) =>
                         <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">Baixe o app da ASSPEN no seu aparelho</h2>
                         <p className="mt-4 text-slate-400 font-medium leading-relaxed">Funciona em celular, tablet e computador — leve, rápido e sem ocupar espaço.</p>
                         <div className="mt-7 flex flex-wrap gap-3">
-                            <button onClick={instalarApp} disabled={installing} className="px-6 py-3.5 rounded-2xl bg-[#0e7a4d] hover:bg-[#0c6b44] text-white font-bold text-sm transition-all shadow-lg active:scale-[0.98] cursor-pointer flex items-center gap-2 disabled:opacity-60">
+                            <button onClick={instalarApp} disabled={installing} className="px-6 py-3.5 min-h-[44px] rounded-2xl bg-[#0e7a4d] hover:bg-[#0c6b44] text-white font-bold text-sm transition-all shadow-lg active:scale-[0.98] cursor-pointer flex items-center gap-2 disabled:opacity-60">
                                 {installing ? <Loader2 size={17} className="animate-spin" /> : <Download size={17} />} Instalar app agora
                             </button>
-                            <button onClick={() => abrir('login')} className="px-6 py-3.5 rounded-2xl border border-slate-700 text-slate-200 font-bold text-sm hover:bg-slate-800 transition-colors cursor-pointer">
+                            <button onClick={() => abrir('login')} className="px-6 py-3.5 min-h-[44px] rounded-2xl border border-slate-700 text-slate-200 font-bold text-sm hover:bg-slate-800 transition-colors cursor-pointer">
                                 Continuar no navegador
                             </button>
                         </div>
                     </motion.div>
                     <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.1 }} className="flex justify-center gap-4">
                         {[{ i: Smartphone, l: 'Celular' }, { i: Tablet, l: 'Tablet' }, { i: Monitor, l: 'Computador' }].map((d, idx) => (
-                            <div key={idx} className="flex flex-col items-center gap-3 bg-slate-900 border border-slate-800 rounded-3xl px-7 py-8">
+                            <div key={idx} className="flex flex-col items-center gap-3 bg-slate-900 border border-slate-800 rounded-3xl px-7 py-8 min-h-[44px]">
                                 <d.i size={30} className="text-emerald-400" />
                                 <p className="text-[11px] font-bold text-slate-300 uppercase tracking-widest">{d.l}</p>
                             </div>

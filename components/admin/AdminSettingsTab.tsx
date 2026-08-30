@@ -3,10 +3,11 @@ import {
   Settings, KeyRound, Database, HardDrive, Download, AlertTriangle,
   Trash2, RefreshCw, Smartphone, Palette, Shield, Lock, Save, DollarSign, Check,
   FileText, CreditCard, Building, Info, Printer, Wrench, Truck, ShoppingBag, Search, Loader2, Zap, Users,
-  History, RotateCcw, Upload, Archive, Power, CalendarClock, CloudUpload, CloudDownload, FileJson, Receipt, Pencil
+  History, RotateCcw, Upload, Archive, Power, CalendarClock, CloudUpload, CloudDownload, FileJson, Receipt, Pencil, Moon
 } from 'lucide-react';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { ThemeOption } from '../../types';
+import { useTheme } from '../../context/ThemeContext';
 import { useMaintenance } from '../../hooks/useMaintenance';
 import {
   PontoRestauracao, criarPontoRestauracao, listarPontosRestauracao, restaurarPontoRestauracao,
@@ -14,6 +15,7 @@ import {
   aplicarChavesLocal, formatarDataPonto
 } from '../../utils/backupUtils';
 import { isAdminRole } from '../../utils';
+import { toDate } from '../../utils/dateUtils';
 
 const MODULOS_PERMISSAO: { key: string; label: string }[] = [
   { key: 'orders', label: 'Pedidos' },
@@ -108,6 +110,9 @@ interface AdminSettingsTabProps {
   installApp?: () => Promise<void>;
 }
 
+import { SystemHealthCard } from './SystemHealthCard';
+import { AppDownloadButton } from '../AppDownloadModal';
+
 export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
   isMaster, isAuthenticated, onAuthenticate,
   newAdminPassword, setNewAdminPassword, confirmAdminPassword, setConfirmAdminPassword, handleChangeAdminPassword,
@@ -136,6 +141,9 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
   } = useMaintenance(currentUserId ? { id: currentUserId, name: currentUserName || '' } as any : null);
   const [maintenanceMotivo, setMaintenanceMotivo] = React.useState('');
   const [maintenanceConfirming, setMaintenanceConfirming] = React.useState(false);
+
+  // ── Tema (dark/light/system) ──
+  const { themeMode, setThemeMode } = useTheme();
 
   // Local copy for batch-save pattern
   const [localSettings, setLocalSettings] = React.useState<any>(settings || {});
@@ -388,8 +396,8 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
 
   if (isAuthenticated === false) {
     return (
-      <div className="animate-fadeIn flex flex-col items-center justify-center min-h-[60vh] pb-32">
-        <div className="bg-white p-16 rounded-[3rem] border border-slate-100 shadow-2xl text-center max-w-lg w-full">
+      <div className="animate-fadeIn flex flex-col items-center justify-center min-h-[60vh] pb-16 md:pb-32">
+        <div className="bg-white p-8 md:p-16 rounded-[3rem] border border-slate-100 shadow-2xl text-center max-w-lg w-full">
           <div className="w-24 h-24 bg-slate-100 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-inner">
             <Lock size={48} className="text-slate-400" />
           </div>
@@ -411,6 +419,12 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
 
   return (
     <div className="animate-fadeIn space-y-8 pb-32">
+      {/* SAÚDE DO SISTEMA — resultado da auto-manutenção (roda sozinha) */}
+      <SystemHealthCard />
+
+      {/* DOWNLOAD DO APP — movido da sidebar (é config, não navegação) */}
+      <AppDownloadButton variant="full" label="Baixar App Desktop (Setup)" />
+
       {/* Header */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0f172a] p-6 md:p-8 shadow-2xl">
         <div className="absolute -top-24 -right-24 w-72 h-72 bg-emerald-500/20 rounded-full blur-[100px]"></div>
@@ -1071,8 +1085,37 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
         {activeSubTab === 'appearance' && (
           <div className="animate-slideUp">
             <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl space-y-6">
+              {/* ── MODO ESCURO ── */}
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 flex items-center gap-2 mb-4">
+                  <Moon size={20} className="text-indigo-600" /> Modo de Exibição
+                </h3>
+                <div className="grid grid-cols-3 gap-3">
+                  {([
+                    { id: 'light' as const, label: 'Claro', icon: '☀️', desc: 'Tema claro' },
+                    { id: 'dark' as const, label: 'Escuro', icon: '🌙', desc: 'Tema escuro' },
+                    { id: 'system' as const, label: 'Sistema', icon: '💻', desc: 'Automático' },
+                  ]).map(m => (
+                    <button
+                      key={m.id}
+                      onClick={() => setThemeMode(m.id)}
+                      className={`p-4 rounded-2xl border-4 transition-all flex flex-col items-center gap-1.5 ${
+                        themeMode === m.id
+                          ? 'border-indigo-600 bg-indigo-50'
+                          : 'border-transparent bg-slate-50 hover:border-slate-300'
+                      }`}
+                    >
+                      <span className="text-2xl">{m.icon}</span>
+                      <span className="text-[11px] font-black uppercase text-slate-700">{m.label}</span>
+                      <span className="text-[9px] font-bold text-slate-400">{m.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="border-t border-slate-200 pt-6">
               <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 flex items-center gap-2 mb-4">
-                <Palette size={20} className="text-pink-600" /> Tema do Sistema
+                <Palette size={20} className="text-pink-600" /> Cor do Tema
               </h3>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {[
@@ -1093,6 +1136,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                     {settings?.theme === t.id && <Check size={16} className="text-slate-800" />}
                   </button>
                 ))}
+              </div>
               </div>
 
               <div className="pt-6 mt-6 border-t border-slate-200">
@@ -1223,7 +1267,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                 <>
                   <span className="text-xs font-black text-slate-800">{backupsNuvem[0].nome.replace('backups/', '')}</span>
                   <span className="text-xs font-bold text-slate-500">
-                    {backupsNuvem[0].atualizadoEm ? new Date(backupsNuvem[0].atualizadoEm).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
+                    {backupsNuvem[0].atualizadoEm ? toDate(backupsNuvem[0].atualizadoEm)?.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) || '' : ''}
                   </span>
                   <span className="text-xs font-bold text-blue-600">{(backupsNuvem[0].tamanho / 1024 / 1024).toFixed(2)} MB</span>
                 </>
@@ -1256,7 +1300,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                         <div className="min-w-0">
                           <p className="text-[11px] font-black text-slate-800 truncate">{b.nome.replace('backups/', '')}</p>
                           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                            {b.atualizadoEm ? new Date(b.atualizadoEm).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''} • {(b.tamanho / 1024 / 1024).toFixed(2)} MB
+                            {b.atualizadoEm ? toDate(b.atualizadoEm)?.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) || '' : ''} • {(b.tamanho / 1024 / 1024).toFixed(2)} MB
                           </p>
                         </div>
                       </div>
@@ -1314,7 +1358,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                 <p className="text-[10px] font-black text-red-700 uppercase tracking-wider flex items-center gap-1.5">
                   <CalendarClock size={13} /> Sistema desativado
                   {maintenanceState?.desativadoEm
-                    ? ` em ${new Date(maintenanceState.desativadoEm).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`
+                    ? ` em ${toDate(maintenanceState.desativadoEm)?.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) || ''}`
                     : ''}
                 </p>
                 <p className="text-xs font-bold text-slate-600">

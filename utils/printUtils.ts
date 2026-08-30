@@ -627,7 +627,10 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
 
   cupom += `${divisorDuplo}\n`;
   cupom += `${centrarTexto(String(config?.receiptFooter || 'AUTENTICO PARA CONFERENCIA').toUpperCase().slice(0, 48), 48)}\n`;
-  const authHash = `SEC-${String(data.id || 'XXXX').slice(0, 8).toUpperCase()}-${Math.floor(Date.now() / 1000).toString(36).toUpperCase()}`;
+  const idClean = String(data.id || 'XXXX').replace(/-/g, '').toUpperCase();
+  const seedA = idClean.slice(0, 8).padEnd(8, '0');
+  const seedB = (seedA.split('').reverse().join('') + seedA).slice(0, 8).padEnd(8, '0');
+  const authHash = `SEC-${seedA}-${seedB}`;
   cupom += `${centrarTexto(`AUTH: ${authHash}`, 48)}\n`;
   if (cnpj) cupom += `${centrarTexto(`CNPJ: ${cnpj}`, 48)}\n`;
   cupom += `${divisorDuplo}\n`;
@@ -772,7 +775,7 @@ export function abrirJanelaImpressao(
     const win = window.open(
       '/print?print=true',
       'janelaImpressao',
-      'width=480,height=800,menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes'
+      'width=880,height=960,menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes'
     );
     if (win && !win.closed) {
       try { win.focus(); } catch { /* noop */ }

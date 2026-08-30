@@ -1,11 +1,12 @@
 import React from 'react';
 import {
-  ShoppingCart, Search, Grid, List, Clock, Filter, Printer, FileText, DollarSign, ArrowRight, UserCheck, ShieldCheck, Download, XCircle, CheckCircle
+  ShoppingCart, Search, Grid, List, Clock, Printer, FileText, DollarSign, ArrowRight, UserCheck, ShieldCheck, Download, XCircle, CheckCircle
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useApp } from '../../context/StoreContext';
 import { Order, OrderStatus } from '../../types';
 import { getLocalDateStr } from './adminUtils';
+import { toDate } from '../../utils/dateUtils';
 
 interface AdminOrdersTabProps {
   orders: Order[];
@@ -92,8 +93,8 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
 
       return matchesSearch && matchesStatus && matchesDate;
     }).sort((a,b) => {
-      const dateA = new Date(a.createdAt || a.date || 0).getTime();
-      const dateB = new Date(b.createdAt || b.date || 0).getTime();
+      const dateA = toDate(a.createdAt || a.date)?.getTime() || 0;
+      const dateB = toDate(b.createdAt || b.date)?.getTime() || 0;
       return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
     });
   }, [orders, searchTerm, statusFilter, dateFilter, specificDate, sortOrder]);
@@ -111,7 +112,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
   const exportOrdersToCSV = () => {
     const headers = ['Data', 'ID', 'Familia', 'Interno', 'CPF', 'Total', 'Status', 'Itens'];
     const rows = filteredOrders.map(o => [
-      new Date(o.createdAt || o.date || 0).toLocaleDateString('pt-BR'),
+      toDate(o.createdAt || o.date)?.toLocaleDateString('pt-BR') || '',
       o.id || '',
       o.userName || '',
       o.inmateName || '',
@@ -289,7 +290,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
               <div className="flex items-center gap-3 pl-2">
                 <Clock size={16} className="text-[var(--text-muted)]"/>
                 <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">
-                  {order.date ? new Date(order.date).toLocaleDateString('pt-BR') : '—'} <span className="mx-2 text-[var(--text-muted)]">|</span> {order.date ? new Date(order.date).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}) : '—'}
+                  {order.date ? toDate(order.date)?.toLocaleDateString('pt-BR') || '' : '—'} <span className="mx-2 text-[var(--text-muted)]">|</span> {order.date ? toDate(order.date)?.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}) || '' : '—'}
                 </p>
               </div>
             </div>

@@ -643,26 +643,22 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
       {showAuthModal && (
         <div className="modal-container">
             <form onSubmit={async (e) => { e.preventDefault(); setIsAuthLoading(true); try { await handleAuthConfirm(); } finally { setIsAuthLoading(false); } }} className="glass-card w-full max-w-sm rounded-3xl overflow-hidden border border-slate-200 animate-slideUp relative" style={{ background: 'linear-gradient(135deg, #0f172a, #1e293b, #0f172a)' }}>
-                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-emerald-500 via-blue-500 to-purple-500"></div>
-
-                <div className="p-12 text-center">
-                    <div className="w-24 h-24 bg-white rounded-[2rem] flex items-center justify-center mx-auto mb-8 border border-slate-200 shadow-inner">
-                        <div className="bg-slate-100 p-5 rounded-2xl shadow-lg border border-slate-200">
-                            <Lock size={40} strokeWidth={2.5} className="text-slate-900"/>
-                        </div>
+                <div className="relative bg-white rounded-2xl p-8 text-center border border-slate-200/80 shadow-xl m-4 md:m-6">
+                    <div className="w-14 h-14 mx-auto mb-5 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-700 flex items-center justify-center shadow-lg shadow-slate-900/20">
+                        <Lock size={24} strokeWidth={2.2} className="text-emerald-400"/>
                     </div>
 
-                    <h2 className="text-3xl font-black text-white mb-2 uppercase tracking-tighter">Autorização</h2>
-                    <p className="text-[10px] font-black text-slate-900 uppercase tracking-[0.4em] bg-white py-3 rounded-full border border-slate-200 mx-4">Operação Restrita</p>
+                    <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Autorização</h2>
+                    <p className="text-xs font-semibold text-slate-500 mt-1">Confirme sua senha para acessar as Configurações</p>
 
-                    <div className="relative mb-10 mt-8 group/input">
-                        <div className="absolute left-4 top-1/2 -translate-y-1/2 bg-white p-3 rounded-xl border border-slate-300 group-focus-within/input:bg-emerald-600 group-focus-within/input:border-emerald-500 transition-all z-20 shadow-md">
-                            <Key className="text-slate-600 group-focus-within/input:text-white transition-colors" size={20}/>
+                    <div className="relative mt-6 mb-7 group/input">
+                        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 z-20 text-slate-400 transition-colors group-focus-within/input:text-emerald-600 pointer-events-none">
+                            <Key size={18}/>
                         </div>
                         <input
                             type="password"
                             autoCapitalize="none" autoCorrect="off" autoComplete="off" spellCheck={false}
-                            className="w-full pl-16 px-4 py-6 bg-white border-2 border-slate-300 focus:border-emerald-500 rounded-xl font-bold text-2xl text-slate-900 outline-none transition-all placeholder:text-slate-700 placeholder:tracking-[0.6em] relative z-10"
+                            className="w-full pl-11 pr-4 py-3.5 bg-slate-50/70 border border-slate-200 focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/15 rounded-xl font-bold text-lg tracking-[0.35em] text-slate-900 outline-none transition-all placeholder:text-slate-300 relative z-10"
                             placeholder="••••"
                             value={authPass}
                             onChange={e => setAuthPass(e.target.value)}
@@ -672,16 +668,14 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                         />
                     </div>
 
-                    <div className="flex flex-col gap-4">
-                        <button type="submit" disabled={isAuthLoading || !authPass.trim()} className="w-full py-5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold rounded-2xl shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-3 uppercase text-[11px] tracking-[0.2em] active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed transition-all touch-target">
-                            {isAuthLoading ? <><Loader2 size={18} className="animate-spin" /> Validando...</> : 'Confirmar Acesso'} <Check size={20} />
+                    <div className="flex flex-col gap-3">
+                        <button type="submit" disabled={isAuthLoading || !authPass.trim()} className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:brightness-110 text-white font-black rounded-xl shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 uppercase text-[11px] tracking-widest active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed transition-all touch-target">
+                            {isAuthLoading ? <><Loader2 size={16} className="animate-spin" /> Validando...</> : 'Confirmar Acesso'}
+                            {!isAuthLoading && <Check size={16} />}
                         </button>
-                        <button type="button" disabled={isAuthLoading} onClick={() => setShowAuthModal(false)} className="w-full py-4 text-slate-400 font-bold hover:text-white uppercase text-[10px] tracking-wide transition-all touch-target">Cancelar</button>
+                        <button type="button" disabled={isAuthLoading} onClick={() => setShowAuthModal(false)} className="w-full py-2.5 text-slate-400 font-bold hover:text-slate-700 uppercase text-[10px] tracking-widest transition-all touch-target">Cancelar</button>
                     </div>
                 </div>
-
-                <div className="absolute -bottom-20 -right-20 w-48 h-48 bg-emerald-500 rounded-full blur-[100px] opacity-10"></div>
-                <div className="absolute -bottom-20 -left-20 w-48 h-48 bg-blue-500 rounded-full blur-[100px] opacity-10"></div>
             </form>
         </div>
       )}
