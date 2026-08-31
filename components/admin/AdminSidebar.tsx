@@ -61,7 +61,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         />
       )}
 
-      <aside className={`w-64 h-[100dvh] flex flex-col fixed left-0 top-0 overflow-y-auto z-50 transition-transform duration-300 ease-in-out no-scrollbar border-r border-white/5 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 shadow-2xl ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+      <aside className={`w-64 h-[100dvh] flex flex-col fixed left-0 top-0 overflow-y-auto z-50 transition-transform duration-300 ease-in-out no-scrollbar border-r border-white/5 bg-gradient-to-b from-[#064e3b] via-[#065f46] to-[#022c22] shadow-2xl ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         <div className="flex items-center gap-2.5 px-5 py-5 shrink-0">
             <div className="flex size-10 items-center justify-center rounded-xl text-white bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-500/30">
                 <Shield size={20}/>

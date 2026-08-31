@@ -310,7 +310,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, [isOpen, modalPagamento, ultimoPedido, mostrarListaClientes, clienteSelecionado, carrinho.length, showProductModal, onClose, ultimaVenda, showSalesPanel, showRefundModal, showSuspendedList]);
 
-  const corPrincipal = settings?.pdvColor || '#10b981'; // Default to Emerald if not set
+  const corPrincipal = settings?.pdvColor || '#0e7a4d'; // ASSPEN green default
 
   const todosClientes = useMemo(() => {
     if (!users) return [];
@@ -358,15 +358,22 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
     // sem mostrar ninguém ao digitar apenas o início).
     if (!term) return [];
     const termo = term.toLowerCase();
-    const somenteNumeros = /^\d+$/.test(termo);
+    // Constrói um "índice de busca" por usuário: nome, nome do interno,
+    // CPFs (sem pontuação), e-mail e telefone — para casar em qualquer campo.
     return todosClientes.filter(u => {
       const nome = (u.name || '').toLowerCase();
       const nomePreso = (u.inmateName || u.prisonerName || '').toLowerCase();
-      const cpfDigits = (u.cpf || '').replace(/\D/g, '');
-      // Se é só número (começo de CPF), casa por prefixo do CPF (mais rápido e exato);
+      const cpfFamiliar = (u.cpf || '').replace(/\D/g, '');
+      const cpfPreso = (u.inmateCpf || u.prisonerCpf || '').replace(/\D/g, '');
+      const email = (u.email || '').toLowerCase();
+      const telefone = (u.phone || '').replace(/\D/g, '');
+      const termoNum = termo.replace(/\D/g, '');
+      // Se é só número (começo de CPF/telefone), casa por prefixo desses campos;
       // senão, busca por substring no nome do familiar e do interno.
-      if (somenteNumeros) return cpfDigits.startsWith(termo);
-      return nome.includes(termo) || nomePreso.includes(termo) || cpfDigits.includes(termo.replace(/\D/g, ''));
+      if (/^\d+$/.test(termo)) {
+        return cpfFamiliar.startsWith(termo) || cpfPreso.startsWith(termo) || (telefone && telefone.startsWith(termo));
+      }
+      return nome.includes(termo) || nomePreso.includes(termo) || email.includes(termo) || cpfFamiliar.includes(termoNum) || cpfPreso.includes(termoNum);
     })
       .sort((a, b) => {
         const aNome = (a.name || '').toLowerCase();

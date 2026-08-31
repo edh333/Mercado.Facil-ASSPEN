@@ -170,11 +170,12 @@
    ═══════════════════════════════════════════════════════════ */
 
 :root {
-  --primary-color: #10b981;
-  --secondary-color: #059669;
-  --accent-color: #10b981;
-  --primary-light: rgba(16, 185, 129, 0.1);
-  --primary-dark: #059669;
+  /* ASSPEN green identity (#0e7a4d) — matches the ASSPEN system look */
+  --primary-color: #0e7a4d;
+  --secondary-color: #0a5c3a;
+  --accent-color: #0e7a4d;
+  --primary-light: rgba(14, 122, 77, 0.1);
+  --primary-dark: #0a5c3a;
 
   --bg-card: #ffffff;
   /* Canvas ÚNICO do sistema (slate) — mesmo valor em ThemeContext.tsx.
@@ -830,8 +831,8 @@ button {
   padding: 20px 24px;
   background: linear-gradient(
     135deg,
-    var(--color-brand-navy) 0%,
-    var(--color-brand-navy-800) 100%
+    var(--primary-color) 0%,
+    var(--secondary-color) 100%
   );
   color: #fff;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
@@ -840,8 +841,8 @@ button {
 .dark .modal-header {
   background: linear-gradient(
     135deg,
-    var(--color-brand-navy-900) 0%,
-    var(--color-brand-navy-800) 100%
+    var(--primary-color) 0%,
+    var(--secondary-color) 100%
   );
 }
 
@@ -949,7 +950,12 @@ button {
   from {
     opacity: 0;
   }
-  @media (max-width: 640px) {
+  to {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 640px) {
     .modal-wrapper {
       padding: 12px;
       align-items: flex-start;
@@ -1390,7 +1396,6 @@ button {
   .fixed.inset-0[style*="z-index"] {
     animation: modalFadeIn 0.22s ease-out both;
   }
-}
 
 /* ═══════════════════════════════════════════════════════════
    POLISH PROFISSIONAL v2.6 — Tipografia, Foco e Impressão

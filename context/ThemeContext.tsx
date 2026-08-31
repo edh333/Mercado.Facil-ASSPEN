@@ -59,11 +59,11 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const themeId = settings?.theme || ThemeOption.MODERN_GREEN;
   const themeColors = THEME_COLORS[themeId] || THEME_COLORS[ThemeOption.MODERN_GREEN];
 
-  // Primary color
-  const DEFAULT_PRIMARY = '#10b981';
+  // Primary color — accepts the ASSPEN green (#0e7a4d) so screens match the
+  // ASSPEN system visual identity. No legacy-color blocking here.
+  const DEFAULT_PRIMARY = '#0e7a4d';
   const rawPrimary = String(settings?.primaryColor || '').trim().toLowerCase();
-  const isLegacyGreen = rawPrimary === '#0e7a4d';
-  const primaryColor = /^#[0-9a-fA-F]{6}$/.test(rawPrimary) && !isLegacyGreen ? rawPrimary : DEFAULT_PRIMARY;
+  const primaryColor = /^#[0-9a-fA-F]{6}$/.test(rawPrimary) ? rawPrimary : DEFAULT_PRIMARY;
 
   useEffect(() => {
     applyThemeColors(themeId);

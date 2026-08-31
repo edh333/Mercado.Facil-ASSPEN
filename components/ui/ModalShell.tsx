@@ -76,7 +76,7 @@ export const ModalShell: React.FC<ModalShellProps> = ({
           aria-labelledby="modal-title"
         >
           <div className="modal-accent-bar" style={{ background: accentColor || 'linear-gradient(90deg, var(--primary-color), var(--secondary-color))' }} />
-          <header className="modal-header" style={{ background: headerColor || 'linear-gradient(135deg, var(--color-brand-navy) 0%, var(--color-brand-navy-800) 100%)' }}>
+          <header className="modal-header" style={{ background: headerColor || 'linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%)' }}>
             <div className="modal-header-content">
               {icon && (
                 <div className="modal-header-icon" style={{ background: accentColor || 'linear-gradient(135deg, var(--primary-color), var(--secondary-color))' }}>

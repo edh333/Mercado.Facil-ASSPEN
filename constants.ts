@@ -38,12 +38,12 @@ export const THEME_COLORS: Record<string, {
     card: 'bg-white'
   },
   [ThemeOption.MODERN_GREEN]: {
-    primary: 'bg-[#064e3b]', // Emerald 900 (Deep Forest)
-    secondary: 'bg-[#065f46]', // Emerald 800
+    primary: 'bg-[#0e7a4d]', // ASSPEN green (identidade do sistema ASSPEN)
+    secondary: 'bg-[#0a5c3a]',
     accent: 'text-[#10b981]', // Emerald 500
     bg: 'bg-emerald-50',
     text: 'text-emerald-900',
-    price: 'text-[#064e3b]',
+    price: 'text-[#0e7a4d]',
     card: 'bg-white'
   },
 
