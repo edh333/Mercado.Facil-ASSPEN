@@ -532,7 +532,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
                         <td colSpan={5} className="p-6 text-center">
                             <button
                                 onClick={loadMoreExpenses}
-                                className="px-8 py-4 bg-[var(--bg-main)] border-2 border-[var(--border-color)] text-[var(--text-main)] font-black rounded-2xl hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition-all text-[10px] uppercase tracking-widest shadow-sm active:scale-95"
+                                className="px-8 py-4 bg-[var(--bg-main)] border-2 border-[var(--border-color)] text-[var(--text-main)] font-black rounded-2xl hover:bg-[var(--primary-color)] hover:text-white hover:border-[var(--primary-color)] transition-all text-[10px] uppercase tracking-widest shadow-sm active:scale-95"
                             >
                                 Carregar Mais Despesas
                             </button>
@@ -551,7 +551,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
                 <div key={item.id} className="p-6 flex flex-col gap-4">
                     <div className="flex justify-between items-start">
                         <div className="flex items-center gap-3">
-                            <div className={`p-3 rounded-2xl ${item.type === 'ENTRY' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-red-500/10 text-red-600'}`}>
+<div className={`p-3 rounded-2xl ${item.type === 'ENTRY' ? 'bg-[var(--primary-color)]/10 text-[var(--primary-color)]' : 'bg-[var(--color-brand-red)]/10 text-[var(--color-brand-red)]'}`}>
                                 {item.type === 'ENTRY' ? <TrendingUp size={20}/> : <TrendingDown size={20}/>}
                             </div>
                             <div>

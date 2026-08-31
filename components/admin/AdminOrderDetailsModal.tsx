@@ -263,8 +263,8 @@ export const AdminOrderDetailsModal: React.FC<AdminOrderDetailsModalProps> = ({
               <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
                 <div className="flex justify-between items-center mb-6 border-b border-slate-200 pb-5">
                     <h4 className="text-[11px] font-black uppercase tracking-[0.4em] text-slate-500 flex items-center gap-3">
-                        <div className="p-2 bg-emerald-100 rounded-xl">
-                            <Box size={18} className="text-emerald-600"/>
+                        <div className="p-2 bg-[var(--primary-color)]/100 rounded-xl">
+                            <Box size={18} className="text-[var(--primary-color)]"/>
                         </div>
                         Composição do Carrinho
                     </h4>
@@ -307,14 +307,14 @@ export const AdminOrderDetailsModal: React.FC<AdminOrderDetailsModalProps> = ({
               <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm flex-1 flex flex-col">
                 <div className="flex justify-between items-center mb-6">
                     <h4 className="text-[11px] font-black uppercase tracking-[0.4em] text-slate-500 flex items-center gap-3">
-                        <div className="p-2 bg-emerald-100 rounded-xl">
-                            <CreditCard size={18} className="text-emerald-600"/>
+                        <div className="p-2 bg-[var(--primary-color)]/100 rounded-xl">
+                            <CreditCard size={18} className="text-[var(--primary-color)]"/>
                         </div>
                         Comprovante Digital
                     </h4>
                     {order.paymentMethod !== 'WALLET' && proofSrc && proofSrc !== 'PENDENTE_UPLOAD_LOCAL_CACHE' && (
-                        <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-[9px] font-black uppercase flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
+                        <span className="px-3 py-1 bg-[var(--primary-color)]/100 text-[var(--primary-color)] rounded-full text-[9px] font-black uppercase flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 bg-[var(--primary-color)]500 rounded-full"></span>
                             Anexado
                         </span>
                     )}
@@ -412,7 +412,7 @@ export const AdminOrderDetailsModal: React.FC<AdminOrderDetailsModalProps> = ({
                         <button
                           onClick={handleApproveAndFinalize}
                           disabled={isProcessing}
-                          className="w-full py-5 bg-emerald-600 text-white rounded-xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-4 disabled:opacity-50"
+                          className="w-full py-5 bg-[var(--primary-color)] text-white rounded-xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-4 disabled:opacity-50"
                         >
                           <CheckCircle size={22}/> {isProcessing ? 'PROCESSANDO...' : 'Aprovar e Finalizar Compra'}
                         </button>

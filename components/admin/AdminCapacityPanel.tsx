@@ -106,8 +106,8 @@ export const AdminCapacityPanel: React.FC = () => {
     <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-emerald-100 rounded-2xl">
-            <Gauge size={22} className="text-emerald-600" />
+          <div className="p-3 bg-[var(--primary-color)]/100 rounded-2xl">
+            <Gauge size={22} className="text-[var(--primary-color)]" />
           </div>
           <div>
             <h3 className="font-black text-sm text-slate-700 uppercase tracking-wider">Capacidade de Atendimento</h3>
@@ -115,7 +115,7 @@ export const AdminCapacityPanel: React.FC = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {loading && <Loader2 size={20} className="animate-spin text-emerald-500" />}
+          {loading && <Loader2 size={20} className="animate-spin text-[var(--primary-color)]" />}
           <button
             onClick={() => { setShowCleanupModal(true); setCleanupResult(null); setCleanupErro(''); }}
             disabled={loading}
@@ -133,7 +133,7 @@ export const AdminCapacityPanel: React.FC = () => {
       )}
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <Card label="Pedidos Hoje" valor={capacidade.hoje === null ? '—' : fmt(capacidade.hoje)} cor="text-emerald-600" />
+        <Card label="Pedidos Hoje" valor={capacidade.hoje === null ? '—' : fmt(capacidade.hoje)} cor="text-[var(--primary-color)]" />
         <Card label="Últimos 7 Dias" valor={capacidade.semana === null ? '—' : fmt(capacidade.semana)} cor="text-blue-600" />
         <Card label="Últimos 30 Dias" valor={capacidade.mes === null ? '—' : fmt(capacidade.mes)} cor="text-purple-600" />
         <Card label="Último Ano" valor={capacidade.ano === null ? '—' : fmt(capacidade.ano)} cor="text-amber-600" />
@@ -151,7 +151,7 @@ export const AdminCapacityPanel: React.FC = () => {
         </div>
         <div className="bg-slate-50 rounded-2xl border border-slate-200 p-4">
           <div className="flex items-center gap-2 mb-2">
-            <ShoppingBag size={16} className="text-emerald-500" />
+            <ShoppingBag size={16} className="text-[var(--primary-color)]" />
             <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Média por Dia (30d)</p>
           </div>
           <p className="text-xl font-black text-slate-900">
@@ -159,12 +159,12 @@ export const AdminCapacityPanel: React.FC = () => {
           </p>
           <p className="text-[9px] text-slate-400 font-bold uppercase">pedidos/dia na média</p>
         </div>
-        <div className={`rounded-2xl border p-4 ${riscoAlto ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200'}`}>
+        <div className={`rounded-2xl border p-4 ${riscoAlto ? 'bg-red-50 border-red-200' : 'bg-[var(--primary-color)]/50 border-[var(--primary-color)]/20'}`}>
           <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle size={16} className={riscoAlto ? 'text-red-500' : 'text-emerald-500'} />
-            <p className={`text-[10px] font-black uppercase tracking-wider ${riscoAlto ? 'text-red-600' : 'text-emerald-700'}`}>Uso Estimado da Cota</p>
+            <AlertTriangle size={16} className={riscoAlto ? 'text-red-500' : 'text-[var(--primary-color)]'} />
+            <p className={`text-[10px] font-black uppercase tracking-wider ${riscoAlto ? 'text-red-600' : 'text-[var(--primary-color)]'}`}>Uso Estimado da Cota</p>
           </div>
-          <p className={`text-xl font-black ${riscoAlto ? 'text-red-600' : 'text-emerald-700'}`}>{pctLeituras}% / {pctEscritas}%</p>
+          <p className={`text-xl font-black ${riscoAlto ? 'text-red-600' : 'text-[var(--primary-color)]'}`}>{pctLeituras}% / {pctEscritas}%</p>
           <p className="text-[9px] text-slate-500 font-bold uppercase">leituras / escritas diárias</p>
         </div>
       </div>
@@ -203,7 +203,7 @@ export const AdminCapacityPanel: React.FC = () => {
           <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl p-6 space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center">
               <h4 className="font-black text-sm uppercase tracking-wider text-slate-900 flex items-center gap-2">
-                <ShieldCheck size={18} className="text-emerald-600" /> Backup + Limpeza de Dados Antigos
+                <ShieldCheck size={18} className="text-[var(--primary-color)]" /> Backup + Limpeza de Dados Antigos
               </h4>
               <button onClick={() => { if (!cleanupRunning) setShowCleanupModal(false); }} className="w-7 h-7 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200">
                 <X size={16} />
@@ -211,8 +211,8 @@ export const AdminCapacityPanel: React.FC = () => {
             </div>
 
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-[11px] font-bold text-slate-600 leading-relaxed space-y-2">
-              <p className="flex items-start gap-2"><Download size={14} className="text-emerald-600 shrink-0 mt-0.5" /> <span>1º — O sistema cria uma <b>cópia de segurança completa</b> (arquivo JSON no Storage com link de download válido por 7 dias).</span></p>
-              <p className="flex items-start gap-2"><ShieldCheck size={14} className="text-emerald-600 shrink-0 mt-0.5" /> <span>2º — Grava uma <b>cópia permanente em historico_geral</b> (trilha de auditoria, nunca se perde).</span></p>
+              <p className="flex items-start gap-2"><Download size={14} className="text-[var(--primary-color)] shrink-0 mt-0.5" /> <span>1º — O sistema cria uma <b>cópia de segurança completa</b> (arquivo JSON no Storage com link de download válido por 7 dias).</span></p>
+              <p className="flex items-start gap-2"><ShieldCheck size={14} className="text-[var(--primary-color)] shrink-0 mt-0.5" /> <span>2º — Grava uma <b>cópia permanente em historico_geral</b> (trilha de auditoria, nunca se perde).</span></p>
               <p className="flex items-start gap-2"><Trash2 size={14} className="text-red-500 shrink-0 mt-0.5" /> <span>3º — Remove da operação os <b>pedidos, depósitos e despesas mais antigos</b> do que o período escolhido. Pedidos pendentes de análise <b>nunca</b> são removidos.</span></p>
               <p className="flex items-start gap-2"><Download size={14} className="text-amber-500 shrink-0 mt-0.5" /> <span>4º — Quando marcada a opção abaixo, <b>os comprovantes (arquivos) dos registros arquivados são apagados do armazenamento</b>, liberando a cota do plano. A trilha de auditoria no histórico preserva os dados; documentos de identidade <b>nunca</b> são apagados.</span></p>
             </div>
@@ -240,29 +240,29 @@ export const AdminCapacityPanel: React.FC = () => {
             )}
 
             {cleanupResult && (
-              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-xs font-bold text-emerald-700 space-y-2">
+              <div className="bg-[var(--primary-color)]/50 border border-[var(--primary-color)]/20 rounded-xl p-4 text-xs font-bold text-[var(--primary-color)] space-y-2">
                 {cleanupResult.total === 0 ? (
                   <p className="flex items-center gap-2"><ShieldCheck size={16} /> {cleanupResult.mensagem || 'Nenhum dado antigo encontrado dentro do período.'}</p>
                 ) : (
                   <>
                     <p className="flex items-center gap-2"><ShieldCheck size={16} /> Limpeza concluída com sucesso! <b>{fmt(cleanupResult.total)}</b> registros arquivados:</p>
                     <div className="grid grid-cols-3 gap-2 text-center">
-                      <div className="bg-white rounded-xl py-2 px-1 border border-emerald-200">
-                        <p className="text-[9px] text-emerald-600 uppercase font-black">Pedidos</p>
+                      <div className="bg-white rounded-xl py-2 px-1 border border-[var(--primary-color)]/20">
+                        <p className="text-[9px] text-[var(--primary-color)] uppercase font-black">Pedidos</p>
                         <p className="font-black">{fmt(cleanupResult.porColecao?.orders || 0)}</p>
                       </div>
-                      <div className="bg-white rounded-xl py-2 px-1 border border-emerald-200">
-                        <p className="text-[9px] text-emerald-600 uppercase font-black">Depósitos</p>
+                      <div className="bg-white rounded-xl py-2 px-1 border border-[var(--primary-color)]/20">
+                        <p className="text-[9px] text-[var(--primary-color)] uppercase font-black">Depósitos</p>
                         <p className="font-black">{fmt(cleanupResult.porColecao?.wallet_transactions || 0)}</p>
                       </div>
-                      <div className="bg-white rounded-xl py-2 px-1 border border-emerald-200">
-                        <p className="text-[9px] text-emerald-600 uppercase font-black">Despesas</p>
+                      <div className="bg-white rounded-xl py-2 px-1 border border-[var(--primary-color)]/20">
+                        <p className="text-[9px] text-[var(--primary-color)] uppercase font-black">Despesas</p>
                         <p className="font-black">{fmt(cleanupResult.porColecao?.expenses || 0)}</p>
                       </div>
                     </div>
-                    <p className="text-[10px] text-emerald-600 leading-relaxed">Cópia de segurança salva em <b>historico_geral</b> (permanente) e, quando disponível, arquivo JSON no Storage.</p>
+                    <p className="text-[10px] text-[var(--primary-color)] leading-relaxed">Cópia de segurança salva em <b>historico_geral</b> (permanente) e, quando disponível, arquivo JSON no Storage.</p>
                     {(cleanupResult.arquivosApagados > 0 || cleanupResult.arquivosFalha > 0) && (
-                      <p className="text-[10px] text-slate-600 leading-relaxed bg-white rounded-xl py-2 px-3 border border-emerald-200">
+                      <p className="text-[10px] text-slate-600 leading-relaxed bg-white rounded-xl py-2 px-3 border border-[var(--primary-color)]/20">
                         Arquivos de comprovante apagados do armazenamento: <b>{fmt(cleanupResult.arquivosApagados || 0)}</b>
                         {cleanupResult.arquivosFalha > 0 && <> ({fmt(cleanupResult.arquivosFalha)} com falha — espaço não liberado nesses; serão apagados na próxima limpeza)</>}.
                       </p>
@@ -324,3 +324,4 @@ export const AdminCapacityPanel: React.FC = () => {
     </div>
   );
 };
+

@@ -76,7 +76,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onClo
                         initial={{ width: '100%' }}
                         animate={{ width: 0 }}
                         transition={{ duration: 5, ease: "linear" }}
-                        className={`h-full ${notification.type === 'success' ? 'bg-emerald-500' : notification.type === 'error' ? 'bg-red-500' : notification.type === 'warning' ? 'bg-amber-500' : 'bg-blue-500'}`}
+                        className={`h-full ${notification.type === 'success' ? 'bg-[var(--primary-color)]' : notification.type === 'error' ? 'bg-[var(--color-brand-red)]' : notification.type === 'warning' ? 'bg-[var(--color-brand-amber)]' : 'bg-[var(--primary-color)]'}`}
                     />
                 </div>
             </div>
@@ -89,3 +89,4 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onClo
         </motion.div>
     );
 };
+

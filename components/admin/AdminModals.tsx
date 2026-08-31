@@ -311,7 +311,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
           footer={
             <>
               <button type="button" onClick={() => { setShowProductModal(false); setEditingProduct(null); }} className="flex-1 py-4 bg-white text-slate-700 font-bold rounded-xl hover:bg-slate-50 uppercase text-[11px] tracking-widest transition-all border border-slate-300 shadow-sm hover:shadow-md active:scale-[0.98]">Cancelar</button>
-              <button type="submit" form="product-form" disabled={isProductLoading || !productForm.name.trim()} className="flex-[2] py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md shadow-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/30 flex items-center justify-center gap-3 uppercase text-[11px] tracking-widest transition-all px-6 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">
+              <button type="submit" form="product-form" disabled={isProductLoading || !productForm.name.trim()} className="flex-[2] py-4 bg-[var(--primary-color)] hover:bg-[var(--primary-color)]/700 text-white font-bold rounded-xl shadow-md shadow-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/30 flex items-center justify-center gap-3 uppercase text-[11px] tracking-widest transition-all px-6 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">
                 {isProductLoading ? <Loader2 size={18} className="animate-spin"/> : <Check size={18} />}
                 {editingProduct ? 'Salvar Alterações' : 'Cadastrar Produto'}
               </button>
@@ -322,9 +322,9 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
             <div className="relative flex items-center gap-2">
               <span className="relative flex h-3 w-3">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-[var(--primary-color)]"></span>
               </span>
-              <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider">Leitor de Código Ativo • Escaneie para Adicionar</span>
+              <span className="text-[10px] font-black text-[var(--primary-color)] uppercase tracking-wider">Leitor de Código Ativo • Escaneie para Adicionar</span>
             </div>
           </div>
 
@@ -364,7 +364,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                                />
                            </div>
                            {/* UPLOAD BUTTON */}
-                           <label className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border-2 border-dashed border-slate-300 text-slate-500 hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 cursor-pointer transition-all text-[10px] font-bold uppercase tracking-widest">
+                           <label className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border-2 border-dashed border-slate-300 text-slate-500 hover:border-emerald-500 hover:text-[var(--primary-color)] hover:bg-emerald-50 cursor-pointer transition-all text-[10px] font-bold uppercase tracking-widest">
                                <Upload size={14} />
                                Upload Arquivo
                                <input type="file" className="hidden" accept="image/*" onChange={handleProductImageUpload} />
@@ -415,7 +415,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                        <div className="bg-white p-4 rounded-xl border-2 border-slate-200 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
                            <div className="flex justify-between items-center mb-2">
                                <label className="text-slate-700 font-black text-[10px] uppercase tracking-widest">Código de Barras (EAN)</label>
-                               <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[9px] font-black uppercase tracking-wider">Leitor Ativo</span>
+                               <span className="px-2 py-0.5 bg-[var(--primary-color)]/100 text-[var(--primary-color)] rounded-full text-[9px] font-black uppercase tracking-wider">Leitor Ativo</span>
                            </div>
                            <input
                                ref={barcodeInputRef}
@@ -431,7 +431,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                                className="w-full bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 text-sm outline-none px-4 py-2.5 placeholder:text-slate-400 transition-all focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                            />
                        </div>
-                       <p className={`text-[9px] font-bold uppercase tracking-wider px-1 flex items-center gap-1 ${scanAviso?.tipo === 'verde' ? 'text-emerald-600' : scanAviso?.tipo === 'amarelo' ? 'text-amber-600' : 'text-blue-600'}`}>
+                       <p className={`text-[9px] font-bold uppercase tracking-wider px-1 flex items-center gap-1 ${scanAviso?.tipo === 'verde' ? 'text-[var(--primary-color)]' : scanAviso?.tipo === 'amarelo' ? 'text-amber-600' : 'text-blue-600'}`}>
                            <Barcode size={11}/> {scanAviso?.texto || 'Leitor ativo — aponte o leitor e escaneie (Enter)'}
                        </p>
                    </div>
@@ -701,14 +701,14 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                   onClick={() => {
                     abrirJanelaImpressao({ type: 'RECIBO', subType: viewingReceipt.type === 'EXPENSE' ? 'EXPENSE' : 'ORDER', data: viewingReceipt.data }, viewingReceipt.config || settings);
                   }}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95 shadow-sm"
+                  className="bg-[var(--primary-color)] hover:bg-[var(--primary-color)] text-white px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95 shadow-sm"
                 >
                   <Printer size={16}/> Bobina 48mm
                 </button>
               )}
               {/* Duplo rAF: garante layout/paint concluído ANTES do snapshot de
                   impressão — 1ª impressão não sai mais em branco. */}
-              <button onClick={() => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => window.print(), 150)))} className="bg-slate-700 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95 shadow-sm">
+              <button onClick={() => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => window.print(), 150)))} className="bg-slate-700 hover:bg-[var(--primary-color)] text-white px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95 shadow-sm">
                 <Printer size={16}/> Imprimir
               </button>
             </>
@@ -737,7 +737,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
           onClose={() => setPrintOrder(null)}
           title="Cupom PDV"
           subtitle="Visualização e impressão do cupom de venda"
-          icon={<Printer size={22} className="text-emerald-600" />}
+          icon={<Printer size={22} className="text-[var(--primary-color)]" />}
           size="md"
           accentColor="linear-gradient(90deg, var(--primary-color), var(--secondary-color))"
           headerColor="linear-gradient(135deg, var(--color-brand-navy) 0%, var(--color-brand-navy-800) 100%)"
@@ -745,7 +745,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
             <>
               <button
                 onClick={handleRawPrint}
-                className="px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-90 bg-emerald-600 text-white hover:bg-emerald-500 shadow-sm"
+                className="px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-90 bg-[var(--primary-color)] text-white hover:bg-[var(--primary-color)] shadow-sm"
               >
                 <Printer size={14} /> Imprimir na Fiscal
               </button>
@@ -813,7 +813,8 @@ const ToggleSwitch = ({ label, sublabel, checked, onChange }: any) => (
         </div>
         <label className="relative inline-flex items-center cursor-pointer">
             <input type="checkbox" className="sr-only peer" checked={checked} onChange={onChange} />
-            <div className="w-12 h-7 bg-slate-600 rounded-full peer peer-checked:bg-emerald-500 transition-all after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all after:shadow-lg peer-checked:after:translate-x-5"></div>
+            <div className="w-12 h-7 bg-slate-600 rounded-full peer peer-checked:bg-[var(--primary-color)] transition-all after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all after:shadow-lg peer-checked:after:translate-x-5"></div>
         </label>
     </div>
 );
+

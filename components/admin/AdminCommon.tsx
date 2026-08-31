@@ -42,7 +42,7 @@ interface StatCardProps {
 }
 
 export const StatCard: React.FC<StatCardProps> = ({ title, value, icon: Icon, color }) => (
-    <div className="p-6 rounded-lg shadow-sm border border-slate-700 bg-gradient-to-br from-[#0f172a] to-[#1e293b] flex items-center hover:shadow-md transition-all relative overflow-hidden group">
+    <div className="p-6 rounded-lg shadow-sm border border-slate-700 bg-gradient-to-br from-[var(--bg-main)] to-[var(--bg-card)] flex items-center hover:shadow-md transition-all relative overflow-hidden group">
         <div className={`w-14 h-14 rounded-lg flex items-center justify-center text-white mr-5 shadow-md group-hover:scale-105 transition-transform ${color}`}>
             <Icon size={26} />
         </div>

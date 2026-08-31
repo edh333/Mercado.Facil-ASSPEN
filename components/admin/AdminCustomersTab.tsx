@@ -145,9 +145,9 @@ export function AdminCustomersTab() {
   const totalOwed = accounts.reduce((s, a) => s + (a.currentDebt || 0), 0);
   const totalCredit = accounts.reduce((s, a) => s + (a.creditLimit || 0), 0);
   const riskPct = totalCredit > 0 ? (totalOwed / totalCredit) * 100 : 0;
-  const riskColor = riskPct < 30 ? 'bg-emerald-500' : riskPct < 60 ? 'bg-amber-500' : 'bg-red-500';
-  const riskBg = riskPct < 30 ? 'from-emerald-50 to-emerald-100/50 border-emerald-200' : riskPct < 60 ? 'from-amber-50 to-amber-100/50 border-amber-200' : 'from-red-50 to-red-100/50 border-red-200';
-  const riskText = riskPct < 30 ? 'text-emerald-700' : riskPct < 60 ? 'text-amber-700' : 'text-red-700';
+  const riskColor = riskPct < 30 ? 'bg-[var(--primary-color)]' : riskPct < 60 ? 'bg-amber-500' : 'bg-red-500';
+  const riskBg = riskPct < 30 ? 'from-emerald-50 to-emerald-100/50 border-[var(--primary-color)]/20' : riskPct < 60 ? 'from-amber-50 to-amber-100/50 border-amber-200' : 'from-red-50 to-red-100/50 border-red-200';
+  const riskText = riskPct < 30 ? 'text-[var(--primary-color)]' : riskPct < 60 ? 'text-amber-700' : 'text-red-700';
   const riskHex = riskPct < 30 ? '#059669' : riskPct < 60 ? '#d97706' : '#dc2626';
 
   return (
@@ -159,7 +159,7 @@ export function AdminCustomersTab() {
         </h2>
         <button
           onClick={() => { setEditData({ nome: '', telefone: '', creditLimit: 0, status: 'active' }); setShowModal(true); }}
-          className="px-6 py-3 bg-emerald-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-emerald-600 transition-all active:scale-95 shadow-md"
+          className="px-6 py-3 bg-[var(--primary-color)] text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-emerald-600 transition-all active:scale-95 shadow-md"
         >
           <Plus size={18} /> Novo Cliente
         </button>
@@ -174,9 +174,9 @@ export function AdminCustomersTab() {
           <p className="text-[10px] font-black text-red-600 uppercase tracking-widest mb-1">Margem Total de Risco</p>
           <p className="text-3xl font-black text-red-700">R$ {formatarMoeda(totalCredit)}</p>
         </div>
-        <div className="bg-gradient-to-br from-emerald-50 to-emerald-100/50 rounded-2xl p-6 border border-emerald-200 shadow-sm">
-          <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Custódia em Praça</p>
-          <p className="text-3xl font-black text-emerald-700">R$ {formatarMoeda(totalOwed)}</p>
+        <div className="bg-gradient-to-br from-emerald-50 to-emerald-100/50 rounded-2xl p-6 border border-[var(--primary-color)]/20 shadow-sm">
+          <p className="text-[10px] font-black text-[var(--primary-color)] uppercase tracking-widest mb-1">Custódia em Praça</p>
+          <p className="text-3xl font-black text-[var(--primary-color)]">R$ {formatarMoeda(totalOwed)}</p>
         </div>
         <div className={`bg-gradient-to-br ${riskBg} rounded-2xl p-6 shadow-sm`}>
           <p className="text-[10px] font-black uppercase tracking-widest mb-1" style={{color: riskHex}}>Exposição ao Risco</p>
@@ -216,7 +216,7 @@ export function AdminCustomersTab() {
           { key: 'exhausted', label: 'Limite Esgotado' },
           { key: 'blocked', label: 'Bloqueados' },
         ] as const).map(f => (
-          <button key={f.key} onClick={() => setFilterType(f.key)} className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 ${filterType === f.key ? 'bg-emerald-500 text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}>
+          <button key={f.key} onClick={() => setFilterType(f.key)} className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 ${filterType === f.key ? 'bg-[var(--primary-color)] text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}>
             {f.label}
           </button>
         ))}
@@ -255,7 +255,7 @@ export function AdminCustomersTab() {
               const isOverLimit = c.currentDebt >= c.creditLimit && c.creditLimit > 0;
               return (
                 <div key={c.id} className={`flex items-center gap-5 p-5 hover:bg-slate-50 transition-all ${c.status === 'blocked' ? 'opacity-50' : ''}`}>
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${isOverLimit ? 'bg-red-100 text-red-600' : usedPct > 70 ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${isOverLimit ? 'bg-red-100 text-red-600' : usedPct > 70 ? 'bg-amber-100 text-amber-600' : 'bg-[var(--primary-color)]/100 text-[var(--primary-color)]'}`}>
                     <Users size={22} />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -274,7 +274,7 @@ export function AdminCustomersTab() {
                     </div>
                     {c.creditLimit > 0 && (
                       <div className="mt-2 w-full max-w-[200px] h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full transition-all ${isOverLimit ? 'bg-red-500' : usedPct > 70 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min(usedPct, 100)}%` }} />
+                        <div className={`h-full rounded-full transition-all ${isOverLimit ? 'bg-red-500' : usedPct > 70 ? 'bg-amber-500' : 'bg-[var(--primary-color)]'}`} style={{ width: `${Math.min(usedPct, 100)}%` }} />
                       </div>
                     )}
                   </div>
@@ -282,7 +282,7 @@ export function AdminCustomersTab() {
                     <button
                       onClick={() => { setPayModal({ customer: c }); setPayAmount(''); }}
                       disabled={!c.currentDebt || c.currentDebt <= 0}
-                      className="px-4 py-2.5 bg-emerald-500 text-white text-xs font-black rounded-xl hover:bg-emerald-600 transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed shadow-sm uppercase tracking-wider"
+                      className="px-4 py-2.5 bg-[var(--primary-color)] text-white text-xs font-black rounded-xl hover:bg-emerald-600 transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed shadow-sm uppercase tracking-wider"
                     >
                       <DollarSign size={14} className="inline mr-1" /> Receber
                     </button>
@@ -367,7 +367,7 @@ export function AdminCustomersTab() {
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Status</label>
                   <button
                     onClick={() => setEditData({ ...editData, status: editData.status === 'active' ? 'blocked' : 'active' })}
-                    className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${editData.status === 'active' ? 'bg-emerald-100 text-emerald-700 border border-emerald-300' : 'bg-red-100 text-red-700 border border-red-300'}`}
+                    className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${editData.status === 'active' ? 'bg-[var(--primary-color)]/100 text-[var(--primary-color)] border border-[var(--primary-color)]/30' : 'bg-red-100 text-red-700 border border-red-300'}`}
                   >
                     {editData.status === 'active' ? 'Ativo' : 'Bloqueado'}
                   </button>
@@ -384,7 +384,7 @@ export function AdminCustomersTab() {
               <button onClick={() => { setShowModal(false); setEditData(null); }} className="flex-1 py-3 rounded-2xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all">
                 Cancelar
               </button>
-              <button onClick={handleSave} disabled={saving || !editData.nome?.trim()} className="flex-1 py-3 rounded-2xl bg-emerald-500 text-white font-bold text-sm shadow-md hover:bg-emerald-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+              <button onClick={handleSave} disabled={saving || !editData.nome?.trim()} className="flex-1 py-3 rounded-2xl bg-[var(--primary-color)] text-white font-bold text-sm shadow-md hover:bg-emerald-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
                 {saving ? <RefreshCw className="animate-spin" size={16} /> : <Check size={16} />}
                 {editData.id ? 'Salvar' : 'Cadastrar'}
               </button>
@@ -423,15 +423,15 @@ export function AdminCustomersTab() {
                   step="0.01"
                   value={payAmount}
                   onChange={e => setPayAmount(e.target.value)}
-                  className="w-full px-4 py-4 rounded-xl border border-emerald-200 text-slate-900 font-black text-2xl outline-none focus:border-emerald-500 transition-all text-center"
+                  className="w-full px-4 py-4 rounded-xl border border-[var(--primary-color)]/20 text-slate-900 font-black text-2xl outline-none focus:border-emerald-500 transition-all text-center"
                   placeholder="0.00"
                   autoFocus
                 />
               </div>
               {payAmount && parseFloat(payAmount) > 0 && (
-                <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-center">
-                  <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Nova Dívida</p>
-                  <p className="text-xl font-black text-emerald-700">
+                <div className="p-3 bg-[var(--primary-color)]/50 rounded-xl border border-[var(--primary-color)]/20 text-center">
+                  <p className="text-[10px] font-black text-[var(--primary-color)] uppercase tracking-widest">Nova Dívida</p>
+                  <p className="text-xl font-black text-[var(--primary-color)]">
                     R$ {formatarMoeda(Math.max(0, (payModal.customer.currentDebt || 0) - parseFloat(payAmount)))}
                   </p>
                 </div>
@@ -444,7 +444,7 @@ export function AdminCustomersTab() {
               <button
                 onClick={handleReceivePayment}
                 disabled={paying || !payAmount || parseFloat(payAmount) <= 0}
-                className="flex-1 py-3 rounded-2xl bg-emerald-500 text-white font-bold text-sm shadow-md hover:bg-emerald-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 py-3 rounded-2xl bg-[var(--primary-color)] text-white font-bold text-sm shadow-md hover:bg-emerald-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {paying ? <RefreshCw className="animate-spin" size={16} /> : <CheckCircle size={16} />}
                 Confirmar Pagamento
@@ -456,3 +456,4 @@ export function AdminCustomersTab() {
     </div>
   );
 }
+

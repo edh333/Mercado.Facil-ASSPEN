@@ -27,8 +27,8 @@ function buildManifest(role?: SystemRole) {
     start_url: isAdmin ? '/?mode=admin' : '/?mode=user',
     display: 'standalone' as const,
     orientation: 'portrait-primary' as const,
-    background_color: '#0f172a',
-    theme_color: '#0f172a',
+background_color: 'var(--bg-main)',
+      theme_color: 'var(--primary-color)',
     lang: 'pt-BR',
     scope: '/',
     categories: ['business', 'productivity'],
@@ -141,7 +141,7 @@ export const PWAInstallProvider: React.FC<{ children: ReactNode }> = ({ children
           <span>🔄 Nova versão do sistema disponível</span>
           <button
             onClick={() => window.location.reload()}
-            className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-1.5 rounded-xl font-black uppercase tracking-widest text-[10px] transition-colors active:scale-95"
+            className="bg-[var(--primary-color)] hover:bg-[var(--secondary-color)] text-white px-4 py-1.5 rounded-xl font-black uppercase tracking-widest text-[10px] transition-colors active:scale-95"
           >
             Atualizar agora
           </button>

@@ -153,8 +153,8 @@ export const AdminDashboardCharts: React.FC = () => {
     <div className="space-y-6 animate-fadeIn pb-20">
       {/* Header */}
       <div className="flex items-center gap-4 mb-2">
-        <div className="p-3 bg-emerald-100 rounded-2xl">
-          <BarChart3 size={24} className="text-emerald-600" />
+        <div className="p-3 bg-[var(--primary-color)]/100 rounded-2xl">
+          <BarChart3 size={24} className="text-[var(--primary-color)]" />
         </div>
         <div>
           <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Dashboard de BI</h2>
@@ -171,8 +171,8 @@ export const AdminDashboardCharts: React.FC = () => {
           icon={<TrendingUp size={22} />}
           label="Faturamento Total"
           value={fmt(totalRevenue)}
-          color="text-emerald-600"
-          bgColor="bg-emerald-50"
+          color="text-[var(--primary-color)]"
+          bgColor="bg-[var(--primary-color)]/50"
           borderColor="border-emerald-200"
         />
         <MetricCard
@@ -299,7 +299,7 @@ export const AdminDashboardCharts: React.FC = () => {
                 <tr key={i} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                   <td className="py-3 pr-4 font-bold text-slate-800">{row.date}</td>
                   <td className="py-3 pr-4 text-right font-bold text-slate-800">{row.count}</td>
-                  <td className="py-3 pr-4 text-right font-black text-emerald-600">{fmt(row.total)}</td>
+                  <td className="py-3 pr-4 text-right font-black text-[var(--primary-color)]">{fmt(row.total)}</td>
                   <td className="py-3 text-right font-bold text-slate-600">{row.count > 0 ? fmt(row.total / row.count) : '—'}</td>
                 </tr>
               ))}
@@ -330,3 +330,5 @@ const MetricCard: React.FC<{
     <p className={`text-2xl font-black tracking-tight ${color}`}>{value}</p>
   </div>
 );
+
+

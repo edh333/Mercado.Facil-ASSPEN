@@ -157,9 +157,9 @@ export const Landing: React.FC<{ skipLanding?: boolean }> = ({ skipLanding }) =>
 
                 {/* Trust bar */}
                 <motion.div {...fadeUp} className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-6xl px-4 pb-8">
-                    <div style={{ backgroundColor: primaryColor, padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRadius: '1rem' }} className="bg-[#0e7a4d] px-5 py-4 flex items-center justify-between">
+                    <div style={{ backgroundColor: primaryColor, padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRadius: '1rem' }} className="bg-[var(--primary-color)] px-5 py-4 flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <div style={{ width: 36, height: 36, borderRadius: '0.75rem', backgroundColor: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} className="w-9 h-9 rounded-xl bg-[#0e7a4d]/10 flex items-center justify-center">
+                            <div style={{ width: 36, height: 36, borderRadius: '0.75rem', backgroundColor: `${primaryColor}/10`, display: 'flex', alignItems: 'center', justifyContent: 'center' }} className="w-9 h-9 rounded-xl bg-[var(--primary-color)]/10 flex items-center justify-center">
                                 <Package size={17} style={iconPrimary} />
                             </div>
                             <div>
@@ -186,7 +186,7 @@ export const Landing: React.FC<{ skipLanding?: boolean }> = ({ skipLanding }) =>
                             { icone: ClipboardCheck, titulo: 'Aprovação instantânea', desc: 'Operador valida o comprovante no painel e o pedido sai para separação. Estoque baixa automaticamente.' },
                         ].map((item, i) => (
                             <motion.div key={i} {...fadeUp} transition={{ ...fadeUp.transition, delay: i * 0.08 }} className="group bg-white border border-slate-200 rounded-[1.75rem] p-7 hover:border-emerald-500/40 hover:shadow-xl hover:-translate-y-1 transition-all">
-                                <div style={{ width: 48, height: 48, borderRadius: '1.25rem', backgroundColor: `${primaryColor}/10`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.25rem', transition: 'all 0.3s' }} className="w-12 h-12 rounded-2xl bg-[#0e7a4d]/10 flex items-center justify-center mb-5 group-hover:bg-[#0e7a4d] transition-colors">
+                                <div style={{ width: 48, height: 48, borderRadius: '1.25rem', backgroundColor: `${primaryColor}/10`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.25rem', transition: 'all 0.3s' }} className="w-12 h-12 rounded-2xl bg-[var(--primary-color)]/10 flex items-center justify-center mb-5 group-hover:bg-[var(--primary-color)]/20 transition-colors">
                                     <item.icone size={22} style={iconPrimary} className="group-hover:text-white transition-colors" />
                                 </div>
                                 <h3 className="text-lg font-bold text-slate-900 mb-2">{item.titulo}</h3>
@@ -216,7 +216,7 @@ export const Landing: React.FC<{ skipLanding?: boolean }> = ({ skipLanding }) =>
                         ))}
                     </ul>
                     <motion.div {...fadeUp} className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
-                        <button onClick={() => abrir('register')} style={{ ...btnPrimary, padding: '14px 24px', minHeight: 44, borderRadius: '1rem', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }} className="px-6 py-3.5 min-h-[44px] rounded-2xl bg-[#0e7a4d] hover:bg-[#0c6b44] text-white font-bold text-sm transition-all shadow-lg active:scale-[0.98] cursor-pointer flex items-center gap-2">
+                        <button onClick={() => abrir('register')} style={{ ...btnPrimary, padding: '14px 24px', minHeight: 44, borderRadius: '1rem', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }} className="px-6 py-3.5 min-h-[44px] rounded-2xl bg-[var(--primary-color)] hover:bg-[var(--secondary-color)] text-white font-bold text-sm transition-all shadow-lg active:scale-[0.98] cursor-pointer flex items-center gap-2">
                             <Download size={18} /> Baixar aplicativo
                         </button>
                         <button onClick={() => abrir('login')} style={{ padding: '14px 24px', minHeight: 44, borderRadius: '1rem', fontWeight: 700, fontSize: '0.875rem', color: '#fff', border: '2px solid rgba(255,255,255,0.5)', backgroundColor: 'transparent', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }} className="px-6 py-3.5 min-h-[44px] rounded-2xl border-2 border-white/50 text-white font-bold text-sm hover:bg-white/10 transition-all active:scale-[0.98] cursor-pointer flex items-center gap-2">
