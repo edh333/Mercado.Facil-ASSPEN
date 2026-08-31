@@ -1,6 +1,6 @@
 import React from 'react';
 import { StatCard } from './AdminCommon';
-import { ehReceita } from './adminUtils';
+import { ehReceita, estoqueCritico } from './adminUtils';
 import {
   Users, Package, ShoppingCart, DollarSign, ArrowDownCircle,
   RefreshCw, MinusCircle, LayoutDashboard, Zap, Phone, ArrowRight,
@@ -60,13 +60,13 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
     return Object.values(map).sort((a, b) => b.qty - a.qty).slice(0, 5);
   }, [orders]);
 
-  // ── PRODUTOS COM ESTOQUE CRITICO (<=5) ────────────────────────
+  // ── PRODUTOS COM ESTOQUE CRITICO (estoque <= minStock, default 5) ────────
   const criticalStock = React.useMemo(() =>
-    (products || []).filter(p => p.stock !== undefined && p.stock <= 5 && p.stock > 0)
-      .sort((a, b) => a.stock - b.stock).slice(0, 5),
+    (products || []).filter(p => estoqueCritico(p.stock, p.minStock))
+      .sort((a, b) => (a.stock ?? 0) - (b.stock ?? 0)).slice(0, 5),
   [products]);
 
-  const zeroStock = (products || []).filter(p => p.stock !== undefined && p.stock <= 0).length;
+  const zeroStock = (products || []).filter(p => p.stock !== undefined && p.stock !== null && p.stock <= 0).length;
 
   // ── RESUMO DO DIA — VENDAS POR FORMA DE PAGAMENTO (HOJE) ───────────
   const todayPayments = React.useMemo(() => {

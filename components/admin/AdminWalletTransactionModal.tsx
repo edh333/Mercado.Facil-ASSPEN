@@ -1,7 +1,7 @@
 import React from 'react';
 import { Printer, CheckCircle, XCircle, User, UserCheck, DollarSign, ImageIcon, ArrowRight, Activity, FileText, Loader2 } from 'lucide-react';
 import { WalletTransaction } from '../../types';
-import { formatarMoeda } from '../../utils';
+import { formatarMoeda, mascararCpf } from '../../utils';
 import { ModalShell } from '../ui/ModalShell';
 import { NotaPromissoriaA4 } from '../NotaPromissoriaA4';
 import ImagePreviewModal from '../ImagePreviewModal';
@@ -179,7 +179,7 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
             <div class="row"><span class="label">Data/Hora:</span> <span class="value">${new Date(transaction.createdAt || new Date().toISOString()).toLocaleString('pt-BR')}</span></div>
             <div class="row"><span class="label">Pagador Origem:</span> <span class="value">${transaction.payerName || 'FAMILIAR / VISITANTE'}</span></div>
             <div class="row"><span class="label">Interno Destino:</span> <span class="value">${transaction.inmateName || 'N/A'}</span></div>
-            <div class="row"><span class="label">Prontuário/CPF:</span> <span class="value">${transaction.inmateCpf || '---'}</span></div>
+            <div class="row"><span class="label">Prontuário/CPF:</span> <span class="value">${mascararCpf(transaction.inmateCpf) || '---'}</span></div>
             <div class="row" style="margin-top: 30px; border-bottom: 4px solid #059669; padding-bottom: 15px;">
                 <span class="label" style="align-self: center;">VALOR CREDITADO:</span>
                 <span class="amount">R$ ${formatarMoeda(transaction.amount)}</span>

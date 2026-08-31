@@ -9,6 +9,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { ThemeOption } from '../../types';
 import { useTheme } from '../../context/ThemeContext';
 import { useMaintenance } from '../../hooks/useMaintenance';
+import { applyThemeColors } from '../../utils/themeUtils';
 import {
   PontoRestauracao, criarPontoRestauracao, listarPontosRestauracao, restaurarPontoRestauracao,
   excluirPontoRestauracao, baixarPontoRestauracao, baixarBackupLocal, importarPontoRestauracao,
@@ -1128,7 +1129,10 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                 ].map(t => (
                   <button
                     key={t.id}
-                    onClick={() => updateSettings({ ...settings, theme: t.id, primaryColor: t.hex })}
+                    onClick={() => {
+                      updateSettings({ ...settings, theme: t.id, primaryColor: t.hex });
+                      applyThemeColors(t.id);
+                    }}
                     className={`p-5 rounded-2xl border-4 transition-all flex flex-col items-center gap-2 ${settings?.theme === t.id ? 'border-slate-800 bg-slate-100' : 'border-transparent bg-slate-50 hover:border-slate-300'}`}
                   >
                     <div className={`w-10 h-10 rounded-full ${t.colors}`} />

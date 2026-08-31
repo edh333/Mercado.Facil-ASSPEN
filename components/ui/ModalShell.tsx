@@ -8,20 +8,30 @@ interface ModalShellProps {
   title: string;
   subtitle?: string;
   icon?: React.ReactNode;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
   actions?: React.ReactNode;
   children: React.ReactNode;
   footer?: React.ReactNode;
   closeOnBackdrop?: boolean;
   bodyClassName?: string;
   headerColor?: string;
+  accentColor?: string;
 }
 
 const SIZE_CLASS: Record<NonNullable<ModalShellProps['size']>, string> = {
-  sm: 'max-w-md',
-  md: 'max-w-2xl',
-  lg: 'max-w-4xl',
-  xl: 'max-w-6xl',
+  sm: '',
+  md: '',
+  lg: '',
+  xl: '',
+  full: '',
+};
+
+const SIZE_ATTR: Record<NonNullable<ModalShellProps['size']>, string> = {
+  sm: 'sm',
+  md: 'md',
+  lg: 'lg',
+  xl: 'xl',
+  full: 'full',
 };
 
 export const ModalShell: React.FC<ModalShellProps> = ({
@@ -36,7 +46,8 @@ export const ModalShell: React.FC<ModalShellProps> = ({
   footer,
   closeOnBackdrop = true,
   bodyClassName = '',
-  headerColor = 'from-[#0f172a] via-[#1e293b] to-[#0f172a]',
+  headerColor,
+  accentColor,
 }) => {
   useEffect(() => {
     if (!open) return;
@@ -53,48 +64,53 @@ export const ModalShell: React.FC<ModalShellProps> = ({
 
   if (!open) return null;
 
-  // Portal no <body>: modais renderizados DENTRO de containers com stacking
-  // context próprio (ex.: sidebar com z-50) ficavam presos atrás do conteúdo —
-  // mesmo com z-index 9999. Portar para o body resolve o modal "apareceu atrás".
   return createPortal((
-    <div className="modal-container">
-      <div className="modal-overlay" onClick={() => closeOnBackdrop && onClose()}></div>
-      <div className={`modal-content modal-shell-fixed relative w-full ${SIZE_CLASS[size]} bg-white overflow-hidden flex flex-col max-h-[90vh] rounded-2xl shadow-2xl animate-scaleIn`}>
-        {/* TOP ACCENT BAR — identidade esmeralda do sistema (antes: arco-íris fora da marca) */}
-        <div className="h-1.5 shrink-0 bg-gradient-to-r from-emerald-500 to-emerald-600"></div>
-
-        <div className={`px-6 py-4 shrink-0 flex items-center justify-between gap-4 bg-gradient-to-r ${headerColor} text-white`}>
-          <div className="flex items-center gap-4 min-w-0">
-            {icon && (
-              <div className="w-11 h-11 shrink-0 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-500/30">
-                {icon}
+    <>
+      <div className="modal-overlay" onClick={() => closeOnBackdrop && onClose()} />
+      <div className="modal-wrapper">
+        <div
+          className={`modal-card ${bodyClassName}`}
+          data-size={SIZE_ATTR[size]}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-title"
+        >
+          <div className="modal-accent-bar" style={{ background: accentColor || 'linear-gradient(90deg, var(--primary-color), var(--secondary-color))' }} />
+          <header className="modal-header" style={{ background: headerColor || 'linear-gradient(135deg, var(--color-brand-navy) 0%, var(--color-brand-navy-800) 100%)' }}>
+            <div className="modal-header-content">
+              {icon && (
+                <div className="modal-header-icon" style={{ background: accentColor || 'linear-gradient(135deg, var(--primary-color), var(--secondary-color))' }}>
+                  {icon}
+                </div>
+              )}
+              <div className="modal-header-text" id="modal-title">
+                <h3 className="modal-title">{title}</h3>
+                {subtitle && <p className="modal-subtitle">{subtitle}</p>}
               </div>
-            )}
-            <div className="min-w-0">
-              <h3 className="font-black uppercase tracking-wide text-sm truncate">{title}</h3>
-              {subtitle && <p className="text-[10px] font-bold text-slate-400 truncate">{subtitle}</p>}
             </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {actions}
+              <button
+                onClick={onClose}
+                aria-label="Fechar janela"
+                className="modal-close"
+              >
+                <X size={20} />
+              </button>
+            </div>
+          </header>
+          <div className={`modal-body ${bodyClassName}`}>
+            {children}
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            {actions}
-            <button
-              onClick={onClose}
-              aria-label="Fechar janela"
-              className="p-3 rounded-xl bg-white/10 hover:bg-red-500 text-white transition-all active:scale-90"
-            >
-              <X size={20} />
-            </button>
-          </div>
+          {footer && (
+            <footer className="modal-footer">
+              {footer}
+            </footer>
+          )}
         </div>
-        <div className={`flex-1 overflow-y-auto custom-scrollbar overscroll-contain bg-slate-50/60 ${bodyClassName}`}>
-          {children}
-        </div>
-        {footer && (
-          <div className="shrink-0 px-6 py-4 border-t border-slate-200 bg-white flex items-center justify-end gap-3 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
-            {footer}
-          </div>
-        )}
       </div>
-    </div>
+    </>
   ), document.body);
 };
+
+export default ModalShell;

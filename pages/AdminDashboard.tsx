@@ -427,13 +427,13 @@ export function AdminDashboard() {
   };
 
   const handleDeletePreRegisteredInmate = async (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir este interno pré-cadastrado?')) {
-      try {
-        await deletePreRegisteredInmate(id);
-        showNotification('Interno removido do pré-cadastro.', 'success');
-      } catch (error: any) {
-        showNotification('Erro ao excluir: ' + error.message, 'error');
-      }
+    // Confirmation já feita no AdminInmatesTab (handleDeleteInmate).
+    // Mantemos apenas a chamada ao serviço + notificação.
+    try {
+      await deletePreRegisteredInmate(id);
+      showNotification('Interno removido do pré-cadastro.', 'success');
+    } catch (error: any) {
+      showNotification('Erro ao excluir: ' + error.message, 'error');
     }
   };
 
@@ -1206,14 +1206,22 @@ export function AdminDashboard() {
           onClose={() => setSelectedWalletTx(null)}
           onApprove={async (id) => {
             if (selectedWalletTx) {
-              await approveWalletTransaction(id);
-              setSelectedWalletTx(null);
+              try {
+                await approveWalletTransaction(id);
+                setSelectedWalletTx(null); // só fecha se o servidor confirmou o crédito
+              } catch {
+                // falha do servidor → mantém o modal aberto para o operador revisar
+              }
             }
           }}
           onReject={async (id) => {
             if (selectedWalletTx) {
-              await rejectWalletTransaction(id);
-              setSelectedWalletTx(null);
+              try {
+                await rejectWalletTransaction(id);
+                setSelectedWalletTx(null); // só fecha se o servidor confirmou a rejeição
+              } catch {
+                // falha do servidor → mantém o modal aberto
+              }
             }
           }}
           appName={settings.appName || 'MERCADO FÁCIL'}

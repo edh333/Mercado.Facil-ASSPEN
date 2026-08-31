@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { X, Printer, FileText, TrendingUp, TrendingDown, Package, Users, Download, Calendar, BarChart3, PieChart, Activity, FileSpreadsheet, Landmark, Wallet } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { User } from '../../types';
-import { isAdminRole } from '../../utils';
+import { isAdminRole, mascararCpf } from '../../utils';
 import { toDate } from '../../utils/dateUtils';
 import { getLocalDateStr } from './adminUtils';
 import { buildMonthlyDre, buildSalesCsv, buildStockAbc, buildDailySales, buildSalesByCategory, buildLowStock, buildProductsCatalog, buildExtratoIndividual } from '../../context/StoreContext';
@@ -669,7 +669,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
     const printUsersCredits = () => {
         const lista = (users || [])
             .filter((u: User) => !isAdminRole(u.role))
-            .map(u => ({ name: u.name || '—', cpf: u.cpf || '—', status: u.status, saldo: Number(u.walletBalance) || 0, gastoSemanal: Number(u.weeklySpent) || 0 }))
+            .map(u => ({ name: u.name || '—', cpf: mascararCpf(u.cpf), status: u.status, saldo: Number(u.walletBalance) || 0, gastoSemanal: Number(u.weeklySpent) || 0 }))
             .sort((a, b) => b.saldo - a.saldo);
         const totalSaldo = lista.reduce((a, b) => a + b.saldo, 0);
         const totalGasto = lista.reduce((a, b) => a + b.gastoSemanal, 0);

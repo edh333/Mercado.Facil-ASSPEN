@@ -639,45 +639,51 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
         </ModalShell>
       )}
 
-      {/* MODAL: MASTER AUTH PREMIUM */}
+{/* MODAL: MASTER AUTH PREMIUM */}
       {showAuthModal && (
-        <div className="modal-container">
-            <form onSubmit={async (e) => { e.preventDefault(); setIsAuthLoading(true); try { await handleAuthConfirm(); } finally { setIsAuthLoading(false); } }} className="glass-card w-full max-w-sm rounded-3xl overflow-hidden border border-slate-200 animate-slideUp relative" style={{ background: 'linear-gradient(135deg, #0f172a, #1e293b, #0f172a)' }}>
-                <div className="relative bg-white rounded-2xl p-8 text-center border border-slate-200/80 shadow-xl m-4 md:m-6">
-                    <div className="w-14 h-14 mx-auto mb-5 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-700 flex items-center justify-center shadow-lg shadow-slate-900/20">
-                        <Lock size={24} strokeWidth={2.2} className="text-emerald-400"/>
-                    </div>
-
-                    <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Autorização</h2>
-                    <p className="text-xs font-semibold text-slate-500 mt-1">Confirme sua senha para acessar as Configurações</p>
-
-                    <div className="relative mt-6 mb-7 group/input">
-                        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 z-20 text-slate-400 transition-colors group-focus-within/input:text-emerald-600 pointer-events-none">
-                            <Key size={18}/>
-                        </div>
-                        <input
-                            type="password"
-                            autoCapitalize="none" autoCorrect="off" autoComplete="off" spellCheck={false}
-                            className="w-full pl-11 pr-4 py-3.5 bg-slate-50/70 border border-slate-200 focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/15 rounded-xl font-bold text-lg tracking-[0.35em] text-slate-900 outline-none transition-all placeholder:text-slate-300 relative z-10"
-                            placeholder="••••"
-                            value={authPass}
-                            onChange={e => setAuthPass(e.target.value)}
-                            autoFocus
-                            required
-                            disabled={isAuthLoading}
-                        />
-                    </div>
-
-                    <div className="flex flex-col gap-3">
-                        <button type="submit" disabled={isAuthLoading || !authPass.trim()} className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:brightness-110 text-white font-black rounded-xl shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 uppercase text-[11px] tracking-widest active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed transition-all touch-target">
-                            {isAuthLoading ? <><Loader2 size={16} className="animate-spin" /> Validando...</> : 'Confirmar Acesso'}
-                            {!isAuthLoading && <Check size={16} />}
-                        </button>
-                        <button type="button" disabled={isAuthLoading} onClick={() => setShowAuthModal(false)} className="w-full py-2.5 text-slate-400 font-bold hover:text-slate-700 uppercase text-[10px] tracking-widest transition-all touch-target">Cancelar</button>
-                    </div>
+        <ModalShell
+          open
+          onClose={() => setShowAuthModal(false)}
+          title="Autorização"
+          subtitle="Confirme sua senha para acessar as Configurações"
+          icon={<Lock size={24} strokeWidth={2.2} className="text-emerald-400" />}
+          size="sm"
+          accentColor="linear-gradient(135deg, var(--primary-color), var(--secondary-color))"
+          headerColor="linear-gradient(135deg, var(--color-brand-navy) 0%, var(--color-brand-navy-800) 100%)"
+        >
+          <form onSubmit={async (e) => { e.preventDefault(); setIsAuthLoading(true); try { await handleAuthConfirm(); } finally { setIsAuthLoading(false); } }}>
+            <div className="space-y-6">
+              <div className="w-14 h-14 mx-auto mb-5 rounded-2xl flex items-center justify-center shadow-lg" style={{ background: 'linear-gradient(135deg, var(--color-brand-navy), var(--color-brand-navy-800))', boxShadow: '0 8px 24px -4px var(--primary-color)' }}>
+                <Lock size={24} strokeWidth={2.2} className="text-emerald-400" />
+              </div>
+              <h2 className="text-xl font-black text-[var(--text-main)] uppercase tracking-tight">Autorização</h2>
+              <p className="text-xs font-semibold text-[var(--text-muted)] mt-1">Confirme sua senha para acessar as Configurações</p>
+              <div className="relative mt-6 mb-7 group/input">
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 z-20 text-[var(--text-muted)] transition-colors group-focus-within/input:text-[var(--primary-color)] pointer-events-none">
+                  <Key size={18} />
                 </div>
-            </form>
-        </div>
+                <input
+                  type="password"
+                  autoCapitalize="none" autoCorrect="off" autoComplete="off" spellCheck={false}
+                  className="w-full pl-11 pr-4 py-3.5 bg-[var(--bg-input)] border border-[var(--border-color)] focus:border-[var(--primary-color)] focus:bg-[var(--bg-card)] focus:ring-2 focus:ring-[var(--primary-color)]/15 rounded-xl font-bold text-lg tracking-[0.35em] text-[var(--text-main)] outline-none transition-all placeholder:text-[var(--text-muted)] relative z-10"
+                  placeholder="••••"
+                  value={authPass}
+                  onChange={e => setAuthPass(e.target.value)}
+                  autoFocus
+                  required
+                  disabled={isAuthLoading}
+                />
+              </div>
+              <div className="flex flex-col gap-3">
+                <button type="submit" disabled={isAuthLoading || !authPass.trim()} className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:brightness-110 text-white font-black rounded-xl shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 uppercase text-[11px] tracking-widest active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed transition-all touch-target">
+                  {isAuthLoading ? <><Loader2 size={16} className="animate-spin" /> Validando...</> : 'Confirmar Acesso'}
+                  {!isAuthLoading && <Check size={16} />}
+                </button>
+                <button type="button" disabled={isAuthLoading} onClick={() => setShowAuthModal(false)} className="w-full py-2.5 text-[var(--text-muted)] font-bold hover:text-[var(--text-main)] uppercase text-[10px] tracking-widest transition-all touch-target">Cancelar</button>
+              </div>
+            </div>
+          </form>
+        </ModalShell>
       )}
       {/* MODAL: RECIBO A4 */}
       {viewingReceipt && (
@@ -724,63 +730,59 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
         </ModalShell>
       )}
 
-      {/* MODAL: CUPOM PDV */}
+{/* MODAL: CUPOM PDV */}
       {printOrder && (
-        <div className="fixed inset-0 z-[5000] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}>
-          <div className="w-full max-w-md mx-auto bg-white rounded-2xl shadow-xl flex flex-col overflow-hidden max-h-[90vh]">
-            <div className="toolbar-recibo-superior flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-white">
-              <div className="flex items-center gap-3">
-                <Printer size={20} className="text-emerald-600"/>
-                <span className="font-black text-sm uppercase tracking-tight text-slate-900">Cupom PDV</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <button onClick={handleRawPrint} className="px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-90 bg-emerald-600 text-white hover:bg-emerald-500 shadow-sm">
-                  <Printer size={14}/> Imprimir na Fiscal
-                </button>
-                <button onClick={handleBaixarTxt} className="px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-90 bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 shadow-sm" title="Baixar .txt para impressão externa">
-                  TXT
-                </button>
-                <button onClick={async () => {
-                    const api = (window as any).electronAPI;
-                    if (api?.printHtmlSilent) {
-                        const ok = await imprimirHtmlSilencioso(gerarCupomEntregaRaw(printOrder, settings), settings);
-                        if (ok) return;
-                    }
-                    requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => window.print(), 150)));
-                  }} className="px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-90 bg-slate-900 text-white hover:bg-slate-700 shadow-sm" title="Imprimir nesta janela">
-                  <Printer size={14}/> Imprimir
-                </button>
-                <button onClick={() => setPrintOrder(null)} className="p-2 rounded-lg transition-all active:scale-90 bg-slate-100 text-slate-700 hover:bg-red-50 hover:text-red-600 border border-slate-200 shadow-sm" title="Fechar">
-                  <X size={22}/>
-                </button>
-              </div>
+        <ModalShell
+          open
+          onClose={() => setPrintOrder(null)}
+          title="Cupom PDV"
+          subtitle="Visualização e impressão do cupom de venda"
+          icon={<Printer size={22} className="text-emerald-600" />}
+          size="md"
+          accentColor="linear-gradient(90deg, var(--primary-color), var(--secondary-color))"
+          headerColor="linear-gradient(135deg, var(--color-brand-navy) 0%, var(--color-brand-navy-800) 100%)"
+          footer={
+            <>
+              <button
+                onClick={handleRawPrint}
+                className="px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-90 bg-emerald-600 text-white hover:bg-emerald-500 shadow-sm"
+              >
+                <Printer size={14} /> Imprimir na Fiscal
+              </button>
+              <button onClick={handleBaixarTxt} className="px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-90 bg-[var(--bg-input)] text-[var(--text-main)] hover:bg-[var(--bg-main)] border border-[var(--border-color)] shadow-sm" title="Baixar .txt para impressão externa">
+                TXT
+              </button>
+              <button
+                onClick={async () => {
+                  const api = (window as any).electronAPI;
+                  if (api?.printHtmlSilent) {
+                    const ok = await imprimirHtmlSilencioso(gerarCupomEntregaRaw(printOrder, settings), settings);
+                    if (ok) return;
+                  }
+                  requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => window.print(), 150)));
+                }}
+                className="px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-90 bg-[var(--color-brand-navy)] text-white hover:bg-[var(--color-brand-navy-800)] shadow-sm"
+                title="Imprimir nesta janela"
+              >
+                <Printer size={14} /> Imprimir
+              </button>
+            </>
+          }
+        >
+          <div className="p-0 lg:p-4 bg-[var(--bg-main)]">
+            <div id="print-root-a4">
+              <CupomEntrega order={printOrder} remainingBalance={printOrder.walletBalanceAfter} config={(settings as any)} />
             </div>
-            <div className="w-full mx-auto bg-white flex-1 overflow-y-auto p-4 md:p-6 flex justify-center shadow-inner" style={{ minHeight: '200px' }}>
-              <div className="bg-white shadow-xl origin-top" style={{ width: '76mm' }}>
-                <CupomEntrega order={printOrder} remainingBalance={printOrder.walletBalanceAfter} config={(settings as any)} />
-              </div>
-              {printOrder && createPortal(
-                <div id="print-root-modal" style={{ position: 'fixed', left: '-9999px', top: 0 }}>
-                  <CupomEntrega order={printOrder} remainingBalance={printOrder.walletBalanceAfter} config={(settings as any)} />
-                </div>,
-                document.body
-              )}
-            </div>
-            <style>{`
-              @media screen {
-                .toolbar-recibo-superior { display: flex !important; }
-              }
-              @media print {
-                .toolbar-recibo-superior { display: none !important; }
-                body { background: white !important; }
-                body * { visibility: hidden !important; }
-                #print-root-modal, #print-root-modal * { visibility: visible !important; }
-                #print-root-modal { position: absolute !important; left: 0 !important; top: 0 !important; width: 76mm !important; max-width: 76mm !important; margin: 0 !important; padding: 0 1mm !important; box-sizing: border-box !important; }
-                @page { size: 76mm auto; margin: 0 !important; }
-              }
-            `}</style>
           </div>
-        </div>
+          <style>{`
+            @media print {
+              body * { visibility: hidden !important; }
+              #print-root-a4, #print-root-a4 * { visibility: visible !important; }
+              #print-root-a4 { position: absolute !important; left: 0 !important; top: 0 !important; width: 210mm !important; }
+              @page { size: A4; margin: 8mm; }
+            }
+          `}</style>
+        </ModalShell>
       )}
     </>
   );

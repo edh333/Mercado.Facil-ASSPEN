@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/StoreContext';
 import { LogOut, Menu, User as UserIcon, Shield, Phone, Mail, MapPin, Download, AlertCircle, ShoppingBag, X, Sun, Moon, Monitor } from 'lucide-react';
-import { THEME_COLORS } from '../constants';
 import { ThemeOption, UserRole, SystemRole } from '../types';
 import { useTheme } from '../context/ThemeContext';
 import { NotificationSystem } from './NotificationSystem';
@@ -30,6 +29,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   const trialDaysRemaining = getTrialDaysRemaining();
+  const isAdmin = currentUser?.role === UserRole.ADMIN;
+
+  useEffect(() => {
+    document.title = appConfig.appName || "Gestão Prisional";
+  }, [appConfig.appName]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -55,17 +59,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     };
   }, []);
 
-  const theme = THEME_COLORS[appConfig.theme || ThemeOption.POLICE_MT] || { primary: 'bg-emerald-700', text: 'text-white' };
-  const isAdmin = currentUser?.role === UserRole.ADMIN;
-
-  useEffect(() => {
-    document.title = appConfig.appName || "Gestão Prisional";
-  }, [appConfig.appName]);
-
   return (
     <div
       className="min-h-screen flex flex-col font-sans transition-colors duration-500"
-      style={{ backgroundColor: appConfig.backgroundColor || '#f8fafc' }}
+      style={{ backgroundColor: 'var(--bg-main)' }}
     >
       <NotificationSystem />
 
@@ -85,57 +82,59 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
       )}
 
-      {/* Header Premium com Glassmorphism */}
+      {/* Header Premium com Glassmorphism — usa CSS vars do tema */}
       <header
-        className={`shadow-lg sticky top-0 z-[40] border-b border-white/20 transition-all duration-300 text-white w-full backdrop-blur-2xl ${isAdmin ? 'lg:w-[calc(100%-20rem)] lg:ml-auto' : ''}`}
+        className={`shadow-lg sticky top-0 z-[40] transition-all duration-300 w-full backdrop-blur-2xl ${isAdmin ? 'lg:w-[calc(100%-20rem)] lg:ml-auto' : ''}`}
         style={{
-          backgroundColor: 'rgba(15, 23, 42, 0.85)',
+          backgroundColor: 'var(--bg-card)',
+          borderBottom: '1px solid var(--border-color)',
         }}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl shadow-lg shadow-emerald-500/30">
+              <div className="p-2 bg-[var(--primary-color)] rounded-xl shadow-lg" style={{ boxShadow: '0 0 20px var(--primary-color)' }}>
                 <Shield className="h-6 w-6 text-white" />
               </div>
               <div className="min-w-0">
-                <h1 className="text-[13px] md:text-base font-black tracking-tight leading-none text-white uppercase drop-shadow-lg">{appConfig.appName}</h1>
-                <p className="text-[9px] md:text-[10px] text-white/80 font-bold tracking-widest leading-tight mt-1 max-w-[180px] sm:max-w-[220px] truncate">{appConfig.institutionName || appConfig.appName}</p>
+                <h1 className="text-[13px] md:text-base font-black tracking-tight leading-none text-[var(--text-main)] uppercase">{appConfig.appName}</h1>
+                <p className="text-[9px] md:text-[10px] text-[var(--text-muted)] font-bold tracking-widest leading-tight mt-1 max-w-[180px] sm:max-w-[220px] truncate">{appConfig.institutionName || appConfig.appName}</p>
               </div>
             </div>
 
             {/* Desktop Nav Premium */}
             <div className="hidden md:flex items-center gap-4">
               {currentUser && (
-                <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md px-5 py-3 rounded-xl border border-white/20 shadow-inner">
-                  <UserIcon className="h-4 w-4 text-white/80" />
-                  <span className="text-sm font-bold text-white">{currentUser?.name || 'Usuário'}</span>
+                <div className="flex items-center gap-3 bg-[var(--bg-input)] backdrop-blur-md px-5 py-3 rounded-xl border border-[var(--border-color)] shadow-inner">
+                  <UserIcon className="h-4 w-4 text-[var(--text-muted)]" />
+                  <span className="text-sm font-bold text-[var(--text-main)]">{currentUser?.name || 'Usuário'}</span>
                 </div>
               )}
               {currentUser && (
                 <div className="flex items-center gap-1.5">
                   {/* Dark mode toggle desktop */}
-                  <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-white/10 border border-white/10">
-                    <button onClick={() => setThemeMode(themeMode === 'dark' ? 'light' : 'dark')} title={themeMode === 'dark' ? 'Modo Claro' : 'Modo Escuro'} className="p-1.5 rounded-md hover:bg-white/10 transition-all">
-                      {themeMode === 'dark' ? <Sun size={14} className="text-white/80" /> : <Moon size={14} className="text-white/80" />}
+                  <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-[var(--bg-input)] border border-[var(--border-color)]">
+                    <button onClick={() => setThemeMode(themeMode === 'dark' ? 'light' : 'dark')} title={themeMode === 'dark' ? 'Modo Claro' : 'Modo Escuro'} className="p-1.5 rounded-md hover:bg-[var(--bg-main)] transition-all">
+                      {themeMode === 'dark' ? <Sun size={14} className="text-[var(--text-muted)]" /> : <Moon size={14} className="text-[var(--text-muted)]" />}
                     </button>
                   </div>
                   <button
                     onClick={() => window.dispatchEvent(new CustomEvent('opencode:clear-cart'))}
-                    className="px-2.5 py-1.5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-lg text-[10px] uppercase leading-none transition-all active:scale-90 border border-white/10"
+                    className="px-2.5 py-1.5 bg-[var(--bg-input)] hover:bg-[var(--bg-main)] text-[var(--text-main)] font-bold rounded-lg text-[10px] uppercase leading-none transition-all active:scale-90 border border-[var(--border-color)]"
                   >
                     F4 Limpar
                   </button>
                   <button
                     onClick={() => window.dispatchEvent(new CustomEvent('opencode:new-sale'))}
-                    className="px-2.5 py-1.5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-lg text-[10px] uppercase leading-none transition-all active:scale-90 border border-white/10"
+                    className="px-2.5 py-1.5 bg-[var(--bg-input)] hover:bg-[var(--bg-main)] text-[var(--text-main)] font-bold rounded-lg text-[10px] uppercase leading-none transition-all active:scale-90 border border-[var(--border-color)]"
                   >
                     F7 Nova Venda
                   </button>
                   <button
                     onClick={() => window.dispatchEvent(new CustomEvent('opencode:open-cart'))}
                     disabled={operatorCartCount === 0}
-                    className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-white font-black rounded-lg text-[11px] uppercase leading-none transition-all active:scale-95 shadow-lg shadow-emerald-500/30 disabled:opacity-40 disabled:cursor-not-allowed border border-emerald-400/30"
+                    className="px-3 py-1.5 bg-[var(--primary-color)] hover:brightness-110 text-white font-black rounded-lg text-[11px] uppercase leading-none transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed border border-transparent"
+                    style={{ boxShadow: '0 4px 14px var(--primary-color)' }}
                   >
                     <ShoppingBag size={12} className="inline-block mr-1" />Finalizar ({operatorCartCount})
                   </button>
@@ -143,20 +142,21 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <AppDownloadButton className="!w-8 !h-8 sm:!w-9 sm:!h-9" />
                 </div>
               )}
-              {currentUser && (
+{currentUser && (
                  <button
                   onClick={logout}
-                  className="flex items-center gap-3 bg-red-500/90 hover:bg-red-500 backdrop-blur-md transition-all text-white px-5 py-3 rounded-xl border border-red-400/30 text-xs font-bold uppercase tracking-wide shadow-lg shadow-red-500/20 touch-target"
+                  className="flex items-center gap-3 bg-red-600 hover:bg-red-700 text-white font-bold px-5 py-3 rounded-xl text-xs uppercase tracking-wide shadow-lg touch-target transition-all"
+                  style={{ boxShadow: '0 4px 14px rgba(239, 68, 68, 0.4)' }}
                  >
                     <LogOut className="h-4 w-4" />
                     <span>Sair</span>
                  </button>
-              )}
-            </div>
+               )}
+             </div>
 
-            {/* Mobile Menu Button */}
+{/* Mobile Menu Button */}
             <div className="md:hidden flex items-center gap-3">
-               <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-white bg-white/10 p-3 rounded-xl backdrop-blur-md border border-white/20 hover:bg-white/20 touch-target flex items-center justify-center">
+               <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-[var(--text-main)] bg-[var(--bg-input)] p-3 rounded-xl backdrop-blur-md border border-[var(--border-color)] hover:bg-[var(--bg-main)] touch-target flex items-center justify-center">
                   <Menu className="h-5 w-5" />
                </button>
             </div>
@@ -165,14 +165,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
         {/* Mobile Menu Premium */}
         {isMobileMenuOpen && (
-          <div className="md:hidden p-4 border-t border-white/10 bg-[#0f172a]/95 backdrop-blur-xl absolute w-full left-0 shadow-2xl">
+          <div className="md:hidden p-4 border-t border-[var(--border-color)] bg-[var(--bg-card)]/95 backdrop-blur-xl absolute w-full left-0 shadow-2xl">
              <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-3 font-bold text-white text-sm bg-white/10 p-4 rounded-xl border border-white/10">
+                <div className="flex items-center gap-3 font-bold text-[var(--text-main)] text-sm bg-[var(--bg-input)] p-4 rounded-xl border border-[var(--border-color)]">
                   <UserIcon className="h-5 w-5" />
                   <span>{currentUser?.name || 'Usuário'}</span>
                 </div>
                 {/* Dark mode toggle mobile */}
-                <div className="flex items-center gap-1 p-1 rounded-xl bg-white/10 border border-white/10">
+                <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--bg-input)] border border-[var(--border-color)]">
                   {([
                     { mode: 'light' as const, Icon: Sun, label: 'Claro' },
                     { mode: 'dark' as const, Icon: Moon, label: 'Escuro' },
@@ -182,21 +182,21 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                       key={mode}
                       onClick={() => setThemeMode(mode)}
                       className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-[10px] font-bold uppercase transition-all ${
-                        themeMode === mode ? 'bg-white/15 text-white' : 'text-white/50 hover:text-white'
+                        themeMode === mode ? 'bg-[var(--bg-main)] text-[var(--text-main)]' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
                       }`}
                     >
                       <Icon size={14} /> {label}
                     </button>
                   ))}
                 </div>
-                <button onClick={logout} className="flex items-center justify-center gap-3 bg-red-500 text-white font-bold py-4 rounded-xl uppercase tracking-wider backdrop-blur-md border border-red-400/30 touch-target hover:bg-red-600 transition-all shadow-lg">
+                <button onClick={logout} className="flex items-center justify-center gap-3 bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl uppercase tracking-wider touch-target transition-all shadow-lg" style={{ boxShadow: '0 4px 14px rgba(239, 68, 68, 0.4)' }}>
                   <LogOut className="h-5 w-5" />
                   <span>Sair do Sistema</span>
                 </button>
              </div>
-          </div>
-        )}
-      </header>
+           </div>
+         )}
+       </header>
 
       {/* Main Content */}
       <main className={`flex-grow mx-auto transition-all duration-300 ${isAdmin ? 'w-full max-w-full px-0' : 'max-w-7xl px-4 sm:px-6 lg:px-8 py-6'}`}>
@@ -205,50 +205,53 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
       {/* Footer Premium */}
       {!isAdmin && (
-        <footer className="text-white pt-10 pb-32 md:pb-10 border-t-4 border-t-emerald-500 transition-colors duration-300 relative overflow-hidden bg-gradient-to-t from-[#0f172a] to-[#1e293b]">
+        <footer className="pt-10 pb-32 md:pb-10 border-t-4 transition-colors duration-300 relative overflow-hidden" style={{ 
+          background: 'linear-gradient(to top, var(--bg-card), var(--bg-main))',
+          borderTopColor: 'var(--primary-color)',
+        }}>
           <div className="max-w-7xl mx-auto px-4">
              <div className="grid grid-cols-1 md:grid-cols-3 gap-10 items-start">
 
                  <div className="text-center md:text-left">
-                     <h3 className="font-black text-base text-white mb-2 uppercase tracking-wider">{appConfig.appName}</h3>
-                     <p className="leading-relaxed text-white/80 font-medium">{appConfig.institutionName}</p>
-                     <p className="mt-2 font-mono text-[11px] text-white/50">CNPJ: {appConfig.cnpj}</p>
+                     <h3 className="font-black text-base text-[var(--text-main)] mb-2 uppercase tracking-wider">{appConfig.appName}</h3>
+                     <p className="leading-relaxed text-[var(--text-muted)] font-medium">{appConfig.institutionName}</p>
+                     <p className="mt-2 font-mono text-[11px] text-[var(--text-muted)]">CNPJ: {appConfig.cnpj}</p>
                  </div>
 
                  <div className="flex flex-col gap-4 items-center md:items-start">
-                     <h4 className="font-bold text-white mb-1 uppercase tracking-wider text-sm">Fale Conosco</h4>
-                     <div className="flex items-center gap-3 text-white/80 bg-white/5 px-4 py-2 rounded-lg w-full md:w-auto">
+                     <h4 className="font-bold text-[var(--text-main)] mb-1 uppercase tracking-wider text-sm">Fale Conosco</h4>
+                     <div className="flex items-center gap-3 text-[var(--text-muted)] bg-[var(--bg-input)] px-4 py-2 rounded-lg w-full md:w-auto">
                         <Phone className="w-4 h-4" />
                         <span className="font-bold text-sm">{appConfig.contactPhone}</span>
                      </div>
-                     <div className="flex items-center gap-3 text-white/80">
+                     <div className="flex items-center gap-3 text-[var(--text-muted)]">
                         <Mail className="w-4 h-4" />
                         <span className="text-sm">{appConfig.contactEmail}</span>
                      </div>
                  </div>
 
                  <div className="flex flex-col gap-3 items-center md:items-start">
-                     <h4 className="font-bold text-white mb-1 uppercase tracking-wider text-sm">Localização</h4>
-                     <div className="flex items-start gap-3 text-white/80">
+                     <h4 className="font-bold text-[var(--text-main)] mb-1 uppercase tracking-wider text-sm">Localização</h4>
+                     <div className="flex items-start gap-3 text-[var(--text-muted)]">
                         <MapPin className="w-4 h-4 mt-0.5" />
                         <span className="max-w-[220px] text-center md:text-left text-sm">{appConfig.contactAddress}</span>
                      </div>
                  </div>
              </div>
 
-             <div className="mt-10 border-t border-white/10"></div>
+             <div className="mt-10 border-t border-[var(--border-color)]"></div>
 
              <div className="mt-8 flex flex-col md:flex-row justify-between items-center gap-6 text-center md:text-left">
-                 <p className="text-[11px] text-white/50 uppercase tracking-widest font-bold">© {new Date().getFullYear()} Todos os direitos reservados.</p>
+                 <p className="text-[11px] text-[var(--text-muted)] uppercase tracking-widest font-bold">© {new Date().getFullYear()} Todos os direitos reservados.</p>
 
-                 <div className="bg-white/5 backdrop-blur-md px-6 py-4 rounded-2xl border border-white/10 shadow-lg">
-                     <p className="text-xs font-bold text-white uppercase tracking-wider mb-1">Desenvolvido por</p>
-                     <p className="text-sm font-black text-emerald-400 tracking-wide">{appConfig?.developerName || 'Edevaldo de Lima Almeida'}</p>
+                 <div className="bg-[var(--bg-input)] backdrop-blur-md px-6 py-4 rounded-2xl border border-[var(--border-color)] shadow-lg">
+                     <p className="text-xs font-bold text-[var(--text-main)] uppercase tracking-wider mb-1">Desenvolvido por</p>
+                     <p className="text-sm font-black text-[var(--primary-color)] tracking-wide">{appConfig?.developerName || 'Edevaldo de Lima Almeida'}</p>
                      {appConfig?.developerEmail && (
-                         <p className="text-[10px] text-white/60 font-mono mt-1">{appConfig.developerEmail}</p>
+                         <p className="text-[10px] text-[var(--text-muted)] font-mono mt-1">{appConfig.developerEmail}</p>
                      )}
                      {appConfig?.developerPhone && (
-                         <p className="text-[10px] text-emerald-400/70 font-mono mt-0.5">{appConfig.developerPhone}</p>
+                         <p className="text-[10px] text-[var(--primary-color)]/70 font-mono mt-0.5">{appConfig.developerPhone}</p>
                      )}
                  </div>
              </div>

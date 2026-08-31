@@ -76,20 +76,23 @@ function calcularPartesPagamento(paymentMethod, payments, total, isConsumer) {
   return { walletPortion, cashPortion };
 }
 
-/** Valida o troco: undefined (sem troco) ou entre 0 e o valor REAL entregue em dinheiro.
+/** Valida o troco: undefined (sem troco) ou entre 0 e o valor TOTAL da venda.
  *  O cliente envia o valor LÍQUIDO em dinheiro (cashPortion === entregue − troco);
- *  o dinheiro efetivamente entregue é, portanto, cashPortion + troco. Sem isso,
- *  trocos legítimos (ex.: R$ 80 de troco sobre R$ 120 entregues) eram rejeitados
- *  porque o troco ultrapassava a metade do valor líquido. */
-function validarTroco(change, cashPortion) {
+ *  por isso "cashPortion + troco" (o dinheiro entregue) é VAZIO como teto, já que
+ *  cashPortion ≥ 0 torna "troco > cashPortion + troco" sempre falso. O teto sonoro
+ *  e não-vacuoso é o TOTAL da venda: em dinheiro físico ninguém devolve mais troco
+ *  do que o valor da compra (o caixa só é creditado com cashPortion). Sem isso um
+ *  operador podia registrar change: 1.000.000 numa venda de R$ 5 — inconsistência
+ *  contábil grave. totos legítimos (ex.: R$ 80 de troco numa venda de R$ 200)
+ *  continuam OK, pois o teto é o total, não o valor líquido. */
+function validarTroco(change, cashPortion, total) {
   if (change === undefined || change === null) return;
   const troco = Number(change);
-  const dinheiroEntregue = arredondar(Number(cashPortion || 0) + troco);
   if (!Number.isFinite(troco) || troco < 0) {
     throw new Error("Troco inválido (deve ser maior ou igual a zero).");
   }
-  if (troco > dinheiroEntregue) {
-    throw new Error("Troco inválido (deve estar entre 0 e o valor pago em dinheiro).");
+  if (troco > arredondar(Number(total) || 0)) {
+    throw new Error("Troco inválido (não pode exceder o valor da venda).");
   }
 }
 

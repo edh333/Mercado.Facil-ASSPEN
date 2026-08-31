@@ -40,6 +40,16 @@ export const getLocalDateStr = (dateInput?: string | Date | null) => {
     return (new Date(d.getTime() - offset)).toISOString().slice(0, 10);
 };
 
+/** Estoque "baixo/crítico" — fonte ÚNICA de verdade.
+ *  Um produto é crítico quando: sem estoque definido (registro incompleto)
+ *  OU stock <= minStock (minStock default 5). Antes havia 3 definições
+ *  diferentes (Home <=5 fixo, Products stats <=5 fixo, StockAlerts minStock)
+ *  e as telas divergiam entre si. Use SEMPRE esta função. */
+export const estoqueCritico = (stock: number | null | undefined, minStock?: number | null): boolean => {
+    if (stock === null || stock === undefined) return true;
+    return stock <= (minStock || 5);
+};
+
 /** Fonte ÚNICA de verdade para "este pedido conta como receita?".
  *  Antes havia 4 definições diferentes (cards do painel, financeiro, home e
  *  extratos) — os totais das telas não batiam entre si. */

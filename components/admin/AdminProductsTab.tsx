@@ -6,6 +6,7 @@ import { formatarMoeda } from '../../utils';
 import { toDate } from '../../utils/dateUtils';
 import { Product, Supplier } from '../../types';
 import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
+import { estoqueCritico } from './adminUtils';
 
 interface AdminProductsTabProps {
   products: Product[];
@@ -68,11 +69,12 @@ export const AdminProductsTab: React.FC<AdminProductsTabProps> = ({
   }, [products]);
 
   const stats = React.useMemo(() => {
+    const all = products || [];
     return {
-      total: (products || []).length,
-      available: (products || []).filter(p => p.available !== false).length,
-      stockOut: (products || []).filter(p => (p.stock ?? 0) <= 0).length,
-      lowStock: (products || []).filter(p => (p.stock ?? 0) > 0 && (p.stock ?? 0) <= 5).length
+      total: all.length,
+      available: all.filter(p => p.available !== false).length,
+      stockOut: all.filter(p => (p.stock ?? 0) <= 0).length,
+      lowStock: all.filter(p => estoqueCritico(p.stock, p.minStock) && (p.stock ?? 0) > 0).length
     };
   }, [products]);
 
@@ -350,7 +352,7 @@ return (
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => { setEditingProduct(product); setShowProductModal(true); }} className="p-3 bg-[var(--bg-main)] text-[var(--text-muted)] hover:text-emerald-500 rounded-2xl border border-[var(--border-color)] shadow-sm active:scale-95 transition-all"><Edit size={18}/></button>
-                      <button onClick={() => { if(confirm(`EXCLUIR DEFINITIVAMENTE ${product?.name || 'este produto'}?`)) deleteProduct(product?.id); }} className="p-3 bg-red-500/5 text-red-500 hover:bg-red-600 hover:text-white rounded-2xl border border-red-500/20 shadow-sm active:scale-95 transition-all"><Trash2 size={18}/></button>
+                      <button onClick={() => { if(confirm(`DESATIVAR ${product?.name || 'este produto'}? Ele deixará de aparecer nas vendas e no catálogo.`)) deleteProduct(product?.id); }} className="p-3 bg-red-500/5 text-red-500 hover:bg-red-600 hover:text-white rounded-2xl border border-red-500/20 shadow-sm active:scale-95 transition-all"><Trash2 size={18}/></button>
                     </div>
                 </div>
              </div>

@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { Product } from '../../types';
 import { Package, AlertTriangle, Search, ArrowUpDown, Printer } from 'lucide-react';
 import { gerarListaReposicao, imprimirCupom } from '../../utils/printUtils';
+import { estoqueCritico } from './adminUtils';
 
 interface AdminStockAlertsTabProps {
   products: Product[];
@@ -14,11 +15,7 @@ export function AdminStockAlertsTab({ products, onEditProduct }: AdminStockAlert
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
   const lowStockProducts = useMemo(() => {
-    return (products || []).filter(p => {
-      const minStock = p.minStock || 5;
-      if (p.stock === undefined || p.stock === null) return true;
-      return p.stock <= minStock;
-    });
+    return (products || []).filter(p => estoqueCritico(p.stock, p.minStock));
   }, [products]);
 
   const filteredProducts = useMemo(() => {

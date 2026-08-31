@@ -127,26 +127,26 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
       const err = this.state.error;
       const isChunkError = err && /#310|#418|#425|#426|hydration|Failed to fetch dynamically imported module|Loading chunk|dynamically imported/i.test(err.message || '');
       return (
-        <div style={{ padding: '30px', background: '#0f172a', color: '#f8fafc', fontFamily: 'sans-serif', minHeight: '100vh', maxWidth: '800px', margin: '0 auto' }}>
-          <h2 style={{ color: '#f87171' }}>⚠️ Erro ao carregar o sistema</h2>
+        <div style={{ padding: '30px', background: 'var(--bg-main)', color: 'var(--text-main)', fontFamily: 'sans-serif', minHeight: '100vh', maxWidth: '800px', margin: '0 auto' }}>
+          <h2 style={{ color: 'var(--color-brand-error)' }}>⚠️ Erro ao carregar o sistema</h2>
           <p>
             {isChunkError
               ? 'Uma parte do aplicativo não pôde ser baixada (conexão instável). O botão "Tentar Novamente" geralmente resolve.'
               : 'O aplicativo encontrou um erro inesperado ao iniciar. Veja o detalhe abaixo e use as opções para recuperar.'}
           </p>
-          <pre style={{ background: '#1e293b', padding: '15px', borderRadius: '8px', overflow: 'auto', border: '1px solid #334155', fontSize: '11px', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+          <pre style={{ background: 'var(--bg-input)', padding: '15px', borderRadius: '8px', overflow: 'auto', border: '1px solid var(--border-color)', fontSize: '11px', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
             {err?.toString() || 'Erro desconhecido'}
           </pre>
           {(this.state as any).info?.componentStack && (
             <details style={{ marginTop: '12px', textAlign: 'left' }}>
               <summary style={{ cursor: 'pointer', fontSize: '12px', opacity: .8 }}>Componentes envolvidos (diagnóstico)</summary>
-              <pre style={{ background: '#1e293b', padding: '10px', borderRadius: '8px', overflow: 'auto', border: '1px solid #334155', fontSize: '10px', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: '200px', marginTop: '6px' }}>
+              <pre style={{ background: 'var(--bg-input)', padding: '10px', borderRadius: '8px', overflow: 'auto', border: '1px solid var(--border-color)', fontSize: '10px', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: '200px', marginTop: '6px' }}>
                 {String((this.state as any).info.componentStack).slice(0, 1500)}
               </pre>
             </details>
           )}
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '20px' }}>
-            <button onClick={() => window.location.reload()} style={{ padding: '12px 22px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
+            <button onClick={() => window.location.reload()} style={{ padding: '12px 22px', background: 'var(--primary-color)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
               🔄 Tentar Novamente
             </button>
             <button
@@ -159,12 +159,12 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
                   window.location.reload();
                 }
               }}
-              style={{ padding: '12px 22px', background: '#f59e0b', color: '#0f172a', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
+              style={{ padding: '12px 22px', background: 'var(--color-brand-pending)', color: '#0f172a', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
             >
               🧹 Limpar Dados Locais e Reiniciar
             </button>
           </div>
-          <p style={{ color: '#94a3b8', fontSize: '12px', marginTop: '18px', lineHeight: 1.6 }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '18px', lineHeight: 1.6 }}>
             Dica: se o erro persistir, limpe o cache do navegador ou teste em outra rede. Os dados da conta estão seguros na nuvem.
           </p>
         </div>
@@ -195,8 +195,8 @@ if (typeof window !== 'undefined') {
       if (rootEl && !rootEl.querySelector('[data-retry-error]')) {
         const div = document.createElement('div');
         div.setAttribute('data-retry-error', '1');
-        div.style.cssText = 'position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:99999;background:#0f172a;color:#fff;padding:14px 18px;border-radius:12px;font-family:sans-serif;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.35);display:flex;gap:12px;align-items:center;';
-        div.innerHTML = '<span>⚠️ Parte do aplicativo não baixou (conexão instável).</span><button style="background:#3b82f6;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-weight:bold;cursor:pointer;">Tentar Novamente</button>';
+        div.style.cssText = 'position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:99999;padding:14px 18px;border-radius:12px;font-family:sans-serif;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.35);display:flex;gap:12px;align-items:center;background:var(--bg-card);color:var(--text-main);';
+        div.innerHTML = '<span>⚠️ Parte do aplicativo não baixou (conexão instável).</span><button style="background:var(--primary-color);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-weight:bold;cursor:pointer;">Tentar Novamente</button>';
         div.querySelector('button')?.addEventListener('click', () => window.location.reload());
         rootEl.appendChild(div);
         setTimeout(() => div.remove(), 30000);

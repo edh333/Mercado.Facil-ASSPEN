@@ -26,7 +26,7 @@ export const UserDashboard: React.FC = () => {
     const { 
         currentUser, products, createOrder, showNotification, 
         logout, messages, markMessageRead, settings, getWalletTransactions, depositToWallet,
-        serverTime, reenviarComprovante
+        serverTime, reenviarComprovante, updateOrderStatus, refundOrder
     } = useApp();
     const { isDark, primaryColor } = useTheme();
 
@@ -1313,6 +1313,50 @@ export const UserDashboard: React.FC = () => {
                                             <div className="flex gap-2">
                                                 <button onClick={() => setViewingOrderCupom(order)} className="p-2.5 bg-slate-100 rounded-lg hover:bg-slate-200 transition-all text-slate-600"><Printer size={17}/></button>
                                                 <button onClick={() => toggleOrderDetails(order.id)} className="px-4 py-2.5 bg-slate-100 rounded-lg hover:bg-slate-200 transition-all text-slate-600 font-semibold text-xs">VER {order?.items?.length || 0} ITENS</button>
+                                                {(order.status && ['pending', 'pago_pendente', 'pending_payment', 'paid', 'preparing', 'separacao', 'preparando'].includes(String(order.status).toLowerCase())) && (
+                                                    <button
+                                                        onClick={async () => {
+                                                            if (!window.confirm('Cancelar este pedido? O valor será estornado se houver pagamento.')) return;
+                                                            try {
+                                                                await updateOrderStatus(order.id, 'cancelled');
+                                                                showNotification('Pedido cancelado.', 'success');
+                                                            } catch {
+                                                                showNotification('Erro ao cancelar.', 'error');
+                                                            }
+                                                        }}
+                                                        className="px-3 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all"
+                                                    >
+                                                        Cancelar
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={() => {
+                                                        const itens = order?.items || [];
+                                                        if (itens.length === 0) return;
+                                                        setCart(prev => {
+                                                            const merged = [...prev];
+                                                            for (const it of itens) {
+                                                                const fullProduct = products?.find(p => p.id === it.productId);
+                                                                if (!fullProduct) continue;
+                                                                const idx = merged.findIndex(c => c.productId === it.productId);
+                                                                const itemToAdd = {
+                                                                    ...fullProduct,
+                                                                    productId: it.productId,
+                                                                    quantity: it.quantity || 1,
+                                                                    priceAtPurchase: it.priceAtPurchase || it.price || 0
+                                                                };
+                                                                if (idx >= 0) merged[idx].quantity += it.quantity || 1;
+                                                                else merged.push(itemToAdd);
+                                                            }
+                                                            return merged;
+                                                        });
+                                                        setMobileView('cart');
+                                                        showNotification('Itens adicionados ao carrinho.', 'success');
+                                                    }}
+                                                    className="px-3 py-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all"
+                                                >
+                                                    Comprar Novamente
+                                                </button>
                                             </div>
                                         </div>
                                         {expandedOrders.includes(order.id) && (

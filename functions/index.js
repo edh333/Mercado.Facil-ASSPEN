@@ -1028,6 +1028,21 @@ exports.sacarSaldoAdmin = onCall(async (request) => {
 exports.sacarSaldoProprio = onCall(async (request) => {
   const user = await exigirAutenticado(request);
   const valor = validarValor(request.data?.valor);
+  logger.info(`[sacarSaldoProprio] usuario=${user.id} valor=${valor}`);
+
+  // Hardening de custódia: o saque próprio entrega DINHEIRO FÍSICO ao usuário.
+  // 1) Rate limit por usuário (mesmo padrão de sacarSaldoAdmin/creditarSaldo) —
+  //    impede drenagem automatizada/scripted de uma conta comprometida.
+  // 2) Exige caixa ABERTO (alguém de plantão para entregar o valor) — sem
+  //    sessão ativa o saque é recusado, preservando rastreabilidade da sangria.
+  verificarRateLimit("sacarSaldoProprio:" + user.id, 10);
+  const sessaoAtiva = await getQualquerSessaoCaixaAberta();
+  if (!sessaoAtiva) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Nenhum caixa aberto no momento. Abra o caixa para liberar o saque."
+    );
+  }
 
   let novoSaldoFinal = null;
   await db.runTransaction(async (t) => {
@@ -1037,6 +1052,14 @@ exports.sacarSaldoProprio = onCall(async (request) => {
     const ud = uSnap.data();
     validarSaldoSuficiente(ud.walletBalance || 0, valor);
     novoSaldoFinal = calcularNovoSaldo(ud.walletBalance || 0, valor);
+
+    // Relê e revalida a sessão dentro da transação (TOCTOU), mesmo padrão das vendas.
+    const sessaoRef = refSessaoCaixa(sessaoAtiva);
+    const sessaoSnap = await t.get(sessaoRef);
+    if (!sessaoSnap.exists || String(sessaoSnap.data().status || "").toUpperCase() !== "OPEN") {
+      throw new Error("Caixa fechado durante a operação. Reabra e tente novamente.");
+    }
+
     t.update(uRef, { walletBalance: admin.firestore.FieldValue.increment(-arredondar(valor)) });
     await registrarTransacaoCarteira(t, db.collection("wallet_transactions").doc(), {
       userId: user.id,
@@ -1050,11 +1073,26 @@ exports.sacarSaldoProprio = onCall(async (request) => {
       payerName: user.name || "",
       payerId: user.id,
     });
+
+    // Registra a sangria automática na sessão aberta (mesmo padrão de sacarSaldoAdmin).
+    const payloadSaque = {
+      currentBalance: admin.firestore.FieldValue.increment(-valor),
+      withdrawals: admin.firestore.FieldValue.arrayUnion({
+        amount: valor,
+        reason: `Saque do usuário - ${user.name || user.id}`,
+        timestamp: admin.firestore.Timestamp.now(),
+      }),
+    };
+    if (sessaoAtiva.colecao !== "cash_sessions") {
+      payloadSaque.totalEntries = admin.firestore.FieldValue.increment(-valor);
+    }
+    t.update(sessaoSnap.ref, payloadSaque);
   });
 
   await registrarAudit(user.id, "SAQUE_PROPRIO", null, {
     valor,
     novoSaldo: novoSaldoFinal,
+    sessao: sessaoAtiva.id,
   });
 
   return { ok: true, novoSaldo: novoSaldoFinal };
@@ -1167,6 +1205,27 @@ async function getSessaoCaixaAberta(operatorId) {
     .map((d) => ({ id: d.id, colecao: "cashier", ...d.data() }))
     .find((s) => s.operatorId === operatorId || s.openedBy === operatorId);
   return sessao || null;
+}
+
+/** Resolve QUALQUER sessão de caixa aberta (independentemente do operador).
+ *  Usado para operações de custódia física onde não há um operador específico
+ *  no contexto (ex.: saque próprio do usuário). PDV moderno antes do legado. */
+async function getQualquerSessaoCaixaAberta() {
+  const snap1 = await db.collection("cash_sessions")
+    .where("status", "==", "open")
+    .limit(1)
+    .get();
+  const ativa1 = snap1.docs[0];
+  if (ativa1) return { id: ativa1.id, colecao: "cash_sessions", ...ativa1.data() };
+
+  const snap2 = await db.collection("cashier")
+    .where("status", "==", "OPEN")
+    .limit(1)
+    .get();
+  const ativa2 = snap2.docs[0];
+  if (ativa2) return { id: ativa2.id, colecao: "cashier", ...ativa2.data() };
+
+  return null;
 }
 
 /** Resolve a sessão de caixa vigente na data do pedido (para estorno).
@@ -1442,7 +1501,7 @@ exports.processarVendaAdmin = onCall(async (request) => {
     }
 
     if (cashPortion > 0 && sessaoCaixa) {
-      validarTroco(change, cashPortion);
+      validarTroco(change, cashPortion, total);
       const payload = {
         currentBalance: admin.firestore.FieldValue.increment(cashPortion),
         supplements: admin.firestore.FieldValue.arrayUnion({
@@ -1522,9 +1581,14 @@ exports.comprarComCarteira = onCall(async (request) => {
 
   // ID do pedido derivado do clientToken quando presente (reenvios reutilizam o
   // mesmo ID; sem token segue com ID aleatório por compatibilidade antiga).
+  // IMPORTANTE: usa o TOKEN INTEIRO (até 64 chars), igual à chave do
+  // `request_guard/venda_{token}`. Truncar para 12 chars (como antes) fazia dois
+  // tokens distintos que compartilhavam os 12 primeiros caracteres gerarem o MESMO
+  // orderId — a segunda compra sobrescrevia a primeira e um replay do token A
+  // devolvia o pedido do token B.
   const clientToken = lerClientToken(request.data);
   const orderId = clientToken
-    ? clientToken.replace(/[^a-zA-Z0-9]/g, "").slice(0, 12).toUpperCase()
+    ? clientToken
     : Math.random().toString(36).slice(2, 14).toUpperCase();
   let resultado;
   try {

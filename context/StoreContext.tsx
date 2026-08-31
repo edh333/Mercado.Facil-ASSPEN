@@ -2270,6 +2270,7 @@ return false;
             showNotification("DepÃ³sito aprovado e crÃ©dito adicionado!", "success");
         } catch (e: any) {
             showNotification("Erro ao aprovar depÃ³sito: " + e.message, "error");
+            throw e; // repassa ao chamador para NÃO fechar o modal quando o servidor recusar
         }
     };
 
@@ -2279,6 +2280,7 @@ return false;
             showNotification("DepÃ³sito recusado.", "info");
         } catch (e: any) {
             showNotification("Erro ao recusar depÃ³sito: " + e.message, "error");
+            throw e; // repassa ao chamador para NÃO fechar o modal quando o servidor recusar
         }
     };
 

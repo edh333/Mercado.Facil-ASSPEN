@@ -13,7 +13,7 @@ import {
   deleteCustomerAccount,
   receiveCustomerPayment
 } from '../../utils/customerUtils';
-import { formatarMoeda } from '../../utils';
+import { formatarMoeda, csvEscape } from '../../utils';
 import { getActiveSession } from '../../utils/cashSession';
 import { useApp } from '../../context/StoreContext';
 import { gerarRelatorioInadimplentes, imprimirCupom } from '../../utils/printUtils';
@@ -37,12 +37,13 @@ export function AdminCustomersTab() {
   const exportCSV = () => {
     const debtors = accounts.filter(a => (a.currentDebt || 0) > 0);
     if (debtors.length === 0) return;
-    const headers = 'Nome,CPF,Telefone,Divida,Limite,Status\n';
+    const headers = ['Nome', 'CPF', 'Telefone', 'Divida', 'Limite', 'Status'];
     const rows = debtors.map(a =>
-      `"${a.nome}",${a.cpf || ''},"${a.telefone || ''}",${a.currentDebt || 0},${a.creditLimit || 0},${a.status}`
-    ).join('\n');
+      [a.nome, a.cpf || '', a.telefone || '', (a.currentDebt || 0).toString().replace('.', ','), (a.creditLimit || 0).toString().replace('.', ','), a.status]
+    );
+    const csvContent = [headers, ...rows].map(r => r.map(c => csvEscape(c)).join(';')).join('\n');
     const bom = '\uFEFF';
-    const blob = new Blob([bom + headers + rows], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = 'inadimplentes.csv'; a.click();
     URL.revokeObjectURL(url);
