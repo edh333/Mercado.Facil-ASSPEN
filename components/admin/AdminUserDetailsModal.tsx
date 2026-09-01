@@ -91,7 +91,7 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
   const statusLabel =
     user.status === 'active' ? 'Ativo' : user.status === 'suspended' ? 'Bloqueado' : 'Pendente de Aprovação';
 
-  const inputCls = "w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-400 uppercase transition-all";
+  const inputCls = "w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:border-[var(--primary-color)] focus:ring-2 focus:ring-[var(--primary-color)]/15 placeholder:text-slate-400 uppercase transition-all";
   const labelCls = "text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-1.5 ml-1";
 
   return (
@@ -101,7 +101,7 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
       title={user.name || 'Sem nome'}
       subtitle={`CPF: ${user.cpf || '—'} • ID: ${user.id?.slice(0, 8)}`}
       icon={
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-lg text-white"
+        <div className="w-10 h-10 rounded-lg flex items-center justify-center font-black text-lg text-white"
           style={{ backgroundColor: user.status === 'active' ? '#10b981' : user.status === 'suspended' ? '#ef4444' : '#f59e0b' }}>
           {(user.name || '?').charAt(0).toUpperCase()}
         </div>
@@ -123,7 +123,7 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
             <button
               key={key}
               onClick={() => setActiveSection(key)}
-              className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${activeSection === key ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+              className={`flex-1 py-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${activeSection === key ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
             >
               <Icon size={15} /> {label}
             </button>
@@ -135,13 +135,13 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
             <div className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
                 {/* Form */}
-                <div className="lg:col-span-3 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                <div className="lg:col-span-3 bg-white p-6 rounded-lg border border-slate-200 shadow-sm space-y-4">
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-500">Dados Cadastrais</h4>
                     {user.status === 'pending' && (
                       <button
                         onClick={() => { if (confirm(`Aprovar cadastro de ${user.name}?`)) { approveUser(user.id); showNotification('Cadastro aprovado!', 'success'); onClose(); } }}
-                        className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:brightness-110 active:scale-95 transition-all"
+                        className="px-4 py-2 bg-[#0f172a] text-white rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:brightness-110 active:scale-95 transition-all"
                       >
                         <CheckCircle size={15} /> Aprovar Cadastro
                       </button>
@@ -193,7 +193,7 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
                     <button
                       onClick={handleSave}
                       disabled={saving}
-                      className="flex-1 min-w-[160px] py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-slate-700 active:scale-95 transition-all disabled:opacity-50"
+                      className="flex-1 min-w-[160px] py-4 bg-slate-900 text-white rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-slate-700 active:scale-95 transition-all disabled:opacity-50"
                     >
                       {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Salvar Alterações
                     </button>
@@ -201,7 +201,7 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
                       <button
                         type="button"
                         disabled
-                        className="flex-1 min-w-[160px] py-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 opacity-90"
+                        className="flex-1 min-w-[160px] py-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 opacity-90"
                       >
                         <Lock size={16} /> Senha: Definida via Auth
                       </button>
@@ -210,13 +210,13 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
                 </div>
 
                 {/* Documento */}
-                <div className="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col">
+                <div className="lg:col-span-2 bg-white p-6 rounded-lg border border-slate-200 shadow-sm flex flex-col">
                   <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-500 mb-4 flex items-center gap-2">
                     <Camera size={15} className="text-emerald-600" /> Documento do Cadastro
                   </h4>
 
                   {docPendente ? (
-                    <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-amber-50 rounded-2xl border border-amber-200">
+                    <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-amber-50 rounded-lg border border-amber-200">
                       <AlertTriangle size={40} className="text-amber-500 mb-3" />
                       <p className="font-black text-amber-700 uppercase text-sm">Documento pendente de upload</p>
                       <p className="text-[10px] text-amber-600 font-bold mt-1 uppercase tracking-widest">Peça ao familiar que reenvie o anexo</p>
@@ -224,12 +224,12 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
                   ) : docUrl ? (
                     <>
                       {isPdf ? (
-                        <div className="flex-1 min-h-[260px] rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 relative">
+                        <div className="flex-1 min-h-[260px] rounded-lg overflow-hidden border border-slate-200 bg-slate-100 relative">
                           <iframe src={`${docUrl}#toolbar=0&navpanes=0&scrollbar=0`} className="w-full h-full min-h-[260px] border-0" title="Documento PDF" />
                         </div>
                       ) : (
                         <div
-                          className="flex-1 min-h-[260px] rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 cursor-pointer flex items-center justify-center"
+                          className="flex-1 min-h-[260px] rounded-lg overflow-hidden border border-slate-200 bg-slate-100 cursor-pointer flex items-center justify-center"
                           onClick={() => setPreviewDoc(true)}
                         >
                           <img src={docUrl} alt="Documento do cadastro" className="w-full h-full object-contain" />
@@ -239,14 +239,14 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
                         {isPdf ? (
                           <button
                             onClick={printPdf}
-                            className="flex-1 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-700 active:scale-95 transition-all"
+                            className="flex-1 py-3 bg-slate-900 text-white rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-700 active:scale-95 transition-all"
                           >
                             <Printer size={15} /> Imprimir
                           </button>
                         ) : (
                           <button
                             onClick={() => setPreviewDoc(true)}
-                            className="flex-1 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-700 active:scale-95 transition-all"
+                            className="flex-1 py-3 bg-slate-900 text-white rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-700 active:scale-95 transition-all"
                           >
                             <FileText size={15} /> Visualizar / Imprimir
                           </button>
@@ -255,14 +255,14 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
                           href={docUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex-1 py-3 bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-200 active:scale-95 transition-all"
+                          className="flex-1 py-3 bg-slate-100 border border-slate-200 text-slate-700 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-200 active:scale-95 transition-all"
                         >
                           <ExternalLink size={15} /> Nova Aba
                         </a>
                       </div>
                     </>
                   ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-slate-100 rounded-2xl border border-slate-200">
+                    <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-slate-100 rounded-lg border border-slate-200">
                       <FileText size={40} className="text-slate-300 mb-3" />
                       <p className="font-black text-slate-400 uppercase text-sm">Nenhum documento anexado</p>
                     </div>
@@ -276,45 +276,45 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
           {activeSection === 'SALDO' && (
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Saldo Disponível</p>
                   <h3 className="text-3xl font-black text-emerald-600 tracking-tighter">R$ {formatarMoeda(user.walletBalance || 0)}</h3>
                 </div>
-                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Total Depositado</p>
                   <h3 className="text-3xl font-black text-blue-600 tracking-tighter">R$ {formatarMoeda(totalDepositos)}</h3>
                 </div>
-                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Total Gasto</p>
                   <h3 className="text-3xl font-black text-red-600 tracking-tighter">R$ {formatarMoeda(totalGasto)}</h3>
                 </div>
-                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Gasto Semanal</p>
                   <h3 className="text-3xl font-black text-amber-600 tracking-tighter">R$ {formatarMoeda(user.weeklySpent || 0)}</h3>
                 </div>
               </div>
 
-              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-3">
+              <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm space-y-3">
                 <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-500">Ações de Crédito</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {canManageCredits && onAddCredit && (
                     <button
                       onClick={() => onAddCredit(user)}
-                      className="py-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-emerald-100 active:scale-95 transition-all"
+                      className="py-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-emerald-100 active:scale-95 transition-all"
                     >
                       <CreditCard size={17} /> Aporte Manual de Saldo
                     </button>
                   )}
                   <button
                     onClick={() => toggleUserCredit(user.id, !(user.allowCredit !== false))}
-                    className={`py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 border active:scale-95 transition-all ${user.allowCredit !== false ? 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100' : 'bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200'}`}
+                    className={`py-4 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 border active:scale-95 transition-all ${user.allowCredit !== false ? 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100' : 'bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200'}`}
                   >
                     <ShieldCheck size={17} /> Crédito: {user.allowCredit !== false ? 'LIBERADO' : 'BLOQUEADO'}
                   </button>
                   {toggleExcepcionalFlag && (
                     <button
                       onClick={() => toggleExcepcionalFlag(user.id, !user.autorizacaoExcepcional)}
-                      className={`py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 border active:scale-95 transition-all ${user.autorizacaoExcepcional ? 'bg-purple-100 border-purple-300 text-purple-700 hover:bg-purple-200' : 'bg-slate-100 border-slate-200 text-slate-500 hover:bg-purple-50 hover:text-purple-600'}`}
+                      className={`py-4 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 border active:scale-95 transition-all ${user.autorizacaoExcepcional ? 'bg-purple-100 border-purple-300 text-purple-700 hover:bg-purple-200' : 'bg-slate-100 border-slate-200 text-slate-500 hover:bg-purple-50 hover:text-purple-600'}`}
                     >
                       <AlertTriangle size={17} /> {user.autorizacaoExcepcional ? 'Exceção Semanal ATIVA' : 'Autorização Excepcional'}
                     </button>
@@ -322,13 +322,13 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
                 </div>
               </div>
 
-              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-3">
+              <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm space-y-3">
                 <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-500">Status de Acesso</h4>
                 <div className="flex flex-wrap gap-3">
                   {user.status !== 'active' && (
                     <button
                       onClick={() => { suspendUser(user.id, false); }}
-                      className="flex-1 py-4 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:brightness-110 active:scale-95 transition-all"
+                      className="flex-1 py-4 bg-[#0f172a] text-white rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:brightness-110 active:scale-95 transition-all"
                     >
                       <Unlock size={17} /> Reativar Acesso
                     </button>
@@ -336,14 +336,14 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
                   {user.status !== 'suspended' && (
                     <button
                       onClick={() => { if (confirm(`Bloquear acesso de ${user.name}?`)) suspendUser(user.id, true); }}
-                      className="flex-1 py-4 bg-amber-50 border border-amber-200 text-amber-700 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-amber-100 active:scale-95 transition-all"
+                      className="flex-1 py-4 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-amber-100 active:scale-95 transition-all"
                     >
                       <Ban size={17} /> Suspender Acesso
                     </button>
                   )}
                   <button
                     onClick={() => { if (confirm(`EXCLUIR ${user.name}? O histórico será preservado (soft delete).`)) deleteUser(user.id); }}
-                    className="flex-1 py-4 bg-red-50 border border-red-200 text-red-600 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-red-100 active:scale-95 transition-all"
+                    className="flex-1 py-4 bg-red-50 border border-red-200 text-red-600 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-red-100 active:scale-95 transition-all"
                   >
                     <Trash2 size={17} /> Excluir (Soft Delete)
                   </button>
@@ -356,7 +356,7 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
           {activeSection === 'HISTORICO' && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Pedidos */}
-              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
                 <div className="p-5 border-b border-slate-100 flex items-center justify-between">
                   <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-500 flex items-center gap-2">
                     <ShoppingCart size={15} className="text-emerald-600" /> Pedidos ({userOrders.length})
@@ -385,7 +385,7 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
               </div>
 
               {/* Transações de Carteira */}
-              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
                 <div className="p-5 border-b border-slate-100 flex items-center justify-between">
                   <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-500 flex items-center gap-2">
                     <CreditCard size={15} className="text-blue-600" /> Aportes & Movimentações ({userTxs.length})
@@ -420,7 +420,7 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
           <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-2">
             <Users size={14} /> Familiar cadastrado em {user.createdAt ? new Date(user.createdAt).toLocaleDateString('pt-BR') : '—'}
           </p>
-          <button onClick={onClose} className="px-8 py-3.5 bg-slate-100 text-slate-700 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 active:scale-95 transition-all">
+          <button onClick={onClose} className="px-8 py-3.5 bg-slate-100 text-slate-700 rounded-lg font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 active:scale-95 transition-all">
             Fechar
           </button>
         </div>

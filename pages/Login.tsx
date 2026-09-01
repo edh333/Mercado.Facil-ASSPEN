@@ -267,7 +267,7 @@ const [recoveryName, setRecoveryName] = useState('');
                 >
                     {/* Marca (mobile/tablet) */}
                     <div className="mb-6 flex items-center gap-2.5 lg:hidden">
-                        <div className="flex size-9 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-500/30">
+                        <div className="flex size-9 items-center justify-center rounded-lg bg-[#0f172a] shadow-sm">
                             <Store size={18} />
                         </div>
                         <div className="leading-tight">
@@ -276,7 +276,7 @@ const [recoveryName, setRecoveryName] = useState('');
                         </div>
                     </div>
 
-                    <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xl shadow-slate-900/[0.06] sm:p-8">
+                    <div className="rounded-lg border border-slate-200/80 bg-white p-6 shadow-xl shadow-slate-900/[0.06] sm:p-8">
 
                         {/* Abas */}
                         <AnimatePresence mode="wait">
@@ -331,13 +331,13 @@ const [recoveryName, setRecoveryName] = useState('');
                             {/* Feedbacks */}
                             <AnimatePresence>
                                 {formError && (
-                                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="bg-red-50 border border-red-100 border-l-4 border-l-red-500 p-3.5 rounded-xl flex gap-3 items-start overflow-hidden">
+                                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="bg-red-50 border border-red-100 border-l-4 border-l-red-500 p-3.5 rounded-lg flex gap-3 items-start overflow-hidden">
                                         <XCircle className="text-red-500 shrink-0 mt-0.5" size={18} />
                                         <p className="text-[11px] font-bold text-red-700 leading-snug">{formError}</p>
                                     </motion.div>
                                 )}
                                 {formSuccess && (
-                                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="bg-emerald-50 border border-emerald-100 border-l-4 border-l-emerald-500 p-3.5 rounded-xl flex gap-3 items-start overflow-hidden">
+                                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="bg-emerald-50 border border-emerald-100 border-l-4 border-l-emerald-500 p-3.5 rounded-lg flex gap-3 items-start overflow-hidden">
                                         <CheckCircle className="text-emerald-500 shrink-0 mt-0.5" size={18} />
                                         <p className="text-[11px] font-bold text-emerald-700 leading-snug">{formSuccess}</p>
                                     </motion.div>
@@ -377,17 +377,17 @@ const [recoveryName, setRecoveryName] = useState('');
 
                                     <div
                                         onClick={() => fileInputRef.current?.click()}
-                                        className={`group border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all duration-300 relative overflow-hidden ${fileObject ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 bg-slate-50 hover:border-emerald-400 hover:bg-emerald-50/40'}`}
+                                        className={`group border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all duration-300 relative overflow-hidden ${fileObject ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 bg-slate-50 hover:border-emerald-400 hover:bg-emerald-50/40'}`}
                                     >
                                         <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={e => e.target.files && setFileObject(e.target.files[0])} />
                                         {fileObject ? (
                                             <div className="flex flex-col items-center gap-2">
-                                                <div className="w-12 h-12 bg-emerald-500 text-white rounded-2xl flex items-center justify-center shadow-lg"><CheckCircle size={24} /></div>
+                                                <div className="w-12 h-12 bg-emerald-500 text-white rounded-lg flex items-center justify-center shadow-lg"><CheckCircle size={24} /></div>
                                                 <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-widest">Documento Anexado</p>
                                             </div>
                                         ) : (
                                             <div className="flex flex-col items-center gap-2 text-slate-500 group-hover:text-slate-700">
-                                                <div className="w-12 h-12 bg-white border border-slate-200 rounded-2xl flex items-center justify-center shadow-sm">
+                                                <div className="w-12 h-12 bg-white border border-slate-200 rounded-lg flex items-center justify-center shadow-sm">
                                                     <Upload size={22} />
                                                 </div>
                                                 <p className="text-[11px] font-bold uppercase tracking-widest">Anexar RG ou CNH</p>
@@ -395,7 +395,7 @@ const [recoveryName, setRecoveryName] = useState('');
                                         )}
                                     </div>
 
-                                    <label className="flex items-start gap-3 cursor-pointer group bg-slate-50/80 p-4 rounded-2xl border border-slate-200/70 hover:border-emerald-300 transition-colors">
+                                    <label className="flex items-start gap-3 cursor-pointer group bg-slate-50/80 p-4 rounded-lg border border-slate-200/70 hover:border-emerald-300 transition-colors">
                                         <div className="relative mt-0.5 shrink-0">
                                             <input
                                                 type="checkbox"
@@ -416,7 +416,7 @@ const [recoveryName, setRecoveryName] = useState('');
                                 <div className="space-y-4 animate-fadeIn">
                                     {recoveryStep === 1 ? (
                                         <>
-                                            <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                            <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-lg border border-slate-100">
                                                 <KeyRound size={18} className="text-emerald-500 shrink-0" />
                                                 <p className="text-[11px] font-bold text-slate-500 leading-snug">Informe os dados para localizarmos sua senha de acesso.</p>
                                             </div>
@@ -441,7 +441,7 @@ const [recoveryName, setRecoveryName] = useState('');
                                 <div className="space-y-3 animate-fadeIn">
                                     {isAdmin && showFirstAdminSetup ? (
                                         <>
-                                            <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800">
+                                            <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-800">
                                                 <p className="text-[10px] font-black uppercase tracking-widest text-center">
                                                     Primeiro acesso detectado — crie o administrador inicial do sistema.
                                                 </p>
@@ -486,7 +486,7 @@ const [recoveryName, setRecoveryName] = useState('');
                             <button
                                 type="submit"
                                 disabled={isLoading}
-                                className={`w-full py-3.5 rounded-xl font-semibold text-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2 relative overflow-hidden group bg-gradient-to-r from-emerald-600 to-emerald-500 hover:brightness-110 text-white disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer shadow-lg shadow-emerald-500/25`}
+                                className={`w-full py-3.5 rounded-lg font-semibold text-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2 relative overflow-hidden group bg-[#0f172a] hover:brightness-110 text-white disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer shadow-sm`}
                             >
                                 <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
                                 {isLoading ? (
@@ -562,7 +562,7 @@ const PremiumInput = ({ icon: Icon, label, value, onChange, type = "text", actio
     return (
         <div>
             <label htmlFor={inputId} className="block text-xs font-semibold tracking-wide text-slate-500 mb-2 ml-1">{label}</label>
-            <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/70 px-3.5 transition-all focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/15 focus-within:bg-white">
+            <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/70 px-3.5 transition-all focus-within:border-[var(--primary-color)] focus-within:ring-2 focus-within:ring-[var(--primary-color)]/15 focus-within:bg-white">
                 <Icon size={17} className="text-slate-400 shrink-0" aria-hidden="true" />
                 <input
                     type={type}
@@ -589,7 +589,7 @@ const SelectInput = ({ label, value, onChange, children, required = true, id, er
     return (
         <div>
             <label htmlFor={selectId} className="block text-xs font-semibold tracking-wide text-slate-500 mb-2 ml-1">{label}</label>
-            <div className="relative rounded-lg border border-slate-200 bg-slate-50/70 transition-all focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/15 focus-within:bg-white">
+            <div className="relative rounded-lg border border-slate-200 bg-slate-50/70 transition-all focus-within:border-[var(--primary-color)] focus-within:ring-2 focus-within:ring-[var(--primary-color)]/15 focus-within:bg-white">
                 <select
                     id={selectId}
                     className="w-full px-3.5 py-3 bg-transparent border-none outline-none text-sm font-semibold text-slate-900 appearance-none cursor-pointer tracking-wide"

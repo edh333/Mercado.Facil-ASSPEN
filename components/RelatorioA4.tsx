@@ -27,15 +27,15 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
 
             {/* Resumo Consolidado */}
             <div className="grid grid-cols-3 gap-6 mb-10">
-                <div className="border-2 border-slate-100 p-4 rounded-xl">
+                <div className="border-2 border-slate-100 p-4 rounded-lg">
                     <p className="text-[8px] font-black uppercase text-slate-400 mb-1">Total de Entradas</p>
                     <p className="text-lg font-black text-emerald-600">R$ {formatarMoeda(report.summary.totalEntries || report.summary.totalSales || 0)}</p>
                 </div>
-                <div className="border-2 border-slate-100 p-4 rounded-xl">
+                <div className="border-2 border-slate-100 p-4 rounded-lg">
                     <p className="text-[8px] font-black uppercase text-slate-400 mb-1">Total de Saídas</p>
                     <p className="text-lg font-black text-red-600">R$ {formatarMoeda(report.summary.totalExits || report.summary.totalExpenses || 0)}</p>
                 </div>
-                <div className="bg-slate-900 p-4 rounded-xl text-white">
+                <div className="bg-slate-900 p-4 rounded-lg text-white">
                     <p className="text-[8px] font-black uppercase text-slate-400 mb-1">Saldo Final</p>
                     <p className="text-lg font-black">R$ {formatarMoeda(report.summary.net || 0)}</p>
                 </div>

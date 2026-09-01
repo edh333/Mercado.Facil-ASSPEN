@@ -111,7 +111,7 @@ export const ReciboA4: React.FC<ReciboA4Props> = ({ data, type, config, printerN
           </div>
         </div>
         <div className="flex gap-4">
-          <button onClick={() => setTimeout(() => window.print(), 350)} className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-xl hover:-translate-y-1 active:scale-95 transition-all">
+          <button onClick={() => setTimeout(() => window.print(), 350)} className="bg-[#0f172a] hover:bg-[#1e293b] text-white px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-xl hover:-translate-y-1 active:scale-95 transition-all">
             <Printer size={20} /> Imprimir Recibo
           </button>
           {onClose && (

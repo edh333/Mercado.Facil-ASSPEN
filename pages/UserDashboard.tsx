@@ -656,7 +656,7 @@ export const UserDashboard: React.FC = () => {
     const hasCustomBg = settings?.userDashboardBgType === 'image' && settings?.userDashboardBgUrl;
 
     const renderCartTable = () => (
-        <div className="max-h-[calc(100vh-420px)] overflow-y-auto border border-slate-200 rounded-xl bg-white font-mono">
+        <div className="max-h-[calc(100vh-420px)] overflow-y-auto border border-slate-200 rounded-lg bg-white font-mono">
             <table className="w-full text-[11px]">
                 <thead className="bg-emerald-700 text-white font-black text-xs uppercase text-center tracking-wider sticky top-0 z-10">
                     <tr>
@@ -710,13 +710,13 @@ export const UserDashboard: React.FC = () => {
         <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '16px', width: '100%', minWidth: 0, minHeight: 'calc(100vh - 140px)' }}>
 
             {/* PAINEL ESQUERDO — 35% — DESTAQUE DO ITEM ATUAL */}
-            <div className="bg-slate-900 text-white rounded-2xl p-5 flex flex-col justify-between shadow-xl relative border border-slate-800 font-mono" style={{ width: '100%', maxWidth: '100%', flexGrow: 1, flexBasis: '280px', flexShrink: 1, minHeight: '320px' }}>
+            <div className="bg-slate-900 text-white rounded-lg p-5 flex flex-col justify-between shadow-xl relative border border-slate-800 font-mono" style={{ width: '100%', maxWidth: '100%', flexGrow: 1, flexBasis: '280px', flexShrink: 1, minHeight: '320px' }}>
                 {lastProd || lastItem ? (
                     <>
                         <div className="flex-1 flex flex-col items-center justify-center relative">
                             <img
                                 src={lastProd?.imageUrl || 'https://placehold.co/600?text=PRODUTO'}
-                                className="w-full h-44 object-contain rounded-xl bg-white p-2 border border-slate-700"
+                                className="w-full h-44 object-contain rounded-lg bg-white p-2 border border-slate-700"
                                 alt={lastProd?.name || lastItem?.name || ''}
                             />
                             {lastQty > 1 && (
@@ -770,7 +770,7 @@ export const UserDashboard: React.FC = () => {
                     </div>
 
                     {/* TABELA ZEBRADA CUPOM FISCAL */}
-                    <div className="max-h-[calc(100vh-320px)] overflow-x-auto overflow-y-auto border border-slate-200 rounded-xl bg-white" style={{ flex: 1, minHeight: 0 }}>
+                    <div className="max-h-[calc(100vh-320px)] overflow-x-auto overflow-y-auto border border-slate-200 rounded-lg bg-white" style={{ flex: 1, minHeight: 0 }}>
                         <table className="w-full text-[12px] font-mono">
                             <thead className="text-white font-black text-xs uppercase text-center tracking-wider sticky top-0 z-10 bg-[var(--primary-color)]">
                                 <tr>
@@ -815,24 +815,24 @@ export const UserDashboard: React.FC = () => {
 
                     {/* BARRA DE ATALHOS — [F2] [F6] [F7] [F8] */}
                     <div className="flex gap-2 mt-2" style={{ flexShrink: 0 }}>
-                        <button onClick={() => searchInputRef.current?.focus()} className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-black rounded-xl text-[10px] uppercase tracking-wider transition-all active:scale-[0.98] cursor-pointer shadow-sm inline-flex items-center justify-center gap-1.5"><Search size={12} /> [F2] Produto</button>
-                        <button onClick={() => setShowServicesModal(true)} className="flex-1 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-black rounded-xl text-[10px] uppercase tracking-wider transition-all active:scale-[0.98] cursor-pointer shadow-sm inline-flex items-center justify-center gap-1.5"><Wrench size={12} /> [F6] Serviços</button>
-                        <button onClick={cancelSale} className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white font-black rounded-xl text-[10px] uppercase tracking-wider transition-all active:scale-[0.98] cursor-pointer shadow-sm inline-flex items-center justify-center gap-1.5"><X size={12} /> [F7] Cancelar</button>
-                        <button onClick={() => { if (cart.length > 0) setIsCheckoutModalOpen(true); }} disabled={cart.length === 0} className="flex-1 py-2.5 bg-[var(--primary-color)] hover:brightness-110 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-black rounded-xl text-[10px] uppercase tracking-wider transition-all active:scale-[0.98] cursor-pointer shadow-sm inline-flex items-center justify-center gap-1.5"><Banknote size={12} /> [F8] Checkout</button>
+                        <button onClick={() => searchInputRef.current?.focus()} className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-black rounded-lg text-[10px] uppercase tracking-wider transition-all active:scale-[0.98] cursor-pointer shadow-sm inline-flex items-center justify-center gap-1.5"><Search size={12} /> [F2] Produto</button>
+                        <button onClick={() => setShowServicesModal(true)} className="flex-1 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-black rounded-lg text-[10px] uppercase tracking-wider transition-all active:scale-[0.98] cursor-pointer shadow-sm inline-flex items-center justify-center gap-1.5"><Wrench size={12} /> [F6] Serviços</button>
+                        <button onClick={cancelSale} className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white font-black rounded-lg text-[10px] uppercase tracking-wider transition-all active:scale-[0.98] cursor-pointer shadow-sm inline-flex items-center justify-center gap-1.5"><X size={12} /> [F7] Cancelar</button>
+                        <button onClick={() => { if (cart.length > 0) setIsCheckoutModalOpen(true); }} disabled={cart.length === 0} className="flex-1 py-2.5 bg-[var(--primary-color)] hover:brightness-110 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-black rounded-lg text-[10px] uppercase tracking-wider transition-all active:scale-[0.98] cursor-pointer shadow-sm inline-flex items-center justify-center gap-1.5"><Banknote size={12} /> [F8] Checkout</button>
                     </div>
                 </div>
 
                 {/* SIDEBAR DIREITA — CLIENTE / TOTAL / CHECKOUT */}
                 <div className="flex flex-col gap-3" style={{ flex: '1 1 220px', maxWidth: '100%' }}>
                     {/* CLIENTE NO TOPO */}
-                    <div className="bg-white border border-slate-200 rounded-xl p-4">
+                    <div className="bg-white border border-slate-200 rounded-lg p-4">
                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Cliente</p>
                         <p className="font-black text-xs text-slate-900 uppercase truncate">{currentUser?.name || 'CONSUMIDOR'}</p>
                         <p className="text-[10px] text-slate-500 font-bold">Saldo: R$ {formatarMoeda(currentUser?.walletBalance || 0)}</p>
                     </div>
 
                     {/* TOTAL GERAL GIGANTE */}
-                    <div className="bg-[var(--primary-color)] rounded-xl p-5 text-center shadow-sm flex-1 flex flex-col items-center justify-center">
+                    <div className="bg-[var(--primary-color)] rounded-lg p-5 text-center shadow-sm flex-1 flex flex-col items-center justify-center">
                         <p className="text-[10px] font-black text-white/70 uppercase tracking-widest mb-2">TOTAL GERAL</p>
                         <p className="font-black text-4xl text-white tracking-tight leading-none">R$ {formatarMoeda(cartTotal)}</p>
                     </div>
@@ -841,7 +841,7 @@ export const UserDashboard: React.FC = () => {
                     <button
                         onClick={() => { if (cart.length > 0) setIsCheckoutModalOpen(true); }}
                         disabled={cart.length === 0}
-                        className="w-full py-4 bg-[var(--primary-color)] hover:brightness-110 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-black rounded-xl text-xs uppercase tracking-wider transition-all active:scale-[0.98] shadow-sm"
+                        className="w-full py-4 bg-[var(--primary-color)] hover:brightness-110 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-black rounded-lg text-xs uppercase tracking-wider transition-all active:scale-[0.98] shadow-sm"
                     >
                         <Banknote size={14} /> CONCLUIR VENDA
                     </button>
@@ -855,7 +855,7 @@ export const UserDashboard: React.FC = () => {
         <div className="space-y-8">
             {(settings?.enablePrisonerWallet ?? true) && (
                 <div className="sm:hidden">
-                    <div className="mb-2 flex items-center gap-3 rounded-xl border border-[var(--primary-color)]/30 bg-[var(--primary-color)]/5 p-3">
+                    <div className="mb-2 flex items-center gap-3 rounded-lg border border-[var(--primary-color)]/30 bg-[var(--primary-color)]/5 p-3">
                         {/* Saldo */}
                         <div className="flex-1 min-w-0 leading-tight">
                             <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">Saldo</p>
@@ -868,7 +868,7 @@ export const UserDashboard: React.FC = () => {
                         {/* Ícone de Mensagens */}
                         <button
                             onClick={() => setIsMsgOpen(!isMsgOpen)}
-                            className="relative size-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:border-[var(--primary-color)]/40 hover:text-[var(--primary-color)] active:scale-95 transition-all shrink-0"
+                            className="relative size-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:border-[var(--primary-color)]/40 hover:text-[var(--primary-color)] active:scale-95 transition-all shrink-0"
                         >
                             <MessageSquare size={17} />
                             {unreadMsg > 0 && (
@@ -884,7 +884,7 @@ export const UserDashboard: React.FC = () => {
                         {/* Botão Enviar Crédito */}
                         <button
                             onClick={() => { setIsDepositOpen(true); setStage('pay'); setDepositAmount(0); }}
-                            className="bg-[var(--primary-color)] text-white px-3 py-2.5 rounded-xl font-semibold text-[11px] shadow-sm active:scale-95 hover:brightness-110 transition-all flex items-center gap-1 shrink-0"
+                            className="bg-[var(--primary-color)] text-white px-3 py-2.5 rounded-lg font-semibold text-[11px] shadow-sm active:scale-95 hover:brightness-110 transition-all flex items-center gap-1 shrink-0"
                         >
                             <Plus size={14} />
                             <span>Crédito</span>
@@ -901,7 +901,7 @@ export const UserDashboard: React.FC = () => {
                     <input 
                         id="searchInput"
                         ref={searchInputRef}
-                        className="w-full pl-14 pr-12 py-4 rounded-2xl border-2 border-slate-300 focus:border-[var(--primary-color)] outline-none bg-slate-50 text-sm font-bold shadow-sm" 
+                        className="w-full pl-14 pr-12 py-4 rounded-lg border-2 border-slate-300 focus:border-[var(--primary-color)] outline-none bg-slate-50 text-sm font-bold shadow-sm" 
                         placeholder="Buscar produto..." 
                         value={searchTerm} 
                         onChange={handleSearchChange}
@@ -935,7 +935,7 @@ export const UserDashboard: React.FC = () => {
             {/* Vitrine Premium — Grid 2 colunas */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                 {filteredProducts.length === 0 ? (
-                    <div className="col-span-full text-center py-20 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                    <div className="col-span-full text-center py-20 bg-slate-50 rounded-lg border border-dashed border-slate-200">
                         <ShoppingBag size={40} className="mx-auto mb-4 opacity-25 text-slate-400" />
                         <p className="font-black uppercase tracking-wider text-xs text-slate-400">Nenhum produto encontrado</p>
                     </div>
@@ -945,7 +945,7 @@ export const UserDashboard: React.FC = () => {
                     return (
                         <div
                             key={p?.id || `prod-${idx}`}
-                            className={`bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-200 p-3 flex flex-col justify-between h-full relative ${isOutOfStock ? 'opacity-60 grayscale' : 'cursor-pointer active:scale-[0.98]'}`}
+                            className={`bg-white rounded-lg border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-200 p-3 flex flex-col justify-between h-full relative ${isOutOfStock ? 'opacity-60 grayscale' : 'cursor-pointer active:scale-[0.98]'}`}
                             onClick={() => { if (!isOutOfStock) addToCart(p); }}
                         >
                             <div className="w-full aspect-square rounded-lg overflow-hidden bg-slate-50 border border-slate-100 mb-2.5 relative">
@@ -1085,7 +1085,7 @@ export const UserDashboard: React.FC = () => {
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: -12, scale: 0.98 }}
                             transition={{ duration: 0.2 }}
-                            className="fixed top-20 right-3 sm:right-6 z-50 w-[calc(100vw-1.5rem)] max-w-md bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden"
+                            className="fixed top-20 right-3 sm:right-6 z-50 w-[calc(100vw-1.5rem)] max-w-md bg-white border border-slate-200 rounded-lg shadow-2xl overflow-hidden"
                         >
                             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200/80 bg-slate-50">
                                 <div className="flex items-center gap-2">
@@ -1144,7 +1144,7 @@ export const UserDashboard: React.FC = () => {
                                 </div>
                             </div>
                         ) : (settings?.allow_balance_purchases ?? true) === false && !isAdmin ? (
-                            <div className="max-w-md mx-auto bg-slate-900 rounded-3xl border border-slate-700 shadow-xl p-8 text-white space-y-6">
+                            <div className="max-w-md mx-auto bg-slate-900 rounded-lg border border-slate-700 shadow-xl p-8 text-white space-y-6">
                                 <div className="text-center">
                                     <span className="bg-amber-500/10 text-amber-500 border border-amber-500/20 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest animate-pulse">Compras Suspensas</span>
                                     <h3 className="text-lg font-black mt-3 uppercase tracking-tight text-white">COMPRAS POR SALDO SUSPENSAS</h3>
@@ -1153,12 +1153,12 @@ export const UserDashboard: React.FC = () => {
                                 <div className="border-t border-slate-800 pt-6">
                                     {depositStage === 'amount' ? (
                                         <div className="flex flex-col space-y-4">
-                                            <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
+                                            <div className="bg-slate-800 p-4 rounded-lg border border-slate-700">
                                                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 text-center">Valor do Crédito (R$)</p>
                                                 <input type="number" className="w-full bg-transparent font-black text-2xl text-center outline-none text-white placeholder-slate-600" value={depositAmount || ''} onChange={e => setDepositAmount(Number(e.target.value))} placeholder="0,00" />
                                             </div>
                                             {depositAmount > 0 && (
-                                                <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 flex flex-col items-center">
+                                                <div className="bg-slate-800 p-4 rounded-lg border border-slate-700 flex flex-col items-center">
                                                     {pixPayload ? (
                                                         <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(pixPayload)}`} className="w-36 h-36 object-contain" alt="QR PIX" />
                                                     ) : (
@@ -1166,22 +1166,22 @@ export const UserDashboard: React.FC = () => {
                                                             <p className="text-[10px] font-bold text-red-400 uppercase">PIX indisponível. Fale com a administração.</p>
                                                         </div>
                                                     )}
-                                                    <button onClick={() => { navigator.clipboard.writeText(pixPayload || ''); setPixCopied(true); setTimeout(() => setPixCopied(false), 2000); }} className={`w-full mt-3 py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${pixCopied ? 'bg-emerald-600 text-white' : 'bg-blue-500 text-white'}`}>
+                                                    <button onClick={() => { navigator.clipboard.writeText(pixPayload || ''); setPixCopied(true); setTimeout(() => setPixCopied(false), 2000); }} className={`w-full mt-3 py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${pixCopied ? 'bg-[#0f172a] text-white' : 'bg-blue-500 text-white'}`}>
                                                         {pixCopied ? <><CheckCircle size={12} /> COPIADO!</> : <><RefreshCcw size={12} /> Copiar PIX</>}
                                                     </button>
                                                 </div>
                                             )}
-                                            <button onClick={() => { if (depositAmount <= 0) { showNotification('DIGITE O VALOR DO CRÉDITO.', 'error'); return; } if (depositAmount > 100000) { showNotification('VALOR ACIMA DO LIMITE POR DEPÓSITO (R$ 100.000,00).', 'error'); return; } setDepositStage('proof'); if (fileInputRef.current) fileInputRef.current.value = ''; }} disabled={depositAmount <= 0} className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 transition-all cursor-pointer">
+                                            <button onClick={() => { if (depositAmount <= 0) { showNotification('DIGITE O VALOR DO CRÉDITO.', 'error'); return; } if (depositAmount > 100000) { showNotification('VALOR ACIMA DO LIMITE POR DEPÓSITO (R$ 100.000,00).', 'error'); return; } setDepositStage('proof'); if (fileInputRef.current) fileInputRef.current.value = ''; }} disabled={depositAmount <= 0} className="w-full py-3.5 bg-[#0f172a] hover:bg-[#1e293b] text-white rounded-lg font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 transition-all cursor-pointer">
                                                 <Sparkles size={14} /> Já fiz o PIX do Crédito
                                             </button>
                                         </div>
                                     ) : (
                                         <div className="flex flex-col space-y-4">
-                                            <div className="bg-blue-900/30 p-4 rounded-xl border border-blue-800 text-center">
+                                            <div className="bg-blue-900/30 p-4 rounded-lg border border-blue-800 text-center">
                                                 <p className="font-black text-xs text-blue-300 uppercase tracking-wider mb-1">Comprovante de Pagamento</p>
                                                 <p className="text-[10px] text-blue-400 font-bold">Anexe a foto do comprovante PIX para confirmar o crédito</p>
                                             </div>
-                                            <div onClick={() => fileInputRef.current?.click()} className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${proofFile ? 'border-emerald-500 bg-emerald-500/10' : 'border-blue-700 bg-slate-800 hover:border-blue-500 hover:bg-slate-700'}`}>
+                                            <div onClick={() => fileInputRef.current?.click()} className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all ${proofFile ? 'border-emerald-500 bg-emerald-500/10' : 'border-blue-700 bg-slate-800 hover:border-blue-500 hover:bg-slate-700'}`}>
                                                 <input type="file" ref={fileInputRef} className="hidden" accept="image/*,.pdf" onChange={async e => {
                                                     const f = e.target.files?.[0]; if (!f) return;
                                                     if (f.size > 10 * 1024 * 1024) { showNotification('Arquivo muito grande. Máximo 10MB.', 'error'); e.target.value = ''; return; }
@@ -1214,10 +1214,10 @@ export const UserDashboard: React.FC = () => {
                                                 )}
                                             </div>
 <p className="text-[10px] font-bold text-red-400 text-center mt-2 leading-tight"><AlertCircle size={10} className="inline-block mr-1 -mt-0.5" />Enviar comprovantes falsos ou adulterados configura CRIME (Art. 171 e 298 CP). Ao prosseguir, você assume total responsabilidade civil e criminal.</p>
-                                            <button onClick={async () => { if (!proofFile) { showNotification('ANEXE O COMPROVANTE.', 'error'); return; } await depositToWalletAction(); setDepositStage('amount'); }} disabled={isSubmitting || !proofFile} className="w-full py-3.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 transition-all cursor-pointer">
+                                            <button onClick={async () => { if (!proofFile) { showNotification('ANEXE O COMPROVANTE.', 'error'); return; } await depositToWalletAction(); setDepositStage('amount'); }} disabled={isSubmitting || !proofFile} className="w-full py-3.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 transition-all cursor-pointer">
                                                 {isSubmitting ? <><Loader2 size={14} className="animate-spin" /> Enviando...</> : <><Upload size={14} /> Enviar Comprovante</>}
                                             </button>
-                                            <button onClick={() => { setDepositStage('amount'); setProofFile(null); }} className="w-full py-2 bg-slate-800 text-slate-400 rounded-xl font-black text-[10px] uppercase tracking-widest text-center hover:bg-slate-700 transition-all cursor-pointer">
+                                            <button onClick={() => { setDepositStage('amount'); setProofFile(null); }} className="w-full py-2 bg-slate-800 text-slate-400 rounded-lg font-black text-[10px] uppercase tracking-widest text-center hover:bg-slate-700 transition-all cursor-pointer">
                                                 Voltar
                                             </button>
                                         </div>
@@ -1234,7 +1234,7 @@ export const UserDashboard: React.FC = () => {
 
                 {activeTab === 'orders' && (
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
-                        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
+                        <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm flex justify-between items-center">
                             <div>
                                 <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5"><Clock size={22} className="text-[var(--primary-color)]"/> Histórico</h2>
                                 <p className="text-xs text-slate-500 mt-0.5">Acompanhamento em tempo real</p>
@@ -1247,14 +1247,14 @@ export const UserDashboard: React.FC = () => {
                         {viewingWalletHistory ? (
                             <div className="space-y-4">
                                 {walletTxs.length === 0 ? (
-                                    <div className="bg-[var(--bg-card)] p-10 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center gap-3 text-center">
+                                    <div className="bg-[var(--bg-card)] p-10 rounded-lg border border-slate-200 shadow-sm flex flex-col items-center gap-3 text-center">
                                         <Wallet size={32} className="text-slate-300" />
                                         <p className="font-black text-xs uppercase text-slate-400">Nenhuma movimentação</p>
                                         <p className="text-[10px] text-slate-400 font-bold">Seus depósitos e compras aparecerão aqui.</p>
                                     </div>
                                 ) : (
                                 walletTxs.map((tx: any) => (
-                                    <div key={tx.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center gap-3 flex-wrap">
+                                    <div key={tx.id} className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm flex justify-between items-center gap-3 flex-wrap">
                                         <div className="flex items-center gap-3">
                                             <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${tx.amount > 0 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
                                                 {tx.amount > 0 ? <Plus size={18} /> : <ShoppingBag size={18} />}
@@ -1280,20 +1280,20 @@ export const UserDashboard: React.FC = () => {
                         ) : (
                             <div className="space-y-4">
                                 {loadingOrders && (
-                                    <div className="bg-[var(--bg-card)] p-10 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center gap-3">
+                                    <div className="bg-[var(--bg-card)] p-10 rounded-lg border border-slate-200 shadow-sm flex flex-col items-center gap-3">
                                         <Loader2 size={28} className="text-[var(--primary-color)] animate-spin" />
                                         <p className="font-black text-xs uppercase text-slate-400">Carregando pedidos...</p>
                                     </div>
                                 )}
                                 {!loadingOrders && myOrders.length === 0 && (
-                                    <div className="bg-[var(--bg-card)] p-10 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center gap-3 text-center">
+                                    <div className="bg-[var(--bg-card)] p-10 rounded-lg border border-slate-200 shadow-sm flex flex-col items-center gap-3 text-center">
                                         <Package size={32} className="text-slate-300" />
                                         <p className="font-black text-xs uppercase text-slate-400">Nenhum pedido ainda</p>
                                         <p className="text-[10px] text-slate-400 font-bold">Seus pedidos aparecerão aqui assim que você fizer uma compra.</p>
                                     </div>
                                 )}
                                 {!loadingOrders && myOrders.map((order: any) => (
-                                    <div key={order.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                                    <div key={order.id} className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
                                         <div className="flex justify-between items-center mb-4 pb-4 border-b border-slate-100">
                                             <div>
                                                 <span className="text-xs font-semibold text-slate-400">Pedido #{order.id.slice(0, 8)}</span>
@@ -1382,7 +1382,7 @@ export const UserDashboard: React.FC = () => {
                                                         {String(order.status || '').toLowerCase() === 'pending' && (
                                                             <button
                                                                 onClick={() => { setResendTarget({ kind: 'orders', docId: order.id }); resendInputRef.current?.click(); }}
-                                                                className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-all"
+                                                                className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all"
                                                             >
                                                                 Reenviar Comprovante
                                                             </button>
@@ -1409,16 +1409,16 @@ export const UserDashboard: React.FC = () => {
             {/* F6 SERVICES MODAL */}
             {showServicesModal && (
                 <div className="fixed inset-0 z-[999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowServicesModal(false)}>
-                    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 border border-slate-200" onClick={e => e.stopPropagation()}>
+                    <div className="bg-white rounded-lg shadow-2xl max-w-md w-full p-6 border border-slate-200" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center mb-5">
                             <h3 className="font-black text-base uppercase tracking-tight text-slate-900"><Wrench size={16} className="inline-block mr-1.5 -mt-0.5 text-amber-500" />Outros Serviços</h3>
-                            <button onClick={() => setShowServicesModal(false)} className="w-8 h-8 bg-slate-100 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-all"><X size={18}/></button>
+                            <button onClick={() => setShowServicesModal(false)} className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-all"><X size={18}/></button>
                         </div>
                         <div className="space-y-4">
                             <div>
                                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1.5 block">Nome do Serviço</label>
                                 <input
-                                    className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-amber-500 outline-none bg-slate-50 text-sm font-bold"
+                                    className="w-full px-4 py-3 rounded-lg border-2 border-slate-200 focus:border-amber-500 outline-none bg-slate-50 text-sm font-bold"
                                     placeholder="Ex: Taxa ASSPEN, Entrega"
                                     value={serviceName}
                                     onChange={e => setServiceName(e.target.value)}
@@ -1430,7 +1430,7 @@ export const UserDashboard: React.FC = () => {
                                 <input
                                     type="number"
                                     step="0.01"
-                                    className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-amber-500 outline-none bg-slate-50 text-sm font-bold"
+                                    className="w-full px-4 py-3 rounded-lg border-2 border-slate-200 focus:border-amber-500 outline-none bg-slate-50 text-sm font-bold"
                                     placeholder="0,00"
                                     value={serviceValue}
                                     onChange={e => setServiceValue(e.target.value)}
@@ -1438,10 +1438,10 @@ export const UserDashboard: React.FC = () => {
                             </div>
                         </div>
                         <div className="flex gap-3 mt-6">
-                            <button onClick={addServiceItem} disabled={!serviceName.trim() || !serviceValue} className="flex-[2] py-3.5 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-black rounded-xl text-xs uppercase tracking-wider transition-all active:scale-[0.98] flex items-center justify-center gap-2 shadow-sm cursor-pointer">
+                            <button onClick={addServiceItem} disabled={!serviceName.trim() || !serviceValue} className="flex-[2] py-3.5 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-black rounded-lg text-xs uppercase tracking-wider transition-all active:scale-[0.98] flex items-center justify-center gap-2 shadow-sm cursor-pointer">
                                 <Plus size={16} /> Adicionar ao Cupom
                             </button>
-                            <button onClick={() => setShowServicesModal(false)} className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black rounded-xl text-xs uppercase tracking-wider transition-all active:scale-[0.98] cursor-pointer">
+                            <button onClick={() => setShowServicesModal(false)} className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black rounded-lg text-xs uppercase tracking-wider transition-all active:scale-[0.98] cursor-pointer">
                                 Cancelar
                             </button>
                         </div>
@@ -1455,7 +1455,7 @@ export const UserDashboard: React.FC = () => {
                     <motion.div 
                         initial={{ opacity: 0, scale: 0.95 }} 
                         animate={{ opacity: 1, scale: 1 }} 
-                        className="bg-white rounded-3xl p-6 shadow-2xl max-w-5xl w-full max-h-[85vh] overflow-hidden flex flex-col border border-slate-200"
+                        className="bg-white rounded-lg p-6 shadow-2xl max-w-5xl w-full max-h-[85vh] overflow-hidden flex flex-col border border-slate-200"
                         onClick={e => e.stopPropagation()}
                     >
                         <div className="flex justify-between items-center pb-4 border-b border-slate-100 mb-4 shrink-0">
@@ -1463,24 +1463,24 @@ export const UserDashboard: React.FC = () => {
                                 <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight"><Search size={18} className="inline-block mr-1.5 -mt-0.5 text-[var(--primary-color)]" />Catálogo de Produtos</h3>
                                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Selecione para adicionar ao carrinho (F4 para fechar)</p>
                             </div>
-                            <button onClick={() => setIsProductsModalOpen(false)} className="p-2 text-slate-400 hover:text-red-500 rounded-xl transition-all"><X size={24} /></button>
+                            <button onClick={() => setIsProductsModalOpen(false)} className="p-2 text-slate-400 hover:text-red-500 rounded-lg transition-all"><X size={24} /></button>
                         </div>
                         <div className="relative mb-4 shrink-0">
                             <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"><Search size={18} /></div>
-                            <input className="w-full pl-12 pr-6 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-600 outline-none bg-slate-50 text-sm font-bold shadow-inner" placeholder="Filtrar produtos..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                            <input className="w-full pl-12 pr-6 py-2.5 rounded-lg border border-slate-200 focus:border-emerald-600 outline-none bg-slate-50 text-sm font-bold shadow-inner" placeholder="Filtrar produtos..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                         </div>
                         <div className="flex-1 overflow-y-auto pr-1">
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                                 {filteredProducts.length === 0 ? (
-                                    <div className="col-span-full text-center py-20 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                                    <div className="col-span-full text-center py-20 bg-slate-50 rounded-lg border border-dashed border-slate-200">
                                         <ShoppingBag size={40} className="mx-auto mb-4 opacity-25 text-slate-400" />
                                         <p className="font-black uppercase tracking-wider text-xs text-slate-400">Nenhum produto cadastrado</p>
                                     </div>
                                 ) : filteredProducts.map((p: any, idx: number) => {
                                     const isOutOfStock = (p?.stock || 0) <= 0;
                                     return (
-                                        <div key={p?.id || `cat-${idx}`} className={`bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 p-4 flex flex-col justify-between h-full relative ${isOutOfStock ? 'opacity-60 grayscale' : ''}`}>
-                                            <div className="w-full aspect-square rounded-xl overflow-hidden bg-slate-50 mb-3 relative">
+                                        <div key={p?.id || `cat-${idx}`} className={`bg-white rounded-lg border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 p-4 flex flex-col justify-between h-full relative ${isOutOfStock ? 'opacity-60 grayscale' : ''}`}>
+                                            <div className="w-full aspect-square rounded-lg overflow-hidden bg-slate-50 mb-3 relative">
                                                 <img src={p.imageUrl || 'https://placehold.co/200'} className="w-full h-full object-contain" alt={p.name} loading="lazy" />
                                                 {isOutOfStock && <div className="absolute inset-0 bg-black/60 flex items-center justify-center"><span className="text-[10px] font-black bg-white text-black px-3 py-1 rounded-lg uppercase">Esgotado</span></div>}
                                             </div>
@@ -1488,7 +1488,7 @@ export const UserDashboard: React.FC = () => {
                                                 <h4 className="text-slate-800 font-bold text-xs tracking-wide line-clamp-2 uppercase mb-2">{p.name}</h4>
                                                 <div className="flex items-center justify-between gap-2">
                                                     <span className="text-[var(--primary-color)] font-extrabold text-xs">R$ {formatarMoeda(p.price)}</span>
-                                                    <button onClick={() => addToCart(p)} disabled={isOutOfStock} className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg p-2 transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"><Plus size={16} /></button>
+                                                    <button onClick={() => addToCart(p)} disabled={isOutOfStock} className="bg-[#0f172a] hover:bg-[#1e293b] text-white rounded-lg p-2 transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"><Plus size={16} /></button>
                                                 </div>
                                             </div>
                                         </div>
@@ -1539,7 +1539,7 @@ export const UserDashboard: React.FC = () => {
             {/* CART REVIEW MODAL — PC e Mobile */}
             {isCartReviewOpen && (
                 <div className="fixed inset-0 z-[999] bg-black/60 backdrop-blur-sm" onClick={() => { setMobileView('catalog'); setIsCartReviewOpen(false); }}>
-                    <div className="fixed inset-x-3 sm:inset-x-4 top-1/2 -translate-y-1/2 md:max-w-md md:mx-auto bg-white rounded-2xl shadow-2xl p-5 max-h-[80vh] overflow-y-auto flex flex-col space-y-4 z-50 border border-slate-100" onClick={e => e.stopPropagation()}>
+                    <div className="fixed inset-x-3 sm:inset-x-4 top-1/2 -translate-y-1/2 md:max-w-md md:mx-auto bg-white rounded-lg shadow-2xl p-5 max-h-[80vh] overflow-y-auto flex flex-col space-y-4 z-50 border border-slate-100" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center shrink-0">
                             <h3 className="font-black text-base uppercase tracking-tight"><ShoppingCart size={16} className="inline-block mr-1.5 -mt-0.5 text-[var(--primary-color)]" />Revisão do Carrinho</h3>
                             <button onClick={() => { setMobileView('catalog'); setIsCartReviewOpen(false); }} className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200"><X size={16}/></button>
@@ -1556,7 +1556,7 @@ export const UserDashboard: React.FC = () => {
                                     if (!prod && !item.name) return null;
                                     const subtotal = displayPrice * item.quantity;
                                     return (
-                                        <div key={item.productId} className="flex items-center gap-3 bg-slate-50 rounded-xl p-3 border border-slate-100">
+                                        <div key={item.productId} className="flex items-center gap-3 bg-slate-50 rounded-lg p-3 border border-slate-100">
                                             {prod && <img src={prod.imageUrl || 'https://placehold.co/40x48'} className="w-10 h-12 object-cover rounded-md border border-slate-200 shrink-0" alt={displayName} />}
                                             <div className="flex-1 min-w-0">
                                                 <p className="font-bold text-xs uppercase text-slate-800 truncate">{displayName}</p>
@@ -1580,7 +1580,7 @@ export const UserDashboard: React.FC = () => {
                                     <span className="text-xs font-black text-slate-400 uppercase">Total Geral</span>
                                     <span className="text-xl font-black text-slate-900">R$ {formatarMoeda(cartTotal)}</span>
                                 </div>
-                                <button onClick={() => { setIsCartReviewOpen(false); setIsCheckoutModalOpen(true); }} className="w-full py-3 bg-emerald-600 text-white font-black rounded-2xl uppercase text-xs shadow-lg active:scale-95 flex items-center justify-center gap-2 shrink-0">
+                                <button onClick={() => { setIsCartReviewOpen(false); setIsCheckoutModalOpen(true); }} className="w-full py-3 bg-[#0f172a] text-white font-black rounded-lg uppercase text-xs shadow-lg active:scale-95 flex items-center justify-center gap-2 shrink-0">
                                     <Banknote size={14} className="inline-block mr-1.5 -mt-0.5" /> AVANÇAR PARA PAGAMENTO
                                 </button>
                             </>
@@ -1595,16 +1595,16 @@ export const UserDashboard: React.FC = () => {
                     <div className="absolute bottom-16 left-0 right-0 bg-white rounded-t-3xl shadow-2xl max-h-[70vh] overflow-y-auto p-4 pb-8" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }} onClick={e => e.stopPropagation()}>
                         <div className="w-12 h-1.5 bg-slate-300 rounded-full mx-auto mb-4"></div>
                         <p className="font-black text-xs uppercase text-slate-400 text-center tracking-widest mb-4"><Banknote size={12} className="inline-block mr-1.5 -mt-0.5" /> FINALIZAR PAGAMENTO</p>
-                        <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 mb-4">
+                        <div className="bg-slate-50 rounded-lg p-4 border border-slate-100 mb-4">
                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">DADOS DO CLIENTE</p>
                             <p className="font-black text-sm text-slate-900 uppercase">{currentUser?.name || 'CONSUMIDOR FINAL'}</p>
                             <p className="text-[10px] text-slate-500 font-bold">Saldo: R$ {formatarMoeda(currentUser?.walletBalance || 0)}</p>
                         </div>
-                        <div className="bg-emerald-50 rounded-xl p-6 border border-emerald-100 text-center mb-6">
+                        <div className="bg-emerald-50 rounded-lg p-6 border border-emerald-100 text-center mb-6">
                             <p className="text-[9px] font-black text-[var(--primary-color)] uppercase tracking-widest mb-2">TOTAL GERAL</p>
                             <p className="font-black text-3xl text-slate-900">R$ {formatarMoeda(cartTotal)}</p>
                         </div>
-                        <button onClick={cancelSale} className={`w-full py-3.5 min-h-[44px] rounded-xl font-bold text-sm text-white active:scale-95 mb-2 flex items-center justify-center gap-2 transition-all ${!isAdmin && confirmarLimpar ? 'bg-red-600 ring-4 ring-red-200 animate-pulse' : 'bg-red-500'}`}>
+                        <button onClick={cancelSale} className={`w-full py-3.5 min-h-[44px] rounded-lg font-bold text-sm text-white active:scale-95 mb-2 flex items-center justify-center gap-2 transition-all ${!isAdmin && confirmarLimpar ? 'bg-red-500 ring-2 ring-red-300/60 animate-pulse' : 'bg-red-500'}`}>
                             <X size={14} className="inline-block mr-1.5 -mt-0.5" /> {isAdmin ? 'Cancelar' : (confirmarLimpar ? 'Toque de novo para confirmar' : 'Limpar Carrinho')}
                         </button>
                         {isAdmin && (
@@ -1615,11 +1615,11 @@ export const UserDashboard: React.FC = () => {
                                     setCart(prev => prev.filter(i => String(i.productId) !== String(lastItem.productId)));
                                     showNotification('Último item removido!', 'success');
                                 }
-                            }} className="w-full py-3 rounded-xl font-bold text-sm bg-orange-500 text-white active:scale-95 mb-4 flex items-center justify-center gap-2">
+                            }} className="w-full py-3 rounded-lg font-bold text-sm bg-orange-500 text-white active:scale-95 mb-4 flex items-center justify-center gap-2">
                                 <RefreshCcw size={14} className="inline-block mr-1.5 -mt-0.5" /> Estorno (F9)
                             </button>
                         )}
-                        <button onClick={() => setIsCheckoutModalOpen(true)} disabled={cart.length === 0} className="w-full py-4 rounded-xl text-white font-black text-lg bg-emerald-600 active:scale-95 shadow-md disabled:bg-slate-300 disabled:cursor-not-allowed disabled:text-slate-500 transition-all">
+                        <button onClick={() => setIsCheckoutModalOpen(true)} disabled={cart.length === 0} className="w-full py-4 rounded-lg text-white font-black text-lg bg-emerald-600 active:scale-95 shadow-md disabled:bg-slate-300 disabled:cursor-not-allowed disabled:text-slate-500 transition-all">
                             FINALIZAR COMPRA
                         </button>
                     </div>
@@ -1627,7 +1627,7 @@ export const UserDashboard: React.FC = () => {
             )}
 
             {totalItensNoCarrinho > 0 && (
-                <button onClick={() => setIsCartReviewOpen(true)} className="hidden md:flex fixed bottom-6 right-6 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-5 rounded-full shadow-2xl flex items-center gap-2 z-50 transition-all active:scale-95 cursor-pointer">
+                <button onClick={() => setIsCartReviewOpen(true)} className="hidden md:flex fixed bottom-6 right-6 bg-[#0f172a] hover:bg-[#1e293b] text-white font-bold py-3 px-5 rounded-full shadow-2xl flex items-center gap-2 z-50 transition-all active:scale-95 cursor-pointer">
                     <span className="relative">
                         <ShoppingCart size={20} />
                         <span className="absolute -top-2 -right-2 w-auto min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center border border-white">{totalItensNoCarrinho}</span>
@@ -1639,7 +1639,7 @@ export const UserDashboard: React.FC = () => {
             {/* DEPOSIT MODAL — 2 etapas */}
             {isDepositOpen && (
                 <div className="fixed inset-0 z-[999] bg-black/60 backdrop-blur-sm" onClick={() => { setIsDepositOpen(false); setDepositStage('amount'); setProofFile(null); }}>
-                    <div className="fixed inset-x-3 sm:inset-x-4 top-1/2 -translate-y-1/2 md:max-w-md md:mx-auto bg-slate-900 rounded-2xl shadow-2xl p-5 max-h-[85vh] overflow-y-auto flex flex-col space-y-4 z-50 border border-slate-700" onClick={e => e.stopPropagation()}>
+                    <div className="fixed inset-x-3 sm:inset-x-4 top-1/2 -translate-y-1/2 md:max-w-md md:mx-auto bg-slate-900 rounded-lg shadow-2xl p-5 max-h-[85vh] overflow-y-auto flex flex-col space-y-4 z-50 border border-slate-700" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center shrink-0">
                             <h3 className="font-black text-base uppercase tracking-tight text-white">Enviar Crédito</h3>
                             <button onClick={() => { setIsDepositOpen(false); setDepositStage('amount'); setProofFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="w-7 h-7 bg-slate-700 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-600"><X size={16}/></button>
@@ -1647,12 +1647,12 @@ export const UserDashboard: React.FC = () => {
 
                         {depositStage === 'amount' && (
                             <div className="flex flex-col space-y-4">
-                                <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
+                                <div className="bg-slate-800 p-4 rounded-lg border border-slate-700">
                                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Valor do Crédito (R$)</p>
                                     <input type="number" className="w-full bg-transparent font-black text-2xl text-center outline-none text-white" value={depositAmount || ''} onChange={e => setDepositAmount(Number(e.target.value))} placeholder="0,00" />
                                 </div>
                                 {depositAmount > 0 && (
-                                    <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 flex flex-col items-center">
+                                    <div className="bg-slate-800 p-4 rounded-lg border border-slate-700 flex flex-col items-center">
                                         {pixPayload ? (
                                             <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(pixPayload)}`} className="w-36 h-36 object-contain" alt="QR PIX" />
                                         ) : (
@@ -1660,12 +1660,12 @@ export const UserDashboard: React.FC = () => {
                                                 <p className="text-[10px] font-bold text-red-400 uppercase">PIX indisponível. Fale com a administração.</p>
                                             </div>
                                         )}
-                                        <button onClick={() => { navigator.clipboard.writeText(pixPayload || ''); setPixCopied(true); setTimeout(() => setPixCopied(false), 2000); }} className={`w-full mt-3 py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${pixCopied ? 'bg-emerald-600 text-white' : 'bg-blue-500 text-white'}`}>
+                                        <button onClick={() => { navigator.clipboard.writeText(pixPayload || ''); setPixCopied(true); setTimeout(() => setPixCopied(false), 2000); }} className={`w-full mt-3 py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${pixCopied ? 'bg-[#0f172a] text-white' : 'bg-blue-500 text-white'}`}>
                                             {pixCopied ? <><CheckCircle size={12} /> COPIADO!</> : <><RefreshCcw size={12} /> Copiar PIX</>}
                                         </button>
                                     </div>
                                 )}
-                                <button onClick={() => { if (depositAmount <= 0) { showNotification('DIGITE O VALOR DO CRÉDITO.', 'error'); return; } if (depositAmount > 100000) { showNotification('VALOR ACIMA DO LIMITE POR DEPÓSITO (R$ 100.000,00).', 'error'); return; } setDepositStage('proof'); if (fileInputRef.current) fileInputRef.current.value = ''; }} disabled={depositAmount <= 0} className="w-full py-3 bg-emerald-600 text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg disabled:opacity-50">
+                                <button onClick={() => { if (depositAmount <= 0) { showNotification('DIGITE O VALOR DO CRÉDITO.', 'error'); return; } if (depositAmount > 100000) { showNotification('VALOR ACIMA DO LIMITE POR DEPÓSITO (R$ 100.000,00).', 'error'); return; } setDepositStage('proof'); if (fileInputRef.current) fileInputRef.current.value = ''; }} disabled={depositAmount <= 0} className="w-full py-3 bg-[#0f172a] text-white rounded-lg font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg disabled:opacity-50">
                                     <Sparkles size={14} /> Já fiz o PIX do Crédito
                                 </button>
                             </div>
@@ -1673,11 +1673,11 @@ export const UserDashboard: React.FC = () => {
 
                         {depositStage === 'proof' && (
                             <div className="flex flex-col space-y-4">
-                                <div className="bg-blue-900/30 p-4 rounded-xl border border-blue-800 text-center">
+                                <div className="bg-blue-900/30 p-4 rounded-lg border border-blue-800 text-center">
                                     <p className="font-black text-xs text-blue-300 uppercase tracking-wider mb-1">Comprovante de Pagamento</p>
                                     <p className="text-[10px] text-blue-400 font-bold">Anexe a foto do comprovante PIX para confirmar o crédito</p>
                                 </div>
-                                <div onClick={() => fileInputRef.current?.click()} className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${proofFile ? 'border-emerald-500 bg-emerald-500/10' : 'border-blue-700 bg-slate-800 hover:border-blue-500 hover:bg-slate-700'}`}>
+                                <div onClick={() => fileInputRef.current?.click()} className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all ${proofFile ? 'border-emerald-500 bg-emerald-500/10' : 'border-blue-700 bg-slate-800 hover:border-blue-500 hover:bg-slate-700'}`}>
                                     <input type="file" ref={fileInputRef} className="hidden" accept="image/*,.pdf" onChange={async e => {
                                         const f = e.target.files?.[0]; if (!f) return;
                                         if (f.size > 10 * 1024 * 1024) { showNotification('Arquivo muito grande. Máximo 10MB.', 'error'); e.target.value = ''; return; }
@@ -1710,7 +1710,7 @@ export const UserDashboard: React.FC = () => {
                                     )}
                                 </div>
 <p className="text-[11px] font-bold text-red-400 text-center mt-2 leading-tight"><AlertCircle size={12} className="inline-block mr-1 -mt-0.5" />Enviar comprovantes falsos ou adulterados configura CRIME (Art. 171 e 298 CP). Ao prosseguir, você assume total responsabilidade civil e criminal.</p>
-                                <button onClick={async () => { if (!proofFile) { showNotification('ANEXE O COMPROVANTE.', 'error'); return; } await depositToWalletAction(); setDepositStage('amount'); }} disabled={isSubmitting || !proofFile} className="w-full py-3 bg-blue-500 text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg disabled:opacity-50">
+                                <button onClick={async () => { if (!proofFile) { showNotification('ANEXE O COMPROVANTE.', 'error'); return; } await depositToWalletAction(); setDepositStage('amount'); }} disabled={isSubmitting || !proofFile} className="w-full py-3 bg-blue-500 text-white rounded-lg font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg disabled:opacity-50">
                                     {isSubmitting ? <><Loader2 size={14} className="animate-spin" /> Enviando...</> : <><Upload size={14} /> Enviar Comprovante</>}
                                 </button>
                             </div>
@@ -1721,7 +1721,7 @@ export const UserDashboard: React.FC = () => {
 
             {isCheckoutModalOpen && (
             <div className="fixed inset-0 z-[999] bg-black/60 backdrop-blur-sm" onClick={() => { setIsCheckoutModalOpen(false); setProofFile(null); }}>
-                    <div className="fixed inset-x-3 sm:inset-x-4 top-1/2 -translate-y-1/2 md:max-w-lg md:mx-auto bg-white rounded-2xl shadow-2xl p-4 sm:p-5 max-h-[85vh] overflow-y-auto overflow-x-hidden flex flex-col space-y-3 z-50 border border-slate-100 font-sans" onClick={e => e.stopPropagation()}>
+                    <div className="fixed inset-x-3 sm:inset-x-4 top-1/2 -translate-y-1/2 md:max-w-lg md:mx-auto bg-white rounded-lg shadow-2xl p-4 sm:p-5 max-h-[85vh] overflow-y-auto overflow-x-hidden flex flex-col space-y-3 z-50 border border-slate-100 font-sans" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center shrink-0">
                             <h3 className="font-black text-base uppercase tracking-tight">Finalizar Venda</h3>
                             <button onClick={() => { setIsCheckoutModalOpen(false); setProofFile(null); }} className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200"><X size={16}/></button>
@@ -1731,31 +1731,31 @@ export const UserDashboard: React.FC = () => {
                             <div>
                                 <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Local de Entrega</p>
                                 <div className="flex gap-2 mb-2">
-                                    <button onClick={() => setDeliveryType('intern')} className={`flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-wide border-2 transition-all min-h-[44px] ${deliveryType === 'intern' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-500'}`}>
+                                    <button onClick={() => setDeliveryType('intern')} className={`flex-1 py-2.5 rounded-lg font-black text-[10px] uppercase tracking-wide border-2 transition-all min-h-[44px] ${deliveryType === 'intern' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-500'}`}>
                                         <Home size={12} className="inline-block mr-1 -mt-0.5" /> Cela
                                     </button>
-                                    <button onClick={() => setDeliveryType('worker')} className={`flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-wide border-2 transition-all min-h-[44px] ${deliveryType === 'worker' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-500'}`}>
+                                    <button onClick={() => setDeliveryType('worker')} className={`flex-1 py-2.5 rounded-lg font-black text-[10px] uppercase tracking-wide border-2 transition-all min-h-[44px] ${deliveryType === 'worker' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-500'}`}>
                                         <HardHat size={12} className="inline-block mr-1 -mt-0.5" /> Trabalhador
                                     </button>
                                 </div>
                                 {deliveryType === 'intern' ? (
                                     <div className="flex flex-col gap-1">
                                         <div className="grid grid-cols-2 gap-2">
-                                            <input className="min-w-0 bg-slate-50 py-2.5 px-3 rounded-xl border border-slate-200 font-bold text-sm min-h-[44px] truncate" placeholder="RAIO" value={location.ray} onChange={e => setLocation({...location, ray: e.target.value})} />
-                                            <input className="min-w-0 bg-slate-50 py-2.5 px-3 rounded-xl border border-slate-200 font-bold text-sm min-h-[44px] truncate" placeholder="ALA" value={location.wing} onChange={e => setLocation({...location, wing: e.target.value})} />
+                                            <input className="min-w-0 bg-slate-50 py-2.5 px-3 rounded-lg border border-slate-200 font-bold text-sm min-h-[44px] truncate" placeholder="RAIO" value={location.ray} onChange={e => setLocation({...location, ray: e.target.value})} />
+                                            <input className="min-w-0 bg-slate-50 py-2.5 px-3 rounded-lg border border-slate-200 font-bold text-sm min-h-[44px] truncate" placeholder="ALA" value={location.wing} onChange={e => setLocation({...location, wing: e.target.value})} />
                                         </div>
-                                        <input className="w-full bg-slate-50 py-2.5 px-3 rounded-xl border border-slate-200 font-bold text-sm min-h-[44px] truncate" placeholder="CELA" value={location.cell} onChange={e => setLocation({...location, cell: e.target.value})} />
+                                        <input className="w-full bg-slate-50 py-2.5 px-3 rounded-lg border border-slate-200 font-bold text-sm min-h-[44px] truncate" placeholder="CELA" value={location.cell} onChange={e => setLocation({...location, cell: e.target.value})} />
                                     </div>
                                 ) : (
                                     <div className="flex flex-col gap-1">
                                         <div className="grid grid-cols-2 gap-2">
                                             {['Cozinha', 'Lavanderia', 'Horta', 'Oficina', 'Almoxarifado'].map(loc => (
-                                                <button key={loc} onClick={() => setDeliveryFreeText(loc)} className={`min-h-[44px] py-2 rounded-xl font-black text-[10px] uppercase border-2 transition-all ${deliveryFreeText === loc ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'}`}>
+                                                <button key={loc} onClick={() => setDeliveryFreeText(loc)} className={`min-h-[44px] py-2 rounded-lg font-black text-[10px] uppercase border-2 transition-all ${deliveryFreeText === loc ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'}`}>
                                                     {loc}
                                                 </button>
                                             ))}
                                         </div>
-                                        <input className="w-full bg-slate-50 py-2 px-3 rounded-xl border border-slate-200 font-bold text-sm" placeholder="Outro local de trabalho..." value={deliveryFreeText} onChange={e => setDeliveryFreeText(e.target.value)} />
+                                        <input className="w-full bg-slate-50 py-2 px-3 rounded-lg border border-slate-200 font-bold text-sm" placeholder="Outro local de trabalho..." value={deliveryFreeText} onChange={e => setDeliveryFreeText(e.target.value)} />
                                     </div>
                                 )}
                             </div>
@@ -1763,16 +1763,16 @@ export const UserDashboard: React.FC = () => {
                             <div>
                                 <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Forma de Pagamento</p>
                                 <div className="grid grid-cols-2 gap-2">
-                                    <button onClick={() => setCartPaymentMethod('WALLET')} disabled={!isAdmin} className={`min-h-[44px] py-3 rounded-xl font-black text-[11px] uppercase tracking-wide border-2 transition-all active:scale-95 ${cartPaymentMethod === 'WALLET' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'} ${!isAdmin ? 'opacity-40 cursor-not-allowed grayscale' : ''}`}>
+                                    <button onClick={() => setCartPaymentMethod('WALLET')} disabled={!isAdmin} className={`min-h-[44px] py-3 rounded-lg font-black text-[11px] uppercase tracking-wide border-2 transition-all active:scale-95 ${cartPaymentMethod === 'WALLET' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'} ${!isAdmin ? 'opacity-40 cursor-not-allowed grayscale' : ''}`}>
                                         <Wallet size={12} className="inline-block mr-1.5 -mt-0.5" /> Saldo
                                     </button>
-                                    <button onClick={() => setCartPaymentMethod('PIX')} className={`min-h-[44px] py-3 rounded-xl font-black text-[11px] uppercase tracking-wide border-2 transition-all active:scale-95 ${cartPaymentMethod === 'PIX' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'}`}>
+                                    <button onClick={() => setCartPaymentMethod('PIX')} className={`min-h-[44px] py-3 rounded-lg font-black text-[11px] uppercase tracking-wide border-2 transition-all active:scale-95 ${cartPaymentMethod === 'PIX' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'}`}>
                                         <Smartphone size={12} className="inline-block mr-1.5 -mt-0.5" /> PIX
                                     </button>
                                 </div>
 
                                 {cartPaymentMethod === 'PIX' && (
-                                    <div className="mt-3 p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl text-center space-y-2">
+                                    <div className="mt-3 p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-lg text-center space-y-2">
                                         {pixPayload && (
                                             <>
                                                 <div>
@@ -1780,12 +1780,12 @@ export const UserDashboard: React.FC = () => {
                                                         <CreditCard size={12} className="text-[var(--primary-color)]" />
                                                         <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--primary-color)]">Escaneie para Pagar</span>
                                                     </div>
-                                                    <div className="bg-white rounded-xl p-2 inline-block shadow-lg">
+                                                    <div className="bg-white rounded-lg p-2 inline-block shadow-lg">
                                                         <QRCodeSVG value={pixPayload} size={130} level="H" bgColor="#ffffff" fgColor="#022c22" includeMargin={true} />
                                                     </div>
                                                 </div>
                                                 {settings?.pixKeys?.[0] && (
-                                                    <div className="bg-white rounded-xl p-2 border border-slate-200">
+                                                    <div className="bg-white rounded-lg p-2 border border-slate-200">
                                                         <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em] mb-1">Chave Copia e Cola</p>
                                                         <input readOnly value={pixPayload} className="w-full text-[10px] font-mono text-slate-500 bg-transparent outline-none text-center select-all mb-1 break-all" onClick={(e) => (e.target as HTMLInputElement).select()} />
                                                         <button
@@ -1805,9 +1805,9 @@ export const UserDashboard: React.FC = () => {
                                         {!pixPayload && (
                                             <p className="text-[10px] font-black text-amber-600 uppercase tracking-wider text-left"><AlertCircle size={12} className="inline-block mr-1 -mt-0.5" />Chave PIX ainda não cadastrada — o pagamento será confirmado com o comprovante anexado.</p>
                                         )}
-                                        <div className="bg-slate-50 rounded-xl border border-slate-200 p-3">
+                                        <div className="bg-slate-50 rounded-lg border border-slate-200 p-3">
                                             <p className="text-[10px] font-black text-slate-400 uppercase mb-2 text-left">Comprovante de Pagamento</p>
-                                            <label className="flex items-center gap-2 bg-white p-3 rounded-xl border-2 border-dashed border-slate-300 cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/30 transition-all active:scale-[0.98]">
+                                            <label className="flex items-center gap-2 bg-white p-3 rounded-lg border-2 border-dashed border-slate-300 cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/30 transition-all active:scale-[0.98]">
                                                 <Upload size={16} className="text-emerald-500 shrink-0" />
                                                 <span className="text-[10px] font-bold text-slate-700 text-left leading-tight break-all">{proofFile ? proofFile.name : 'CLIQUE AQUI PARA ENVIAR O COMPROVANTE PIX'}</span>
                                                 <input type="file" accept="image/*,.pdf" className="hidden" onChange={async e => {
@@ -1838,7 +1838,7 @@ export const UserDashboard: React.FC = () => {
                                 <span className="text-xl font-black text-slate-900">R$ {formatarMoeda(cartTotal)}</span>
                             </div>
 
-                            <button onClick={handleFinish} disabled={isSubmitting || (cartPaymentMethod === 'PIX' && !proofFile)} className="w-full py-3 bg-slate-900 text-white font-black rounded-2xl uppercase text-xs shadow-xl active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shrink-0">
+                            <button onClick={handleFinish} disabled={isSubmitting || (cartPaymentMethod === 'PIX' && !proofFile)} className="w-full py-3 bg-slate-900 text-white font-black rounded-lg uppercase text-xs shadow-xl active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shrink-0">
                                 {isSubmitting ? <><Loader2 size={14} className="animate-spin" /> Processando...</> : (cartPaymentMethod === 'PIX' && !proofFile) ? <><Paperclip size={14} className="inline-block mr-1 -mt-0.5" /> Anexe o Comprovante para Confirmar</> : 'Confirmar Pedido'}
                             </button>
                         </div>
@@ -1848,7 +1848,7 @@ export const UserDashboard: React.FC = () => {
 
             {viewingOrderCupom && (
                 <div className="fixed inset-0 z-[5000] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 print:p-0 print:bg-white" onClick={() => setViewingOrderCupom(null)}>
-                    <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden print:shadow-none print:w-[76mm] print:mx-auto" onClick={e => e.stopPropagation()}>
+                    <div className="bg-white rounded-lg w-full max-w-sm overflow-hidden print:shadow-none print:w-[76mm] print:mx-auto" onClick={e => e.stopPropagation()}>
                         <div className="p-4 border-b border-slate-100 flex justify-between items-center print:hidden">
                             <span className="font-black text-xs uppercase">Recibo</span>
                             <button onClick={() => setViewingOrderCupom(null)} className="text-slate-400"><X size={20}/></button>
@@ -1865,7 +1865,7 @@ export const UserDashboard: React.FC = () => {
                             />
                         </div>
                         <div className="p-4 bg-white border-t border-slate-100 print:hidden">
-                            <button onClick={() => imprimirComPrioridadeFiscal({ type: 'CUPOM', data: viewingOrderCupom }, settings).catch(console.error)} className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black text-xs uppercase shadow-lg shadow-emerald-500/20">Imprimir Comprovante</button>
+                            <button onClick={() => imprimirComPrioridadeFiscal({ type: 'CUPOM', data: viewingOrderCupom }, settings).catch(console.error)} className="w-full bg-[#0f172a] text-white py-4 rounded-lg font-black text-xs uppercase shadow-sm">Imprimir Comprovante</button>
                         </div>
                         <style>{`
                           @media print {

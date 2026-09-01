@@ -31,7 +31,7 @@ const MODULOS_PERMISSAO: { key: string; label: string }[] = [
 ];
 
 const PermToggles: React.FC<{ perms: string[]; onChange: (p: string[]) => void }> = ({ perms, onChange }) => (
-  <div className="p-4 bg-white border border-slate-200 rounded-xl space-y-2">
+  <div className="p-4 bg-white border border-slate-200 rounded-lg space-y-2">
     <div className="flex items-center justify-between">
       <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Permissões de acesso</p>
       <div className="flex gap-1">
@@ -384,9 +384,9 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
           setActiveSubTab(id);
         }
       }}
-      className={`flex items-center gap-2 px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap shrink-0 ${
+      className={`flex items-center gap-2 px-6 py-3 rounded-lg font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap shrink-0 ${
         activeSubTab === id
-          ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/30'
+          ? 'bg-[#0f172a] text-white shadow-sm'
           : 'bg-white/10 text-slate-300 hover:bg-white/20 border border-white/10'
       }`}
     >
@@ -398,8 +398,8 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
   if (isAuthenticated === false) {
     return (
       <div className="animate-fadeIn flex flex-col items-center justify-center min-h-[60vh] pb-16 md:pb-32">
-        <div className="bg-white p-8 md:p-16 rounded-[3rem] border border-slate-100 shadow-2xl text-center max-w-lg w-full">
-          <div className="w-24 h-24 bg-slate-100 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-inner">
+        <div className="bg-white p-8 md:p-16 rounded-lg border border-slate-100 shadow-md text-center max-w-lg w-full">
+          <div className="w-24 h-24 bg-slate-100 rounded-lg flex items-center justify-center mx-auto mb-8 shadow-inner">
             <Lock size={48} className="text-slate-400" />
           </div>
           <h3 className="text-2xl font-bold text-slate-900 tracking-tight mb-3">Acesso Restrito</h3>
@@ -409,7 +409,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
           </p>
           <button
             onClick={onAuthenticate}
-            className="w-full bg-slate-900 text-white p-5 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl hover:bg-black active:scale-95 transition-all flex items-center justify-center gap-3"
+            className="w-full bg-slate-900 text-white p-5 rounded-lg font-black uppercase text-xs tracking-widest shadow-md hover:bg-black active:scale-95 transition-all flex items-center justify-center gap-3"
           >
             <Shield size={20} /> Acessar Painel de Controle
           </button>
@@ -427,13 +427,13 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
       <AppDownloadButton variant="full" label="Baixar App Desktop (Setup)" />
 
       {/* Header */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0f172a] p-6 md:p-8 shadow-2xl">
+      <div className="relative overflow-hidden rounded-lg bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0f172a] p-6 md:p-8 shadow-md">
         <div className="absolute -top-24 -right-24 w-72 h-72 bg-emerald-500/20 rounded-full blur-[100px]"></div>
         <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-blue-500/20 rounded-full blur-[100px]"></div>
         <div className="relative flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6">
           <div className="max-w-full overflow-hidden">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-lg shadow-emerald-500/30 shrink-0">
+              <div className="w-14 h-14 rounded-lg bg-[#0f172a] flex items-center justify-center text-white shadow-sm shrink-0">
                 <Settings size={28} />
               </div>
               <div>
@@ -472,7 +472,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
         {activeSubTab === 'general' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-slideUp">
             {/* Identidade Visual */}
-            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-2xl space-y-6">
+            <div className="bg-white p-8 rounded-lg border border-slate-100 shadow-md space-y-6">
               <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2 mb-4">
                 <Info size={20} className="text-blue-500" /> Identidade Visual
               </h3>
@@ -480,7 +480,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                 <div>
                   <label className="text-[10px] font-black text-slate-900 uppercase mb-1 block">Nome do Sistema</label>
                   <input
-                    className="w-full p-4 bg-slate-50 border-2 border-slate-200 focus:border-blue-500 rounded-2xl font-black text-sm text-slate-900 outline-none transition-all"
+                    className="w-full p-4 bg-slate-50 border-2 border-slate-200 focus:border-blue-500 rounded-lg font-black text-sm text-slate-900 outline-none transition-all"
                     value={localSettings?.appName || ''}
                     onChange={e => setLocalSettings({ ...localSettings, appName: e.target.value, systemName: e.target.value })}
                     placeholder="Ex: Mercado Fácil PDV"
@@ -489,7 +489,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                 <div>
                   <label className="text-[10px] font-black text-slate-900 uppercase mb-1 block">Nome da Instituição</label>
                   <textarea
-                    className="w-full p-4 bg-slate-50 border-2 border-slate-200 focus:border-blue-500 rounded-2xl font-black text-sm text-slate-900 outline-none transition-all min-h-[5rem] resize-none"
+                    className="w-full p-4 bg-slate-50 border-2 border-slate-200 focus:border-blue-500 rounded-lg font-black text-sm text-slate-900 outline-none transition-all min-h-[5rem] resize-none"
                     rows={2}
                     value={localSettings?.institutionName || ''}
                     onChange={e => setLocalSettings({ ...localSettings, institutionName: e.target.value })}
@@ -500,7 +500,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                   <div>
                     <label className="text-[10px] font-black text-slate-900 uppercase mb-1 block">CNPJ</label>
                     <input
-                      className="w-full p-4 bg-slate-50 border-2 border-slate-200 focus:border-blue-500 rounded-2xl font-black text-sm text-slate-900 outline-none"
+                      className="w-full p-4 bg-slate-50 border-2 border-slate-200 focus:border-blue-500 rounded-lg font-black text-sm text-slate-900 outline-none"
                       value={localSettings?.cnpj || ''}
                       onChange={e => setLocalSettings({ ...localSettings, cnpj: e.target.value })}
                       placeholder="00.000.000/0000-00"
@@ -509,7 +509,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                   <div>
                     <label className="text-[10px] font-black text-slate-900 uppercase mb-1 block">Telefone</label>
                     <input
-                      className="w-full p-4 bg-slate-50 border-2 border-slate-200 focus:border-blue-500 rounded-2xl font-black text-sm text-slate-900 outline-none"
+                      className="w-full p-4 bg-slate-50 border-2 border-slate-200 focus:border-blue-500 rounded-lg font-black text-sm text-slate-900 outline-none"
                       value={localSettings?.contactPhone || ''}
                       onChange={e => setLocalSettings({ ...localSettings, contactPhone: e.target.value })}
                       placeholder="(99) 99999-9999"
@@ -520,7 +520,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
               <button
                 onClick={handleSaveSettings}
                 disabled={isSaving}
-                className="w-full bg-slate-900 text-white p-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl hover:bg-black active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-slate-900 text-white p-4 rounded-lg font-black uppercase text-xs tracking-widest shadow-md hover:bg-black active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSaving ? (
                   <><Loader2 size={16} className="animate-spin" /> Salvando...</>
@@ -532,9 +532,9 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
 
             <div className="space-y-8">
               {isInstallable && !isStandalone && (
-                <div className="bg-white border border-slate-200 rounded-2xl px-4 py-3.5 flex items-center justify-between gap-3">
+                <div className="bg-white border border-slate-200 rounded-lg px-4 py-3.5 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 shrink-0 bg-slate-900 rounded-xl flex items-center justify-center">
+                    <div className="w-10 h-10 shrink-0 bg-slate-900 rounded-lg flex items-center justify-center">
                       <Smartphone size={18} className="text-white" />
                     </div>
                     <div className="min-w-0">
@@ -544,7 +544,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                   </div>
                   <button
                     onClick={installApp}
-                    className="shrink-0 flex items-center gap-2 bg-slate-900 hover:bg-slate-700 text-white font-black px-4 py-2.5 rounded-xl text-[10px] uppercase tracking-widest shadow transition-all active:scale-95 cursor-pointer"
+                    className="shrink-0 flex items-center gap-2 bg-slate-900 hover:bg-slate-700 text-white font-black px-4 py-2.5 rounded-lg text-[10px] uppercase tracking-widest shadow transition-all active:scale-95 cursor-pointer"
                   >
                     <Download size={14} /> Baixar
                   </button>
@@ -552,23 +552,23 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
               )}
               {/* Gestão de Admins */}
               {isMaster && (
-                <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-2xl">
+                <div className="bg-white p-8 rounded-lg border border-slate-100 shadow-md">
                   <div className="flex justify-between items-center mb-6">
                     <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
                       <Shield size={20} className="text-indigo-600" /> Admins
                     </h3>
                     <button
                       onClick={() => setShowAddAdmin(!showAddAdmin)}
-                      className={`text-[10px] font-black uppercase px-4 py-2 rounded-xl ${showAddAdmin ? 'bg-slate-900 text-white' : 'bg-indigo-600 text-white'}`}
+                      className={`text-[10px] font-black uppercase px-4 py-2 rounded-lg ${showAddAdmin ? 'bg-slate-900 text-white' : 'bg-indigo-600 text-white'}`}
                     >
                       {showAddAdmin ? 'FECHAR' : 'NOVO'}
                     </button>
                   </div>
                   {showAddAdmin && (
-                    <div className="mb-6 p-6 bg-slate-50 rounded-2xl space-y-4">
-                      <input className="w-full p-3 text-xs border bg-white rounded-xl font-black text-slate-900" placeholder="NOME" value={adminForm.name} onChange={e => setAdminForm({ ...adminForm, name: e.target.value.toUpperCase() })} />
-                      <input className="w-full p-3 text-xs border bg-white rounded-xl font-black text-slate-900" placeholder="EMAIL" value={adminForm.email} onChange={e => setAdminForm({ ...adminForm, email: e.target.value })} />
-                      <input className="w-full p-3 text-xs border bg-white rounded-xl font-black text-slate-900" placeholder="SENHA" type="password" value={adminForm.password} onChange={e => setAdminForm({ ...adminForm, password: e.target.value })} />
+                    <div className="mb-6 p-6 bg-slate-50 rounded-lg space-y-4">
+                      <input className="w-full p-3 text-xs border bg-white rounded-lg font-black text-slate-900" placeholder="NOME" value={adminForm.name} onChange={e => setAdminForm({ ...adminForm, name: e.target.value.toUpperCase() })} />
+                      <input className="w-full p-3 text-xs border bg-white rounded-lg font-black text-slate-900" placeholder="EMAIL" value={adminForm.email} onChange={e => setAdminForm({ ...adminForm, email: e.target.value })} />
+                      <input className="w-full p-3 text-xs border bg-white rounded-lg font-black text-slate-900" placeholder="SENHA" type="password" value={adminForm.password} onChange={e => setAdminForm({ ...adminForm, password: e.target.value })} />
                       <PermToggles perms={adminForm.permissions} onChange={p => setAdminForm({ ...adminForm, permissions: p })} />
                       <button
                         onClick={() => {
@@ -578,7 +578,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                             setAdminForm({ name: '', email: '', password: '', cpf: '', permissions: MODULOS_PERMISSAO.map(m => m.key) });
                           }
                         }}
-                        className="w-full bg-slate-900 text-white p-3 rounded-xl text-xs font-black uppercase"
+                        className="w-full bg-slate-900 text-white p-3 rounded-lg text-xs font-black uppercase"
                       >
                         CRIAR
                       </button>
@@ -587,7 +587,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                   <div className="space-y-2">
                     {(users || []).filter(u => isAdminRole(u.role) && u.id !== 'master').map(admin => (
                       <React.Fragment key={admin.id}>
-                        <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
+                        <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
                           <div className="min-w-0">
                             <p className="font-black text-xs">{admin.name}</p>
                             <p className="text-[10px] text-slate-500">{admin.email}</p>
@@ -626,7 +626,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                           </div>
                         </div>
                         {editPermissionsFor === admin.id && (
-                          <div className="p-4 bg-white rounded-xl border border-indigo-200 space-y-3">
+                          <div className="p-4 bg-white rounded-lg border border-indigo-200 space-y-3">
                             <PermToggles perms={editPermissions} onChange={setEditPermissions} />
                             <div className="flex gap-2">
                               <button
@@ -637,13 +637,13 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                                   );
                                   setEditPermissionsFor(null);
                                 }}
-                                className="flex-1 bg-slate-900 text-white p-2.5 rounded-xl text-[10px] font-black uppercase hover:bg-black transition-all"
+                                className="flex-1 bg-slate-900 text-white p-2.5 rounded-lg text-[10px] font-black uppercase hover:bg-black transition-all"
                               >
                                 Salvar permissões
                               </button>
                               <button
                                 onClick={() => setEditPermissionsFor(null)}
-                                className="px-4 bg-white border border-slate-200 text-slate-600 p-2.5 rounded-xl text-[10px] font-black uppercase hover:bg-slate-50 transition-all"
+                                className="px-4 bg-white border border-slate-200 text-slate-600 p-2.5 rounded-lg text-[10px] font-black uppercase hover:bg-slate-50 transition-all"
                               >
                                 Cancelar
                               </button>
@@ -660,7 +660,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
               )}
 
               {/* Credenciais Master */}
-              <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-2xl">
+              <div className="bg-white p-8 rounded-lg border border-slate-100 shadow-md">
                 <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 mb-6 flex items-center gap-2">
                   <KeyRound size={20} className="text-blue-500" /> Segurança Master
                 </h3>
@@ -668,7 +668,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                   <div>
                     <label className="text-[10px] font-black text-slate-700 uppercase mb-1 block">Nova Senha</label>
                     <input
-                      className="w-full p-4 bg-white border-2 border-slate-200 focus:border-blue-500 rounded-2xl font-black text-sm text-slate-900 outline-none transition-all"
+                      className="w-full p-4 bg-white border-2 border-slate-200 focus:border-blue-500 rounded-lg font-black text-sm text-slate-900 outline-none transition-all"
                       type="password"
                       value={newAdminPassword}
                       onChange={e => setNewAdminPassword(e.target.value)}
@@ -678,7 +678,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                   <div>
                     <label className="text-[10px] font-black text-slate-700 uppercase mb-1 block">Confirmar Nova Senha</label>
                     <input
-                      className={`w-full p-4 bg-white border-2 rounded-2xl font-black text-sm text-slate-900 outline-none transition-all ${
+                      className={`w-full p-4 bg-white border-2 rounded-lg font-black text-sm text-slate-900 outline-none transition-all ${
                         confirmAdminPassword && confirmAdminPassword.trim() !== newAdminPassword.trim()
                           ? 'border-red-400 focus:border-red-500'
                           : 'border-slate-200 focus:border-blue-500'
@@ -696,7 +696,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                 <button
                   onClick={handlePasswordChange}
                   disabled={isChangingPassword || !newAdminPassword.trim() || newAdminPassword.trim() !== confirmAdminPassword.trim()}
-                  className="w-full bg-slate-900 text-white p-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-black active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-slate-900 text-white p-4 rounded-lg font-black uppercase text-xs tracking-widest hover:bg-black active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isChangingPassword ? (
                     <><Loader2 size={16} className="animate-spin" /> Atualizando...</>
@@ -707,7 +707,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
               </div>
 
               {/* Senha Secundária (ações sensíveis) */}
-              <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-2xl">
+              <div className="bg-white p-8 rounded-lg border border-slate-100 shadow-md">
                 <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 mb-1 flex items-center gap-2">
                   <Lock size={20} className="text-amber-500" /> Senha Secundária
                 </h3>
@@ -718,7 +718,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                   <div>
                     <label className="text-[10px] font-black text-slate-700 uppercase mb-1 block">Nova Senha Secundária</label>
                     <input
-                      className="w-full p-4 bg-white border-2 border-slate-200 focus:border-amber-500 rounded-2xl font-black text-sm text-slate-900 outline-none transition-all"
+                      className="w-full p-4 bg-white border-2 border-slate-200 focus:border-amber-500 rounded-lg font-black text-sm text-slate-900 outline-none transition-all"
                       type="password"
                       value={secondaryPassword}
                       onChange={e => setSecondaryPassword(e.target.value)}
@@ -728,7 +728,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                   <div>
                     <label className="text-[10px] font-black text-slate-700 uppercase mb-1 block">Confirmar Senha Secundária</label>
                     <input
-                      className={`w-full p-4 bg-white border-2 rounded-2xl font-black text-sm text-slate-900 outline-none transition-all ${
+                      className={`w-full p-4 bg-white border-2 rounded-lg font-black text-sm text-slate-900 outline-none transition-all ${
                         confirmSecondaryPassword && confirmSecondaryPassword.trim() !== secondaryPassword.trim()
                           ? 'border-red-400 focus:border-red-500'
                           : 'border-slate-200 focus:border-amber-500'
@@ -746,7 +746,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                 <button
                   onClick={handleSaveSecondaryPassword}
                   disabled={isSavingSecondaryPass || secondaryPassword.trim().length < 8 || secondaryPassword.trim() !== confirmSecondaryPassword.trim()}
-                  className="w-full bg-amber-500 text-white p-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-amber-600 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-amber-500 text-white p-4 rounded-lg font-black uppercase text-xs tracking-widest hover:bg-amber-600 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSavingSecondaryPass ? (
                     <><Loader2 size={16} className="animate-spin" /> Salvando...</>
@@ -762,7 +762,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
         {/* ── FINANCEIRO ── */}
         {activeSubTab === 'finance' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-slideUp">
-            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-2xl">
+            <div className="bg-white p-8 rounded-lg border border-slate-100 shadow-md">
               <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2 mb-4">
                 <DollarSign size={20} className="text-emerald-500" /> PIX & Carteira
               </h3>
@@ -771,7 +771,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                   <label className="text-[10px] font-black text-slate-700 uppercase mb-1 block">Chaves PIX</label>
                   <div className="flex gap-2">
                     <input
-                      className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm text-slate-900"
+                      className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-lg font-bold text-sm text-slate-900"
                       value={newPixKey}
                       onChange={e => setNewPixKey(e.target.value)}
                       placeholder="NOVA CHAVE"
@@ -783,7 +783,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                           setNewPixKey('');
                         }
                       }}
-                      className="bg-emerald-600 text-white px-4 rounded-xl font-black text-xs"
+                      className="bg-[#0f172a] text-white px-4 rounded-lg font-black text-xs"
                     >
                       +
                     </button>
@@ -799,7 +799,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                     ))}
                   </div>
                 </div>
-                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200">
                   <div>
                     <p className="text-xs font-black uppercase text-slate-900">Carteira do Interno / Saldo</p>
                     <p className="text-[10px] text-slate-500">Habilitar carteira e compras via saldo</p>
@@ -809,7 +809,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                     <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
                   </label>
                 </div>
-                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200">
                   <div>
                     <p className="text-xs font-black uppercase text-slate-900">Forçar PIX</p>
                     <p className="text-[10px] text-slate-500">Exigir pagamento PIX para usuários</p>
@@ -819,7 +819,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                     <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
                   </label>
                 </div>
-                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200">
                   <div>
                     <p className="text-xs font-black uppercase text-slate-900">Liberar Compras</p>
                     <p className="text-[10px] text-slate-500">Permitir que usuários FAMILY vejam a loja</p>
@@ -829,11 +829,11 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                     <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
                   </label>
                 </div>
-                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
                   <p className="text-xs font-black uppercase text-slate-900 mb-2">Limite de Crédito Semanal (R$)</p>
                   <input
                     type="number"
-                    className="w-full p-3 bg-white border-2 border-slate-400 rounded-xl font-black text-sm text-slate-900"
+                    className="w-full p-3 bg-white border-2 border-slate-400 rounded-lg font-black text-sm text-slate-900"
                     value={draftValue('weeklyWalletLimit', settings?.weeklyWalletLimit, 300)}
                     onChange={e => setDraft('weeklyWalletLimit', e.target.value)}
                     onBlur={() => commitDraft('weeklyWalletLimit', { num: true, fallback: 300, min: 0 })}
@@ -843,26 +843,26 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
               </div>
             </div>
 
-            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-2xl">
+            <div className="bg-white p-8 rounded-lg border border-slate-100 shadow-md">
               <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2 mb-4">
                 <Truck size={20} className="text-blue-500" /> Entregas
               </h3>
               <div className="space-y-4">
-                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
                   <p className="text-xs font-black uppercase text-slate-900 mb-2">Prazo de Entrega (dias)</p>
                   <input
                     type="number"
-                    className="w-full p-3 bg-white border-2 border-slate-400 rounded-xl font-black text-sm text-slate-900"
+                    className="w-full p-3 bg-white border-2 border-slate-400 rounded-lg font-black text-sm text-slate-900"
                     value={draftValue('deliveryDays', settings?.deliveryDays, 3)}
                     onChange={e => setDraft('deliveryDays', e.target.value)}
                     onBlur={() => commitDraft('deliveryDays', { int: true, fallback: 3, min: 0 })}
                     onKeyDown={commitOnEnter}
                   />
                 </div>
-                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
                   <p className="text-xs font-black uppercase text-slate-900 mb-2">Mensagem Boas-vindas</p>
                   <textarea
-                    className="w-full p-3 bg-white border-2 border-slate-400 rounded-xl font-bold text-sm text-slate-900 h-24"
+                    className="w-full p-3 bg-white border-2 border-slate-400 rounded-lg font-bold text-sm text-slate-900 h-24"
                     value={draftValue('welcomeMessage', settings?.welcomeMessage, '')}
                     onChange={e => setDraft('welcomeMessage', e.target.value)}
                     onBlur={() => commitDraft('welcomeMessage')}
@@ -877,7 +877,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
         {/* ── IMPRESSÃO ── */}
         {activeSubTab === 'receipts' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-slideUp">
-            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-2xl">
+            <div className="bg-white p-8 rounded-lg border border-slate-100 shadow-md">
               <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2 mb-4">
                 <Printer size={20} className="text-purple-500" /> Personalização de Recibos
               </h3>
@@ -885,7 +885,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                 <div>
                   <label className="text-[10px] font-black text-slate-900 uppercase mb-1 block">Nome do Documento</label>
                   <input
-                    className="w-full text-slate-800 bg-white border border-slate-300 px-4 py-3.5 rounded-xl font-medium focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 outline-none transition-all"
+                    className="w-full text-slate-800 bg-white border border-slate-300 px-4 py-3.5 rounded-lg font-medium focus:border-[var(--primary-color)] focus:ring-1 focus:ring-[var(--primary-color)] outline-none transition-all"
                     value={draftValue('customReceiptDocName', settings?.customReceiptDocName, 'RECIBO')}
                     onChange={e => setDraft('customReceiptDocName', e.target.value)}
                     onBlur={() => commitDraft('customReceiptDocName')}
@@ -895,14 +895,14 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                 <div>
                   <label className="text-[10px] font-black text-slate-900 uppercase mb-1 block">Texto de Rodapé do Cupom</label>
                   <textarea
-                    className="w-full text-slate-800 bg-white border border-slate-300 px-4 py-3.5 rounded-xl font-medium focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 outline-none transition-all h-24 resize-none"
+                    className="w-full text-slate-800 bg-white border border-slate-300 px-4 py-3.5 rounded-lg font-medium focus:border-[var(--primary-color)] focus:ring-1 focus:ring-[var(--primary-color)] outline-none transition-all h-24 resize-none"
                     value={draftValue('receiptFooter', settings?.receiptFooter, '')}
                     onChange={e => setDraft('receiptFooter', e.target.value)}
                     onBlur={() => commitDraft('receiptFooter')}
                     placeholder="Ex: Obrigado pela preferência!"
                   />
                 </div>
-                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200">
                   <div>
                     <p className="text-xs font-black uppercase text-slate-900">Imprimir automaticamente</p>
                     <p className="text-[10px] text-slate-500">Abre janela de impressão após venda</p>
@@ -912,13 +912,13 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                     <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
                   </label>
                 </div>
-                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
                   <p className="text-xs font-black uppercase text-slate-900 mb-2">Cópias do Cupom</p>
                   <input
                     type="number"
                     min={1}
                     max={9}
-                    className="w-full p-3 bg-white border-2 border-slate-400 rounded-xl font-black text-sm text-slate-900"
+                    className="w-full p-3 bg-white border-2 border-slate-400 rounded-lg font-black text-sm text-slate-900"
                     value={draftValue('receiptCopies', settings?.receiptCopies, 1)}
                     onChange={e => setDraft('receiptCopies', e.target.value)}
                     onBlur={() => commitDraft('receiptCopies', { int: true, fallback: 1, min: 1, max: 9 })}
@@ -926,13 +926,13 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                   />
                   <p className="text-[10px] text-slate-500 mt-1">1 = normal · 2+ para via de conferência</p>
                 </div>
-                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
                   <p className="text-xs font-black uppercase text-slate-900 mb-2">Tamanho da Fonte do Cupom</p>
                   <input
                     type="number"
                     min={8}
                     max={14}
-                    className="w-full p-3 bg-white border-2 border-slate-400 rounded-xl font-black text-sm text-slate-900"
+                    className="w-full p-3 bg-white border-2 border-slate-400 rounded-lg font-black text-sm text-slate-900"
                     value={draftValue('receiptFontSize', settings?.receiptFontSize, 10)}
                     onChange={e => setDraft('receiptFontSize', e.target.value)}
                     onBlur={() => commitDraft('receiptFontSize', { int: true, fallback: 10, min: 8, max: 14 })}
@@ -942,12 +942,12 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
               </div>
             </div>
 
-            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-2xl">
+            <div className="bg-white p-8 rounded-lg border border-slate-100 shadow-md">
               <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2 mb-4">
                 <Printer size={20} className="text-emerald-500" /> Bobina Fiscal (QZ Tray / ESC/POS)
               </h3>
               <div className="space-y-3">
-                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200">
                   <div>
                     <p className="text-xs font-black uppercase text-slate-900">Comandos ESC/POS</p>
                     <p className="text-[10px] text-slate-500">Envia binário padrão de impressora térmica</p>
@@ -957,7 +957,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                     <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
                   </label>
                 </div>
-                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200">
                   <div>
                     <p className="text-xs font-black uppercase text-slate-900">Corte automático de papel</p>
                     <p className="text-[10px] text-slate-500">Corta a bobina ao final do cupom</p>
@@ -967,10 +967,10 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                     <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
                   </label>
                 </div>
-                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
                   <p className="text-xs font-black uppercase text-slate-900 mb-2">Tipo de Corte</p>
                   <select
-                    className="w-full p-3 bg-white border-2 border-slate-400 rounded-xl font-black text-sm text-slate-900"
+                    className="w-full p-3 bg-white border-2 border-slate-400 rounded-lg font-black text-sm text-slate-900"
                     value={settings?.cutMode === 'full' ? 'full' : 'partial'}
                     onChange={e => updateSettings({ ...settings, cutMode: e.target.value })}
                   >
@@ -978,7 +978,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                     <option value="full">Total (corta de ponta a ponta)</option>
                   </select>
                 </div>
-                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200">
                   <div>
                     <p className="text-xs font-black uppercase text-slate-900">Abrir gaveta de dinheiro</p>
                     <p className="text-[10px] text-slate-500">Impulso na gaveta ao imprimir (se houver)</p>
@@ -988,10 +988,10 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                     <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
                   </label>
                 </div>
-                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
                   <p className="text-xs font-black uppercase text-slate-900 mb-2">Densidade de Impressão (QZ)</p>
                   <select
-                    className="w-full p-3 bg-white border-2 border-slate-400 rounded-xl font-black text-sm text-slate-900"
+                    className="w-full p-3 bg-white border-2 border-slate-400 rounded-lg font-black text-sm text-slate-900"
                     value={settings?.qzDotDensity || 6}
                     onChange={e => updateSettings({ ...settings, qzDotDensity: parseInt(e.target.value) })}
                   >
@@ -1000,10 +1000,10 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                     <option value={8}>8 — Escura</option>
                   </select>
                 </div>
-                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
                   <p className="text-xs font-black uppercase text-slate-900 mb-2">Codepage (Acentuação)</p>
                   <select
-                    className="w-full p-3 bg-white border-2 border-slate-400 rounded-xl font-black text-sm text-slate-900"
+                    className="w-full p-3 bg-white border-2 border-slate-400 rounded-lg font-black text-sm text-slate-900"
                     value={settings?.codepage || '850'}
                     onChange={e => updateSettings({ ...settings, codepage: e.target.value })}
                   >
@@ -1015,7 +1015,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                 </div>
               </div>
             </div>
-            <div className="bg-slate-900 p-8 rounded-3xl text-white">
+            <div className="bg-slate-900 p-8 rounded-lg text-white">
               <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-3">
                   <Receipt size={24} className="text-amber-400" />
@@ -1038,7 +1038,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                 <div>
                   <label className="text-[10px] font-black uppercase text-white/60 mb-1 block">Modelo Fiscal</label>
                   <select
-                    className="w-full p-3 bg-white/10 border border-white/20 rounded-xl font-black text-sm text-white"
+                    className="w-full p-3 bg-white/10 border border-white/20 rounded-lg font-black text-sm text-white"
                     value={settings?.fiscalModel || 'NF-E'}
                     onChange={e => updateSettings({ ...settings, fiscalModel: e.target.value })}
                   >
@@ -1053,7 +1053,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                     <input
                       type="text"
                       inputMode="numeric"
-                      className="w-full p-3 bg-white/10 border border-white/20 rounded-xl font-bold text-sm text-white"
+                      className="w-full p-3 bg-white/10 border border-white/20 rounded-lg font-bold text-sm text-white"
                       value={settings?.fiscalNumber || ''}
                       onChange={e => updateSettings({ ...settings, fiscalNumber: e.target.value.replace(/\D/g, '').slice(0, 9) })}
                       placeholder="000001"
@@ -1063,14 +1063,14 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                     <label className="text-[10px] font-black uppercase text-white/60 mb-1 block">Série</label>
                     <input
                       type="text"
-                      className="w-full p-3 bg-white/10 border border-white/20 rounded-xl font-bold text-sm text-white uppercase"
+                      className="w-full p-3 bg-white/10 border border-white/20 rounded-lg font-bold text-sm text-white uppercase"
                       value={settings?.fiscalSeries || ''}
                       onChange={e => updateSettings({ ...settings, fiscalSeries: e.target.value.toUpperCase().slice(0, 3) })}
                       placeholder="A1"
                     />
                   </div>
                 </div>
-                <div className="p-4 bg-white/5 rounded-xl border border-white/10">
+                <div className="p-4 bg-white/5 rounded-lg border border-white/10">
                   <p className="text-[10px] font-black uppercase text-white/50 leading-relaxed">
                     Quando ativado, o cupom térmico passa a exibir o cabeçalho fiscal (modelo, número e série).
                     Este sistema não emite documentos fiscais oficiais — o valor fiscal é emitido pela
@@ -1085,7 +1085,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
         {/* ── APARÊNCIA ── */}
         {activeSubTab === 'appearance' && (
           <div className="animate-slideUp">
-            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl space-y-6">
+            <div className="bg-white p-8 rounded-lg border border-slate-200 shadow-md space-y-6">
               {/* ── MODO ESCURO ── */}
               <div>
                 <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 flex items-center gap-2 mb-4">
@@ -1100,7 +1100,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                     <button
                       key={m.id}
                       onClick={() => setThemeMode(m.id)}
-                      className={`p-4 rounded-2xl border-4 transition-all flex flex-col items-center gap-1.5 ${
+                      className={`p-4 rounded-lg border-4 transition-all flex flex-col items-center gap-1.5 ${
                         themeMode === m.id
                           ? 'border-indigo-600 bg-indigo-50'
                           : 'border-transparent bg-slate-50 hover:border-slate-300'
@@ -1133,7 +1133,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                       updateSettings({ ...settings, theme: t.id, primaryColor: t.hex });
                       applyThemeColors(t.id);
                     }}
-                    className={`p-5 rounded-2xl border-4 transition-all flex flex-col items-center gap-2 ${settings?.theme === t.id ? 'border-slate-800 bg-slate-100' : 'border-transparent bg-slate-50 hover:border-slate-300'}`}
+                    className={`p-5 rounded-lg border-4 transition-all flex flex-col items-center gap-2 ${settings?.theme === t.id ? 'border-slate-800 bg-slate-100' : 'border-transparent bg-slate-50 hover:border-slate-300'}`}
                   >
                     <div className={`w-10 h-10 rounded-full ${t.colors}`} />
                     <span className="text-[10px] font-bold uppercase text-slate-700">{t.label}</span>
@@ -1150,9 +1150,9 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                 <div className="grid grid-cols-2 gap-4">
                   <button
                     onClick={() => updateSettings({ ...settings, pdvLayout: 'IMAGE_1_DEFAULT' })}
-                    className={`p-6 rounded-2xl border-4 transition-all flex flex-col items-center gap-3 ${(!settings?.pdvLayout || settings?.pdvLayout === 'IMAGE_1_DEFAULT') ? 'border-slate-800 bg-slate-100' : 'border-slate-200 bg-slate-50'}`}
+                    className={`p-6 rounded-lg border-4 transition-all flex flex-col items-center gap-3 ${(!settings?.pdvLayout || settings?.pdvLayout === 'IMAGE_1_DEFAULT') ? 'border-slate-800 bg-slate-100' : 'border-slate-200 bg-slate-50'}`}
                   >
-                    <div className="w-12 h-12 rounded-xl bg-emerald-600 flex items-center justify-center text-white">
+                    <div className="w-12 h-12 rounded-lg bg-emerald-600 flex items-center justify-center text-white">
                       <ShoppingBag size={24} />
                     </div>
                     <span className="text-sm font-black text-slate-800">Padrão Moderno</span>
@@ -1160,9 +1160,9 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                   </button>
                   <button
                     onClick={() => updateSettings({ ...settings, pdvLayout: 'CLASSIC' })}
-                    className={`p-6 rounded-2xl border-4 transition-all flex flex-col items-center gap-3 ${settings?.pdvLayout === 'CLASSIC' ? 'border-slate-800 bg-slate-100' : 'border-slate-200 bg-slate-50'}`}
+                    className={`p-6 rounded-lg border-4 transition-all flex flex-col items-center gap-3 ${settings?.pdvLayout === 'CLASSIC' ? 'border-slate-800 bg-slate-100' : 'border-slate-200 bg-slate-50'}`}
                   >
-                    <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center text-white">
+                    <div className="w-12 h-12 rounded-lg bg-blue-600 flex items-center justify-center text-white">
                       <Search size={24} />
                     </div>
                     <span className="text-sm font-black text-slate-800">Expandido/ERP</span>
@@ -1183,7 +1183,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                     <button
                       key={c.hex}
                       onClick={() => updateSettings({ ...settings, pdvColor: c.hex })}
-                      className={`w-10 h-10 rounded-xl border-4 transition-all ${settings?.pdvColor === c.hex ? 'border-slate-900 scale-110' : 'border-transparent hover:scale-105'}`}
+                      className={`w-10 h-10 rounded-lg border-4 transition-all ${settings?.pdvColor === c.hex ? 'border-slate-900 scale-110' : 'border-transparent hover:scale-105'}`}
                       style={{ backgroundColor: c.hex }}
                       title={c.name}
                     />
@@ -1192,7 +1192,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                     type="color"
                     value={settings?.pdvColor || '#064e3b'}
                     onChange={e => updateSettings({ ...settings, pdvColor: e.target.value })}
-                    className="w-10 h-10 rounded-xl border-2 border-white cursor-pointer"
+                    className="w-10 h-10 rounded-lg border-2 border-white cursor-pointer"
                   />
                 </div>
               </div>
@@ -1203,23 +1203,23 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
         {/* ── ATUALIZAÇÃO ── */}
         {activeSubTab === 'updates' && (
           <div className="animate-slideUp">
-            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-2xl space-y-6">
+            <div className="bg-white p-8 rounded-lg border border-slate-100 shadow-md space-y-6">
               <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2 mb-4">
                 <Zap size={20} className="text-yellow-500" /> Portabilidade & Atualização
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <button onClick={handleDownloadSource} className="p-6 border-2 border-slate-200 bg-slate-50 rounded-2xl flex flex-col items-center gap-3 hover:bg-slate-100 transition-all">
-                  <div className="bg-slate-900 text-white p-3 rounded-xl"><Download size={24} /></div>
+                <button onClick={handleDownloadSource} className="p-6 border-2 border-slate-200 bg-slate-50 rounded-lg flex flex-col items-center gap-3 hover:bg-slate-100 transition-all">
+                  <div className="bg-slate-900 text-white p-3 rounded-lg"><Download size={24} /></div>
                   <span className="text-[10px] font-black uppercase">Download Fonte</span>
                   <p className="text-[9px] text-slate-400 text-center">Código para rodar offline</p>
                 </button>
-                <button onClick={handleBuildExe} className="p-6 border-2 border-indigo-100 bg-indigo-50/50 rounded-2xl flex flex-col items-center gap-3 hover:bg-indigo-100 transition-all">
-                  <div className="bg-indigo-600 text-white p-3 rounded-xl"><HardDrive size={24} /></div>
+                <button onClick={handleBuildExe} className="p-6 border-2 border-indigo-100 bg-indigo-50/50 rounded-lg flex flex-col items-center gap-3 hover:bg-indigo-100 transition-all">
+                  <div className="bg-indigo-600 text-white p-3 rounded-lg"><HardDrive size={24} /></div>
                   <span className="text-[10px] font-black uppercase">Build EXE</span>
                   <p className="text-[9px] text-slate-400 text-center">Gerar executável Windows</p>
                 </button>
               </div>
-              <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
+              <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
                 <p className="text-xs font-bold text-blue-800">
                   Versão atual: <span className="font-black">v1.0.0 RC</span> — Mercado Fácil PDV (ASSPEN)
                 </p>
@@ -1230,7 +1230,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
 
         {/* ── MANUTENÇÃO ── */}
         {activeSubTab === 'backup' && (
-          <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-2xl space-y-6 animate-slideUp">
+          <div className="bg-white p-8 rounded-lg border border-slate-100 shadow-md space-y-6 animate-slideUp">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
                 <Database size={20} className="text-blue-600" /> Backup na Nuvem
@@ -1250,7 +1250,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
               <button
                 onClick={handleBackupAgora}
                 disabled={backupExecutando}
-                className="inline-flex items-center gap-2 px-6 py-3.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-500/30 transition-all"
+                className="inline-flex items-center gap-2 px-6 py-3.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-black text-xs uppercase tracking-widest shadow-sm transition-all"
               >
                 {backupExecutando ? <Loader2 size={15} className="animate-spin" /> : <CloudUpload size={15} />}
                 {backupExecutando ? 'Gerando backup...' : 'Fazer backup agora'}
@@ -1258,14 +1258,14 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
               <button
                 onClick={refreshBackupsNuvem}
                 disabled={backupsLoading}
-                className="inline-flex items-center gap-2 px-4 py-3.5 bg-white border-2 border-slate-200 text-slate-600 hover:border-slate-300 rounded-2xl font-black text-xs uppercase tracking-widest transition-all"
+                className="inline-flex items-center gap-2 px-4 py-3.5 bg-white border-2 border-slate-200 text-slate-600 hover:border-slate-300 rounded-lg font-black text-xs uppercase tracking-widest transition-all"
               >
                 <RefreshCw size={14} className={backupsLoading ? 'animate-spin' : ''} /> Atualizar lista
               </button>
             </div>
 
             {/* Último backup */}
-            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-wrap items-center gap-x-6 gap-y-2">
+            <div className="bg-slate-50 border border-slate-100 rounded-lg p-4 flex flex-wrap items-center gap-x-6 gap-y-2">
               <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Último backup</span>
               {backupsNuvem.length > 0 ? (
                 <>
@@ -1290,15 +1290,15 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                   <Loader2 size={22} className="animate-spin text-slate-300" />
                 </div>
               ) : backupsNuvem.length === 0 ? (
-                <p className="text-xs font-semibold text-slate-400 text-center py-6 bg-slate-50 rounded-2xl">
+                <p className="text-xs font-semibold text-slate-400 text-center py-6 bg-slate-50 rounded-lg">
                   Nenhum backup disponível.
                 </p>
               ) : (
                 <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
                   {backupsNuvem.map((b) => (
-                    <div key={b.nome} className="flex items-center justify-between gap-3 bg-slate-50 border border-slate-100 rounded-2xl p-3.5 hover:border-blue-200 transition-all">
+                    <div key={b.nome} className="flex items-center justify-between gap-3 bg-slate-50 border border-slate-100 rounded-lg p-3.5 hover:border-blue-200 transition-all">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+                        <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
                           <FileJson size={16} className="text-blue-600" />
                         </div>
                         <div className="min-w-0">
@@ -1311,7 +1311,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                       <div className="flex items-center gap-2 shrink-0">
                         <button
                           onClick={() => handleBaixarBackup(b.nome)}
-                          className="p-2.5 bg-white border border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-200 rounded-xl transition-all"
+                          className="p-2.5 bg-white border border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-200 rounded-lg transition-all"
                           title="Baixar backup"
                         >
                           <Download size={14} />
@@ -1319,7 +1319,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                         {b.nome.includes('diario-') && (
                           <button
                             onClick={() => { setRestoreNuvemTarget(b); setRestoreNuvemPassword(''); setRestoreNuvemConfirm(false); }}
-                            className="p-2.5 bg-amber-50 border border-amber-200 text-amber-600 hover:bg-amber-100 rounded-xl transition-all"
+                            className="p-2.5 bg-amber-50 border border-amber-200 text-amber-600 hover:bg-amber-100 rounded-lg transition-all"
                             title="Restaurar este backup"
                           >
                             <RotateCcw size={14} />
@@ -1337,7 +1337,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
         {activeSubTab === 'maintenance' && (
           <>
           {/* ── CONTROLE DO SISTEMA (modo manutenção) ── */}
-          <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-2xl space-y-6 animate-slideUp">
+          <div className="bg-white p-8 rounded-lg border border-slate-100 shadow-md space-y-6 animate-slideUp">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
                 <Power size={20} className={inativo ? 'text-red-500' : 'text-emerald-600'} /> Controle do Sistema
@@ -1358,7 +1358,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
             </div>
 
             {inativo && (
-              <div className="bg-red-50 border border-red-100 rounded-2xl p-5 space-y-2">
+              <div className="bg-red-50 border border-red-100 rounded-lg p-5 space-y-2">
                 <p className="text-[10px] font-black text-red-700 uppercase tracking-wider flex items-center gap-1.5">
                   <CalendarClock size={13} /> Sistema desativado
                   {maintenanceState?.desativadoEm
@@ -1369,7 +1369,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                   Por: {maintenanceState?.desativadoPorNome || 'Administrador'}
                 </p>
                 {maintenanceState?.motivo && (
-                  <p className="text-xs text-slate-500 leading-relaxed bg-white border border-red-100 rounded-xl p-3">
+                  <p className="text-xs text-slate-500 leading-relaxed bg-white border border-red-100 rounded-lg p-3">
                     <span className="font-black text-red-700 uppercase text-[10px] block mb-1">Motivo</span>
                     {maintenanceState.motivo}
                   </p>
@@ -1395,7 +1395,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                     showNotification?.('Erro ao reativar o sistema.', 'error');
                   }
                 }, 'maintenance')}
-                className="inline-flex items-center gap-2 px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-emerald-500/30 transition-all"
+                className="inline-flex items-center gap-2 px-6 py-3.5 bg-[#0f172a] hover:bg-[#1e293b] text-white rounded-lg font-black text-xs uppercase tracking-widest shadow-sm transition-all"
               >
                 <Power size={15} /> Reativar sistema
               </button>
@@ -1406,7 +1406,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                     Motivo (opcional)
                   </label>
                   <input
-                    className="w-full p-4 bg-slate-50 border-2 border-slate-200 focus:border-red-400 rounded-2xl font-bold text-sm text-slate-900 outline-none transition-all"
+                    className="w-full p-4 bg-slate-50 border-2 border-slate-200 focus:border-red-400 rounded-lg font-bold text-sm text-slate-900 outline-none transition-all"
                     value={maintenanceMotivo}
                     onChange={e => setMaintenanceMotivo(e.target.value)}
                     placeholder="Ex: Sistema indisponível no feriado"
@@ -1416,12 +1416,12 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                 {!maintenanceConfirming ? (
                   <button
                     onClick={() => setMaintenanceConfirming(true)}
-                    className="inline-flex items-center gap-2 px-6 py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-red-500/30 transition-all"
+                    className="inline-flex items-center gap-2 px-6 py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-black text-xs uppercase tracking-widest shadow-sm transition-all"
                   >
                     <Power size={15} /> Desativar sistema
                   </button>
                 ) : (
-                  <div className="flex flex-wrap items-center gap-3 bg-red-50 border border-red-200 rounded-2xl p-4">
+                  <div className="flex flex-wrap items-center gap-3 bg-red-50 border border-red-200 rounded-lg p-4">
                     <p className="text-xs font-black text-red-800 flex-1 min-w-[200px]">
                       Confirmar desativação? Outros administradores perderão o acesso imediatamente.
                     </p>
@@ -1436,13 +1436,13 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                           showNotification?.('Erro ao desativar o sistema.', 'error');
                         }
                       }, 'maintenance')}
-                      className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-black text-xs uppercase tracking-widest"
+                      className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-black text-xs uppercase tracking-widest"
                     >
                       Sim, desativar
                     </button>
                     <button
                       onClick={() => setMaintenanceConfirming(false)}
-                      className="px-5 py-2.5 bg-white border-2 border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl font-black text-xs uppercase tracking-widest"
+                      className="px-5 py-2.5 bg-white border-2 border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg font-black text-xs uppercase tracking-widest"
                     >
                       Cancelar
                     </button>
@@ -1453,15 +1453,15 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-slideUp">
-            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-2xl col-span-1 lg:col-span-2 space-y-6">
+            <div className="bg-white p-8 rounded-lg border border-slate-100 shadow-md col-span-1 lg:col-span-2 space-y-6">
               <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2 mb-4">
                 <Database size={20} className="text-indigo-600" /> Manutenção do Sistema
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* AVISO DE MANUTENÇÃO PREVENTIVA — verde em dia, âmbar quando passa de 30 dias */}
-              <div className={`mb-4 p-4 rounded-2xl border-2 flex flex-wrap items-center justify-between gap-3 ${manutencaoAtrasada ? 'bg-amber-50 border-amber-300' : 'bg-emerald-50 border-emerald-200'}`}>
+              <div className={`mb-4 p-4 rounded-lg border-2 flex flex-wrap items-center justify-between gap-3 ${manutencaoAtrasada ? 'bg-amber-50 border-amber-300' : 'bg-emerald-50 border-emerald-200'}`}>
                 <div className="flex items-center gap-3">
-                  <div className={`p-2.5 rounded-xl text-white ${manutencaoAtrasada ? 'bg-amber-500' : 'bg-emerald-600'}`}>
+                  <div className={`p-2.5 rounded-lg text-white ${manutencaoAtrasada ? 'bg-amber-500' : 'bg-emerald-600'}`}>
                     {manutencaoAtrasada ? <AlertTriangle size={20} /> : <Check size={20} />}
                   </div>
                   <div>
@@ -1480,17 +1480,17 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                     localStorage.setItem(CHAVE_MANUTENCAO, String(Date.now()));
                     setTickManutencao(Date.now());
                   }}
-                  className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-sm"
+                  className="px-4 py-2.5 rounded-lg bg-slate-900 hover:bg-black text-white text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-sm"
                 >
                   Registrar manutenção feita
                 </button>
               </div>
-                <button onClick={backupSystem} className="p-6 border-2 border-indigo-50 bg-indigo-50/50 rounded-2xl flex flex-col items-center gap-3 hover:bg-indigo-100 transition-all">
-                  <div className="bg-indigo-600 text-white p-3 rounded-xl"><HardDrive size={24} /></div>
+                <button onClick={backupSystem} className="p-6 border-2 border-indigo-50 bg-indigo-50/50 rounded-lg flex flex-col items-center gap-3 hover:bg-indigo-100 transition-all">
+                  <div className="bg-indigo-600 text-white p-3 rounded-lg"><HardDrive size={24} /></div>
                   <span className="text-[10px] font-black uppercase">Backup JSON</span>
                 </button>
-                <button onClick={() => handleProtectedAction(clearOldData)} className="p-6 border-2 border-slate-900 bg-slate-900 text-white rounded-2xl flex flex-col items-center gap-3 hover:bg-black transition-all">
-                  <div className="bg-white text-slate-900 p-3 rounded-xl"><Download size={24} /></div>
+                <button onClick={() => handleProtectedAction(clearOldData)} className="p-6 border-2 border-slate-900 bg-slate-900 text-white rounded-lg flex flex-col items-center gap-3 hover:bg-black transition-all">
+                  <div className="bg-white text-slate-900 p-3 rounded-lg"><Download size={24} /></div>
                   <span className="text-[10px] font-black uppercase">Arquivar e Limpar</span>
                 </button>
                 <button onClick={async () => {
@@ -1506,36 +1506,36 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                     }
                   } catch { /* segue para reload mesmo se cache indisponível */ }
                   window.location.reload();
-                }} className="p-6 border-2 border-emerald-50 bg-emerald-50/50 rounded-2xl flex flex-col items-center gap-3 hover:bg-emerald-100 transition-all">
-                  <div className="bg-emerald-600 text-white p-3 rounded-xl"><RefreshCw size={24} /></div>
+                }} className="p-6 border-2 border-emerald-50 bg-emerald-50/50 rounded-lg flex flex-col items-center gap-3 hover:bg-emerald-100 transition-all">
+                  <div className="bg-[#0f172a] text-white p-3 rounded-lg"><RefreshCw size={24} /></div>
                   <span className="text-[10px] font-black uppercase">Renovar Sistema</span>
                 </button>
-                <button onClick={() => handleProtectedAction(resetStock)} className="p-6 border-2 border-orange-50 bg-orange-50/50 rounded-2xl flex flex-col items-center gap-3 hover:bg-orange-100">
-                  <div className="bg-orange-600 text-white p-3 rounded-xl"><RefreshCw size={24} /></div>
+                <button onClick={() => handleProtectedAction(resetStock)} className="p-6 border-2 border-orange-50 bg-orange-50/50 rounded-lg flex flex-col items-center gap-3 hover:bg-orange-100">
+                  <div className="bg-orange-600 text-white p-3 rounded-lg"><RefreshCw size={24} /></div>
                   <span className="text-[10px] font-black uppercase">Zerar Estoque</span>
                 </button>
-                <button onClick={() => handleProtectedAction(resetFinance)} className="p-6 border-2 border-red-50 bg-red-50/50 rounded-2xl flex flex-col items-center gap-3 hover:bg-red-100">
-                  <div className="bg-red-600 text-white p-3 rounded-xl"><AlertTriangle size={24} /></div>
+                <button onClick={() => handleProtectedAction(resetFinance)} className="p-6 border-2 border-red-50 bg-red-50/50 rounded-lg flex flex-col items-center gap-3 hover:bg-red-100">
+                  <div className="bg-red-600 text-white p-3 rounded-lg"><AlertTriangle size={24} /></div>
                   <span className="text-[10px] font-black uppercase">Zerar Financeiro</span>
                 </button>
               </div>
               {isMaster && (
                 <button
                   onClick={() => handleProtectedAction(() => resetSystem(true))}
-                  className="w-full p-4 bg-red-600 text-white rounded-2xl font-black uppercase text-sm hover:bg-red-700 mt-4 flex items-center justify-center gap-2"
+                  className="w-full p-4 bg-red-600 text-white rounded-lg font-black uppercase text-sm hover:bg-red-700 mt-4 flex items-center justify-center gap-2"
                 >
                   <AlertTriangle size={18} /> REINICIALIZAÇÃO TOTAL DO SISTEMA
                 </button>
               )}
             </div>
             <div className="space-y-6">
-              <div className="bg-slate-900 p-8 rounded-3xl text-white">
+              <div className="bg-slate-900 p-8 rounded-lg text-white">
                 <h4 className="text-lg font-bold mb-2">Portabilidade</h4>
                 <p className="text-xs text-white/50 mb-4">Baixe o código para rodar offline.</p>
-                <button onClick={handleDownloadSource} className="w-full bg-white text-slate-900 p-3 rounded-xl font-black text-xs uppercase mb-2">Download Fonte</button>
-                <button onClick={handleBuildExe} className="w-full bg-white/10 text-white p-3 rounded-xl font-black text-xs uppercase">Build EXE</button>
+                <button onClick={handleDownloadSource} className="w-full bg-white text-slate-900 p-3 rounded-lg font-black text-xs uppercase mb-2">Download Fonte</button>
+                <button onClick={handleBuildExe} className="w-full bg-white/10 text-white p-3 rounded-lg font-black text-xs uppercase">Build EXE</button>
               </div>
-              <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-2xl">
+              <div className="bg-white p-8 rounded-lg border border-slate-100 shadow-md">
                 <h4 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2 mb-4">
                   <Users size={20} className="text-emerald-600" /> Equipe de Suporte
                 </h4>
@@ -1543,7 +1543,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                   <div>
                     <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1 block">NOME DO DESENVOLVEDOR</label>
                     <input
-                      className="w-full p-3 bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 rounded-2xl font-bold text-sm text-slate-900 outline-none transition-all"
+                      className="w-full p-3 bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 rounded-lg font-bold text-sm text-slate-900 outline-none transition-all"
                       value={localSettings?.dev_name || localSettings?.developerName || ''}
                       onChange={e => setLocalSettings({ ...localSettings, dev_name: e.target.value, developerName: e.target.value })}
                       placeholder="Ex: Edevaldo de Lima Almeida"
@@ -1552,7 +1552,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                   <div>
                     <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1 block">E-MAIL DE SUPORTE</label>
                     <input
-                      className="w-full p-3 bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 rounded-2xl font-bold text-sm text-slate-900 outline-none transition-all"
+                      className="w-full p-3 bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 rounded-lg font-bold text-sm text-slate-900 outline-none transition-all"
                       value={localSettings?.dev_email || localSettings?.developerEmail || ''}
                       onChange={e => setLocalSettings({ ...localSettings, dev_email: e.target.value, developerEmail: e.target.value })}
                       placeholder="Ex: edh333@hotmail.com"
@@ -1561,7 +1561,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                   <div>
                     <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1 block">CONTATO TELEFÔNICO / WHATSAPP</label>
                     <input
-                      className="w-full p-3 bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 rounded-2xl font-bold text-sm text-slate-900 outline-none transition-all"
+                      className="w-full p-3 bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 rounded-lg font-bold text-sm text-slate-900 outline-none transition-all"
                       value={localSettings?.dev_phone || localSettings?.developerPhone || ''}
                       onChange={e => setLocalSettings({ ...localSettings, dev_phone: e.target.value, developerPhone: e.target.value })}
                       placeholder="Ex: (66) 99999-9999"
@@ -1573,7 +1573,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
           </div>
 
           {/* ── PONTO DE RESTAURAÇÃO ── */}
-          <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-2xl col-span-1 lg:col-span-3 space-y-6">
+          <div className="bg-white p-8 rounded-lg border border-slate-100 shadow-md col-span-1 lg:col-span-3 space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-4 mb-2">
               <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
                 <Archive size={20} className="text-emerald-600" /> Ponto de Restauração
@@ -1589,23 +1589,23 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <button
                 onClick={handleCriarPonto}
-                className="p-5 border-2 border-emerald-100 bg-emerald-50/50 rounded-2xl flex flex-col items-center gap-3 hover:bg-emerald-100 transition-all"
+                className="p-5 border-2 border-emerald-100 bg-emerald-50/50 rounded-lg flex flex-col items-center gap-3 hover:bg-emerald-100 transition-all"
               >
-                <div className="bg-emerald-600 text-white p-3 rounded-xl"><Save size={22} /></div>
+                <div className="bg-[#0f172a] text-white p-3 rounded-lg"><Save size={22} /></div>
                 <span className="text-[10px] font-black uppercase text-emerald-800">Criar Ponto Agora</span>
               </button>
               <button
                 onClick={baixarBackupLocal}
-                className="p-5 border-2 border-indigo-50 bg-indigo-50/50 rounded-2xl flex flex-col items-center gap-3 hover:bg-indigo-100 transition-all"
+                className="p-5 border-2 border-indigo-50 bg-indigo-50/50 rounded-lg flex flex-col items-center gap-3 hover:bg-indigo-100 transition-all"
               >
-                <div className="bg-indigo-600 text-white p-3 rounded-xl"><Download size={22} /></div>
+                <div className="bg-indigo-600 text-white p-3 rounded-lg"><Download size={22} /></div>
                 <span className="text-[10px] font-black uppercase text-indigo-800">Baixar Backup Completo</span>
               </button>
               <button
                 onClick={() => fileInputRestoreRef.current?.click()}
-                className="p-5 border-2 border-slate-100 bg-slate-50/50 rounded-2xl flex flex-col items-center gap-3 hover:bg-slate-100 transition-all"
+                className="p-5 border-2 border-slate-100 bg-slate-50/50 rounded-lg flex flex-col items-center gap-3 hover:bg-slate-100 transition-all"
               >
-                <div className="bg-slate-700 text-white p-3 rounded-xl"><Upload size={22} /></div>
+                <div className="bg-slate-700 text-white p-3 rounded-lg"><Upload size={22} /></div>
                 <span className="text-[10px] font-black uppercase text-slate-700">Importar Backup</span>
               </button>
               <input
@@ -1624,7 +1624,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
             <div className="pt-2">
               <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-3">Histórico de pontos</p>
               {pontosRestauracao.length === 0 ? (
-                <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                <div className="p-8 text-center bg-slate-50 rounded-lg border border-dashed border-slate-200">
                   <History size={32} className="mx-auto mb-3 opacity-30 text-slate-400" />
                   <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Nenhum ponto de restauração ainda</p>
                   <p className="text-[10px] text-slate-400 mt-1">Os backups automáticos diários aparecerão aqui.</p>
@@ -1632,8 +1632,8 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
               ) : (
                 <div className="space-y-3 max-h-72 overflow-y-auto custom-scrollbar pr-1">
                   {pontosRestauracao.map(p => (
-                    <div key={p.id} className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-slate-200 transition-all">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${p.origin === 'auto' ? 'bg-emerald-100 text-emerald-600' : 'bg-indigo-100 text-indigo-600'}`}>
+                    <div key={p.id} className="flex items-center gap-4 p-4 bg-slate-50 rounded-lg border border-slate-100 hover:border-slate-200 transition-all">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${p.origin === 'auto' ? 'bg-emerald-100 text-emerald-600' : 'bg-indigo-100 text-indigo-600'}`}>
                         <History size={18} />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -1646,20 +1646,20 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                       <div className="flex items-center gap-2 shrink-0">
                         <button
                           onClick={() => setRestoreTarget(p)}
-                          className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2"
+                          className="px-4 py-2.5 bg-[#0f172a] hover:bg-[#1e293b] text-white rounded-lg text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2"
                         >
                           <RotateCcw size={14} /> Restaurar
                         </button>
                         <button
                           onClick={() => baixarPontoRestauracao(p.id)}
-                          className="p-2.5 bg-white border border-slate-200 text-slate-500 hover:text-slate-900 rounded-xl transition-all"
+                          className="p-2.5 bg-white border border-slate-200 text-slate-500 hover:text-slate-900 rounded-lg transition-all"
                           title="Baixar ponto"
                         >
                           <Download size={14} />
                         </button>
                         <button
                           onClick={() => { excluirPontoRestauracao(p.id); refreshPontos(); }}
-                          className="p-2.5 bg-white border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-200 rounded-xl transition-all"
+                          className="p-2.5 bg-white border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-200 rounded-lg transition-all"
                           title="Excluir ponto"
                         >
                           <Trash2 size={14} />
@@ -1679,8 +1679,8 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
       {/* CONFIRMAÇÃO DE RESTAURAÇÃO (ponto local) */}
       {restoreTarget && (
         <div className="fixed inset-0 z-[5000] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center animate-fadeIn">
-            <div className="w-16 h-16 mx-auto mb-5 bg-amber-100 rounded-2xl flex items-center justify-center">
+          <div className="bg-white rounded-lg shadow-md max-w-md w-full p-8 text-center animate-fadeIn">
+            <div className="w-16 h-16 mx-auto mb-5 bg-amber-100 rounded-lg flex items-center justify-center">
               <RotateCcw size={28} className="text-amber-600" />
             </div>
             <h3 className="text-lg font-bold tracking-wide text-slate-900 mb-2">Restaurar Sistema?</h3>
@@ -1694,13 +1694,13 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
             <div className="flex gap-3">
               <button
                 onClick={() => setRestoreTarget(null)}
-                className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-black uppercase text-xs tracking-widest transition-all"
+                className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-black uppercase text-xs tracking-widest transition-all"
               >
                 Cancelar
               </button>
               <button
                 onClick={() => { const t = restoreTarget; setRestoreTarget(null); handleRestaurarPonto(t); }}
-                className="flex-1 py-4 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest transition-all flex items-center justify-center gap-2"
+                className="flex-1 py-4 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-black uppercase text-xs tracking-widest transition-all flex items-center justify-center gap-2"
               >
                 <RotateCcw size={15} /> Restaurar
               </button>
@@ -1711,8 +1711,8 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
       {/* CONFIRMAÇÃO DE RESTAURAÇÃO (backup na nuvem) */}
       {restoreNuvemTarget && (
         <div className="fixed inset-0 z-[5000] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center animate-fadeIn">
-            <div className="w-16 h-16 mx-auto mb-5 bg-amber-100 rounded-2xl flex items-center justify-center">
+          <div className="bg-white rounded-lg shadow-md max-w-md w-full p-8 text-center animate-fadeIn">
+            <div className="w-16 h-16 mx-auto mb-5 bg-amber-100 rounded-lg flex items-center justify-center">
               <CloudDownload size={28} className="text-amber-600" />
             </div>
             <h3 className="text-lg font-bold tracking-wide text-slate-900 mb-2">Restaurar Backup?</h3>
@@ -1727,13 +1727,13 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
             <label className="text-[10px] font-black text-slate-900 uppercase mb-1 block text-left">Senha mestra</label>
             <input
               type="password"
-              className="w-full p-4 bg-slate-50 border-2 border-slate-200 focus:border-amber-400 rounded-2xl font-black text-sm text-slate-900 outline-none transition-all mb-4"
+              className="w-full p-4 bg-slate-50 border-2 border-slate-200 focus:border-amber-400 rounded-lg font-black text-sm text-slate-900 outline-none transition-all mb-4"
               value={restoreNuvemPassword}
               onChange={e => setRestoreNuvemPassword(e.target.value)}
               placeholder="••••••••"
             />
 
-            <label className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4 cursor-pointer mb-6">
+            <label className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-lg p-4 cursor-pointer mb-6">
               <input
                 type="checkbox"
                 checked={restoreNuvemConfirm}
@@ -1749,14 +1749,14 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
               <button
                 onClick={() => setRestoreNuvemTarget(null)}
                 disabled={restoreNuvemLoading}
-                className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-black uppercase text-xs tracking-widest transition-all"
+                className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-black uppercase text-xs tracking-widest transition-all"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleRestaurarBackup}
                 disabled={restoreNuvemLoading || !restoreNuvemConfirm}
-                className="flex-1 py-4 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white rounded-2xl font-black uppercase text-xs tracking-widest transition-all flex items-center justify-center gap-2"
+                className="flex-1 py-4 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white rounded-lg font-black uppercase text-xs tracking-widest transition-all flex items-center justify-center gap-2"
               >
                 {restoreNuvemLoading ? <Loader2 size={15} className="animate-spin" /> : <CloudDownload size={15} />}
                 {restoreNuvemLoading ? 'Restaurando...' : 'Restaurar'}

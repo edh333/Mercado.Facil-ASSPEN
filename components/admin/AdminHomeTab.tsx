@@ -4,7 +4,7 @@ import { ehReceita, estoqueCritico } from './adminUtils';
 import {
   Users, Package, ShoppingCart, DollarSign, ArrowDownCircle,
   RefreshCw, MinusCircle, LayoutDashboard, Zap, Phone, ArrowRight,
-  AlertTriangle, BarChart3, TrendingUp, Award, PackageX, Plus, Banknote, Printer
+  AlertTriangle, BarChart3, TrendingUp, Award, PackageX, Plus, Banknote, Printer, Landmark
 } from 'lucide-react';
 import { OrderStatus, WalletTransaction } from '../../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
@@ -94,31 +94,57 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
 
   return (
     <div className="space-y-3.5 animate-slideUp pb-20">
+      {/* AÇÕES RÁPIDAS — 6 CARDS DE NAVEGAÇÃO RÁPIDA */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3.5">
+          {[
+            { tab: 'finance', icon: DollarSign, label: 'Financeiro', chip: 'bg-emerald-50 text-emerald-700' },
+            { tab: 'product_modal', icon: Plus, label: 'Novo Item', chip: 'bg-violet-50 text-violet-700' },
+            { tab: 'orders', icon: ShoppingCart, label: 'Pedidos', chip: 'bg-blue-50 text-blue-700' },
+            { tab: 'reports', icon: BarChart3, label: 'Relatórios', chip: 'bg-amber-50 text-amber-700' },
+            { tab: 'users', icon: Users, label: 'Familiares', chip: 'bg-indigo-50 text-indigo-700' },
+            { tab: 'cash', icon: Landmark, label: 'Caixa', chip: 'bg-slate-100 text-slate-700' }
+          ].map((btn, i) => (
+            <button
+              key={i}
+              onClick={() => {
+                if (btn.tab === 'product_modal') setShowProductModal(true);
+                else setActiveTab(btn.tab);
+              }}
+              className="bg-white p-5 rounded-lg border border-slate-200/80 shadow-sm hover:shadow-md hover:border-slate-300 transition-all flex flex-col items-center justify-center gap-3 group active:scale-[0.98]"
+            >
+              <div className={`w-11 h-11 rounded-full flex items-center justify-center ${btn.chip} transition-transform group-hover:scale-105`}>
+                <btn.icon size={20} strokeWidth={1.75}/>
+              </div>
+              <span className="text-[10px] font-black text-slate-700 uppercase tracking-wider">{btn.label}</span>
+            </button>
+          ))}
+      </div>
+
       {/* BARRA DE ATALHOS RÁPIDOS OPERACIONAIS */}
-      <div className="flex flex-wrap items-center gap-2.5 bg-white rounded-2xl border border-slate-200 p-3 shadow-sm">
+      <div className="flex flex-wrap items-center gap-2.5 bg-white rounded-lg border border-slate-200 p-3 shadow-sm">
         <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mr-1"><Zap size={10} className="inline-block mr-1 -mt-0.5 text-amber-500" />Ações Rápidas</span>
         <button
           onClick={onOpenSales}
-          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-sm transition-all active:scale-95 cursor-pointer"
+          className="flex items-center gap-2 bg-[#0f172a] hover:bg-[#1e293b] text-white font-bold px-4 py-2 rounded-lg text-xs shadow-sm transition-all active:scale-95 cursor-pointer"
         >
           <Zap size={14} /> PDV - NOVA VENDA (F2)
         </button>
         <button
           onClick={() => setActiveTab('finance')}
-          className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-sm transition-all active:scale-95 cursor-pointer"
+          className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded-lg text-xs shadow-sm transition-all active:scale-95 cursor-pointer"
         >
           <Banknote size={14} /> REGISTRAR DESPESA (F6)
         </button>
         <button
           onClick={() => setActiveTab('reports')}
-          className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-sm transition-all active:scale-95 cursor-pointer"
+          className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white font-bold px-4 py-2 rounded-lg text-xs shadow-sm transition-all active:scale-95 cursor-pointer"
         >
           <Printer size={14} /> ABRIR RELATÓRIOS (F4)
         </button>
         {onOpenShortcuts && (
           <button
             onClick={onOpenShortcuts}
-            className="flex items-center gap-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold px-4 py-2 rounded-xl text-xs shadow-sm transition-all active:scale-95 cursor-pointer ml-auto"
+            className="flex items-center gap-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold px-4 py-2 rounded-lg text-xs shadow-sm transition-all active:scale-95 cursor-pointer ml-auto"
           >
             <Zap size={14} className="text-amber-600" /> ATALHOS (?)
           </button>
@@ -126,7 +152,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
       </div>
 
       {/* RESUMO DO DIA — VENDAS POR FORMA DE PAGAMENTO */}
-      <div className="flex flex-wrap items-center gap-2.5 bg-white rounded-2xl border border-slate-200 p-3 shadow-sm">
+      <div className="flex flex-wrap items-center gap-2.5 bg-white rounded-lg border border-slate-200 p-3 shadow-sm">
         <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mr-1"><TrendingUp size={10} className="inline-block mr-1 -mt-0.5 text-emerald-500" />Vendas de Hoje</span>
         {todayPayments.rows.length === 0 ? (
           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Nenhuma venda registrada ainda</span>
@@ -138,77 +164,47 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
                 {r.label}: <span className="text-emerald-600">{formatarMoeda(r.amount)}</span>
               </span>
             ))}
-            <span className="flex items-center gap-1.5 bg-emerald-600 text-white rounded-lg px-3 py-1.5 text-[10px] font-black shadow-sm ml-auto">
+            <span className="flex items-center gap-1.5 bg-[#0f172a] text-white rounded-lg px-3 py-1.5 text-[10px] font-black shadow-sm ml-auto">
               Total: {formatarMoeda(todayPayments.total)}
             </span>
           </>
         )}
       </div>
 
-      {/* Quick Access Buttons */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5">
-          {[
-            { tab: 'finance', icon: DollarSign, label: 'Financeiro', color: 'var(--primary-color)' },
-            { tab: 'product_modal', icon: Plus, label: 'Novo Item', color: '#8b5cf6' },
-            { tab: 'orders', icon: ShoppingCart, label: 'Pedidos', color: '#3b82f6' },
-            { tab: 'reports', icon: BarChart3, label: 'Relatórios', color: '#f59e0b' },
-            { tab: 'users', icon: Users, label: 'Familiares', color: '#6366f1' }
-          ].map((btn, i) => (
-            <button
-              key={i}
-              onClick={() => {
-                if (btn.tab === 'product_modal') setShowProductModal(true);
-                else setActiveTab(btn.tab);
-              }}
-              className="bg-[var(--bg-card)] p-6 rounded-2xl border border-[var(--border-color)] shadow-sm card-hover flex flex-col items-center justify-center gap-3 group active:scale-95"
-            >
-              <div
-                className="p-4 rounded-2xl group-hover:rotate-12 group-hover:scale-110 transition-all shadow-inner"
-                style={{ backgroundColor: `${btn.color}20`, color: btn.color }}
-              >
-                <btn.icon size={22} strokeWidth={2.5}/>
-              </div>
-              <span className="text-[10px] font-black text-[var(--text-main)] uppercase tracking-[0.2em]">{btn.label}</span>
-            </button>
-          ))}
-      </div>
-
+      {/* MÉTRICAS PRINCIPAIS */}
       {isMaster && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-            <div className="bg-[var(--bg-card)] p-8 rounded-[3rem] border border-[var(--border-color)] shadow-sm relative overflow-hidden group card-hover cursor-default">
-                <div className="absolute inset-0 bg-gradient-to-br from-[var(--primary-color)] to-transparent opacity-10"></div>
-                <div className="relative z-10">
-                    <p className="text-[10px] font-black text-[var(--primary-color)] uppercase tracking-[0.3em] mb-2">Volume Financeiro {filterType === 'day' ? 'Hoje' : 'Período'}</p>
-                    <h3 className="text-4xl font-black text-[var(--text-main)] tracking-tighter">R$ {formatarMoeda(stats.salesTotal)}</h3>
-                    <div className="mt-4 flex items-center gap-2">
-                        <div className="w-2 h-2 bg-[var(--primary-color)] rounded-full animate-pulse"></div>
-                        <span className="text-[9px] font-black text-slate-700 uppercase">Processamento Ativo</span>
+            <div className="bg-white p-6 rounded-lg border border-slate-200/80 shadow-sm card-hover">
+                <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] mb-1.5">Volume Financeiro {filterType === 'day' ? 'Hoje' : 'Período'}</p>
+                        <h3 className="text-3xl font-black text-slate-900 tracking-tight">R$ {formatarMoeda(stats.salesTotal)}</h3>
+                        <span className="mt-3 inline-flex items-center gap-1.5 text-[9px] font-bold text-slate-400 uppercase">Processamento ativo</span>
                     </div>
+                    <div className="w-11 h-11 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0"><TrendingUp size={20}/></div>
                 </div>
             </div>
-            <div className="bg-[var(--bg-card)] p-8 rounded-[3rem] border border-[var(--border-color)] shadow-sm relative overflow-hidden group card-hover cursor-default">
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-transparent opacity-10"></div>
-                <div className="relative z-10">
-                    <p className="text-[10px] font-black text-blue-600 uppercase tracking-[0.3em] mb-2">Pedidos Concluídos</p>
-                    <h3 className="text-4xl font-black text-[var(--text-main)] tracking-tighter">{stats.ordersCount} <span className="text-sm text-blue-600 opacity-90 uppercase ml-1">Itens</span></h3>
-                    <div className="mt-4 flex items-center gap-2">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                        <span className="text-[9px] font-black text-slate-700 uppercase">Sincronizado com Nuvem</span>
+            <div className="bg-white p-6 rounded-lg border border-slate-200/80 shadow-sm card-hover">
+                <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] mb-1.5">Pedidos Concluídos</p>
+                        <div className="flex items-baseline gap-2">
+                            <h3 className="text-3xl font-black text-slate-900 tracking-tight">{stats.ordersCount}</h3>
+                            <span className="text-xs font-bold text-slate-400 uppercase">itens</span>
+                        </div>
+                        <span className="mt-3 inline-flex items-center gap-1.5 text-[9px] font-bold text-slate-400 uppercase">Sincronizado com a nuvem</span>
                     </div>
+                    <div className="w-11 h-11 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"><ShoppingCart size={20}/></div>
                 </div>
             </div>
-            <div onClick={() => setActiveTab('orders')} className="bg-[var(--bg-card)] p-8 rounded-[3rem] border border-orange-500/30 shadow-sm flex flex-col justify-between cursor-pointer group card-hover relative overflow-hidden transition-all">
-                <div className="absolute inset-0 bg-gradient-to-br from-orange-600 to-transparent opacity-10"></div>
-                <div className="relative z-10">
-                    <p className="text-[10px] font-black text-orange-600 uppercase tracking-[0.3em] mb-2">Ações Pendentes</p>
-                    <h3 className="text-4xl font-black text-[var(--text-main)] tracking-tighter">{stats.pendingOrders + stats.pendingUsersCount}</h3>
-                </div>
-                <div className="mt-4 flex items-center justify-between relative z-10">
-                    <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse shadow-[0_0_8px_#f97316]"></div>
-                        <span className="text-[9px] font-black text-slate-700 uppercase">Requer Atenção</span>
+            <div onClick={() => setActiveTab('orders')} className="bg-white p-6 rounded-lg border border-slate-200/80 shadow-sm card-hover cursor-pointer">
+                <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] mb-1.5">Ações Pendentes</p>
+                        <h3 className="text-3xl font-black text-slate-900 tracking-tight">{stats.pendingOrders + stats.pendingUsersCount}</h3>
+                        <span className="mt-3 inline-flex items-center gap-1.5 text-[9px] font-bold text-slate-400 uppercase">Requer atenção</span>
                     </div>
-                    <div className="w-10 h-10 bg-orange-600 text-white rounded-2xl flex items-center justify-center shadow-[0_0_15px_rgba(249,115,22,0.4)] group-hover:scale-110 transition-transform"><Zap size={20}/></div>
+                    <div className="w-11 h-11 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0"><AlertTriangle size={20}/></div>
                 </div>
             </div>
         </div>
@@ -216,7 +212,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
 
       {/* Mini Trend Chart - Visualização Rápida de Performance */}
       {isMaster && chartData && chartData.length > 0 && (
-        <div className="bg-[var(--bg-card)] p-6 rounded-[2.5rem] border border-[var(--border-color)] shadow-sm animate-fadeIn">
+        <div className="bg-[var(--bg-card)] p-6 rounded-lg border border-[var(--border-color)] shadow-sm animate-fadeIn">
           <div className="flex items-center justify-between mb-4 px-2">
             <div className="flex items-center gap-2">
               <TrendingUp className="text-[var(--primary-color)]" size={18} />
@@ -263,8 +259,8 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
 
       {/* Critical Stock Alert - Compact Card */}
       {(criticalStock.length > 0 || zeroStock > 0) && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center gap-4 shadow-sm">
-          <div className="p-3 bg-red-50 rounded-xl text-red-600 shrink-0"><PackageX size={20}/></div>
+        <div className="bg-white border border-slate-200 rounded-lg p-5 flex items-center gap-4 shadow-sm">
+          <div className="p-3 bg-red-50 rounded-lg text-red-600 shrink-0"><PackageX size={20}/></div>
           <div className="flex-1 min-w-0">
             <p className="font-black text-slate-900 text-sm uppercase tracking-tight">Alerta de Estoque</p>
             <div className="flex flex-wrap gap-2 mt-2">
@@ -281,7 +277,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
               )}
             </div>
           </div>
-          <button onClick={() => setActiveTab('products')} className="shrink-0 px-4 py-2 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all whitespace-nowrap">
+          <button onClick={() => setActiveTab('products')} className="shrink-0 px-4 py-2 bg-slate-900 text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all whitespace-nowrap">
             Ver Produtos
           </button>
         </div>
@@ -289,16 +285,15 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Validation Central */}
-        <div className="lg:col-span-3 bg-[var(--bg-card)] p-8 md:p-12 rounded-[3.5rem] shadow-sm border border-[var(--border-color)] relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--primary-color)] rounded-full blur-[100px] -mr-32 -mt-32 opacity-5"></div>
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10 relative z-10">
+        <div className="lg:col-span-3 bg-[var(--bg-card)] p-6 md:p-8 rounded-lg shadow-sm border border-[var(--border-color)]">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
             <div>
-                <h3 className="text-2xl font-bold text-[var(--text-main)] flex items-center gap-3 tracking-tight">
+                <h3 className="text-xl font-bold text-[var(--text-main)] flex items-center gap-3 tracking-tight">
                    Central de Validação <span className="text-[var(--primary-color)] font-mono italic">FINANCEIRA</span>
                 </h3>
                 <p className="text-sm font-medium text-[var(--text-muted)] mt-1">Aprove ou rejeite aportes de crédito de familiares</p>
             </div>
-            <div className="bg-[var(--primary-color)] text-white px-6 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg animate-pulse flex items-center gap-2">
+            <div className="bg-[#0f172a] text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm flex items-center gap-2">
               <Zap size={14}/> {(walletTx || []).filter(tx => tx.status === 'pending').length} AGUARDANDO
             </div>
           </div>
@@ -307,43 +302,43 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
               <div
                 key={tx.id}
                 onClick={() => (onSelectTransaction as any)(tx)}
-                className="bg-[var(--bg-main)] p-6 rounded-[2.5rem] border-2 border-[var(--border-color)] hover:border-[var(--primary-color)] transition-all flex flex-col justify-between group cursor-pointer shadow-sm hover:shadow-2xl transform hover:-translate-y-2"
+                className="bg-white p-5 rounded-lg border border-slate-200 hover:border-slate-300 transition-all flex flex-col justify-between group cursor-pointer shadow-sm hover:shadow-md"
               >
                 <div>
-                  <div className="flex justify-between items-start mb-6">
-                    <div className="w-12 h-12 bg-[var(--primary-color)]/10 text-[var(--primary-color)] rounded-2xl flex items-center justify-center font-black shadow-inner"><DollarSign size={24}/></div>
+                  <div className="flex justify-between items-start mb-5">
+                    <div className="w-11 h-11 bg-[var(--primary-color)]/10 text-[var(--primary-color)] rounded-lg flex items-center justify-center font-black"><DollarSign size={22}/></div>
                     <div className="text-right">
                         <p className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest mb-1">Valor do Aporte</p>
-                        <p className="text-2xl font-black text-[var(--text-main)] tracking-tighter font-mono">R$ {formatarMoeda(tx?.amount || 0)}</p>
+                        <p className="text-xl font-black text-[var(--text-main)] tracking-tighter font-mono">R$ {formatarMoeda(tx?.amount || 0)}</p>
                     </div>
                   </div>
-                  <div className="space-y-4 mb-6">
-                    <div className="bg-[var(--bg-card)] p-3 rounded-2xl border border-[var(--border-color)]">
+                  <div className="space-y-3 mb-5">
+                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
                         <p className="text-[10px] text-[var(--text-muted)] font-black uppercase tracking-widest mb-1">Depositante</p>
                         <p className="font-black text-[var(--text-main)] text-[10px] uppercase truncate">{tx.payerName || 'Visitante'}</p>
                     </div>
-                    <div className="bg-indigo-500/5 p-3 rounded-2xl border border-indigo-500/10">
-                        <p className="text-[10px] text-indigo-500 font-black uppercase tracking-widest mb-1">Destinatário (Interno)</p>
-                        <p className="font-black text-indigo-900 dark:text-indigo-300 text-[10px] uppercase truncate">{tx.inmateName || 'N/A'}</p>
+                    <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-100">
+                        <p className="text-[10px] text-indigo-600 font-black uppercase tracking-widest mb-1">Destinatário (Interno)</p>
+                        <p className="font-black text-indigo-700 text-[10px] uppercase truncate">{tx.inmateName || 'N/A'}</p>
                     </div>
                   </div>
                 </div>
-                <div className="mt-4 py-3 bg-[var(--primary-color)] rounded-2xl text-white text-[9px] font-black uppercase flex items-center justify-center gap-2 opacity-70 group-hover:opacity-100 translate-y-0 group-hover:translate-y-0 transition-all shadow-lg">
+                <div className="mt-2 py-3 bg-[#0f172a] rounded-lg text-white text-[9px] font-black uppercase flex items-center justify-center gap-2 group-hover:bg-[#1e293b] transition-colors shadow-sm">
                    Validar Agora <ArrowRight size={12}/>
                 </div>
               </div>
             ))}
             {(walletTx || []).filter(tx => tx.status === 'pending').length === 0 && (
-              <div className="col-span-full py-20 text-center bg-[var(--bg-main)] rounded-[3rem] border-4 border-dashed border-[var(--border-color)]">
-                <div className="w-24 h-24 bg-[var(--bg-card)] rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl text-[var(--text-muted)]">
-                    <ArrowDownCircle size={48}/>
+              <div className="col-span-full py-16 text-center bg-slate-50 rounded-lg border-2 border-dashed border-slate-200">
+                <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-5 shadow-sm text-[var(--text-muted)]">
+                    <ArrowDownCircle size={40}/>
                 </div>
                 <p className="text-sm font-black text-slate-800 tracking-wide uppercase">Tudo em dia! Nenhuma validação pendente</p>
               </div>
             )}
           </div>
           {(walletTx || []).filter(tx => tx.status === 'pending').length > 6 && (
-            <button onClick={() => setActiveTab('wallet')} className="w-full mt-10 py-5 bg-[var(--text-main)] text-[var(--bg-card)] rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.3em] hover:opacity-90 transition-all shadow-2xl active:scale-95">
+            <button onClick={() => setActiveTab('wallet')} className="w-full mt-8 py-4 bg-slate-900 text-white rounded-lg text-[10px] font-black uppercase tracking-[0.3em] hover:bg-slate-800 transition-all shadow-sm active:scale-95">
               Ver Todas as Pendências Financeiras
             </button>
           )}
@@ -351,14 +346,14 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
 
         {/* Top 5 Products */}
         {isMaster && topProducts.length > 0 && (
-          <div className="lg:col-span-1 bg-[var(--bg-card)] p-8 rounded-3xl shadow-sm border border-[var(--border-color)]">
+          <div className="lg:col-span-1 bg-[var(--bg-card)] p-8 rounded-lg shadow-sm border border-[var(--border-color)]">
             <h3 className="text-base font-black text-[var(--text-main)] mb-6 flex items-center gap-2 uppercase tracking-tight">
               <Award className="text-amber-500" size={20}/> Top 5 Mais Vendidos
             </h3>
             <div className="space-y-4">
               {topProducts.map((p: any, i: number) => (
                 <div key={p?.name || `produto-${i}`} className="flex items-center gap-3">
-                  <span className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black text-white shrink-0 ${i === 0 ? 'bg-amber-600' : i === 1 ? 'bg-slate-500' : i === 2 ? 'bg-orange-700' : 'bg-[var(--bg-main)] text-[var(--text-muted)]'}`}>{i + 1}</span>
+                  <span className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black text-white shrink-0 ${i === 0 ? 'bg-amber-600' : i === 1 ? 'bg-slate-500' : i === 2 ? 'bg-orange-700' : 'bg-slate-100 text-slate-500'}`}>{i + 1}</span>
                   <div className="flex-1 min-w-0">
                     <p className="font-black text-xs text-[var(--text-main)] uppercase truncate">{p?.name || 'Produto sem nome'}</p>
                     <div className="w-full bg-[var(--bg-main)] rounded-full h-1.5 mt-1">
@@ -377,7 +372,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
 
         {/* Sales Chart */}
         {isMaster && chartData && chartData.length > 0 && (
-          <div className={`${topProducts.length > 0 ? 'lg:col-span-2' : 'lg:col-span-3'} bg-[var(--bg-card)] p-8 rounded-3xl shadow-sm border border-[var(--border-color)]`}>
+          <div className={`${topProducts.length > 0 ? 'lg:col-span-2' : 'lg:col-span-3'} bg-[var(--bg-card)] p-8 rounded-lg shadow-sm border border-[var(--border-color)]`}>
             <h3 className="text-xl font-bold text-[var(--text-main)] mb-8 flex items-center gap-3 tracking-tight">
               <BarChart3 className="text-blue-500" size={24}/> Fluxo de Vendas
             </h3>
@@ -400,7 +395,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
         )}
 
         {/* Recent Activity */}
-        <div className={`${isMaster ? '' : 'lg:col-span-3'} bg-[var(--bg-card)] p-8 rounded-3xl shadow-sm border border-[var(--border-color)] flex flex-col`}>
+        <div className={`${isMaster ? '' : 'lg:col-span-3'} bg-[var(--bg-card)] p-8 rounded-lg shadow-sm border border-[var(--border-color)] flex flex-col`}>
           <h3 className="text-lg font-bold text-[var(--text-main)] mb-6 flex items-center gap-2 tracking-tight">
             <Zap size={20} className="text-yellow-500"/> Atividade Recente
           </h3>
@@ -410,9 +405,9 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
               const dateB = b?.createdAt || b?.date || '';
               return (toDate(dateB)?.getTime() || 0) - (toDate(dateA)?.getTime() || 0);
             }).slice(0, 10).map((item, idx) => (
-              <div key={idx} className="flex items-center justify-between p-4 bg-[var(--bg-main)] rounded-2xl border border-transparent hover:border-[var(--border-color)] transition-all group">
+              <div key={idx} className="flex items-center justify-between p-4 bg-[var(--bg-main)] rounded-lg border border-transparent hover:border-[var(--border-color)] transition-all group">
                 <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm ${
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center shadow-sm ${
                     item?.status === 'delivered' || item?.status === 'paid' ? 'bg-emerald-50 text-emerald-600' :
                     item?.status === 'pending' || item?.status === 'pending_payment' ? 'bg-amber-50 text-amber-600' :
                     item?.status === 'cancelled' ? 'bg-red-50 text-red-600' :
@@ -438,7 +433,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
               <div className="text-center py-10 opacity-70"><ShoppingCart size={40} className="mx-auto mb-2"/><p className="text-xs font-bold uppercase">Sem pedidos</p></div>
             )}
           </div>
-          <button onClick={() => setActiveTab('orders')} className="mt-6 w-full py-4 bg-[var(--text-main)] text-[var(--bg-card)] rounded-xl font-black text-[10px] uppercase tracking-widest hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-lg">Ver Todos <ArrowRight size={14}/></button>
+          <button onClick={() => setActiveTab('orders')} className="mt-6 w-full py-4 bg-slate-900 text-white rounded-lg font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center justify-center gap-2 shadow-sm">Ver Todos <ArrowRight size={14}/></button>
         </div>
       </div>
     </div>

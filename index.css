@@ -170,21 +170,30 @@
    ═══════════════════════════════════════════════════════════ */
 
 :root {
-  /* ASSPEN green identity (#0e7a4d) — matches the ASSPEN system look */
-  --primary-color: #0e7a4d;
-  --secondary-color: #0a5c3a;
-  --accent-color: #0e7a4d;
-  --primary-light: rgba(14, 122, 77, 0.1);
-  --primary-dark: #0a5c3a;
+  /* ═══ DESIGN SYSTEM RÍGIDO ASSPEN ═══
+     Paleta lockada (Stripe/Tailwind corporativo):
+       --primary-dark   Dark Slate (sidebar, botões primários, total PDV)
+       --accent-color   Success Green (ações de sucesso / confirmação)
+       --bg-main        Canvas Light Gray
+       --text-main      Text Dark
+     Gerenciado junto ao ThemeContext.tsx (mesmos valores). */
+  --primary-dark: #0f172a;
+  --primary-color: #10b981;
+  --secondary-color: #059669;
+  --accent-color: #10b981;
+  --primary-light: rgba(16, 185, 129, 0.1);
+  /* Muted deep corporate dark green — sidebar active items / primary actions */
+  --brand-dark: #0f172a;
 
   --bg-card: #ffffff;
   /* Canvas ÚNICO do sistema (slate) — mesmo valor em ThemeContext.tsx.
      Antes: 3 fundos diferentes (login branco, admin #f8fafc, usuário bege). */
   --bg-main: #f8fafc;
-  --text-main: #0f172a;
+  --text-main: #1e293b;
   --text-muted: #64748b;
   --border-color: #e2e8f0;
-  --bg-input: rgba(0, 0, 0, 0.03);
+  --border-input: #cbd5e1;
+  --bg-input: #ffffff;
 
   --overlay-bg: rgba(0, 0, 0, 0.5);
   --overlay-blur: 16px;
@@ -319,6 +328,34 @@ button {
   cursor: pointer;
   border: none;
   outline: none;
+}
+
+/* ═══ INPUTS PADRÃO (Design System) ═══
+   Campos de formulário, busca e seletores herdam automaticamente:
+   fundo branco, borda fina #CBD5E1, raio 8px, texto/placeholder escuros.
+   Classes utilitárias (bg-white, border-*, focus:...) têm precedência. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
+select:not([multiple]),
+textarea {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-input);
+  border-radius: 8px;
+  color: var(--text-main);
+  font-weight: 600;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):focus,
+select:not([multiple]):focus,
+textarea:focus {
+  border-color: #10b981;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -779,7 +816,7 @@ button {
 .modal-card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: 24px;
+  border-radius: 8px;
   box-shadow:
     0 40px 80px -20px rgba(15, 23, 42, 0.25),
     0 16px 32px -16px rgba(15, 23, 42, 0.2),
@@ -816,11 +853,7 @@ button {
 
 .modal-accent-bar {
   height: 3px;
-  background: linear-gradient(
-    90deg,
-    var(--primary-color),
-    var(--secondary-color)
-  );
+  background: var(--primary-color);
 }
 
 .modal-header {
@@ -829,11 +862,7 @@ button {
   justify-content: space-between;
   gap: 16px;
   padding: 20px 24px;
-  background: linear-gradient(
-    135deg,
-    var(--primary-color) 0%,
-    var(--secondary-color) 100%
-  );
+  background: var(--primary-dark);
   color: #fff;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
@@ -857,18 +886,14 @@ button {
 .modal-header-icon {
   width: 44px;
   height: 44px;
-  border-radius: 14px;
-  background: linear-gradient(
-    135deg,
-    var(--primary-color),
-    var(--secondary-color)
-  );
+  border-radius: 8px;
+  background: var(--primary-color);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
   flex-shrink: 0;
-  box-shadow: 0 4px 16px -4px var(--primary-color);
+  box-shadow: none;
 }
 
 .modal-header-text {
@@ -901,7 +926,7 @@ button {
 .modal-close {
   width: 40px;
   height: 40px;
-  border-radius: 12px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.1);
   color: #fff;
   display: flex;
@@ -962,7 +987,7 @@ button {
     }
     .modal-card {
       max-height: 100%;
-      border-radius: 20px;
+      border-radius: 8px;
       max-width: 100%;
     }
     .modal-body {
@@ -1424,19 +1449,29 @@ body {
 
 /* ═══ FOCO VISÍVEL PROFISSIONAL (navegação por teclado F1-F12 do PDV)
    Só aparece via teclado (focus-visible), nunca polui o clique do mouse.
-   Anel suave (ring) no padrão shadcn: borda dupla (nítida + glow) em vez do
-   outline chapado, para integrar com o acabamento moderno das janelas. */
+   Anel suave na COR DO TEMA (--primary-color) — nunca verde fixo, para não
+   virar "contorno fantasma" quando o tema é trocado. */
 :focus-visible {
   outline: 2px solid var(--primary-color);
   outline-offset: 2px;
-  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.18);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary-color) 16%, transparent);
   border-radius: 4px;
 }
+/* Clica com mouse/toque não deve exibir anel NENHUM — e cobre TODOS os
+   elementos clicáveis (links, divs com onClick/tabindex/role, não só
+   button/input/select/textarea). Elimina os "contornos fantasmas" que
+   apareciam após clique em cards/botões. */
 button:focus:not(:focus-visible),
 input:focus:not(:focus-visible),
 select:focus:not(:focus-visible),
-textarea:focus:not(:focus-visible) {
-  outline: none;
+textarea:focus:not(:focus-visible),
+a:focus:not(:focus-visible),
+[tabindex]:focus:not(:focus-visible),
+[role]:focus:not(:focus-visible),
+[onclick]:focus:not(:focus-visible),
+[onkeydown]:focus:not(:focus-visible) {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 /* Firefox: scrollbars discretas equivalentes ao WebKit já definido */

@@ -94,10 +94,10 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ src, alt, onClose
         className="relative max-w-full max-h-full flex flex-col items-center"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center gap-2 mb-4 bg-black/50 rounded-2xl p-2 backdrop-blur-sm">
+        <div className="flex items-center gap-2 mb-4 bg-black/50 rounded-lg p-2 backdrop-blur-sm">
           <button
             onClick={() => setZoom(z => Math.max(0.5, z - 0.25))}
-            className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-xl flex items-center justify-center text-white transition-all active:scale-90"
+            className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center text-white transition-all active:scale-90"
             title="Reduzir zoom"
           >
             <ZoomOut size={18} />
@@ -105,7 +105,7 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ src, alt, onClose
           <span className="text-white/60 text-xs font-bold w-12 text-center tabular-nums">{Math.round(zoom * 100)}%</span>
           <button
             onClick={() => setZoom(z => Math.min(3, z + 0.25))}
-            className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-xl flex items-center justify-center text-white transition-all active:scale-90"
+            className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center text-white transition-all active:scale-90"
             title="Aumentar zoom"
           >
             <ZoomIn size={18} />
@@ -113,21 +113,21 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ src, alt, onClose
           <div className="w-px h-8 bg-white/20 mx-1" />
           <button
             onClick={handlePrint}
-            className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-xl flex items-center justify-center text-white transition-all active:scale-90"
+            className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center text-white transition-all active:scale-90"
             title="Imprimir"
           >
             <Printer size={18} />
           </button>
           <button
             onClick={handleDownload}
-            className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-xl flex items-center justify-center text-white transition-all active:scale-90"
+            className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center text-white transition-all active:scale-90"
             title="Baixar"
           >
             <Download size={18} />
           </button>
           <button
             onClick={handleOpenNewTab}
-            className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-xl flex items-center justify-center text-white transition-all active:scale-90"
+            className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center text-white transition-all active:scale-90"
             title="Abrir em nova aba"
           >
             <ExternalLink size={18} />
@@ -135,17 +135,17 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ src, alt, onClose
           <div className="w-px h-8 bg-white/20 mx-1" />
           <button
             onClick={onClose}
-            className="w-10 h-10 bg-white/10 hover:bg-white/30 rounded-xl flex items-center justify-center text-white transition-all active:scale-90"
+            className="w-10 h-10 bg-white/10 hover:bg-white/30 rounded-lg flex items-center justify-center text-white transition-all active:scale-90"
             title="Fechar"
           >
             <X size={20} />
           </button>
         </div>
-        <div className="overflow-auto max-w-full max-h-[85vh] rounded-2xl" style={{ cursor: zoom > 1 ? 'grab' : 'default' }}>
+        <div className="overflow-auto max-w-full max-h-[85vh] rounded-lg" style={{ cursor: zoom > 1 ? 'grab' : 'default' }}>
           <img
             src={src}
             alt={alt || 'Comprovante'}
-            className="rounded-xl transition-transform duration-200"
+            className="rounded-lg transition-transform duration-200"
             style={{ transform: `scale(${zoom})`, transformOrigin: 'center center' }}
           />
         </div>

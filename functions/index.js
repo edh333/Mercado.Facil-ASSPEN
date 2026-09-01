@@ -381,6 +381,87 @@ exports.buscarUsuarioAtual = onCall(async (request) => {
 });
 
 /**
+ * Pode acessar a lista de clientes do PDV (busca de famílias/presos).
+ * Restrito a quem já enxerga o painel administrativo: admins ou usuários com
+ * permissão de 'sales'/'users'/'all'. NUNCA retorna senha/authUid/mainAdmin.
+ */
+async function exigirAcessoPdv(context) {
+  const u = await exigirAutenticado(context);
+  const role = String(u.role || "").toLowerCase();
+  const perms = Array.isArray(u.permissions) ? u.permissions : [];
+  const ehAdmin = ["admin", "master"].includes(role);
+  const permOk = perms.includes("all") || perms.includes("sales") || perms.includes("users");
+  if (!ehAdmin && !permOk) {
+    throw new HttpsError("permission-denied", "Acesso restrito à operação de vendas.");
+  }
+  return u;
+}
+
+/**
+ * Lista (SANITIZADA) dos clientes/famílias para a busca do PDV.
+ * A regra do Firestore proíbe `list` de `users` no client (`allow list: if
+ * false`) para proteger PII — esta função é o canal autorizado: roda server-side
+ * e devolve apenas os campos necessários para localizar e vender.
+ * Aceita um `termo` opcional de busca (filtrado em memória, sem índice).
+ */
+exports.buscarClientesPdv = onCall(async (request) => {
+  await exigirAcessoPdv(request);
+  const termo = String(request.data?.termo || "").trim().toLowerCase();
+  const MAX = 1500;
+
+  let snap;
+  try {
+    snap = await db.collection("users")
+      .orderBy("name", "asc")
+      .limit(MAX)
+      .get();
+  } catch (e) {
+    logger.warn("[buscarClientesPdv] Índice indisponível, listando sem orderBy:", e.message);
+    snap = await db.collection("users").limit(MAX).get();
+  }
+
+  const idsExcluidos = ["consumidor_geral", "balcao_anonimo", "admin", "master"];
+  const clientes = [];
+  for (const doc of snap.docs) {
+    const d = doc.data();
+    const role = String(d.role || "").toLowerCase();
+    if (["admin", "master"].includes(role)) continue;
+    if (d.id && idsExcluidos.includes(String(d.id).toLowerCase())) continue;
+    if (String(d.status || "active").toLowerCase() === "suspended") continue;
+    if (d.deleted === true) continue;
+
+    const nome = String(d.name || "");
+    const preso = String(d.inmateName || d.prisonerName || "");
+    const cpf = String(d.cpf || "");
+    const presoCpf = String(d.inmateCpf || d.prisonerCpf || "");
+    if (termo &&
+        !nome.toLowerCase().includes(termo) &&
+        !preso.toLowerCase().includes(termo) &&
+        !cpf.includes(termo) &&
+        !presoCpf.includes(termo)) {
+      continue;
+    }
+
+    clientes.push({
+      id: doc.id,
+      name: nome,
+      email: String(d.email || ""),
+      cpf,
+      phone: String(d.phone || ""),
+      role: String(d.role || "FAMILY"),
+      status: String(d.status || "active"),
+      approved: d.approved !== false && d.approved !== "false",
+      inmateName: preso,
+      inmateCpf: presoCpf,
+      walletBalance: Number(d.walletBalance || 0),
+    });
+    if (clientes.length >= 200) break;
+  }
+
+  return { clientes };
+});
+
+/**
  * Público — cria a conta no Firebase Auth + documento do usuário.
  * Com `provisionar: true`, vincula a conta a um usuário existente (migração),
  * validando a senha atual contra o hash armazenado.

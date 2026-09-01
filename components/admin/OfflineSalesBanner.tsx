@@ -40,14 +40,14 @@ export const OfflineSalesBanner: React.FC = () => {
     <motion.div
       initial={{ opacity: 0, y: -12 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`w-full rounded-2xl border p-4 shadow-lg flex flex-col gap-3 ${
+      className={`w-full rounded-lg border p-4 shadow-lg flex flex-col gap-3 ${
         vendasOfflineComErro > 0
           ? 'bg-red-950/95 border-red-500/40'
           : 'bg-amber-950/95 border-amber-500/40'
       } backdrop-blur-xl`}
     >
       <div className="flex items-center gap-3">
-        <div className="p-2.5 rounded-xl bg-amber-500/15 shrink-0">
+        <div className="p-2.5 rounded-lg bg-amber-500/15 shrink-0">
           <CloudOff size={20} className="text-amber-400" />
         </div>
         <div className="flex-1">
@@ -63,14 +63,14 @@ export const OfflineSalesBanner: React.FC = () => {
         <button
           onClick={executar}
           disabled={sincronizando}
-          className="shrink-0 px-4 py-2 bg-white text-amber-900 rounded-xl font-black text-[10px] uppercase tracking-wider flex items-center gap-2 hover:bg-amber-50 active:scale-95 transition-all disabled:opacity-50"
+          className="shrink-0 px-4 py-2 bg-white text-amber-900 rounded-lg font-black text-[10px] uppercase tracking-wider flex items-center gap-2 hover:bg-amber-50 active:scale-95 transition-all disabled:opacity-50"
         >
           {sincronizando ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Sincronizar agora
         </button>
       </div>
 
       {vendasOfflineComErro > 0 && (
-        <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/30 rounded-xl px-3 py-2.5">
+        <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2.5">
           <AlertTriangle size={14} className="text-red-300 shrink-0 mt-0.5" />
           <p className="text-[10px] font-bold text-red-200 leading-relaxed">
             {vendasOfflineComErro} venda(s) foi/foram recusada(s) na sincronização (saldo, estoque ou preço não validados no momento offline). Confira a fila em Configurações → Capacidade para resolver (estornar, ajustar saldo e tentar novamente).

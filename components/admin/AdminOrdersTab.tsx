@@ -136,7 +136,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
   return (
     <div className="space-y-6 animate-slideUp pb-20">
       {/* Upper Management Header */}
-      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 bg-[var(--bg-card)] p-8 rounded-[3rem] border-2 border-[var(--border-color)] shadow-sm relative overflow-hidden">
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 bg-[var(--bg-card)] p-8 rounded-lg border border-[var(--border-color)] shadow-sm relative overflow-hidden">
         <div className="absolute top-0 left-0 w-32 h-32 bg-emerald-500 rounded-full blur-[60px] -ml-16 -mt-16 opacity-10"></div>
 
         <div className="relative z-10">
@@ -148,15 +148,15 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
 
         <div className="flex flex-col md:flex-row items-center gap-4 w-full xl:w-auto relative z-10">
             {/* Status Filter Toggle */}
-            <div className="flex bg-[var(--bg-main)] rounded-2xl p-1.5 border border-[var(--border-color)] w-full md:w-auto overflow-x-auto custom-scrollbar gap-1">
-                <button onClick={() => setStatusFilter('ALL')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${statusFilter === 'ALL' ? 'bg-[var(--text-main)] text-[var(--bg-card)] shadow-lg' : 'text-[var(--text-muted)] hover:bg-slate-100'}`}>Tudo</button>
-                <button onClick={() => setStatusFilter('PENDING')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${statusFilter === 'PENDING' ? 'bg-amber-500 text-white shadow-lg ring-2 ring-amber-300' : 'text-amber-600 hover:bg-amber-100'}`}>Pendentes</button>
-                <button onClick={() => setStatusFilter('PAID')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${statusFilter === 'PAID' ? 'bg-emerald-600 text-white shadow-lg' : 'text-emerald-600 hover:bg-emerald-100'}`}>Concluidos</button>
-                <button onClick={() => setStatusFilter('REFUNDED')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${statusFilter === 'REFUNDED' ? 'bg-indigo-600 text-white shadow-lg' : 'text-indigo-600 hover:bg-indigo-100'}`}>Devolvidos</button>
+            <div className="flex bg-[var(--bg-main)] rounded-lg p-1.5 border border-[var(--border-color)] w-full md:w-auto overflow-x-auto custom-scrollbar gap-1">
+                <button onClick={() => setStatusFilter('ALL')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${statusFilter === 'ALL' ? 'bg-[var(--text-main)] text-[var(--bg-card)] shadow-lg' : 'text-[var(--text-muted)] hover:bg-slate-100'}`}>Tudo</button>
+                <button onClick={() => setStatusFilter('PENDING')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${statusFilter === 'PENDING' ? 'bg-amber-500 text-white shadow-lg ring-2 ring-amber-300' : 'text-amber-600 hover:bg-amber-100'}`}>Pendentes</button>
+                <button onClick={() => setStatusFilter('PAID')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${statusFilter === 'PAID' ? 'bg-emerald-600 text-white shadow-lg' : 'text-emerald-600 hover:bg-emerald-100'}`}>Concluidos</button>
+                <button onClick={() => setStatusFilter('REFUNDED')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${statusFilter === 'REFUNDED' ? 'bg-indigo-600 text-white shadow-lg' : 'text-indigo-600 hover:bg-indigo-100'}`}>Devolvidos</button>
             </div>
 
             {/* Date Filter */}
-            <div className="flex bg-[var(--bg-main)] rounded-xl p-1 border border-[var(--border-color)] w-full md:w-auto overflow-x-auto custom-scrollbar gap-1 items-center">
+            <div className="flex bg-[var(--bg-main)] rounded-lg p-1 border border-[var(--border-color)] w-full md:w-auto overflow-x-auto custom-scrollbar gap-1 items-center">
                 <button onClick={() => setDateFilter('ALL')} className={`px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all shrink-0 ${dateFilter === 'ALL' ? 'bg-[var(--text-main)] text-[var(--bg-card)]' : 'text-[var(--text-muted)] hover:bg-slate-100'}`}>Todas</button>
                 <button onClick={() => setDateFilter('TODAY')} className={`px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all shrink-0 ${dateFilter === 'TODAY' ? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-100'}`}>Hoje</button>
                 <button onClick={() => setDateFilter('YESTERDAY')} className={`px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all shrink-0 ${dateFilter === 'YESTERDAY' ? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-100'}`}>Ontem</button>
@@ -176,13 +176,13 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
             {/* Sort Order */}
             <button
                 onClick={() => setSortOrder(sortOrder === 'newest' ? 'oldest' : 'newest')}
-                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${sortOrder === 'newest' ? 'bg-[var(--text-main)] text-[var(--bg-card)]' : 'bg-[var(--bg-main)] text-[var(--text-muted)] border border-[var(--border-color)]'}`}
+                className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${sortOrder === 'newest' ? 'bg-[var(--text-main)] text-[var(--bg-card)]' : 'bg-[var(--bg-main)] text-[var(--text-muted)] border border-[var(--border-color)]'}`}
             >
                 <Clock size={14}/> {sortOrder === 'newest' ? 'Mais Recentes' : 'Mais Antigas'}
             </button>
 
             {/* View Mode Toggle */}
-            <div className="hidden sm:flex bg-[var(--bg-main)] rounded-xl p-1 border border-[var(--border-color)]">
+            <div className="hidden sm:flex bg-[var(--bg-main)] rounded-lg p-1 border border-[var(--border-color)]">
                 <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-[var(--bg-card)] text-[var(--text-main)] shadow-sm border border-[var(--border-color)]' : 'text-[var(--text-muted)] hover:bg-slate-100'}`}><Grid size={20}/></button>
                 <button onClick={() => setViewMode('list')} className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-[var(--bg-card)] text-[var(--text-main)] shadow-sm border border-[var(--border-color)]' : 'text-[var(--text-muted)] hover:bg-slate-100'}`}><List size={20}/></button>
             </div>
@@ -190,7 +190,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
             {/* Export Button */}
             <button
                 onClick={exportOrdersToCSV}
-                className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 bg-emerald-500 text-white hover:bg-emerald-600"
+                className="px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 bg-emerald-500 text-white hover:bg-emerald-600"
             >
                 <Download size={14}/> Exportar
             </button>
@@ -198,14 +198,14 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
       </div>
 
       {/* Resumo do recorte atual: quantos pedidos e quanto somou */}
-      <div className="flex flex-wrap items-center gap-4 bg-[var(--bg-card)] border-2 border-[var(--border-color)] rounded-2xl px-6 py-4 shadow-sm">
+      <div className="flex flex-wrap items-center gap-4 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg px-6 py-4 shadow-sm">
         <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Resultado:</span>
         <span className="text-sm font-black text-[var(--text-main)]">{resumoFiltro.qtd} pedido(s)</span>
         <span className="text-lg font-black text-emerald-600 tracking-tighter">
           R$ {resumoFiltro.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
         </span>
         {dateFilter === 'DAY' && specificDate && (
-          <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-xl">
+          <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg">
             Vendas do dia {new Date(specificDate + 'T12:00:00').toLocaleDateString('pt-BR')}
           </span>
         )}
@@ -213,11 +213,11 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
 
       {/* Search Input */}
       <div className="relative group">
-        <div className="absolute left-6 top-1/2 -translate-y-1/2 bg-[var(--bg-card)] p-3 rounded-2xl border-2 border-[var(--border-color)] group-focus-within:border-emerald-500 transition-all duration-300 z-10 shadow-sm">
+        <div className="absolute left-6 top-1/2 -translate-y-1/2 bg-[var(--bg-card)] p-3 rounded-lg border border-[var(--border-color)] group-focus-within:border-emerald-500 transition-all duration-300 z-10 shadow-sm">
           <Search className="text-[var(--text-muted)] group-focus-within:text-emerald-600 transition-colors" size={22} />
         </div>
         <input
-          className="w-full pl-24 pr-8 py-6 bg-[var(--bg-card)] border-2 border-[var(--border-color)] focus:border-emerald-500 rounded-[3rem] text-sm font-black text-[var(--text-main)] outline-none transition-all placeholder:text-[var(--text-muted)] placeholder:font-medium uppercase tracking-[0.2em] shadow-inner"
+          className="w-full pl-24 pr-8 py-6 bg-[var(--bg-card)] border border-[var(--border-color)] focus:border-emerald-500 rounded-lg text-sm font-black text-[var(--text-main)] outline-none transition-all placeholder:text-[var(--text-muted)] placeholder:font-medium uppercase tracking-[0.2em] "
           placeholder="PESQUISAR POR NOME, CPF OU CODIGO DO PEDIDO..."
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
@@ -225,22 +225,22 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
       </div>
 
       {/* Orders Grid/List */}
-      <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'bg-[var(--bg-card)] rounded-[3rem] border-2 border-[var(--border-color)] shadow-sm overflow-hidden'}>
+      <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'bg-[var(--bg-card)] rounded-lg border border-[var(--border-color)] shadow-sm overflow-hidden'}>
         {filteredOrders.length === 0 ? (
           <div className="col-span-full py-20 text-center opacity-70">
             <ShoppingCart size={80} className="mx-auto mb-4"/>
             <p className="font-black uppercase tracking-[0.4em]">Nenhum pedido encontrado</p>
           </div>
         ) : filteredOrders.map(order => (
-          <div key={order.id} className={`transition-all group relative overflow-hidden ${viewMode === 'grid' ? 'bg-[var(--bg-card)] rounded-[3rem] shadow-sm border-2 border-[var(--border-color)] hover:shadow-xl hover:-translate-y-2 p-8 flex flex-col' : 'flex flex-col sm:flex-row sm:items-center p-8 gap-8 border-b border-[var(--border-color)] last:border-0 hover:bg-[var(--bg-main)]'}`}>
+          <div key={order.id} className={`transition-all group relative overflow-hidden ${viewMode === 'grid' ? 'bg-[var(--bg-card)] rounded-lg shadow-sm border border-[var(--border-color)] hover:shadow-xl hover:-translate-y-2 p-8 flex flex-col' : 'flex flex-col sm:flex-row sm:items-center p-8 gap-8 border-b border-[var(--border-color)] last:border-0 hover:bg-[var(--bg-main)]'}`}>
 
 {/* Status Indicator (Grid Top) */}
             <div className="flex justify-between items-start mb-6">
-              <div className="px-4 py-1.5 bg-[var(--bg-main)] rounded-xl border-2 border-[var(--border-color)] shadow-inner">
+              <div className="px-4 py-1.5 bg-[var(--bg-main)] rounded-lg border border-[var(--border-color)] ">
                 <p className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest leading-none mb-1">Cod. Pedido</p>
                 <p className="text-xs font-black text-[var(--text-main)] font-mono tracking-tighter">#{(order?.id || 'sem-id').slice(-8).toUpperCase()}</p>
               </div>
-              <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl border ${getStatusColor(order.status)}`}>
+              <span className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-xl border ${getStatusColor(order.status)}`}>
                 {translateStatus(order.status)}
               </span>
             </div>
@@ -248,7 +248,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
             <div className="flex-1 space-y-6">
               {/* Customer Info */}
               <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-[var(--bg-main)] border border-[var(--border-color)] flex items-center justify-center text-[var(--text-muted)] shrink-0 group-hover:bg-emerald-500/10 group-hover:text-emerald-600 transition-colors">
+                  <div className="w-12 h-12 rounded-lg bg-[var(--bg-main)] border border-[var(--border-color)] flex items-center justify-center text-[var(--text-muted)] shrink-0 group-hover:bg-emerald-500/10 group-hover:text-emerald-600 transition-colors">
                       <UserCheck size={24}/>
                   </div>
                   <div className="min-w-0">
@@ -259,7 +259,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
               </div>
 
               {/* Inmate Info */}
-              <div className="bg-white p-5 rounded-[2rem] border border-slate-200 group-hover:border-emerald-500/50 transition-all">
+              <div className="bg-white p-5 rounded-lg border border-slate-200 group-hover:border-emerald-500/50 transition-all">
                   <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
                     <ShieldCheck size={14}/> Destino / Interno
                   </p>
@@ -307,9 +307,9 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                   </h3>
                 </div>
                 <div className="flex space-x-2 flex-wrap gap-y-2">
-                  <button onClick={() => setPrintOrder(order)} className="p-4 min-h-[44px] min-w-[44px] bg-[var(--bg-main)] text-[var(--text-muted)] hover:bg-slate-100 hover:text-[var(--text-main)] rounded-2xl border border-[var(--border-color)] shadow-sm active:scale-95 transition-all flex items-center justify-center" title="Imprimir Cupom 80mm"><Printer size={22}/></button>
-                  <button onClick={() => setViewingReceipt({ data: order, type: 'ORDER' })} className="p-4 min-h-[44px] min-w-[44px] bg-[var(--bg-main)] text-[var(--text-muted)] hover:bg-emerald-50 hover:text-emerald-600 rounded-2xl border border-[var(--border-color)] shadow-sm active:scale-95 transition-all flex items-center justify-center" title="Ver Recibo Digital"><FileText size={22}/></button>
-                  <button onClick={() => setSelectedOrderDetails(order)} className="px-6 py-4 min-h-[44px] bg-emerald-500 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-lg hover:bg-emerald-600 active:scale-95 transition-all flex items-center gap-2 touch-target">
+                  <button onClick={() => setPrintOrder(order)} className="p-4 min-h-[44px] min-w-[44px] bg-[var(--bg-main)] text-[var(--text-muted)] hover:bg-slate-100 hover:text-[var(--text-main)] rounded-lg border border-[var(--border-color)] shadow-sm active:scale-95 transition-all flex items-center justify-center" title="Imprimir Cupom 80mm"><Printer size={22}/></button>
+                  <button onClick={() => setViewingReceipt({ data: order, type: 'ORDER' })} className="p-4 min-h-[44px] min-w-[44px] bg-[var(--bg-main)] text-[var(--text-muted)] hover:bg-emerald-50 hover:text-emerald-600 rounded-lg border border-[var(--border-color)] shadow-sm active:scale-95 transition-all flex items-center justify-center" title="Ver Recibo Digital"><FileText size={22}/></button>
+                  <button onClick={() => setSelectedOrderDetails(order)} className="px-6 py-4 min-h-[44px] bg-emerald-500 text-white font-black rounded-lg text-[10px] uppercase tracking-widest shadow-lg hover:bg-emerald-600 active:scale-95 transition-all flex items-center gap-2 touch-target">
                     Detalhes <ArrowRight size={16}/>
                   </button>
                 </div>
@@ -317,10 +317,10 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
               {/* Botões de Aprovação/Rejeição para Pedidos Pendentes - Sempre visíveis no mobile */}
               {order.status === 'Pendente' || order.status === 'pending_payment' || order.status === 'pending' ? (
                 <div className="grid grid-cols-2 gap-3">
-                  <button onClick={() => setSelectedOrderDetails(order)} className="py-3 min-h-[48px] bg-rose-500 text-white font-bold rounded-2xl text-[10px] uppercase tracking-widest shadow-lg hover:bg-rose-600 active:scale-95 transition-all flex items-center justify-center gap-2 touch-target">
+                  <button onClick={() => setSelectedOrderDetails(order)} className="py-3 min-h-[48px] bg-rose-500 text-white font-bold rounded-lg text-[10px] uppercase tracking-widest shadow-lg hover:bg-rose-600 active:scale-95 transition-all flex items-center justify-center gap-2 touch-target">
                     <XCircle size={18}/> Rejeitar
                   </button>
-                  <button onClick={() => handleQuickApprove(order)} className="py-3 min-h-[48px] bg-emerald-600 text-white font-bold rounded-2xl text-[10px] uppercase tracking-widest shadow-lg hover:bg-emerald-700 active:scale-95 transition-all flex items-center justify-center gap-2 touch-target">
+                  <button onClick={() => handleQuickApprove(order)} className="py-3 min-h-[48px] bg-emerald-600 text-white font-bold rounded-lg text-[10px] uppercase tracking-widest shadow-lg hover:bg-emerald-700 active:scale-95 transition-all flex items-center justify-center gap-2 touch-target">
                     <CheckCircle size={18}/> Aprovar e Finalizar
                   </button>
                 </div>
@@ -334,7 +334,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
         <div className="flex justify-center mt-8 pb-10">
           <button
             onClick={loadMoreOrders}
-            className="px-10 py-4 bg-[var(--bg-card)] border-2 border-[var(--border-color)] text-[var(--text-main)] font-black uppercase tracking-[0.2em] rounded-2xl hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-all shadow-sm active:scale-95"
+            className="px-10 py-4 bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-main)] font-black uppercase tracking-[0.2em] rounded-lg hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-all shadow-sm active:scale-95"
           >
             Carregar Mais Pedidos
           </button>

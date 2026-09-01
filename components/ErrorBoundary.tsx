@@ -54,19 +54,19 @@ export class ErrorBoundary extends React.Component<any, any> {
               Ocorreu um erro inesperado. Nossa equipe foi notificada.
             </p>
             {st.error && (
-              <p className="text-[10px] font-mono text-red-500 bg-red-50 rounded-xl p-3 mb-6 break-all">
+              <p className="text-[10px] font-mono text-red-500 bg-red-50 rounded-lg p-3 mb-6 break-all">
                 {st.error.message}
               </p>
             )}
             {st.info?.componentStack && (
-              <details className="text-left text-[9px] font-mono text-slate-500 bg-slate-50 rounded-xl p-3 mb-4 break-all max-h-40 overflow-auto">
+              <details className="text-left text-[9px] font-mono text-slate-500 bg-slate-50 rounded-lg p-3 mb-4 break-all max-h-40 overflow-auto">
                 <summary className="cursor-pointer font-black uppercase tracking-wider mb-1">Componentes envolvidos</summary>
                 {String(st.info.componentStack).slice(0, 1500)}
               </details>
             )}
             <button
               onClick={() => window.location.reload()}
-              className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-black transition-all shadow-xl"
+              className="w-full py-4 bg-slate-900 text-white rounded-lg font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-black transition-all shadow-xl"
             >
               <RefreshCw size={18} /> Recarregar Sistema
             </button>

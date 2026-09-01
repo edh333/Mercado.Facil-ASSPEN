@@ -79,7 +79,7 @@ export const AdminMessagesTab: React.FC<AdminMessagesTabProps> = ({ users, messa
   return (
     <div className="space-y-6 animate-slideUp pb-20">
       {/* Header */}
-      <div className="bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="bg-[var(--bg-card)] p-6 rounded-lg border border-[var(--border-color)] shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-xl font-bold text-[var(--text-main)] flex items-center gap-2 tracking-tight">
             <MessageSquare size={24} className="text-emerald-500" /> Comunicados &amp; Mensagens
@@ -88,7 +88,7 @@ export const AdminMessagesTab: React.FC<AdminMessagesTabProps> = ({ users, messa
             Envie comunicados aos familiares aprovados
           </p>
         </div>
-        <div className="flex items-center gap-3 bg-[var(--bg-main)] px-5 py-3 rounded-2xl border border-[var(--border-color)]">
+        <div className="flex items-center gap-3 bg-[var(--bg-main)] px-5 py-3 rounded-lg border border-[var(--border-color)]">
           <Users size={18} className="text-[var(--text-muted)]" />
           <p className="text-xs font-semibold text-[var(--text-main)]">
             {familiares.length} familiares ativos
@@ -98,9 +98,9 @@ export const AdminMessagesTab: React.FC<AdminMessagesTabProps> = ({ users, messa
 
       <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6 items-start">
         {/* LISTA DE FAMILIARES */}
-        <div className="bg-[var(--bg-card)] rounded-[2.5rem] border border-[var(--border-color)] shadow-sm overflow-hidden lg:sticky lg:top-24">
+        <div className="bg-[var(--bg-card)] rounded-lg border border-[var(--border-color)] shadow-sm overflow-hidden lg:sticky lg:top-24">
           <div className="p-5 border-b border-[var(--border-color)]">
-            <div className="flex items-center gap-3 bg-[var(--bg-main)] border-2 border-[var(--border-color)] focus-within:border-emerald-500 rounded-2xl px-4 py-2.5 transition-all">
+            <div className="flex items-center gap-3 bg-white border border-[var(--border-input)] focus-within:border-emerald-500 rounded-lg px-4 py-2.5 transition-all">
               <Search size={16} className="text-[var(--text-muted)] shrink-0" />
               <input
                 className="flex-1 bg-transparent border-none outline-none font-black text-xs text-[var(--text-main)] placeholder:text-[var(--text-muted)] uppercase tracking-widest"
@@ -115,7 +115,7 @@ export const AdminMessagesTab: React.FC<AdminMessagesTabProps> = ({ users, messa
             {/* Comunicado Geral */}
             <button
               onClick={() => setSelected(ALL_USERS)}
-              className={`w-full rounded-2xl px-4 py-3 text-left transition-all flex items-center gap-3 border ${
+              className={`w-full rounded-lg px-4 py-3 text-left transition-all flex items-center gap-3 border ${
                 selected === ALL_USERS
                   ? 'bg-emerald-500 text-white border-emerald-500 shadow-lg'
                   : 'bg-[var(--bg-main)] text-[var(--text-main)] border-[var(--border-color)] hover:border-emerald-500/50'
@@ -151,13 +151,13 @@ export const AdminMessagesTab: React.FC<AdminMessagesTabProps> = ({ users, messa
                 <button
                   key={u.id}
                   onClick={() => setSelected(u.id)}
-                  className={`w-full rounded-2xl px-4 py-3 text-left transition-all flex items-center gap-3 border ${
+                  className={`w-full rounded-lg px-4 py-3 text-left transition-all flex items-center gap-3 border ${
                     selected === u.id
                       ? 'bg-emerald-500 text-white border-emerald-500 shadow-lg'
                       : 'bg-[var(--bg-main)] text-[var(--text-main)] border-[var(--border-color)] hover:border-emerald-500/50'
                   }`}
                 >
-                  <div className="w-10 h-10 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] flex items-center justify-center shrink-0 overflow-hidden">
+                  <div className="w-10 h-10 rounded-lg bg-[var(--bg-card)] border border-[var(--border-color)] flex items-center justify-center shrink-0 overflow-hidden">
                     <span className="font-black text-sm text-emerald-600">
                       {(u.name || '?').trim().charAt(0).toUpperCase()}
                     </span>
@@ -180,7 +180,7 @@ export const AdminMessagesTab: React.FC<AdminMessagesTabProps> = ({ users, messa
         </div>
 
         {/* CONVERSA */}
-        <div className="bg-[var(--bg-card)] rounded-[2.5rem] border border-[var(--border-color)] shadow-sm overflow-hidden flex flex-col">
+        <div className="bg-[var(--bg-card)] rounded-lg border border-[var(--border-color)] shadow-sm overflow-hidden flex flex-col">
           {!selected ? (
             <div className="p-16 text-center">
               <MessageSquare size={56} className="mx-auto mb-5 text-slate-300" />
@@ -193,7 +193,7 @@ export const AdminMessagesTab: React.FC<AdminMessagesTabProps> = ({ users, messa
             <>
               {/* Cabeçalho da conversa */}
               <div className="px-6 py-5 border-b border-[var(--border-color)] bg-[var(--bg-main)]/50 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-color)] flex items-center justify-center shrink-0">
+                <div className="w-12 h-12 rounded-lg bg-[var(--bg-card)] border border-[var(--border-color)] flex items-center justify-center shrink-0">
                   {selected === ALL_USERS ? (
                     <Megaphone size={22} className="text-amber-500" />
                   ) : (
@@ -228,7 +228,7 @@ export const AdminMessagesTab: React.FC<AdminMessagesTabProps> = ({ users, messa
                   thread.map(msg => (
                     <div key={msg.id} className={`flex ${msg.fromAdmin ? 'justify-end' : 'justify-start'}`}>
                       <div
-                        className={`max-w-[80%] px-5 py-3.5 rounded-2xl shadow-sm ${
+                        className={`max-w-[80%] px-5 py-3.5 rounded-lg shadow-sm ${
                           msg.fromAdmin
                             ? 'bg-emerald-600 text-white rounded-br-sm'
                             : 'bg-[var(--bg-main)] text-[var(--text-main)] border border-[var(--border-color)] rounded-bl-sm'
@@ -258,7 +258,7 @@ export const AdminMessagesTab: React.FC<AdminMessagesTabProps> = ({ users, messa
               {/* Envio */}
               <div className="p-5 border-t border-[var(--border-color)] flex items-center gap-3">
                 <input
-                  className="flex-1 bg-[var(--bg-main)] border-2 border-[var(--border-color)] focus:border-emerald-500 rounded-2xl px-5 py-4 outline-none font-bold text-sm text-[var(--text-main)] placeholder:text-[var(--text-muted)] transition-all shadow-inner"
+                  className="flex-1 bg-white border border-[var(--border-input)] focus:border-emerald-500 rounded-lg px-5 py-4 outline-none font-bold text-sm text-[var(--text-main)] placeholder:text-[var(--text-muted)] transition-all"
                   placeholder={`Mensagem para ${selected === ALL_USERS ? 'todos os familiares' : (selectedUser?.name || 'o familiar')}...`}
                   value={body}
                   onChange={e => setBody(e.target.value)}
@@ -272,7 +272,7 @@ export const AdminMessagesTab: React.FC<AdminMessagesTabProps> = ({ users, messa
                 <button
                   onClick={handleSend}
                   disabled={sending || !body.trim()}
-                  className="px-8 py-4 bg-emerald-600 text-white font-black text-[10px] uppercase tracking-widest rounded-2xl shadow-xl flex items-center justify-center gap-2 hover:bg-emerald-500 transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald-600"
+                  className="px-8 py-4 bg-emerald-600 text-white font-black text-[10px] uppercase tracking-widest rounded-lg shadow-xl flex items-center justify-center gap-2 hover:bg-emerald-500 transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald-600"
                 >
                   <Send size={16} className={sending ? 'animate-pulse' : ''} /> {sending ? 'Enviando...' : 'Enviar'}
                 </button>

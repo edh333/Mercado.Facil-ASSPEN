@@ -23,7 +23,7 @@ export const MaintenanceScreen: React.FC<{
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-900 p-4">
       <div className="max-w-md w-full text-center">
-        <div className="w-20 h-20 bg-slate-800 border border-slate-700 rounded-3xl mx-auto mb-6 flex items-center justify-center">
+        <div className="w-20 h-20 bg-slate-800 border border-slate-700 rounded-lg mx-auto mb-6 flex items-center justify-center">
           <Lock size={36} className="text-amber-400" />
         </div>
         <h1 className="text-2xl font-black text-white uppercase tracking-tight mb-2">
@@ -33,12 +33,12 @@ export const MaintenanceScreen: React.FC<{
           O acesso administrativo foi pausado. Os pedidos e vendas dos clientes continuam funcionando normalmente.
         </p>
         {maintenance.motivo && (
-          <div className="bg-slate-800/80 border border-slate-700 rounded-2xl p-4 mb-4">
+          <div className="bg-slate-800/80 border border-slate-700 rounded-lg p-4 mb-4">
             <p className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-1">Motivo</p>
             <p className="text-slate-200 text-sm whitespace-pre-wrap">{maintenance.motivo}</p>
           </div>
         )}
-        <div className="bg-slate-800/80 border border-slate-700 rounded-2xl p-4 mb-8">
+        <div className="bg-slate-800/80 border border-slate-700 rounded-lg p-4 mb-8">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Desativado</p>
           <p className="text-slate-200 text-sm">
             {maintenance.desativadoPorNome || 'Administrador'}
@@ -50,7 +50,7 @@ export const MaintenanceScreen: React.FC<{
         </p>
         <button
           onClick={onLogout}
-          className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-sm transition-colors"
+          className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-bold text-sm transition-colors"
         >
           <LogOut size={16} /> Sair da conta
         </button>

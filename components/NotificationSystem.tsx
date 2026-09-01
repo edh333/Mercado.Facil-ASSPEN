@@ -51,10 +51,10 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onClo
     };
 
     const colors = {
-        success: 'border-emerald-500/50 bg-slate-900 text-white shadow-emerald-500/20',
-        error: 'border-red-500/50 bg-slate-900 text-white shadow-red-500/20',
-        warning: 'border-amber-500/50 bg-slate-900 text-white shadow-amber-500/20',
-        info: 'border-blue-500/50 bg-slate-900 text-white shadow-blue-500/20'
+        success: 'border-emerald-500/50 bg-slate-900 text-white',
+        error: 'border-red-500/50 bg-slate-900 text-white',
+        warning: 'border-amber-500/50 bg-slate-900 text-white',
+        info: 'border-blue-500/50 bg-slate-900 text-white'
     };
 
     return (
@@ -63,7 +63,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onClo
             initial={{ opacity: 0, y: -20, x: 20, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, x: 0, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-            className={`pointer-events-auto flex items-start gap-4 p-5 rounded-[1.5rem] border-2 shadow-2xl backdrop-blur-xl ${colors[notification.type]} relative overflow-hidden`}
+            className={`pointer-events-auto flex items-start gap-4 p-5 rounded-lg border shadow-sm backdrop-blur-xl ${colors[notification.type]} relative overflow-hidden`}
         >
             <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none"></div>
             <div className="mt-0.5 flex-shrink-0 relative z-10">

@@ -108,8 +108,8 @@ export const Landing: React.FC<{ skipLanding?: boolean }> = ({ skipLanding }) =>
                         {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
                     </button>
                     <div className="flex items-center gap-2">
-                        <button onClick={() => abrir('login')} style={{ padding: '12px 16px', minHeight: 44, borderRadius: '0.75rem', fontSize: '0.75rem', fontWeight: 700, color: '#fff', border: '1px solid rgba(255,255,255,0.3)', backgroundColor: 'transparent', cursor: 'pointer' }} className="px-4 py-3 min-h-[44px] rounded-xl text-[12px] font-bold hover:bg-white/10 transition-colors">Entrar</button>
-                        <button onClick={() => abrir('register')} style={btnOutline} className="px-4 py-3 min-h-[44px] rounded-xl text-[12px] font-bold hover:bg-emerald-50 transition-colors shadow-sm cursor-pointer">Criar conta</button>
+                        <button onClick={() => abrir('login')} style={{ padding: '12px 16px', minHeight: 44, borderRadius: '0.75rem', fontSize: '0.75rem', fontWeight: 700, color: '#fff', border: '1px solid rgba(255,255,255,0.3)', backgroundColor: 'transparent', cursor: 'pointer' }} className="px-4 py-3 min-h-[44px] rounded-lg text-[12px] font-bold hover:bg-white/10 transition-colors">Entrar</button>
+                        <button onClick={() => abrir('register')} style={btnOutline} className="px-4 py-3 min-h-[44px] rounded-lg text-[12px] font-bold hover:bg-emerald-50 transition-colors shadow-sm cursor-pointer">Criar conta</button>
                     </div>
                 </div>
             </header>
@@ -123,7 +123,7 @@ export const Landing: React.FC<{ skipLanding?: boolean }> = ({ skipLanding }) =>
                             {['#como-funciona','#familiares','#unidade','#app'].map((href, i) => (
                                 <a key={href} href={href} onClick={() => setMobileMenuOpen(false)}
                                     style={{ minHeight: 44, padding: '12px 16px', borderRadius: '0.75rem', fontSize: '0.875rem', fontWeight: 600, color: 'rgba(255,255,255,0.9)', cursor: 'pointer' }}
-                                    className="flex items-center py-3 px-4 rounded-xl hover:bg-white/10 transition-colors">
+                                    className="flex items-center py-3 px-4 rounded-lg hover:bg-white/10 transition-colors">
                                     {['Como funciona','Para familiares','Para a unidade','Aplicativo'][i]}
                                 </a>
                             ))}
@@ -143,7 +143,7 @@ export const Landing: React.FC<{ skipLanding?: boolean }> = ({ skipLanding }) =>
                         Sistema completo de gestão: catálogo, carrinho, PIX, carteira digital, relatórios e impressão térmica — tudo pensado para a rotina real de unidades prisionais.
                     </motion.p>
                     <motion.div {...fadeUp} className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
-                        <button onClick={() => abrir('register')} style={{ ...btnPrimary, padding: '14px 28px', minHeight: 44, borderRadius: '1rem', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.2)', display: 'inline-flex', alignItems: 'center', gap: 8, transition: 'all 0.15s' }} className="px-7 py-3.5 min-h-[44px] rounded-2xl font-bold text-sm hover:bg-emerald-50 transition-all shadow-xl active:scale-[0.98] cursor-pointer flex items-center gap-2">
+                        <button onClick={() => abrir('register')} style={{ ...btnPrimary, padding: '14px 28px', minHeight: 44, borderRadius: '1rem', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.2)', display: 'inline-flex', alignItems: 'center', gap: 8, transition: 'all 0.15s' }} className="px-7 py-3.5 min-h-[44px] rounded-lg font-bold text-sm hover:bg-emerald-50 transition-all shadow-xl active:scale-[0.98] cursor-pointer flex items-center gap-2">
                             <ArrowRight size={18} /> Começar agora
                         </button>
                     </motion.div>
@@ -159,7 +159,7 @@ export const Landing: React.FC<{ skipLanding?: boolean }> = ({ skipLanding }) =>
                 <motion.div {...fadeUp} className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-6xl px-4 pb-8">
                     <div style={{ backgroundColor: primaryColor, padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRadius: '1rem' }} className="bg-[var(--primary-color)] px-5 py-4 flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <div style={{ width: 36, height: 36, borderRadius: '0.75rem', backgroundColor: `${primaryColor}/10`, display: 'flex', alignItems: 'center', justifyContent: 'center' }} className="w-9 h-9 rounded-xl bg-[var(--primary-color)]/10 flex items-center justify-center">
+                            <div style={{ width: 36, height: 36, borderRadius: '0.75rem', backgroundColor: `${primaryColor}/10`, display: 'flex', alignItems: 'center', justifyContent: 'center' }} className="w-9 h-9 rounded-lg bg-[var(--primary-color)]/10 flex items-center justify-center">
                                 <Package size={17} style={iconPrimary} />
                             </div>
                             <div>
@@ -186,7 +186,7 @@ export const Landing: React.FC<{ skipLanding?: boolean }> = ({ skipLanding }) =>
                             { icone: ClipboardCheck, titulo: 'Aprovação instantânea', desc: 'Operador valida o comprovante no painel e o pedido sai para separação. Estoque baixa automaticamente.' },
                         ].map((item, i) => (
                             <motion.div key={i} {...fadeUp} transition={{ ...fadeUp.transition, delay: i * 0.08 }} className="group bg-white border border-slate-200 rounded-[1.75rem] p-7 hover:border-emerald-500/40 hover:shadow-xl hover:-translate-y-1 transition-all">
-                                <div style={{ width: 48, height: 48, borderRadius: '1.25rem', backgroundColor: `${primaryColor}/10`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.25rem', transition: 'all 0.3s' }} className="w-12 h-12 rounded-2xl bg-[var(--primary-color)]/10 flex items-center justify-center mb-5 group-hover:bg-[var(--primary-color)]/20 transition-colors">
+                                <div style={{ width: 48, height: 48, borderRadius: '1.25rem', backgroundColor: `${primaryColor}/10`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.25rem', transition: 'all 0.3s' }} className="w-12 h-12 rounded-lg bg-[var(--primary-color)]/10 flex items-center justify-center mb-5 group-hover:bg-[var(--primary-color)]/20 transition-colors">
                                     <item.icone size={22} style={iconPrimary} className="group-hover:text-white transition-colors" />
                                 </div>
                                 <h3 className="text-lg font-bold text-slate-900 mb-2">{item.titulo}</h3>
@@ -216,10 +216,10 @@ export const Landing: React.FC<{ skipLanding?: boolean }> = ({ skipLanding }) =>
                         ))}
                     </ul>
                     <motion.div {...fadeUp} className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
-                        <button onClick={() => abrir('register')} style={{ ...btnPrimary, padding: '14px 24px', minHeight: 44, borderRadius: '1rem', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }} className="px-6 py-3.5 min-h-[44px] rounded-2xl bg-[var(--primary-color)] hover:bg-[var(--secondary-color)] text-white font-bold text-sm transition-all shadow-lg active:scale-[0.98] cursor-pointer flex items-center gap-2">
+                        <button onClick={() => abrir('register')} style={{ ...btnPrimary, padding: '14px 24px', minHeight: 44, borderRadius: '1rem', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }} className="px-6 py-3.5 min-h-[44px] rounded-lg bg-[var(--primary-color)] hover:bg-[var(--secondary-color)] text-white font-bold text-sm transition-all shadow-lg active:scale-[0.98] cursor-pointer flex items-center gap-2">
                             <Download size={18} /> Baixar aplicativo
                         </button>
-                        <button onClick={() => abrir('login')} style={{ padding: '14px 24px', minHeight: 44, borderRadius: '1rem', fontWeight: 700, fontSize: '0.875rem', color: '#fff', border: '2px solid rgba(255,255,255,0.5)', backgroundColor: 'transparent', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }} className="px-6 py-3.5 min-h-[44px] rounded-2xl border-2 border-white/50 text-white font-bold text-sm hover:bg-white/10 transition-all active:scale-[0.98] cursor-pointer flex items-center gap-2">
+                        <button onClick={() => abrir('login')} style={{ padding: '14px 24px', minHeight: 44, borderRadius: '1rem', fontWeight: 700, fontSize: '0.875rem', color: '#fff', border: '2px solid rgba(255,255,255,0.5)', backgroundColor: 'transparent', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }} className="px-6 py-3.5 min-h-[44px] rounded-lg border-2 border-white/50 text-white font-bold text-sm hover:bg-white/10 transition-all active:scale-[0.98] cursor-pointer flex items-center gap-2">
                             <ArrowRight size={18} /> Já tenho conta
                         </button>
                     </motion.div>
@@ -241,7 +241,7 @@ export const Landing: React.FC<{ skipLanding?: boolean }> = ({ skipLanding }) =>
                             { icone: ShieldCheck, titulo: 'Relatórios & Auditoria', desc: 'Fechamento de dia, DRE, curva ABC, extratos, CSVs para contabilidade.' },
                         ].map((item, i) => (
                             <motion.div key={i} {...fadeUp} transition={{ ...fadeUp.transition, delay: i * 0.08 }} className="group bg-white border border-slate-200 rounded-[1.75rem] p-6 hover:border-emerald-500/40 hover:shadow-lg transition-all">
-                                <div style={{ width: 44, height: 44, borderRadius: '1.25rem', backgroundColor: `${primaryColor}/10`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem', marginLeft: 'auto', marginRight: 'auto', transition: 'all 0.3s' }} className="w-11 h-11 rounded-2xl bg-[#0e7a4d]/10 flex items-center justify-center mx-auto mb-4">
+                                <div style={{ width: 44, height: 44, borderRadius: '1.25rem', backgroundColor: `${primaryColor}/10`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem', marginLeft: 'auto', marginRight: 'auto', transition: 'all 0.3s' }} className="w-11 h-11 rounded-lg bg-[#0e7a4d]/10 flex items-center justify-center mx-auto mb-4">
                                     <item.icone size={20} style={iconPrimary} />
                                 </div>
                                 <h3 className="text-lg font-bold text-slate-900 text-center mb-2">{item.titulo}</h3>
@@ -266,7 +266,7 @@ export const Landing: React.FC<{ skipLanding?: boolean }> = ({ skipLanding }) =>
                             { icone: Monitor, titulo: 'Desktop Admin', desc: 'Painel completo no navegador. Relatórios, usuários, estoque, financeiro.' },
                         ].map((item, i) => (
                             <motion.div key={i} {...fadeUp} transition={{ ...fadeUp.transition, delay: i * 0.08 }} className="bg-white border border-slate-200 rounded-[1.75rem] p-7 hover:border-emerald-500/40 hover:shadow-xl hover:-translate-y-1 transition-all">
-                                <div style={{ width: 48, height: 48, borderRadius: '1.25rem', backgroundColor: `${primaryColor}/10`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.25rem', transition: 'all 0.3s' }} className="w-12 h-12 rounded-2xl bg-[#0e7a4d]/10 flex items-center justify-center mb-5 group-hover:bg-[#0e7a4d] transition-colors">
+                                <div style={{ width: 48, height: 48, borderRadius: '1.25rem', backgroundColor: `${primaryColor}/10`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.25rem', transition: 'all 0.3s' }} className="w-12 h-12 rounded-lg bg-[#0e7a4d]/10 flex items-center justify-center mb-5 group-hover:bg-[#0e7a4d] transition-colors">
                                     <item.icone size={22} style={iconPrimary} className="group-hover:text-white transition-colors" />
                                 </div>
                                 <h3 className="text-lg font-bold text-slate-900 mb-2">{item.titulo}</h3>
@@ -275,7 +275,7 @@ export const Landing: React.FC<{ skipLanding?: boolean }> = ({ skipLanding }) =>
                         ))}
                     </div>
                     <motion.div {...fadeUp} className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-                        <button onClick={instalarApp} disabled={installing} style={{ ...btnPrimary, padding: '14px 24px', minHeight: 44, borderRadius: '1rem', fontWeight: 700, fontSize: '0.875rem', cursor: installing ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }} className="px-6 py-3.5 min-h-[44px] rounded-2xl bg-[#0e7a4d] hover:bg-[#0c6b44] text-white font-bold text-sm transition-all shadow-lg active:scale-[0.98] cursor-pointer flex items-center gap-2 disabled:opacity-60">
+                        <button onClick={instalarApp} disabled={installing} style={{ ...btnPrimary, padding: '14px 24px', minHeight: 44, borderRadius: '1rem', fontWeight: 700, fontSize: '0.875rem', cursor: installing ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }} className="px-6 py-3.5 min-h-[44px] rounded-lg bg-[#0e7a4d] hover:bg-[#0c6b44] text-white font-bold text-sm transition-all shadow-lg active:scale-[0.98] cursor-pointer flex items-center gap-2 disabled:opacity-60">
                             <Download size={18} /> {installing ? 'Instalando...' : 'Instalar aplicativo'}
                         </button>
                     </motion.div>
@@ -310,7 +310,7 @@ export const Landing: React.FC<{ skipLanding?: boolean }> = ({ skipLanding }) =>
                     <div className="mt-10 border-t" style={{ borderColor: 'rgba(255,255,255,0.1)' }}></div>
                     <div className="mt-8 flex flex-col md:flex-row justify-between items-center gap-6 text-center md:text-left">
                         <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.3em', textTransform: 'uppercase' }} className="text-[11px] text-white/50 uppercase tracking-widest font-bold">© {new Date().getFullYear()} Todos os direitos reservados.</p>
-                        <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(12px)', padding: '16px 24px', borderRadius: '1.75rem', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 10px 30px -10px rgba(0,0,0,0.3)' }} className="bg-white/5 backdrop-blur-md px-6 py-4 rounded-2xl border border-white/10 shadow-lg">
+                        <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(12px)', padding: '16px 24px', borderRadius: '1.75rem', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 10px 30px -10px rgba(0,0,0,0.3)' }} className="bg-white/5 backdrop-blur-md px-6 py-4 rounded-lg border border-white/10 shadow-lg">
                             <p style={{ color: '#fff', fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }} className="text-xs font-bold text-white uppercase tracking-wider mb-1">Desenvolvido por</p>
                             <p style={{ color: primaryColor, fontSize: '0.875rem', fontWeight: 800, letterSpacing: '0.05em' }} className="text-sm font-black text-emerald-400 tracking-wide">Edevaldo de Lima Almeida</p>
                             <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.625rem', fontFamily: 'monospace', marginTop: 4 }} className="text-[10px] text-white/60 font-mono mt-1">edh333@hotmail.com</p>

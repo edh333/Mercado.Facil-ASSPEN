@@ -30,13 +30,13 @@ export const SystemHealthCard: React.FC = () => {
     : null;
 
   return (
-    <div className={`relative overflow-hidden rounded-3xl border p-5 md:p-6 shadow-lg transition-colors ${
-      semAvisos ? 'border-emerald-200 bg-gradient-to-br from-emerald-50/80 to-white' : 'border-amber-300 bg-gradient-to-br from-amber-50/90 to-white'
+    <div className={`relative overflow-hidden rounded-lg border p-5 md:p-6 shadow-sm transition-colors ${
+      semAvisos ? 'border-emerald-200 bg-emerald-50/40' : 'border-amber-300 bg-amber-50/60'
     }`}>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4 min-w-0">
-          <div className={`w-12 h-12 shrink-0 rounded-2xl flex items-center justify-center text-white shadow-lg ${
-            semAvisos ? 'bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-emerald-500/25' : 'bg-gradient-to-br from-amber-500 to-orange-500 shadow-amber-500/25'
+          <div className={`w-12 h-12 shrink-0 rounded-lg flex items-center justify-center text-white shadow-sm ${
+            semAvisos ? 'bg-[#0f172a]' : 'bg-gradient-to-br from-amber-500 to-orange-500'
           }`}>
             {semAvisos ? <ShieldCheck size={24} /> : <ShieldAlert size={24} />}
           </div>
@@ -57,7 +57,7 @@ export const SystemHealthCard: React.FC = () => {
         <button
           onClick={rodarAgora}
           disabled={rodando}
-          className="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-60 shadow-md"
+          className="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-60 shadow-md"
         >
           <RefreshCw size={14} className={rodando ? 'animate-spin' : ''} />
           Executar agora
@@ -67,7 +67,7 @@ export const SystemHealthCard: React.FC = () => {
       {relatorio && (
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
           {relatorio.saude.map((c) => (
-            <div key={c.item} className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl bg-white/80 border border-slate-200/70">
+            <div key={c.item} className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-white/80 border border-slate-200/70">
               {c.item === 'Conectividade'
                 ? <Wifi size={15} className={`mt-0.5 shrink-0 ${c.ok ? 'text-emerald-500' : 'text-slate-400'}`} />
                 : c.item === 'Armazenamento local'

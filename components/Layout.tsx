@@ -93,7 +93,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-[var(--primary-color)] rounded-xl shadow-lg" style={{ boxShadow: '0 0 20px var(--primary-color)' }}>
+              <div className="p-2 bg-[var(--primary-color)] rounded-lg shadow-lg" style={{ boxShadow: '0 0 20px var(--primary-color)' }}>
                 <Shield className="h-6 w-6 text-white" />
               </div>
               <div className="min-w-0">
@@ -105,7 +105,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             {/* Desktop Nav Premium */}
             <div className="hidden md:flex items-center gap-4">
               {currentUser && (
-                <div className="flex items-center gap-3 bg-[var(--bg-input)] backdrop-blur-md px-5 py-3 rounded-xl border border-[var(--border-color)] shadow-inner">
+                <div className="flex items-center gap-3 bg-[var(--bg-input)] backdrop-blur-md px-5 py-3 rounded-lg border border-[var(--border-color)] shadow-inner">
                   <UserIcon className="h-4 w-4 text-[var(--text-muted)]" />
                   <span className="text-sm font-bold text-[var(--text-main)]">{currentUser?.name || 'Usuário'}</span>
                 </div>
@@ -145,7 +145,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 {currentUser && (
                  <button
                   onClick={logout}
-                  className="flex items-center gap-3 bg-red-600 hover:bg-red-700 text-white font-bold px-5 py-3 rounded-xl text-xs uppercase tracking-wide shadow-lg touch-target transition-all"
+                  className="flex items-center gap-3 bg-red-600 hover:bg-red-700 text-white font-bold px-5 py-3 rounded-lg text-xs uppercase tracking-wide shadow-lg touch-target transition-all"
                   style={{ boxShadow: '0 4px 14px rgba(239, 68, 68, 0.4)' }}
                  >
                     <LogOut className="h-4 w-4" />
@@ -156,7 +156,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
 {/* Mobile Menu Button */}
             <div className="md:hidden flex items-center gap-3">
-               <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-[var(--text-main)] bg-[var(--bg-input)] p-3 rounded-xl backdrop-blur-md border border-[var(--border-color)] hover:bg-[var(--bg-main)] touch-target flex items-center justify-center">
+               <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-[var(--text-main)] bg-[var(--bg-input)] p-3 rounded-lg backdrop-blur-md border border-[var(--border-color)] hover:bg-[var(--bg-main)] touch-target flex items-center justify-center">
                   <Menu className="h-5 w-5" />
                </button>
             </div>
@@ -167,12 +167,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         {isMobileMenuOpen && (
           <div className="md:hidden p-4 border-t border-[var(--border-color)] bg-[var(--bg-card)]/95 backdrop-blur-xl absolute w-full left-0 shadow-2xl">
              <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-3 font-bold text-[var(--text-main)] text-sm bg-[var(--bg-input)] p-4 rounded-xl border border-[var(--border-color)]">
+                <div className="flex items-center gap-3 font-bold text-[var(--text-main)] text-sm bg-[var(--bg-input)] p-4 rounded-lg border border-[var(--border-color)]">
                   <UserIcon className="h-5 w-5" />
                   <span>{currentUser?.name || 'Usuário'}</span>
                 </div>
                 {/* Dark mode toggle mobile */}
-                <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--bg-input)] border border-[var(--border-color)]">
+                <div className="flex items-center gap-1 p-1 rounded-lg bg-[var(--bg-input)] border border-[var(--border-color)]">
                   {([
                     { mode: 'light' as const, Icon: Sun, label: 'Claro' },
                     { mode: 'dark' as const, Icon: Moon, label: 'Escuro' },
@@ -189,7 +189,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     </button>
                   ))}
                 </div>
-                <button onClick={logout} className="flex items-center justify-center gap-3 bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl uppercase tracking-wider touch-target transition-all shadow-lg" style={{ boxShadow: '0 4px 14px rgba(239, 68, 68, 0.4)' }}>
+                <button onClick={logout} className="flex items-center justify-center gap-3 bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg uppercase tracking-wider touch-target transition-all shadow-lg" style={{ boxShadow: '0 4px 14px rgba(239, 68, 68, 0.4)' }}>
                   <LogOut className="h-5 w-5" />
                   <span>Sair do Sistema</span>
                 </button>
@@ -244,7 +244,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
              <div className="mt-8 flex flex-col md:flex-row justify-between items-center gap-6 text-center md:text-left">
                  <p className="text-[11px] text-[var(--text-muted)] uppercase tracking-widest font-bold">© {new Date().getFullYear()} Todos os direitos reservados.</p>
 
-                 <div className="bg-[var(--bg-input)] backdrop-blur-md px-6 py-4 rounded-2xl border border-[var(--border-color)] shadow-lg">
+                 <div className="bg-[var(--bg-input)] backdrop-blur-md px-6 py-4 rounded-lg border border-[var(--border-color)] shadow-lg">
                      <p className="text-xs font-bold text-[var(--text-main)] uppercase tracking-wider mb-1">Desenvolvido por</p>
                      <p className="text-sm font-black text-[var(--primary-color)] tracking-wide">{appConfig?.developerName || 'Edevaldo de Lima Almeida'}</p>
                      {appConfig?.developerEmail && (

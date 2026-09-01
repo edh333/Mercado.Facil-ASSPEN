@@ -270,7 +270,7 @@ export const PrintPage: React.FC = () => {
                     <h2 className="text-lg font-black text-white uppercase tracking-tight mb-3">Erro na Impressão</h2>
                     <p className="text-sm text-white/60 mb-8">{error}</p>
                     <div className="space-y-3">
-                        <button onClick={() => { setStatus('ready'); dispararImpressaoUnica(350); }} className="w-full bg-emerald-500 hover:bg-emerald-400 text-white px-6 py-3.5 rounded-xl font-black uppercase tracking-widest text-xs shadow-lg shadow-emerald-500/30 transition-all">
+                        <button onClick={() => { setStatus('ready'); dispararImpressaoUnica(350); }} className="w-full bg-[#0f172a] hover:bg-[#1e293b] text-white px-6 py-3.5 rounded-xl font-black uppercase tracking-widest text-xs shadow-sm transition-all">
                             Tentar Imprimir Novamente
                         </button>
                         <button onClick={handleClose} className="w-full bg-white/10 hover:bg-white/20 text-white px-6 py-3.5 rounded-xl font-black uppercase tracking-widest text-xs transition-all">
@@ -318,7 +318,7 @@ export const PrintPage: React.FC = () => {
                 {/* Header professional */}
                 <header className="print-header sticky top-0 z-50 bg-slate-900 text-white px-6 py-4 flex items-center justify-between shadow-lg">
                     <div className="flex items-center gap-4">
-                        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                        <div className="w-11 h-11 rounded-2xl bg-[#0f172a] flex items-center justify-center shadow-sm">
                             <Printer size={22} />
                         </div>
                         <div>
@@ -406,7 +406,7 @@ export const PrintPage: React.FC = () => {
                                 dispararImpressaoUnica(300);
                             }
                         }}
-                        className="flex items-center gap-2 px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-emerald-500/25"
+                        className="flex items-center gap-2 px-6 py-3.5 rounded-xl bg-[#0f172a] hover:bg-[#1e293b] text-white font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-sm"
                     >
                         <Printer size={16} /> {status === 'dialog' ? 'Imprimir Agora' : 'Imprimir'}
                     </button>

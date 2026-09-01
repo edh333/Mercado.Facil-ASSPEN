@@ -47,7 +47,7 @@ import { usePermissions } from '../hooks/usePermissions';
 
 const ForbiddenMessage = () => (
   <div className="flex flex-col items-center justify-center py-24 text-center">
-    <div className="w-20 h-20 rounded-2xl bg-red-50 border border-red-200 flex items-center justify-center mb-6">
+    <div className="w-20 h-20 rounded-lg bg-red-50 border border-red-200 flex items-center justify-center mb-6">
       <span className="text-3xl font-black text-red-500">!</span>
     </div>
     <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight mb-2">Acesso Negado</h2>
@@ -1020,13 +1020,13 @@ export function AdminDashboard() {
                   <div className="flex gap-2 mb-6 print:hidden">
                     <button
                       onClick={() => setReportsMode('visual')}
-                      className={`px-5 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 ${reportsMode === 'visual' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'}`}
+                      className={`px-5 py-3 rounded-lg font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 ${reportsMode === 'visual' ? 'bg-[#0f172a] text-white shadow-sm' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'}`}
                     >
                       <BarChart3 size={16} /> Painel Visual
                     </button>
                     <button
                       onClick={() => setReportsMode('formal')}
-                      className={`px-5 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 ${reportsMode === 'formal' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'}`}
+                      className={`px-5 py-3 rounded-lg font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 ${reportsMode === 'formal' ? 'bg-[#0f172a] text-white shadow-sm' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'}`}
                     >
                       <FileText size={16} /> Relatórios Formais
                     </button>

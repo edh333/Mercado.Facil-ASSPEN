@@ -151,20 +151,20 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
 
       {/* ─── Summary Cards ─── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm border-l-4 border-l-amber-500 relative overflow-hidden group">
+        <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm border-l-4 border-l-amber-500 relative overflow-hidden group">
           <div className="absolute inset-0 bg-gradient-to-br from-amber-50 to-transparent pointer-events-none" />
           <p className="text-slate-500 font-black text-[10px] uppercase tracking-[0.2em] mb-1 relative z-10">Aportes Pendentes</p>
           <div className="flex items-end justify-between relative z-10">
             <h3 className="text-3xl font-black text-amber-500 tracking-tighter group-hover:scale-105 transition-transform origin-left">R$ {formatarMoeda(stats.pendingAmount)}</h3>
-            <span className="text-[10px] font-black bg-amber-100 text-amber-600 px-3 py-1.5 rounded-xl border border-amber-200">{stats.pendingCount} Itens</span>
+            <span className="text-[10px] font-black bg-amber-100 text-amber-600 px-3 py-1.5 rounded-lg border border-amber-200">{stats.pendingCount} Itens</span>
           </div>
         </div>
-        <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm border-l-4 border-l-emerald-500 relative overflow-hidden group">
+        <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm border-l-4 border-l-emerald-500 relative overflow-hidden group">
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 to-transparent pointer-events-none" />
           <p className="text-slate-500 font-black text-[10px] uppercase tracking-[0.2em] mb-1 relative z-10">Aprovados Hoje</p>
           <h3 className="text-3xl font-black text-emerald-600 tracking-tighter group-hover:scale-105 transition-transform origin-left relative z-10">R$ {formatarMoeda(stats.totalApprovedToday)}</h3>
         </div>
-        <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm border-l-4 border-l-blue-500 relative overflow-hidden group">
+        <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm border-l-4 border-l-blue-500 relative overflow-hidden group">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-transparent pointer-events-none" />
           <div className="relative z-10">
             <p className="text-slate-500 font-black text-[10px] uppercase tracking-[0.2em] mb-1">Sistema de Créditos</p>
@@ -175,47 +175,47 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
       </div>
 
       {/* ─── Header & Sub-Tabs ─── */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
         <h2 className="text-xl font-bold text-slate-900 flex items-center gap-3 tracking-tight">
-          <div className="p-2 bg-emerald-100 rounded-xl">
+          <div className="p-2 bg-emerald-100 rounded-lg">
             <CreditCard size={20} className="text-emerald-600" />
           </div>
           Movimentações
         </h2>
-        <div className="flex bg-slate-100 rounded-2xl p-1.5 w-full md:w-auto border border-slate-200">
-          <button onClick={() => setActiveSubTab('ALL')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-[1.25rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'ALL' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Todos</button>
-          <button onClick={() => setActiveSubTab('DEPOSITS')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-[1.25rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'DEPOSITS' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Depósitos</button>
-          <button onClick={() => setActiveSubTab('WITHDRAWALS')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-[1.25rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'WITHDRAWALS' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Débitos</button>
-          <button onClick={() => setActiveSubTab('SALDOS')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-[1.25rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'SALDOS' ? 'bg-indigo-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Saldos</button>
+        <div className="flex bg-slate-100 rounded-lg p-1.5 w-full md:w-auto border border-slate-200">
+          <button onClick={() => setActiveSubTab('ALL')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'ALL' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Todos</button>
+          <button onClick={() => setActiveSubTab('DEPOSITS')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'DEPOSITS' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Depósitos</button>
+          <button onClick={() => setActiveSubTab('WITHDRAWALS')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'WITHDRAWALS' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Débitos</button>
+          <button onClick={() => setActiveSubTab('SALDOS')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'SALDOS' ? 'bg-indigo-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Saldos</button>
         </div>
-        <button onClick={exportWalletToCSV} className="px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 bg-slate-100 text-slate-700 hover:bg-slate-200 hover:scale-105 active:scale-95 border border-slate-200">
+        <button onClick={exportWalletToCSV} className="px-6 py-3 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 bg-slate-100 text-slate-700 hover:bg-slate-200 hover:scale-105 active:scale-95 border border-slate-200">
           <Download size={16} /> Exportar CSV
         </button>
       </div>
 
       {/* ─── Search & Date Filters ─── */}
-      <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
+      <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-[2] relative group">
             <div className="absolute left-5 top-1/2 -translate-y-1/2 transition-colors z-10 text-slate-400 group-focus-within:text-emerald-500">
               <Search size={20} />
             </div>
             <input
-              className="w-full pl-14 pr-6 py-4 rounded-[1.5rem] bg-slate-50 border border-slate-200 focus:border-emerald-500 outline-none font-bold text-sm text-slate-900 transition-all placeholder:text-slate-400 uppercase tracking-widest"
+              className="w-full pl-14 pr-6 py-4 rounded-lg bg-slate-50 border border-slate-200 focus:border-emerald-500 outline-none font-bold text-sm text-slate-900 transition-all placeholder:text-slate-400 uppercase tracking-widest"
               placeholder="BUSCAR POR NOME OU CPF"
               value={userSearch}
               onChange={e => setUserSearch(e.target.value)}
             />
           </div>
           <div className="flex-1 flex gap-3">
-            <div className="flex bg-slate-100 rounded-2xl p-1.5 border border-slate-200 flex-1 overflow-hidden">
-              <button onClick={() => applyQuickDate('ALL')} className={`flex-1 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'ALL' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>Todas</button>
-              <button onClick={() => applyQuickDate('TODAY')} className={`flex-1 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'TODAY' ? 'bg-emerald-100 text-emerald-700' : 'text-emerald-600/70 hover:text-emerald-600'}`}>Hoje</button>
-              <button onClick={() => applyQuickDate('WEEK')} className={`flex-1 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'WEEK' ? 'bg-blue-100 text-blue-700' : 'text-blue-600/70 hover:text-blue-600'}`}>Sem</button>
-              <button onClick={() => applyQuickDate('MONTH')} className={`flex-1 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'MONTH' ? 'bg-indigo-100 text-indigo-700' : 'text-indigo-600/70 hover:text-indigo-600'}`}>Mês</button>
+            <div className="flex bg-slate-100 rounded-lg p-1.5 border border-slate-200 flex-1 overflow-hidden">
+              <button onClick={() => applyQuickDate('ALL')} className={`flex-1 px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'ALL' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>Todas</button>
+              <button onClick={() => applyQuickDate('TODAY')} className={`flex-1 px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'TODAY' ? 'bg-emerald-100 text-emerald-700' : 'text-emerald-600/70 hover:text-emerald-600'}`}>Hoje</button>
+              <button onClick={() => applyQuickDate('WEEK')} className={`flex-1 px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'WEEK' ? 'bg-blue-100 text-blue-700' : 'text-blue-600/70 hover:text-blue-600'}`}>Sem</button>
+              <button onClick={() => applyQuickDate('MONTH')} className={`flex-1 px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'MONTH' ? 'bg-indigo-100 text-indigo-700' : 'text-indigo-600/70 hover:text-indigo-600'}`}>Mês</button>
             </div>
-            <input type="date" className="w-36 px-4 py-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-2xl text-[11px] font-black uppercase text-slate-900 outline-none" value={financeFilters?.start || ''} onChange={e => { setFinanceFilters({...financeFilters, start: e.target.value}); setQuickDateFilter('ALL'); }} />
-            <input type="date" className="w-36 px-4 py-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-2xl text-[11px] font-black uppercase text-slate-900 outline-none" value={financeFilters?.end || ''} onChange={e => { setFinanceFilters({...financeFilters, end: e.target.value}); setQuickDateFilter('ALL'); }} />
+            <input type="date" className="w-36 px-4 py-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-lg text-[11px] font-black uppercase text-slate-900 outline-none" value={financeFilters?.start || ''} onChange={e => { setFinanceFilters({...financeFilters, start: e.target.value}); setQuickDateFilter('ALL'); }} />
+            <input type="date" className="w-36 px-4 py-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-lg text-[11px] font-black uppercase text-slate-900 outline-none" value={financeFilters?.end || ''} onChange={e => { setFinanceFilters({...financeFilters, end: e.target.value}); setQuickDateFilter('ALL'); }} />
           </div>
         </div>
       </div>
@@ -223,9 +223,9 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
       {/* ─── SALDOS: quem tem crédito na carteira + dívidas de fiado ─── */}
       {activeSubTab === 'SALDOS' && (
         <div className="space-y-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-indigo-100 rounded-xl">
+              <div className="p-2 bg-indigo-100 rounded-lg">
                 <Wallet size={20} className="text-indigo-600" />
               </div>
               <div>
@@ -235,17 +235,17 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                 </p>
               </div>
             </div>
-            <button onClick={exportSaldosCSV} className="px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 bg-slate-100 text-slate-700 hover:bg-slate-200 hover:scale-105 active:scale-95 border border-slate-200">
+            <button onClick={exportSaldosCSV} className="px-6 py-3 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 bg-slate-100 text-slate-700 hover:bg-slate-200 hover:scale-105 active:scale-95 border border-slate-200">
               <Download size={16} /> Exportar CSV
             </button>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* CARTEIRA */}
-            <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
               <div className="p-6 border-b border-slate-100 flex items-center justify-between gap-3 bg-gradient-to-br from-emerald-50/80 to-transparent">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-emerald-500 text-white rounded-xl"><Users size={18} /></div>
+                  <div className="p-2.5 bg-emerald-500 text-white rounded-lg"><Users size={18} /></div>
                   <div>
                     <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">Créditos de Carteira</h3>
                     <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">Usuários com saldo positivo</p>
@@ -291,10 +291,10 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
             </div>
 
             {/* FIADO */}
-            <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
               <div className="p-6 border-b border-slate-100 flex items-center justify-between gap-3 bg-gradient-to-br from-red-50/80 to-transparent">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-red-500 text-white rounded-xl"><TrendingDown size={18} /></div>
+                  <div className="p-2.5 bg-red-500 text-white rounded-lg"><TrendingDown size={18} /></div>
                   <div>
                     <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">Dívidas de Fiado</h3>
                     <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">Contas de clientes em aberto</p>
@@ -356,7 +356,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
       )}
 
       {/* ─── Transaction Table ─── */}
-      <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
 
         {/* Desktop Table */}
         <div className="hidden lg:block overflow-x-auto">
@@ -420,14 +420,14 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                         {tx.status === 'pending' && (
                           <button
                             onClick={() => onSelectTransaction?.(tx)}
-                            className="px-4 py-2 min-h-[44px] rounded-xl text-[9px] font-black uppercase tracking-[0.2em] bg-emerald-500 text-white shadow-md hover:bg-emerald-600 active:scale-95 transition-all"
+                            className="px-4 py-2 min-h-[44px] rounded-lg text-[9px] font-black uppercase tracking-[0.2em] bg-emerald-500 text-white shadow-md hover:bg-[#1e293b] active:scale-95 transition-all"
                           >
                             Validar
                           </button>
                         )}
                         <button
                           onClick={() => onSelectTransaction?.(tx)}
-                          className="px-4 py-2 min-h-[44px] rounded-xl text-[9px] font-black uppercase tracking-[0.2em] bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-95 transition-all border border-slate-200"
+                          className="px-4 py-2 min-h-[44px] rounded-lg text-[9px] font-black uppercase tracking-[0.2em] bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-95 transition-all border border-slate-200"
                         >
                           Detalhes
                         </button>
@@ -436,7 +436,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                       <div className="flex items-center justify-center">
                         <button
                           onClick={() => onSelectTransaction?.(tx)}
-                          className="px-4 py-2 min-h-[44px] rounded-xl text-[9px] font-black uppercase tracking-[0.2em] bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-95 transition-all border border-slate-200"
+                          className="px-4 py-2 min-h-[44px] rounded-lg text-[9px] font-black uppercase tracking-[0.2em] bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-95 transition-all border border-slate-200"
                         >
                           Detalhes
                         </button>
@@ -498,14 +498,14 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                       {tx.status === 'pending' && (
                         <button
                           onClick={() => onSelectTransaction?.(tx)}
-                          className="flex items-center gap-1 text-[9px] font-black text-white uppercase cursor-pointer bg-emerald-500 px-4 py-2 min-h-[44px] rounded-xl active:scale-95 transition-all"
+                          className="flex items-center gap-1 text-[9px] font-black text-white uppercase cursor-pointer bg-emerald-500 px-4 py-2 min-h-[44px] rounded-lg active:scale-95 transition-all"
                         >
                           Validar <ChevronRight size={14}/>
                         </button>
                       )}
                       <button
                         onClick={() => onSelectTransaction?.(tx)}
-                        className="flex items-center gap-1 text-[9px] font-black text-slate-700 uppercase cursor-pointer bg-slate-100 hover:bg-slate-200 px-4 py-2 min-h-[44px] rounded-xl border border-slate-200 active:scale-95 transition-all"
+                        className="flex items-center gap-1 text-[9px] font-black text-slate-700 uppercase cursor-pointer bg-slate-100 hover:bg-slate-200 px-4 py-2 min-h-[44px] rounded-lg border border-slate-200 active:scale-95 transition-all"
                       >
                         Detalhes <ChevronRight size={14}/>
                       </button>

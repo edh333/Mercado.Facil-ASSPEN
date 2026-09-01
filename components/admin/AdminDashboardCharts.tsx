@@ -153,7 +153,7 @@ export const AdminDashboardCharts: React.FC = () => {
     <div className="space-y-6 animate-fadeIn pb-20">
       {/* Header */}
       <div className="flex items-center gap-4 mb-2">
-        <div className="p-3 bg-[var(--primary-color)]/100 rounded-2xl">
+        <div className="p-3 bg-[var(--primary-color)]/100 rounded-lg">
           <BarChart3 size={24} className="text-[var(--primary-color)]" />
         </div>
         <div>
@@ -204,7 +204,7 @@ export const AdminDashboardCharts: React.FC = () => {
       {/* Gráficos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Faturamento Diário */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+        <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-6">
             <BarChart3 size={20} className="text-emerald-500" />
             <h3 className="font-black text-sm text-slate-700 uppercase tracking-wider">Faturamento Diário</h3>
@@ -234,7 +234,7 @@ export const AdminDashboardCharts: React.FC = () => {
         </div>
 
         {/* Meios de Pagamento */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+        <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-6">
             <PieChartIcon size={20} className="text-emerald-500" />
             <h3 className="font-black text-sm text-slate-700 uppercase tracking-wider">Meios de Pagamento</h3>
@@ -282,7 +282,7 @@ export const AdminDashboardCharts: React.FC = () => {
       </div>
 
       {/* Tabela de resumo por dia */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+      <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
         <h3 className="font-black text-sm text-slate-700 uppercase tracking-wider mb-4">Detalhamento Diário</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -322,7 +322,7 @@ const MetricCard: React.FC<{
   bgColor: string;
   borderColor: string;
 }> = ({ icon, label, value, color, bgColor, borderColor }) => (
-  <div className={`${bgColor} ${borderColor} border rounded-2xl p-5 shadow-sm hover:shadow-md transition-all`}>
+  <div className={`${bgColor} ${borderColor} border rounded-lg p-5 shadow-sm hover:shadow-md transition-all`}>
     <div className="flex items-center gap-3 mb-3">
       <div className={`${color}`}>{icon}</div>
       <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">{label}</span>

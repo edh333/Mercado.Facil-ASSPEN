@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { formatarMoeda } from '../../utils';
 import { Shield, Plus, Trash2, Search, UserCheck, FileUp, LayoutGrid, Smartphone } from 'lucide-react';
 
@@ -56,28 +56,28 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
 
   return (
     <div className="animate-slideUp space-y-8 pb-20">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[var(--bg-card)] p-6 rounded-lg border border-[var(--border-color)] shadow-sm">
         <h2 className="text-xl font-bold text-[var(--text-main)] flex items-center gap-2 tracking-tight">
           <Shield size={24} className="text-emerald-500"/> Gestão de Internos
         </h2>
         <div className="flex flex-wrap gap-3">
-            <label className="text-[10px] font-black uppercase text-indigo-500 border-2 border-indigo-500/20 px-4 py-2 rounded-xl bg-indigo-500/5 shadow-sm cursor-pointer hover:bg-indigo-500/10 transition-all flex items-center gap-2">
+            <label className="text-[10px] font-black uppercase text-indigo-500 border-2 border-indigo-500/20 px-4 py-2 rounded-lg bg-indigo-500/5 shadow-sm cursor-pointer hover:bg-indigo-500/10 transition-all flex items-center gap-2">
                 <FileUp size={14}/> Importar CSV
                 <input type="file" accept=".csv,.txt" className="hidden" onChange={e => e.target.files?.[0] && importInmatesCsv?.(e.target.files[0])} />
             </label>
-            <div className="text-[10px] font-black uppercase text-[var(--text-main)] border-2 border-[var(--border-color)] px-4 py-2 rounded-xl bg-[var(--bg-main)]">
+            <div className="text-[10px] font-black uppercase text-[var(--text-main)] border-2 border-[var(--border-color)] px-4 py-2 rounded-lg bg-[var(--bg-main)]">
                 Total: {totalInmates}
             </div>
-            <div className="text-[10px] font-black uppercase text-sky-500 border-2 border-sky-500/20 px-4 py-2 rounded-xl bg-sky-500/5 shadow-sm" title="Internos que já possuem ao menos um familiar com conta cadastrada">
+            <div className="text-[10px] font-black uppercase text-sky-500 border-2 border-sky-500/20 px-4 py-2 rounded-lg bg-sky-500/5 shadow-sm" title="Internos que já possuem ao menos um familiar com conta cadastrada">
                 {withFamily}/{totalInmates} com família ({totalInmates ? Math.round((withFamily / totalInmates) * 100) : 0}%)
             </div>
             <button
                 onClick={() => setViewMode(viewMode === 'table' ? 'cards' : 'table')}
-                className="text-[10px] font-black uppercase border-2 border-[var(--border-color)] px-4 py-2 rounded-xl bg-[var(--bg-card)] text-[var(--text-main)] hover:bg-[var(--bg-main)] transition-all flex items-center gap-2"
+                className="text-[10px] font-black uppercase border-2 border-[var(--border-color)] px-4 py-2 rounded-lg bg-[var(--bg-card)] text-[var(--text-main)] hover:bg-[var(--bg-main)] transition-all flex items-center gap-2"
             >
                 {viewMode === 'table' ? <><LayoutGrid size={14} /> Cards</> : <><Smartphone size={14} /> Tabela</>}
             </button>
-            <div className="text-[10px] font-black uppercase text-emerald-500 border-2 border-emerald-500/20 px-4 py-2 rounded-xl bg-emerald-500/5 shadow-sm">
+            <div className="text-[10px] font-black uppercase text-emerald-500 border-2 border-emerald-500/20 px-4 py-2 rounded-lg bg-emerald-500/5 shadow-sm">
                 Global: R$ {formatarMoeda(consolidatedData.reduce((s, i) => s + i.totalBalance, 0))}
             </div>
         </div>
@@ -86,7 +86,7 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Registration Form */}
         <div className="lg:col-span-5 xl:col-span-4 space-y-6">
-          <div className="bg-[var(--bg-card)] p-8 rounded-[2.5rem] border border-[var(--border-color)] shadow-2xl h-fit relative overflow-hidden">
+          <div className="bg-[var(--bg-card)] p-8 rounded-lg border border-[var(--border-color)] shadow-md h-fit relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500 opacity-5 rounded-full -mr-16 -mt-16"></div>
               <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-main)] mb-6 flex items-center gap-2 relative z-10">
                 <Plus size={18} className="text-emerald-500"/> Novo Pré-Cadastro
@@ -95,7 +95,7 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
                   <div>
                       <label className="text-[var(--text-main)] font-black text-[10px] uppercase tracking-widest mb-1 block ml-1">Nome Completo</label>
                       <input
-                          className="w-full p-4 bg-[var(--bg-card)] border-2 border-[var(--border-color)] focus:border-emerald-500 rounded-2xl font-bold text-sm text-[var(--text-main)] outline-none transition-all placeholder:text-[var(--text-muted)] uppercase tracking-widest"
+                          className="w-full p-4 bg-white border border-[var(--border-input)] focus:border-emerald-500 rounded-lg font-bold text-sm text-[var(--text-main)] outline-none transition-all placeholder:text-[var(--text-muted)] uppercase tracking-widest"
                           placeholder="EX: NOME SOBRENOME"
                           value={newInmate?.name || ''}
                           onChange={e => setNewInmate({...newInmate, name: e.target.value.toUpperCase()})}
@@ -104,7 +104,7 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
                   <div>
                       <label className="text-[var(--text-main)] font-black text-[10px] uppercase tracking-widest mb-1 block ml-1">CPF (Apenas Números)</label>
                       <input
-                          className="w-full p-4 bg-[var(--bg-card)] border-2 border-[var(--border-color)] focus:border-emerald-500 rounded-2xl font-bold text-sm text-[var(--text-main)] outline-none transition-all placeholder:text-[var(--text-muted)] uppercase tracking-widest"
+                          className="w-full p-4 bg-white border border-[var(--border-input)] focus:border-emerald-500 rounded-lg font-bold text-sm text-[var(--text-main)] outline-none transition-all placeholder:text-[var(--text-muted)] uppercase tracking-widest"
                           placeholder="000.000.000-00"
                           value={newInmate?.cpf || ''}
                           onChange={e => setNewInmate({...newInmate, cpf: e.target.value.replace(/\D/g, '')})}
@@ -112,7 +112,7 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
                   </div>
                   <button
                       onClick={handleAddInmate}
-                      className="w-full py-5 bg-emerald-500 text-white font-black rounded-2xl hover:opacity-90 transition-all shadow-xl uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 mt-2"
+                      className="w-full py-5 bg-emerald-500 text-white font-black rounded-lg hover:opacity-90 transition-all shadow-md uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 mt-2"
                   >
                       <UserCheck size={18}/> Salvar no Banco
                   </button>
@@ -124,14 +124,14 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
         </div>
 
         {/* List of Inmates */}
-        <div className="lg:col-span-7 xl:col-span-8 bg-[var(--bg-card)] rounded-[2.5rem] border border-[var(--border-color)] shadow-2xl overflow-hidden flex flex-col">
+        <div className="lg:col-span-7 xl:col-span-8 bg-[var(--bg-card)] rounded-lg border border-[var(--border-color)] shadow-md overflow-hidden flex flex-col">
             <div className="p-6 bg-[var(--bg-main)] border-b border-[var(--border-color)]">
                 <div className="relative group">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 bg-[var(--bg-card)] p-2.5 rounded-xl border border-[var(--border-color)] group-focus-within:bg-[var(--text-main)] group-focus-within:border-[var(--text-main)] transition-all duration-300">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 bg-[var(--bg-card)] p-2.5 rounded-lg border border-[var(--border-color)] group-focus-within:bg-[var(--text-main)] group-focus-within:border-[var(--text-main)] transition-all duration-300">
                         <Search className="text-[var(--text-muted)] group-focus-within:text-[var(--bg-card)] transition-colors" size={18}/>
                     </div>
                     <input
-                        className="w-full bg-[var(--bg-card)] pl-16 pr-6 py-4.5 border-2 border-[var(--border-color)] focus:border-emerald-500 rounded-2xl outline-none font-black text-xs text-[var(--text-main)] transition-all placeholder:text-[var(--text-muted)] uppercase tracking-widest"
+                        className="w-full bg-white pl-16 pr-6 py-4.5 border border-[var(--border-input)] focus:border-emerald-500 rounded-lg outline-none font-black text-xs text-[var(--text-main)] transition-all placeholder:text-[var(--text-muted)] uppercase tracking-widest"
                         placeholder="PESQUISAR POR NOME OU CPF..."
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
@@ -183,7 +183,7 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
                                     <td className="p-5 text-center">
                                         <button
                                             onClick={() => handleDeleteInmate(inmate)}
-                                            className="p-3 bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-red-500 hover:border-red-500/20 hover:bg-red-500/5 rounded-xl transition-all shadow-sm active:scale-95"
+                                            className="p-3 bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-red-500 hover:border-red-500/20 hover:bg-red-500/5 rounded-lg transition-all shadow-sm active:scale-95"
                                         >
                                             <Trash2 size={18}/>
                                         </button>
@@ -234,7 +234,7 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
                             </div>
                             <button
                                 onClick={() => handleDeleteInmate(inmate)}
-                                className="p-3 bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-red-500 hover:border-red-500/20 hover:bg-red-500/5 rounded-xl transition-all shadow-sm active:scale-95"
+                                className="p-3 bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-red-500 hover:border-red-500/20 hover:bg-red-500/5 rounded-lg transition-all shadow-sm active:scale-95"
                             >
                                 <Trash2 size={18}/>
                             </button>

@@ -96,17 +96,17 @@ export const AdminCapacityPanel: React.FC = () => {
   };
 
   const Card = ({ label, valor, cor }: { label: string; valor: string; cor: string }) => (
-    <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+    <div className="bg-white rounded-lg border border-slate-200 p-5 shadow-sm">
       <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-2">{label}</p>
       <p className={`text-2xl font-black tracking-tight ${cor}`}>{valor}</p>
     </div>
   );
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5">
+    <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-sm space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-[var(--primary-color)]/100 rounded-2xl">
+          <div className="p-3 bg-[var(--primary-color)]/100 rounded-lg">
             <Gauge size={22} className="text-[var(--primary-color)]" />
           </div>
           <div>
@@ -119,7 +119,7 @@ export const AdminCapacityPanel: React.FC = () => {
           <button
             onClick={() => { setShowCleanupModal(true); setCleanupResult(null); setCleanupErro(''); }}
             disabled={loading}
-            className="px-4 py-2 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-wider flex items-center gap-2 hover:bg-slate-700 active:scale-95 transition-all disabled:opacity-50"
+            className="px-4 py-2 bg-slate-900 text-white rounded-lg font-black text-[10px] uppercase tracking-wider flex items-center gap-2 hover:bg-slate-700 active:scale-95 transition-all disabled:opacity-50"
           >
             <Trash2 size={14} /> Backup + Limpar Antigos
           </button>
@@ -127,7 +127,7 @@ export const AdminCapacityPanel: React.FC = () => {
       </div>
 
       {erro && (
-        <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 rounded-xl px-4 py-3 text-xs font-bold">
+        <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 rounded-lg px-4 py-3 text-xs font-bold">
           <AlertTriangle size={16} /> {erro}
         </div>
       )}
@@ -141,7 +141,7 @@ export const AdminCapacityPanel: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <div className="bg-slate-50 rounded-2xl border border-slate-200 p-4">
+        <div className="bg-slate-50 rounded-lg border border-slate-200 p-4">
           <div className="flex items-center gap-2 mb-2">
             <Users size={16} className="text-blue-500" />
             <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Famílias Ativas</p>
@@ -149,7 +149,7 @@ export const AdminCapacityPanel: React.FC = () => {
           <p className="text-xl font-black text-slate-900">{familiaresCadastrados}</p>
           <p className="text-[9px] text-slate-400 font-bold uppercase">de {familiaresTotal} cadastrados</p>
         </div>
-        <div className="bg-slate-50 rounded-2xl border border-slate-200 p-4">
+        <div className="bg-slate-50 rounded-lg border border-slate-200 p-4">
           <div className="flex items-center gap-2 mb-2">
             <ShoppingBag size={16} className="text-[var(--primary-color)]" />
             <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Média por Dia (30d)</p>
@@ -159,7 +159,7 @@ export const AdminCapacityPanel: React.FC = () => {
           </p>
           <p className="text-[9px] text-slate-400 font-bold uppercase">pedidos/dia na média</p>
         </div>
-        <div className={`rounded-2xl border p-4 ${riscoAlto ? 'bg-red-50 border-red-200' : 'bg-[var(--primary-color)]/50 border-[var(--primary-color)]/20'}`}>
+        <div className={`rounded-lg border p-4 ${riscoAlto ? 'bg-red-50 border-red-200' : 'bg-[var(--primary-color)]/50 border-[var(--primary-color)]/20'}`}>
           <div className="flex items-center gap-2 mb-2">
             <AlertTriangle size={16} className={riscoAlto ? 'text-red-500' : 'text-[var(--primary-color)]'} />
             <p className={`text-[10px] font-black uppercase tracking-wider ${riscoAlto ? 'text-red-600' : 'text-[var(--primary-color)]'}`}>Uso Estimado da Cota</p>
@@ -170,7 +170,7 @@ export const AdminCapacityPanel: React.FC = () => {
       </div>
 
       {riscoAlto && (
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 bg-red-600 rounded-2xl px-5 py-4 shadow-lg">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 bg-red-600 rounded-lg px-5 py-4 shadow-lg">
           <AlertTriangle size={22} className="text-white shrink-0" />
           <div className="flex-1">
             <p className="font-black text-white uppercase tracking-wider text-xs">Uso da cota acima de 70% — limpeza recomendada</p>
@@ -181,7 +181,7 @@ export const AdminCapacityPanel: React.FC = () => {
           <button
             onClick={() => { setShowCleanupModal(true); setCleanupResult(null); setCleanupErro(''); }}
             disabled={cleanupRunning}
-            className="shrink-0 px-6 py-3 bg-white text-red-600 rounded-xl font-black text-[11px] uppercase tracking-wider flex items-center gap-2 hover:bg-red-50 active:scale-95 transition-all disabled:opacity-60"
+            className="shrink-0 px-6 py-3 bg-white text-red-600 rounded-lg font-black text-[11px] uppercase tracking-wider flex items-center gap-2 hover:bg-red-50 active:scale-95 transition-all disabled:opacity-60"
           >
             <ShieldCheck size={16} /> Limpar Dados Antigos
           </button>
@@ -189,7 +189,7 @@ export const AdminCapacityPanel: React.FC = () => {
       )}
 
       {!riscoAlto && (
-        <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+        <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
           <Activity size={16} className="text-blue-600 shrink-0 mt-0.5" />
           <p className="text-[10px] text-blue-700 font-bold leading-relaxed">
             O sistema opera com folga confortável da cota gratuita do Firestore (50.000 leituras e 20.000 escritas/dia). Com o volume atual não há risco de travamento. Quando o uso ultrapassar 70%, o sistema alertará automaticamente e o administrador poderá limpar os dados antigos com backup de segurança.
@@ -200,7 +200,7 @@ export const AdminCapacityPanel: React.FC = () => {
       {/* Modal de limpeza */}
       {showCleanupModal && (
         <div className="fixed inset-0 z-[999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => { if (!cleanupRunning) setShowCleanupModal(false); }}>
-          <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl p-6 space-y-4" onClick={e => e.stopPropagation()}>
+          <div className="w-full max-w-lg bg-white rounded-lg shadow-2xl p-6 space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center">
               <h4 className="font-black text-sm uppercase tracking-wider text-slate-900 flex items-center gap-2">
                 <ShieldCheck size={18} className="text-[var(--primary-color)]" /> Backup + Limpeza de Dados Antigos
@@ -210,7 +210,7 @@ export const AdminCapacityPanel: React.FC = () => {
               </button>
             </div>
 
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-[11px] font-bold text-slate-600 leading-relaxed space-y-2">
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-[11px] font-bold text-slate-600 leading-relaxed space-y-2">
               <p className="flex items-start gap-2"><Download size={14} className="text-[var(--primary-color)] shrink-0 mt-0.5" /> <span>1º — O sistema cria uma <b>cópia de segurança completa</b> (arquivo JSON no Storage com link de download válido por 7 dias).</span></p>
               <p className="flex items-start gap-2"><ShieldCheck size={14} className="text-[var(--primary-color)] shrink-0 mt-0.5" /> <span>2º — Grava uma <b>cópia permanente em historico_geral</b> (trilha de auditoria, nunca se perde).</span></p>
               <p className="flex items-start gap-2"><Trash2 size={14} className="text-red-500 shrink-0 mt-0.5" /> <span>3º — Remove da operação os <b>pedidos, depósitos e despesas mais antigos</b> do que o período escolhido. Pedidos pendentes de análise <b>nunca</b> são removidos.</span></p>
@@ -223,7 +223,7 @@ export const AdminCapacityPanel: React.FC = () => {
                 value={diasLimpeza}
                 onChange={e => setDiasLimpeza(Number(e.target.value))}
                 disabled={cleanupRunning}
-                className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-slate-50 font-black text-sm outline-none focus:border-emerald-500 disabled:opacity-50"
+                className="w-full px-4 py-3 rounded-lg border border-[var(--border-input)] bg-white font-black text-sm outline-none focus:border-emerald-500 disabled:opacity-50"
               >
                 <option value={30}>30 dias (agressivo)</option>
                 <option value={60}>60 dias</option>
@@ -234,35 +234,35 @@ export const AdminCapacityPanel: React.FC = () => {
             </div>
 
             {cleanupErro && (
-              <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 rounded-xl px-4 py-3 text-xs font-bold">
+              <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 rounded-lg px-4 py-3 text-xs font-bold">
                 <AlertTriangle size={16} /> {cleanupErro}
               </div>
             )}
 
             {cleanupResult && (
-              <div className="bg-[var(--primary-color)]/50 border border-[var(--primary-color)]/20 rounded-xl p-4 text-xs font-bold text-[var(--primary-color)] space-y-2">
+              <div className="bg-[var(--primary-color)]/50 border border-[var(--primary-color)]/20 rounded-lg p-4 text-xs font-bold text-[var(--primary-color)] space-y-2">
                 {cleanupResult.total === 0 ? (
                   <p className="flex items-center gap-2"><ShieldCheck size={16} /> {cleanupResult.mensagem || 'Nenhum dado antigo encontrado dentro do período.'}</p>
                 ) : (
                   <>
                     <p className="flex items-center gap-2"><ShieldCheck size={16} /> Limpeza concluída com sucesso! <b>{fmt(cleanupResult.total)}</b> registros arquivados:</p>
                     <div className="grid grid-cols-3 gap-2 text-center">
-                      <div className="bg-white rounded-xl py-2 px-1 border border-[var(--primary-color)]/20">
+                      <div className="bg-white rounded-lg py-2 px-1 border border-[var(--primary-color)]/20">
                         <p className="text-[9px] text-[var(--primary-color)] uppercase font-black">Pedidos</p>
                         <p className="font-black">{fmt(cleanupResult.porColecao?.orders || 0)}</p>
                       </div>
-                      <div className="bg-white rounded-xl py-2 px-1 border border-[var(--primary-color)]/20">
+                      <div className="bg-white rounded-lg py-2 px-1 border border-[var(--primary-color)]/20">
                         <p className="text-[9px] text-[var(--primary-color)] uppercase font-black">Depósitos</p>
                         <p className="font-black">{fmt(cleanupResult.porColecao?.wallet_transactions || 0)}</p>
                       </div>
-                      <div className="bg-white rounded-xl py-2 px-1 border border-[var(--primary-color)]/20">
+                      <div className="bg-white rounded-lg py-2 px-1 border border-[var(--primary-color)]/20">
                         <p className="text-[9px] text-[var(--primary-color)] uppercase font-black">Despesas</p>
                         <p className="font-black">{fmt(cleanupResult.porColecao?.expenses || 0)}</p>
                       </div>
                     </div>
                     <p className="text-[10px] text-[var(--primary-color)] leading-relaxed">Cópia de segurança salva em <b>historico_geral</b> (permanente) e, quando disponível, arquivo JSON no Storage.</p>
                     {(cleanupResult.arquivosApagados > 0 || cleanupResult.arquivosFalha > 0) && (
-                      <p className="text-[10px] text-slate-600 leading-relaxed bg-white rounded-xl py-2 px-3 border border-[var(--primary-color)]/20">
+                      <p className="text-[10px] text-slate-600 leading-relaxed bg-white rounded-lg py-2 px-3 border border-[var(--primary-color)]/20">
                         Arquivos de comprovante apagados do armazenamento: <b>{fmt(cleanupResult.arquivosApagados || 0)}</b>
                         {cleanupResult.arquivosFalha > 0 && <> ({fmt(cleanupResult.arquivosFalha)} com falha — espaço não liberado nesses; serão apagados na próxima limpeza)</>}.
                       </p>
@@ -272,7 +272,7 @@ export const AdminCapacityPanel: React.FC = () => {
                         href={cleanupResult.backupUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="w-full flex items-center justify-center gap-2 py-3 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-wider hover:bg-slate-700 transition-all"
+                        className="w-full flex items-center justify-center gap-2 py-3 bg-slate-900 text-white rounded-lg font-black text-[10px] uppercase tracking-wider hover:bg-slate-700 transition-all"
                       >
                         <Download size={14} /> Baixar Cópia de Segurança (JSON)
                       </a>
@@ -288,7 +288,7 @@ export const AdminCapacityPanel: React.FC = () => {
 
             {!cleanupResult && (
               <>
-                <label className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-3 cursor-pointer">
+                <label className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-lg p-3 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={apagarArquivos}
@@ -304,14 +304,14 @@ export const AdminCapacityPanel: React.FC = () => {
                 <button
                   onClick={() => setShowCleanupModal(false)}
                   disabled={cleanupRunning}
-                  className="flex-1 py-3.5 bg-slate-100 text-slate-600 rounded-xl font-black text-[11px] uppercase tracking-wider hover:bg-slate-200 active:scale-95 transition-all disabled:opacity-50 border border-slate-200"
+                  className="flex-1 py-3.5 bg-slate-100 text-slate-600 rounded-lg font-black text-[11px] uppercase tracking-wider hover:bg-slate-200 active:scale-95 transition-all disabled:opacity-50 border border-slate-200"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={executarLimpeza}
                   disabled={cleanupRunning}
-                  className="flex-[1.5] py-3.5 bg-red-600 text-white rounded-xl font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2 hover:brightness-110 active:scale-95 transition-all disabled:opacity-60"
+                  className="flex-[1.5] py-3.5 bg-red-600 text-white rounded-lg font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2 hover:brightness-110 active:scale-95 transition-all disabled:opacity-60"
                 >
                   {cleanupRunning ? <><Loader2 size={16} className="animate-spin" /> Backup + Limpando...</> : <><ShieldCheck size={16} /> Confirmar Backup + Limpeza</>}
                 </button>
