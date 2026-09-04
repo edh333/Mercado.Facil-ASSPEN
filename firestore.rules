@@ -37,10 +37,13 @@ service cloud.firestore {
     // inteiro quebraria qualquer update, pois o doc contém campos fora da lista).
     match /users/{userId} {
       allow get: if isAuthenticated() && (userId == request.auth.uid || resource.data.authUid == request.auth.uid || isAdmin());
-      // list: PROIBIDO. A busca do perfil do usuário logado é feita via Cloud
-      // Function buscarUsuarioAtual (server-side). Manter list: isAuthenticated()
-      // vaza TODOS os campos PII (CPF, saldo, role) de TODOS os usuários.
-      allow list: if false;
+      // list: APENAS admin. O painel administrativo precisa da lista completa
+      // para a aba Usuários, a busca de clientes no PDV e relatórios (listar
+      // com onSnapshot/query limit NÃO funciona com allow list: if false —
+      // a busca de clientes quebrava). NÃO liberado para usuário comum:
+      // listar TODOS os usuários vazaria PII (CPF, saldo, role). A busca do
+      // perfil do usuário logado segue via Cloud Function buscarUsuarioAtual.
+      allow list: if isAdmin();
       allow create: if false;
       allow update: if isAdmin() &&
         !request.resource.data.diff(resource.data).affectedKeys().hasAny([

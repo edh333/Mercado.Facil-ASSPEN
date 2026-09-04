@@ -5,7 +5,8 @@ Trash2, RefreshCw, Landmark, Lock, LogIn, LogOut, AlertTriangle, CheckCircle,
 BookOpen, Printer, BarChart3, Calendar, Users2, Clock, Undo2, RotateCcw, PauseCircle, History } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Product, User, UserRole, Order, AppConfig, CustomerAccount } from '../../types';
-import { getCustomerAccounts, buscarClientesPdv, ClientePdv } from '../../utils/customerUtils';
+import { getCustomerAccounts } from '../../utils/customerUtils';
+import { filtrarClientesPdv } from '../../utils/pdvSearch';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatarMoeda, parseMoeda, generatePixPayload as generatePix, isAdminRole } from '../../utils';
 import { getActiveSession, openCashSession, addSupplement, addWithdrawal, closeCashSession, CashSession } from '../../utils/cashSession';
@@ -87,14 +88,6 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
   const [customerAccountSearch, setCustomerAccountSearch] = useState('');
   const [customerAccountsLoaded, setCustomerAccountsLoaded] = useState(false);
 
-  // ── Lista de clientes do PDV (via Cloud Function SANITIZADA) ──
-  // A regra do Firestore proíbe listar `users` no client (proteção de PII);
-  // `buscarClientesPdv` é o canal autorizado server-side e funciona para
-  // admin e não-admin. Se a função não estiver publicada, cai no fallback local
-  // (prop `users`), que ainda resolve para operador admin.
-  const [pdvClients, setPdvClients] = useState<ClientePdv[]>([]);
-  const [pdvClientsLoaded, setPdvClientsLoaded] = useState(false);
-
   // ── Fiado: confirmação de senha (admin/secundária) antes de finalizar ──
   const [confirmandoFiado, setConfirmandoFiado] = useState(false);
   const [senhaFiado, setSenhaFiado] = useState('');
@@ -118,15 +111,6 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
     }
   }, [isOpen, customerAccountsLoaded]);
 
-  // Carrega a lista sanitizada de clientes do PDV quando o modal abre.
-  useEffect(() => {
-    if (!isOpen || pdvClientsLoaded) return;
-    setPdvClientsLoaded(true);
-    buscarClientesPdv('')
-      .then(setPdvClients)
-      .catch(() => {});
-  }, [isOpen, pdvClientsLoaded]);
-
   // ── Venda em Dupla (Split Joint Wallet) State ──
   const [isJointWalletMode, setIsJointWalletMode] = useState(false);
   const [secondUserId, setSecondUserId] = useState('');
@@ -140,36 +124,19 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
 
   const filteredSecondUsers = useMemo(() => {
     if (!secondUserSearch || secondUserSearch.length < 2) return [];
-    const term = secondUserSearch.toLowerCase().trim();
-    // Mescla a prop `users` com `pdvClients` (server-side) para achar o 2º
-    // devedor também para operador não-admin e fora do recorte de 500.
-    const mapa = new Map<string, User>();
-    (pdvClients || []).forEach(c => mapa.set(String(c.id), {
-      id: c.id, name: c.name || 'Cliente',
-      role: c.role === 'ADMIN' || c.role === 'admin' || c.role === 'master' ? UserRole.ADMIN : UserRole.FAMILY,
-      cpf: c.cpf || '', inmateName: c.inmateName || '', inmateCpf: c.inmateCpf || '',
-    } as User));
-    (users || []).forEach(u => mapa.set(String(u.id), u as User));
-    return Array.from(mapa.values()).filter(u =>
-      String(u.id) !== String(clienteSelecionado) &&
-      isAdminRole(u.role) === false &&
-      ((u.name || '').toLowerCase().includes(term) ||
-       (u.cpf || '').includes(term) ||
-       (u.inmateCpf || '').includes(term) ||
-       (u.inmateName || '').toLowerCase().includes(term))
+    const query = secondUserSearch.toLowerCase().trim();
+    return users.filter(u =>
+      u.id !== clienteSelecionado &&
+      ((u.name || '').toLowerCase().includes(query) ||
+       (u.cpf || '').includes(query) ||
+       (u.inmateCpf || '').includes(query) ||
+       (u.inmateName || '').toLowerCase().includes(query))
     ).slice(0, 10);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [users, pdvClients, secondUserSearch, clienteSelecionado]);
+  }, [users, secondUserSearch, clienteSelecionado]);
 
   const secondUserObj = useMemo(() => {
-    return (users || []).find(u => u.id === secondUserId) ||
-      (pdvClients || []).map(c => ({
-        id: c.id, name: c.name || 'Cliente',
-        role: (c.role === 'ADMIN' || c.role === 'admin' || c.role === 'master') ? UserRole.ADMIN : UserRole.FAMILY,
-        cpf: c.cpf || '', inmateName: c.inmateName || '', inmateCpf: c.inmateCpf || '',
-      } as User)).find(u => u.id === secondUserId) || null;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [users, pdvClients, secondUserId]);
+    return users.find(u => u.id === secondUserId) || null;
+  }, [users, secondUserId]);
 
   const handleAutorizarJointWallet = async () => {
     setJointSenhaProcessando(true);
@@ -231,6 +198,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
   const [closeResult, setCloseResult] = useState<{ diff: number; expected: number } | null>(null);
 
   const clienteInputRef = useRef<HTMLInputElement>(null);
+  const clienteSearchRef = useRef<HTMLDivElement>(null);
   const produtoInputRef = useRef<HTMLInputElement>(null);
 
   const checkCashSession = async () => {
@@ -272,8 +240,20 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
       setRefundReason('');
       checkCashSession();
       getCustomerAccounts().then(setCustomerAccounts).catch(console.error);
-      setTimeout(() => produtoInputRef.current?.focus(), 100);
+      setTimeout(() => clienteInputRef.current?.focus(), 100);
     }
+  }, [isOpen]);
+
+  // Fecha dropdown de clientes ao clicar fora
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleMouseDown = (e: MouseEvent) => {
+      if (clienteSearchRef.current && !clienteSearchRef.current.contains(e.target as Node)) {
+        setMostrarListaClientes(false);
+      }
+    };
+    document.addEventListener('mousedown', handleMouseDown);
+    return () => document.removeEventListener('mousedown', handleMouseDown);
   }, [isOpen]);
 
   // AJUSTE: ATALHOS DE TECLADO PDV
@@ -344,67 +324,15 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, [isOpen, modalPagamento, ultimoPedido, mostrarListaClientes, clienteSelecionado, carrinho.length, showProductModal, onClose, ultimaVenda, showSalesPanel, showRefundModal, showSuspendedList]);
 
-  const corPrincipal = settings?.pdvColor || '#10b981'; // Design system accent
+  const corPrincipal = settings?.pdvColor || '#10b981'; // Default to Emerald if not set
 
   const todosClientes = useMemo(() => {
     if (!users) return [];
     // Consumidor geral é sintético (não vive no Firestore) — entra apenas na
     // busca do PDV; painéis administrativos usam a lista real (sem ele).
     const consumidor: User = { id: 'consumidor_geral', name: 'CONSUMIDOR GERAL', email: 'venda@balcao.com', role: UserRole.FAMILY, status: 'active', approved: true, cpf: '000.000.000-00', inmateName: 'CONSUMIDOR', inmateCpf: '000.000.000-00' };
-
-    // 1) Familiares registrados — mescla a prop `users` (stream local, só para
-    //    admin) com `pdvClients` (Cloud Function sanitizada, funciona para
-    //    admin E não-admin). A prop `users` tem dados mais ricos (saldo/CPF já
-    //    desnormalizados), então tem precedência; o servidor cobre o que falta.
-    const mapa = new Map<string, User>();
-    (pdvClients || []).forEach(c => {
-      mapa.set(String(c.id), {
-        id: c.id,
-        name: c.name || 'Cliente',
-        email: c.email || '',
-        role: c.role === 'ADMIN' || c.role === 'admin' || c.role === 'master' ? UserRole.ADMIN : UserRole.FAMILY,
-        status: (c.status as any) || 'active',
-        approved: c.approved !== false,
-        cpf: c.cpf || '',
-        inmateName: c.inmateName || '',
-        inmateCpf: c.inmateCpf || '',
-        phone: c.phone || '',
-        walletBalance: Number(c.walletBalance || 0),
-      } as User);
-    });
-    (users || []).forEach(u => {
-      if (isAdminRole(u.role) || u.status === 'suspended') return;
-      mapa.set(String(u.id), u as User);
-    });
-    const familiares = Array.from(mapa.values());
-
-    // 2) Contas de fiado (`customer_accounts`) — carregadas SEM limite (ao
-    //    contrário do stream de `users`, que é limitado a 500). Isso garante que
-    //    a busca do PDV encontre TODOS os clientes, mesmo os que ficam fora do
-    //    recorte de usuários do painel.
-    const contasFiado: User[] = (customerAccounts || []).map(ca => {
-      const nome = ((ca as any).nome || '').trim();
-      const cpf = (ca as any).cpf || '';
-      const limite = Number((ca as any).creditLimit || 0);
-      const divida = Number((ca as any).currentDebt || 0);
-      return {
-        id: `conta_${ca.id}`,
-        name: nome || 'Cliente de Fiado',
-        email: (ca as any).email || '',
-        role: UserRole.FAMILY,
-        status: 'active',
-        approved: true,
-        cpf,
-        inmateName: (ca as any).inmateName || (ca as any).inmate || '',
-        inmateCpf: (ca as any).inmateCpf || '',
-        phone: (ca as any).telefone || '',
-        walletBalance: Math.max(0, limite - divida),
-        _contaFiado: ca,
-      } as any;
-    });
-
-    return [consumidor, ...familiares, ...contasFiado];
-  }, [users, customerAccounts, pdvClients]);
+    return [consumidor, ...users.filter(u => !isAdminRole(u.role) && u.status !== 'suspended')];
+  }, [users]);
 
   const pixChaveDisponivel = (): string => {
     const chaves = Array.isArray(settings?.pixKeys) ? (settings.pixKeys as string[] || []) : [];
@@ -437,45 +365,11 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
     }).slice(0, 60);
   }, [products, productModalSearch]);
 
-  const clientesFiltrados = useMemo(() => {
-    const term = (buscaCliente || '').trim();
-    if (!term) return [];
-    const termo = term.toLowerCase();
-    const termoDigits = term.replace(/\D/g, '');
-
-    return todosClientes.filter(u => {
-      const nome = (u.name || '').toLowerCase();
-      const nomePreso = (u.inmateName || u.prisonerName || '').toLowerCase();
-      const cpfFamiliar = (u.cpf || '').replace(/\D/g, '');
-      const cpfPreso = (u.inmateCpf || u.prisonerCpf || '').replace(/\D/g, '');
-      const email = (u.email || '').toLowerCase();
-      const telefone = (u.phone || '').replace(/\D/g, '');
-
-      // Se for apenas dígitos (ex: CPF ou telefone digitado)
-      if (/^\d+$/.test(termo)) {
-        return (
-          cpfFamiliar.includes(termo) ||
-          cpfPreso.includes(termo) ||
-          (telefone && telefone.includes(termo))
-        );
-      }
-
-      // Busca por texto (nome, preso, e-mail) ou CPF caso haja números digitados (3+ dígitos)
-      const matchNome = nome.includes(termo) || nomePreso.includes(termo) || email.includes(termo);
-      const matchCpf = termoDigits.length >= 3 && (cpfFamiliar.includes(termoDigits) || cpfPreso.includes(termoDigits));
-
-      return matchNome || matchCpf;
-    })
-    .sort((a, b) => {
-      const aNome = (a.name || '').toLowerCase();
-      const bNome = (b.name || '').toLowerCase();
-      const aStart = aNome.startsWith(termo) ? 0 : 1;
-      const bStart = bNome.startsWith(termo) ? 0 : 1;
-      if (aStart !== bStart) return aStart - bStart;
-      return aNome.localeCompare(bNome);
-    })
-    .slice(0, 15);
-  }, [todosClientes, buscaCliente]);
+  // Busca de clientes do PDV (regra: lista vazia até o operador digitar).
+  const clientesFiltrados = useMemo(
+    () => filtrarClientesPdv(todosClientes, buscaCliente || ''),
+    [todosClientes, buscaCliente]
+  );
 
   const produtosFiltrados = useMemo(() => {
     const term = (codigoProduto || '').trim();
@@ -667,21 +561,14 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
   const handleClienteKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       if (clientesFiltrados.length === 1) {
-        const u = clientesFiltrados[0];
-        setClienteSelecionado(u.id);
-        setBuscaCliente(u.name);
+        setClienteSelecionado(clientesFiltrados[0].id);
+        setBuscaCliente(clientesFiltrados[0].name);
         setMostrarListaClientes(false);
-        const conta = (u as any)._contaFiado as CustomerAccount | undefined;
-        if (conta) {
-          setSelectedCustomerAccount(conta);
-          setCustomerAccountSearch(conta.nome);
-        }
+        setTimeout(() => produtoInputRef.current?.focus(), 50);
       }
     } else if (e.key === 'Escape') {
       setMostrarListaClientes(false);
       setBuscaCliente('');
-    } else if (e.key === 'Backspace' && buscaCliente.length <= 1) {
-      setMostrarListaClientes(false);
     }
   };
 
@@ -962,10 +849,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
       return;
     }
     setProcessando(true);
-    // Contas de fiado ("conta_...") não são usuários reais do Firestore — atribui
-    // a venda ao balcão (attribution), preservando a conta de crédito à parte.
-    const alvoContaFiado = String(clienteSelecionado || '').startsWith('conta_');
-    const targetId = alvoContaFiado ? 'consumidor_geral' : (clienteSelecionado || 'balcao_anonimo');
+    const targetId = clienteSelecionado || 'balcao_anonimo';
     let paymentsArray: {method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO', amount: number}[] | undefined = undefined;
     let changeValue: number | undefined = undefined;
     try {
@@ -1224,7 +1108,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
       {/* HEADER - GLASSMORPHISM PRO MAX */}
       <header className="flex items-center justify-between px-8 py-5 bg-white/80 backdrop-blur-md border-b border-slate-200 shrink-0 relative z-[100] shadow-sm">
         <div className="flex items-center gap-5 relative z-10">
-          <div className="w-14 h-14 rounded-lg flex items-center justify-center shrink-0 shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-100 bg-white group transition-transform hover:scale-105">
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-100 bg-white group transition-transform hover:scale-105">
             <ShoppingCart size={24} style={{ color: corPrincipal }} className="group-hover:rotate-12 transition-transform" />
           </div>
           <div className="min-w-0">
@@ -1238,7 +1122,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
 
         <div className="flex items-center gap-4 relative z-10">
           {/* Status Indicators */}
-          <div className="hidden sm:flex items-center gap-6 mr-6 px-6 py-3 bg-slate-50 rounded-lg border border-slate-100">
+          <div className="hidden sm:flex items-center gap-6 mr-6 px-6 py-3 bg-slate-50 rounded-2xl border border-slate-100">
              <div className="text-right">
                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Operador</p>
                 <p className="text-xs font-bold text-slate-700">{currentUser?.name || 'Admin'}</p>
@@ -1251,25 +1135,25 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
           </div>
 
           {cashLoading ? (
-            <div className="w-14 h-14 rounded-lg flex items-center justify-center bg-slate-100 text-slate-400">
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-slate-100 text-slate-400">
               <RefreshCw className="animate-spin" size={20} />
             </div>
           ) : cashSession ? (
             <>
-              <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-200 rounded-lg">
+              <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-200 rounded-2xl">
                 <Landmark size={16} className="text-emerald-600" />
                 <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider">Caixa Aberto</span>
               </div>
               <button
                 onClick={() => { setCashAmount(''); setCashReason(''); setShowCashModal('withdrawal'); }}
-                className="lg:w-auto w-14 h-14 rounded-lg flex items-center justify-center gap-2 px-4 bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition-all shadow-sm active:scale-95 font-black text-[10px] uppercase tracking-wider"
+                className="lg:w-auto w-14 h-14 rounded-2xl flex items-center justify-center gap-2 px-4 bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition-all shadow-sm active:scale-95 font-black text-[10px] uppercase tracking-wider"
                 title="Registrar Sangria"
               >
                 <Minus size={20} /> <span className="hidden lg:inline">Sangria</span>
               </button>
               <button
                 onClick={() => { setCashAmount(''); setShowCashModal('close'); }}
-                className="lg:w-auto w-14 h-14 rounded-lg flex items-center justify-center gap-2 px-4 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 transition-all shadow-sm active:scale-95 font-black text-[10px] uppercase tracking-wider"
+                className="lg:w-auto w-14 h-14 rounded-2xl flex items-center justify-center gap-2 px-4 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 transition-all shadow-sm active:scale-95 font-black text-[10px] uppercase tracking-wider"
                 title="Fechar Caixa"
               >
                 <LogOut size={20} /> <span className="hidden lg:inline">Fechar</span>
@@ -1280,7 +1164,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
           <button
             onClick={() => reimprimirUltimo()}
             disabled={!ultimaVenda && !ultimoPedido}
-            className="w-14 h-14 rounded-lg flex items-center justify-center bg-white border border-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-all shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-14 h-14 rounded-2xl flex items-center justify-center bg-white border border-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-all shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
             title="Reimprimir Último Cupom (F10)"
           >
             <Printer size={22} />
@@ -1289,7 +1173,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
           <button
             onClick={() => desfazerUltimaVenda()}
             disabled={!ultimaVenda && !ultimoPedido}
-            className="w-14 h-14 rounded-lg flex items-center justify-center bg-white border border-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-14 h-14 rounded-2xl flex items-center justify-center bg-white border border-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
             title="Desfazer / Cancelar Última Venda (estorno completo)"
           >
             <Undo2 size={22} />
@@ -1298,7 +1182,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
           <button
             onClick={() => suspenderVenda()}
             disabled={carrinho.length === 0}
-            className="w-14 h-14 rounded-lg flex items-center justify-center bg-white border border-slate-100 text-slate-600 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 transition-all shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-14 h-14 rounded-2xl flex items-center justify-center bg-white border border-slate-100 text-slate-600 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 transition-all shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
             title="Suspender Venda (salvar carrinho para retomar depois)"
           >
             <PauseCircle size={22} />
@@ -1307,7 +1191,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
           <button
             onClick={() => setShowSuspendedList(true)}
             disabled={suspendedCarts.length === 0}
-            className="w-14 h-14 rounded-lg flex items-center justify-center bg-white border border-slate-100 text-slate-600 hover:bg-sky-50 hover:text-sky-600 hover:border-sky-200 transition-all shadow-md active:scale-95 relative disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-14 h-14 rounded-2xl flex items-center justify-center bg-white border border-slate-100 text-slate-600 hover:bg-sky-50 hover:text-sky-600 hover:border-sky-200 transition-all shadow-md active:scale-95 relative disabled:opacity-40 disabled:cursor-not-allowed"
             title="Vendas Suspensas (retomar ou descartar)"
           >
             <History size={22} />
@@ -1320,7 +1204,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
 
           <button
             onClick={() => abrirEstorno()}
-            className="w-14 h-14 rounded-lg flex items-center justify-center bg-white border border-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all shadow-md active:scale-95"
+            className="w-14 h-14 rounded-2xl flex items-center justify-center bg-white border border-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all shadow-md active:scale-95"
             title="Estorno de Venda (buscar pedido e devolver — F9)"
           >
             <RotateCcw size={22} />
@@ -1328,7 +1212,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
 
           <button
             onClick={() => setShowSalesPanel(true)}
-            className="w-14 h-14 rounded-lg flex items-center justify-center bg-white border border-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-all shadow-md active:scale-95"
+            className="w-14 h-14 rounded-2xl flex items-center justify-center bg-white border border-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-all shadow-md active:scale-95"
             title="Histórico de Vendas com ações (F11)"
           >
             <BarChart3 size={24} />
@@ -1336,7 +1220,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
 
           <button
             onClick={() => setIsSoundEnabled(!isSoundEnabled)}
-            className={`w-14 h-14 rounded-lg flex items-center justify-center transition-all shadow-md border ${isSoundEnabled ? 'bg-white border-slate-100 text-emerald-600 hover:bg-emerald-50' : 'bg-red-50 text-red-500 border-red-100 hover:bg-red-100'}`}
+            className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all shadow-md border ${isSoundEnabled ? 'bg-white border-slate-100 text-emerald-600 hover:bg-emerald-50' : 'bg-red-50 text-red-500 border-red-100 hover:bg-red-100'}`}
             title="Sons"
           >
             {isSoundEnabled ? <Volume2 size={24} /> : <VolumeX size={24} />}
@@ -1344,7 +1228,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
 
           <button
             onClick={onClose}
-            className="w-14 h-14 rounded-lg flex items-center justify-center bg-slate-900 text-white hover:bg-red-600 transition-all shadow-md active:scale-95 group border border-slate-800"
+            className="w-14 h-14 rounded-2xl flex items-center justify-center bg-slate-900 text-white hover:bg-red-600 transition-all shadow-xl active:scale-95 group border border-slate-800"
             title="Fechar (ESC)"
           >
             <X size={28} className="group-hover:rotate-90 transition-transform duration-300" />
@@ -1364,12 +1248,12 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
           <p className="text-slate-500 text-sm mb-1 text-center max-w-sm">
             Para iniciar as vendas, informe o valor inicial em dinheiro na gaveta.
           </p>
-          <p className="text-[10px] font-bold text-amber-600 mb-8 text-center max-w-sm uppercase tracking-wider bg-amber-50 px-6 py-2 rounded-lg border border-amber-200">
+          <p className="text-[10px] font-bold text-amber-600 mb-8 text-center max-w-sm uppercase tracking-wider bg-amber-50 px-6 py-2 rounded-xl border border-amber-200">
             As vendas serão liberadas após a abertura do caixa
           </p>
           <button
             onClick={() => { setCashAmount(''); setShowCashModal('open'); }}
-            className="flex items-center gap-3 px-10 py-5 rounded-lg text-white font-black text-sm uppercase tracking-widest shadow-md hover:brightness-110 transition-all active:scale-95 border border-emerald-400/20"
+            className="flex items-center gap-3 px-10 py-5 rounded-2xl text-white font-black text-sm uppercase tracking-widest shadow-xl hover:brightness-110 transition-all active:scale-95 border border-emerald-400/20"
             style={{ backgroundColor: corPrincipal }}
           >
             <LogIn size={24} /> Abrir Caixa
@@ -1390,18 +1274,18 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
           <section className={`flex-[1.3] flex flex-col gap-4 min-w-0 ${mobileTab !== 'catalog' ? 'hidden lg:flex' : 'flex'}`}>
 
             {/* BUSCA CLIENTE / RESPONSÁVEL */}
-            <div className="bg-slate-50 rounded-lg border border-slate-200 p-5 shadow-sm shrink-0">
+            <div className="bg-slate-50 rounded-[2rem] border border-slate-200 p-5 shadow-sm shrink-0">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${corPrincipal}22`, color: corPrincipal }}>
+                <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${corPrincipal}22`, color: corPrincipal }}>
                   <UserCircle2 size={22} />
                 </div>
                 <h2 className="font-black text-[11px] uppercase tracking-[0.2em] text-slate-500">Responsável / Cliente</h2>
               </div>
 
               {cliente ? (
-                <div className="flex items-center justify-between bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+                <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
                   <div className="flex items-center gap-4 min-w-0">
-                    <div className="w-12 h-12 rounded-lg flex items-center justify-center font-black text-xl text-white shrink-0" style={{ backgroundColor: corPrincipal }}>
+                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xl text-white shrink-0" style={{ backgroundColor: corPrincipal }}>
                       {(cliente?.name || '?').charAt(0).toUpperCase()}
                     </div>
                     <div className="min-w-0">
@@ -1415,8 +1299,8 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                       <p className="font-black text-lg text-emerald-600 leading-none">R$ {formatarMoeda(cliente.walletBalance || 0)}</p>
                     </div>
                     <button
-                      onClick={() => { setClienteSelecionado(''); setBuscaCliente(''); setMostrarListaClientes(true); produtoInputRef.current?.focus(); }}
-                      className="p-2 hover:bg-red-50 text-red-400 rounded-lg transition-all cursor-pointer"
+                      onClick={() => { setClienteSelecionado(''); setBuscaCliente(''); setMostrarListaClientes(true); setTimeout(() => clienteInputRef.current?.focus(), 50); }}
+                      className="p-2 hover:bg-red-50 text-red-400 rounded-xl transition-all cursor-pointer"
                       title="Trocar cliente"
                     >
                       <Trash2 size={18} />
@@ -1424,10 +1308,10 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                   </div>
                 </div>
               ) : (
-                <div className="relative">
+                <div className="relative" ref={clienteSearchRef}>
                   <button
                     onClick={() => { setClienteSelecionado('consumidor_geral'); setBuscaCliente('CONSUMIDOR GERAL'); setMostrarListaClientes(false); produtoInputRef.current?.focus(); }}
-                    className="w-full mb-3 p-4 rounded-lg border-2 border-dashed border-emerald-300 bg-emerald-50/60 hover:bg-emerald-100 hover:border-emerald-400 transition-all flex items-center justify-center gap-3 cursor-pointer"
+                    className="w-full mb-3 p-4 rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/60 hover:bg-emerald-100 hover:border-emerald-400 transition-all flex items-center justify-center gap-3 cursor-pointer"
                     title="Venda direta no balcão, sem identificação"
                   >
                     <ShoppingCart size={18} className="text-emerald-600" />
@@ -1437,42 +1321,38 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                   <input
                     ref={clienteInputRef}
                     placeholder="Nome, CPF ou nome do interno..."
-                    className="w-full bg-white border border-slate-200 rounded-lg p-4 pl-12 font-bold text-slate-900 placeholder:text-slate-400 focus:border-[var(--primary-color)] focus:ring-2 focus:ring-[var(--primary-color)]/15 outline-none transition-all"
+                    className="w-full bg-white border border-slate-200 rounded-2xl p-4 pl-12 font-bold text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all"
                     value={buscaCliente}
                     onChange={e => { setBuscaCliente(e.target.value); setMostrarListaClientes(true); }}
+                    onFocus={() => setMostrarListaClientes(true)}
                     onKeyDown={handleClienteKeyDown}
                   />
-                  {mostrarListaClientes && buscaCliente.length > 0 && (
-                    <div className="absolute left-0 right-0 top-full mt-2 bg-white border border-slate-200 rounded-lg shadow-md z-50 overflow-hidden max-h-64 overflow-y-auto custom-scrollbar">
+                  {mostrarListaClientes && (
+                    <div className="absolute left-0 right-0 top-full mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden max-h-72 overflow-y-auto custom-scrollbar">
                       {clientesFiltrados.map(u => (
                         <button
                           key={u.id}
-                          onClick={() => {
-                            setClienteSelecionado(u.id);
-                            setBuscaCliente(u.name);
-                            setMostrarListaClientes(false);
-                            // Se for uma conta de fiado, já vincula a conta de crédito
-                            // correspondente para a venda fiada não exigir nova busca.
-                            const conta = (u as any)._contaFiado as CustomerAccount | undefined;
-                            if (conta) {
-                              setSelectedCustomerAccount(conta);
-                              setCustomerAccountSearch(conta.nome);
-                            }
-                            produtoInputRef.current?.focus();
-                          }}
+                          onClick={() => { setClienteSelecionado(u.id); setBuscaCliente(u.name); setMostrarListaClientes(false); setTimeout(() => produtoInputRef.current?.focus(), 50); }}
                           className="w-full p-4 flex items-center justify-between hover:bg-emerald-50 border-b border-slate-100 last:border-0 transition-colors cursor-pointer"
                         >
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center font-bold text-sm text-emerald-700">{(u.inmateName || u.prisonerName || u.name)?.[0]?.toUpperCase()}</div>
+                            <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center font-bold text-sm text-emerald-700">{(u.inmateName || u.prisonerName || u.name)?.[0]?.toUpperCase()}</div>
                             <div className="text-left">
                               <p className="font-black text-xs uppercase text-slate-900">{(u.inmateName || u.prisonerName || u.name || 'Usuário').toUpperCase()}</p>
                               <p className="text-[9px] text-slate-400">Familiar: {u?.name || '—'}</p>
+                              {(u.cpf || u.phone) && (
+                                <p className="text-[9px] text-slate-300">{u.cpf || ''}{u.cpf && u.phone ? ' · ' : ''}{u.phone || ''}</p>
+                              )}
                             </div>
                           </div>
                           <p className="font-black text-xs text-emerald-600">R$ {formatarMoeda(u.walletBalance || 0)}</p>
                         </button>
                       ))}
-                      {clientesFiltrados.length === 0 && <p className="p-6 text-center text-xs text-slate-400 font-bold">Nenhum resultado encontrado.</p>}
+                      {clientesFiltrados.length === 0 && (
+                        <p className="p-6 text-center text-xs text-slate-400 font-bold">
+                          {(buscaCliente || '').trim() ? 'Nenhum resultado encontrado.' : 'Digite nome, CPF ou nome do interno para buscar...'}
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1480,10 +1360,10 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
             </div>
 
             {/* SCANNER / CÓDIGO DE BARRAS */}
-            <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm shrink-0">
+            <div className="bg-white border border-slate-200 rounded-[2rem] p-4 shadow-sm shrink-0">
               <form onSubmit={adicionarProduto} className="flex items-center gap-3">
-                <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-lg border border-slate-200 flex-1 min-w-0">
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${corPrincipal}22`, color: corPrincipal }}>
+                <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-2xl border border-slate-200 flex-1 min-w-0">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${corPrincipal}22`, color: corPrincipal }}>
                     <Scan size={20} />
                   </div>
                   <input
@@ -1497,7 +1377,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                 </div>
                 <button
                   type="submit"
-                  className="w-12 h-12 rounded-lg flex items-center justify-center text-white shadow-sm hover:brightness-105 transition-all active:scale-95 cursor-pointer shrink-0"
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg hover:brightness-110 transition-all active:scale-95 cursor-pointer shrink-0"
                   style={{ backgroundColor: corPrincipal }}
                   title="Adicionar produto"
                 >
@@ -1523,12 +1403,12 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                         key={p.id}
                         onClick={() => adicionarAoCarrinho(p)}
                         disabled={isOut || (p.price || 0) <= 0}
-                        className={`group p-3 bg-white border border-slate-200 rounded-lg flex flex-col items-center hover:border-emerald-400 transition-all active:scale-95 shadow-sm hover:shadow-md ${isOut ? 'opacity-40 grayscale' : ''}`}
+                        className={`group p-3 bg-white border border-slate-200 rounded-[2rem] flex flex-col items-center hover:border-emerald-400 transition-all active:scale-95 shadow-sm hover:shadow-md ${isOut ? 'opacity-40 grayscale' : ''}`}
                       >
-                        <div className="w-full aspect-square rounded-lg bg-slate-50 mb-3 overflow-hidden relative border border-slate-100">
+                        <div className="w-full aspect-square rounded-2xl bg-slate-50 mb-3 overflow-hidden relative border border-slate-100">
                           {p.imageUrl ? <img src={p.imageUrl} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" /> : (
                             <div className="absolute inset-0 flex flex-col items-center justify-center">
-                              <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center mb-2">
+                              <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center mb-2">
                                 <Package size={20} className="text-slate-300" />
                               </div>
                               <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Sem Foto</span>
@@ -1551,15 +1431,15 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
 
           {/* LADO DIREITO: CARRINHO E RESUMO */}
           <section className={`flex-1 flex flex-col gap-4 min-w-0 ${mobileTab !== 'cart' ? 'hidden lg:flex' : 'flex'}`}>
-            <div className="flex-1 bg-white border border-slate-200 rounded-lg flex flex-col overflow-hidden shadow-sm min-h-0">
+            <div className="flex-1 bg-white border border-slate-200 rounded-[2.5rem] flex flex-col overflow-hidden shadow-sm min-h-0">
               <div className="p-5 border-b border-slate-100 flex justify-between items-center shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${corPrincipal}22`, color: corPrincipal }}>
+                  <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${corPrincipal}22`, color: corPrincipal }}>
                     <ShoppingCart size={20} />
                   </div>
                   <h2 className="font-black text-[11px] uppercase tracking-[0.2em] text-slate-500">Carrinho de Venda</h2>
                 </div>
-                <button onClick={() => setCarrinho([])} className="text-[10px] font-black uppercase text-red-400 tracking-widest hover:bg-red-50 px-3 py-1.5 rounded-lg transition-all cursor-pointer">
+                <button onClick={() => setCarrinho([])} className="text-[10px] font-black uppercase text-red-400 tracking-widest hover:bg-red-50 px-3 py-1.5 rounded-xl transition-all cursor-pointer">
                   Limpar Tudo
                 </button>
               </div>
@@ -1573,8 +1453,8 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                   </div>
                 ) : (
                   carrinho.map((item: any, idx: number) => (
-                    <div key={item.productId || idx} className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-100 rounded-lg">
-                      <div className="w-12 h-12 rounded-lg bg-white border border-slate-100 overflow-hidden flex-none">
+                    <div key={item.productId || idx} className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-100 rounded-2xl">
+                      <div className="w-12 h-12 rounded-xl bg-white border border-slate-100 overflow-hidden flex-none">
                         {item.imageUrl ? (
                           <img src={item.imageUrl} alt="" className="w-full h-full object-cover" />
                         ) : (
@@ -1620,7 +1500,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                 <button
                   onClick={() => { setModalPagamento(true); setPixConfirmado(false); }}
                   disabled={carrinho.length === 0 || !clienteSelecionado}
-                  className={`w-full py-5 rounded-lg font-black text-base uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-4 ${carrinho.length === 0 || !clienteSelecionado ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'text-white hover:brightness-105 active:scale-[0.98]'}`}
+                  className={`w-full py-5 rounded-[2rem] font-black text-base uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-4 ${carrinho.length === 0 || !clienteSelecionado ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'text-white shadow-[0_15px_40px_rgba(0,0,0,0.2)] hover:brightness-110 active:scale-[0.98]'}`}
                   style={carrinho.length === 0 || !clienteSelecionado ? undefined : { backgroundColor: corPrincipal }}
                 >
                   <Check size={20} /> Finalizar Venda
@@ -1639,14 +1519,14 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
         <div className="flex lg:hidden gap-2 px-4 pb-4 shrink-0 relative z-10">
           <button
             onClick={() => setMobileTab('catalog')}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-black text-xs uppercase tracking-widest transition-all border cursor-pointer ${mobileTab === 'catalog' ? 'text-white border-transparent' : 'bg-white text-slate-500 border-slate-200'}`}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all border cursor-pointer ${mobileTab === 'catalog' ? 'text-white border-transparent' : 'bg-white text-slate-500 border-slate-200'}`}
             style={mobileTab === 'catalog' ? { backgroundColor: corPrincipal } : undefined}
           >
             <Package size={16} /> Catálogo
           </button>
           <button
             onClick={() => setMobileTab('cart')}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-black text-xs uppercase tracking-widest transition-all border cursor-pointer relative ${mobileTab === 'cart' ? 'text-white border-transparent' : 'bg-white text-slate-500 border-slate-200'}`}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all border cursor-pointer relative ${mobileTab === 'cart' ? 'text-white border-transparent' : 'bg-white text-slate-500 border-slate-200'}`}
             style={mobileTab === 'cart' ? { backgroundColor: corPrincipal } : undefined}
           >
             <ShoppingCart size={16} /> Carrinho
@@ -1661,7 +1541,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
 
       {/* Fechamento com resultado da auditoria */}
       {closeResult && (
-        <div className={`mx-6 mt-4 mb-0 p-4 rounded-lg border flex items-start gap-3 shrink-0 ${closeResult.diff === 0 ? 'bg-emerald-50 border-emerald-200' : closeResult.diff < 0 ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'}`}>
+        <div className={`mx-6 mt-4 mb-0 p-4 rounded-2xl border flex items-start gap-3 shrink-0 ${closeResult.diff === 0 ? 'bg-emerald-50 border-emerald-200' : closeResult.diff < 0 ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'}`}>
           {closeResult.diff === 0
             ? <CheckCircle className="text-emerald-500 mt-0.5 shrink-0" size={20} />
             : <AlertTriangle className={`${closeResult.diff < 0 ? 'text-red-500' : 'text-amber-500'} mt-0.5 shrink-0`} size={20} />
@@ -1688,12 +1568,12 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
               initial={{ scale: 0.9, opacity: 0, y: 50 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 50 }}
-              className="w-full max-w-xl bg-white rounded-lg shadow-[0_40px_100px_rgba(0,0,0,0.8)] flex flex-col max-h-[95vh] overflow-hidden border border-slate-200 relative z-10"
+              className="w-full max-w-xl bg-white rounded-[3rem] shadow-[0_40px_100px_rgba(0,0,0,0.8)] flex flex-col max-h-[95vh] overflow-hidden border border-slate-200 relative z-10"
             >
-              <div className="p-8 sm:p-10 border-b border-slate-200 shrink-0 bg-white text-center">
+              <div className="p-8 sm:p-10 border-b border-slate-200 shrink-0 bg-slate-50 text-center">
                 <p className="font-black text-[10px] text-slate-500 uppercase tracking-[0.4em] mb-2">Total a Pagar</p>
-                <h3 className="font-black text-4xl sm:text-5xl text-[#0f172a] tracking-tighter truncate max-w-full">
-                    <span className="text-2xl text-slate-400 mr-2">R$</span>
+                <h3 className="font-black text-4xl sm:text-5xl text-emerald-600 tracking-tighter truncate max-w-full">
+                    <span className="text-2xl text-emerald-500/50 mr-2">R$</span>
                     {formatarMoeda(totalCarrinho)}
                 </h3>
               </div>
@@ -1703,26 +1583,25 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                 {/* Payment Method Selector */}
                 <div className="grid grid-cols-2 gap-4">
                 {[
-                  { key: 'PIX', label: 'PIX', icon: CreditCard, cor: '#2563eb' },
-                  { key: 'WALLET', label: 'Créditos Internos', icon: Wallet, cor: '#0f172a' },
-                  { key: 'CASH', label: 'Dinheiro', icon: DollarSign, cor: '#10b981' },
-                  { key: 'MIXED', label: 'Pagamento Misto', icon: Box, cor: '#0f172a' },
-                  { key: 'FIADO', label: 'Fiado / Conta', icon: BookOpen, cor: '#059669' },
-                ].map(({ key, label, icon: Icon, cor }) => (
+                  { key: 'PIX', label: 'PIX', icon: CreditCard },
+                  { key: 'WALLET', label: 'Créditos Internos', icon: Wallet },
+                  { key: 'CASH', label: 'Dinheiro', icon: DollarSign },
+                  { key: 'MIXED', label: 'Pagamento Misto', icon: Box },
+                  { key: 'FIADO', label: 'Fiado / Conta', icon: BookOpen },
+                ].map(({ key, label, icon: Icon }) => (
                   <button
                     key={key}
                     onClick={() => { setFormaPagamento(key as any); setPixConfirmado(false); if (key === 'FIADO') setCustomerAccountSearch(''); }}
-                    className={`py-6 rounded-lg font-black text-[11px] sm:text-xs uppercase tracking-[0.2em] flex flex-col items-center justify-center gap-3 transition-all touch-target border ${formaPagamento === key ? 'text-white border-transparent' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:text-slate-700'}`}
-                    style={formaPagamento === key ? { backgroundColor: cor } : undefined}
+                    className={`py-6 rounded-[2rem] font-black text-[11px] sm:text-xs uppercase tracking-[0.2em] flex flex-col items-center justify-center gap-3 transition-all touch-target border ${formaPagamento === key ? 'bg-emerald-500 text-white border-emerald-500 scale-[1.02]' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-emerald-100 hover:text-emerald-700'}`}
                   >
-                    <Icon size={24} />
+                    <Icon size={24} className={formaPagamento === key ? 'animate-pulse' : ''}/>
                     {label}
                   </button>
                 ))}
                 </div>
 
                 {formaPagamento === 'PIX' && (
-                  <motion.div initial={{opacity:0}} animate={{opacity:1}} className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-8 text-center relative overflow-hidden">
+                  <motion.div initial={{opacity:0}} animate={{opacity:1}} className="bg-emerald-500/10 border border-emerald-500/20 rounded-[2.5rem] p-8 text-center relative overflow-hidden">
                     <div className="flex items-center gap-3 mb-6 justify-center relative z-10">
                       <CreditCard size={20} className="text-emerald-600" />
                       <span className="font-black text-[11px] uppercase tracking-[0.4em] text-emerald-600">Escaneie para Pagar</span>
@@ -1741,7 +1620,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
 
                     {pixPayloadCarrinho ? (
                       <>
-                        <div className="bg-white rounded-lg p-5 inline-block shadow-md relative z-10">
+                        <div className="bg-white rounded-[2rem] p-5 inline-block shadow-2xl relative z-10">
                           <QRCodeSVG
                             value={pixPayloadCarrinho}
                             size={220}
@@ -1755,7 +1634,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                           Chave usada: {settings?.cnpj && !Array.isArray(settings?.pixKeys) ? 'CNPJ' : 'Cadastrada'} • {mascararChavePix(pixChaveDisponivel())}
                         </p>
                         {pixChaveDisponivel() && (
-                          <div className="mt-6 bg-slate-50 rounded-lg p-4 border border-slate-200 relative z-10">
+                          <div className="mt-6 bg-slate-50 rounded-[1.5rem] p-4 border border-slate-200 relative z-10">
                             <p className="text-[9px] font-black text-emerald-500 uppercase tracking-[0.3em] mb-2">Chave Copia e Cola</p>
                             <input
                               readOnly
@@ -1769,7 +1648,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                                 setPixCopied(true);
                                 setTimeout(() => setPixCopied(false), 2000);
                               }}
-                              className="w-full py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold rounded-lg text-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+                              className="w-full py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold rounded-xl text-sm transition-all active:scale-95 flex items-center justify-center gap-2"
                             >
                               {pixCopied ? 'C├ôDIGO COPIADO COM SUCESSO!' : 'COPIAR CHAVE PIX COPIA E COLA'}
                             </button>
@@ -1777,7 +1656,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                         )}
                       </>
                     ) : (
-                      <div className="bg-amber-50 border-2 border-dashed border-amber-300 rounded-lg p-6 relative z-10">
+                      <div className="bg-amber-50 border-2 border-dashed border-amber-300 rounded-[2rem] p-6 relative z-10">
                         <AlertTriangle size={28} className="text-amber-500 mx-auto mb-3" />
                         <p className="font-black text-[11px] uppercase tracking-[0.2em] text-amber-600 mb-2">Nenhuma chave PIX cadastrada</p>
                         <p className="text-[11px] font-bold text-slate-500 leading-relaxed">
@@ -1786,7 +1665,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                       </div>
                     )}
 
-                    <div className={`mt-6 rounded-lg p-6 text-center relative overflow-hidden border-2 transition-all duration-300 ${pixConfirmado ? 'bg-emerald-500 border-emerald-500' : 'bg-slate-50 border-slate-200'}`}>
+                    <div className={`mt-6 rounded-[2rem] p-6 text-center relative overflow-hidden border-2 transition-all duration-300 ${pixConfirmado ? 'bg-emerald-500 border-emerald-500' : 'bg-slate-50 border-slate-200'}`}>
                       {!pixConfirmado && (
                         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_1px_1px,#0f172a_1px,transparent_0)] bg-[length:20px_20px]"></div>
                       )}
@@ -1808,7 +1687,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                           <button
                             type="button"
                             onClick={() => setPixConfirmado(true)}
-                            className="mt-4 w-full py-4 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-black text-[11px] uppercase tracking-[0.3em] transition-all active:scale-95 flex items-center justify-center gap-3 shadow-[0_12px_30px_rgba(245,158,11,0.35)]"
+                            className="mt-4 w-full py-4 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-black text-[11px] uppercase tracking-[0.3em] transition-all active:scale-95 flex items-center justify-center gap-3 shadow-[0_12px_30px_rgba(245,158,11,0.35)]"
                           >
                             <CheckCircle size={18} /> CONFIRMAR RECEBIMENTO DO PIX
                           </button>
@@ -1821,7 +1700,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                 {formaPagamento === 'WALLET' && (
                   <motion.div initial={{opacity:0}} animate={{opacity:1}} className="space-y-4">
                     {/* Saldo atual do cliente no PDV */}
-                    <div className={`rounded-lg p-6 text-center border-2 ${(cliente?.walletBalance || 0) >= totalCarrinho ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
+                    <div className={`rounded-[2.5rem] p-6 text-center border-2 ${(cliente?.walletBalance || 0) >= totalCarrinho ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
                       <p className="text-[10px] font-black uppercase tracking-[0.3em] mb-1" style={{ color: (cliente?.walletBalance || 0) >= totalCarrinho ? '#059669' : '#d97706' }}>
                         Carteira de {limparTexto((cliente?.inmateName || cliente?.name) || 'Cliente', 26)}
                       </p>
@@ -1841,7 +1720,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                         type="button"
                         onClick={() => setConfirmandoJointSenha(true)}
                         disabled={!clienteSelecionado}
-                        className="w-full py-5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-black text-[11px] uppercase tracking-[0.25em] transition-all active:scale-[0.98] disabled:opacity-40 flex items-center justify-center gap-3 shadow-lg"
+                        className="w-full py-5 rounded-[2rem] bg-slate-900 hover:bg-slate-800 text-white font-black text-[11px] uppercase tracking-[0.25em] transition-all active:scale-[0.98] disabled:opacity-40 flex items-center justify-center gap-3 shadow-lg"
                       >
                         <Users2 size={18} /> VENDA EM DUPLA — DIVIDIR COM OUTRA CARTEIRA
                       </button>
@@ -1849,7 +1728,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
 
                     {/* AUTORIZAÇÃO POR SENHA MESTRA */}
                     {confirmandoJointSenha && !jointAdminAuthorized && (
-                      <div className="bg-slate-50 border-2 border-slate-200 rounded-lg p-6 space-y-3">
+                      <div className="bg-slate-50 border-2 border-slate-200 rounded-[2rem] p-6 space-y-3">
                         <div className="flex items-center gap-2">
                           <Lock size={16} className="text-slate-500 shrink-0" />
                           <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.2em]">Senha Mestra necessária para débito em dupla</p>
@@ -1858,7 +1737,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                           type="password"
                           autoFocus
                           placeholder="••••••••"
-                          className="w-full bg-white border-2 border-slate-200 focus:border-emerald-500 p-4 rounded-lg font-black text-center text-lg outline-none transition-colors"
+                          className="w-full bg-white border-2 border-slate-200 focus:border-emerald-500 p-4 rounded-2xl font-black text-center text-lg outline-none transition-colors"
                           value={jointSenhaAdmin}
                           onChange={e => { setJointSenhaAdmin(e.target.value); setJointSenhaAdminErro(''); }}
                           onKeyDown={e => { if (e.key === 'Enter') handleAutorizarJointWallet(); }}
@@ -1870,11 +1749,11 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                         )}
                         <div className="flex gap-2">
                           <button type="button" onClick={() => { setConfirmandoJointSenha(false); setJointSenhaAdmin(''); setJointSenhaAdminErro(''); }}
-                            className="flex-1 py-3.5 rounded-lg bg-white border-2 border-slate-200 hover:bg-slate-100 font-black text-[10px] uppercase tracking-[0.2em] text-slate-600 transition-all active:scale-95">
+                            className="flex-1 py-3.5 rounded-2xl bg-white border-2 border-slate-200 hover:bg-slate-100 font-black text-[10px] uppercase tracking-[0.2em] text-slate-600 transition-all active:scale-95">
                             Cancelar
                           </button>
                           <button type="button" onClick={handleAutorizarJointWallet} disabled={jointSenhaProcessando}
-                            className="flex-1 py-3.5 rounded-lg text-white font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 shadow-md"
+                            className="flex-1 py-3.5 rounded-2xl text-white font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 shadow-md"
                             style={{ backgroundColor: corPrincipal }}>
                             {jointSenhaProcessando ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle size={14} />} Autorizar
                           </button>
@@ -1884,12 +1763,12 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
 
                     {/* SELEÇÃO DO 2º DEVEDOR + COMPOSIÇÃO DO SPLIT */}
                     {jointAtivo && (
-                      <div className="rounded-lg border-2 p-5 space-y-4 animate-fadeIn overflow-hidden" style={{ borderColor: corPrincipal }}>
+                      <div className="rounded-[2rem] border-2 p-5 space-y-4 animate-fadeIn overflow-hidden" style={{ borderColor: corPrincipal }}>
                         <div className="flex items-center justify-between gap-2">
                           <p className="font-black text-[10px] uppercase tracking-[0.25em]" style={{ color: corPrincipal }}>Venda em Dupla Ativa</p>
                           <button type="button"
                             onClick={() => { setIsJointWalletMode(false); setSecondUserId(''); setSecondUserSearch(''); setSecondWalletAmountInput(''); }}
-                            className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-[9px] uppercase tracking-widest transition-all active:scale-95 flex items-center gap-1">
+                            className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-[9px] uppercase tracking-widest transition-all active:scale-95 flex items-center gap-1">
                             <X size={12} /> Desativar
                           </button>
                         </div>
@@ -1901,7 +1780,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                               <input
                                 autoFocus
                                 placeholder="Buscar 2º devedor (nome, interno ou CPF)..."
-                                className="w-full bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 pl-11 pr-4 py-3.5 rounded-lg text-sm font-bold outline-none transition-colors"
+                                className="w-full bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 pl-11 pr-4 py-3.5 rounded-2xl text-sm font-bold outline-none transition-colors"
                                 value={secondUserSearch}
                                 onChange={e => setSecondUserSearch(e.target.value)}
                               />
@@ -1915,7 +1794,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                                 return (
                                   <button key={u.id} type="button"
                                     onClick={() => { setSecondUserId(u.id); setSecondUserSearch(''); }}
-                                    className="w-full flex items-center gap-3 p-3 bg-white hover:bg-emerald-50 border-2 border-slate-100 hover:border-emerald-300 rounded-lg text-left transition-all active:scale-[0.99]">
+                                    className="w-full flex items-center gap-3 p-3 bg-white hover:bg-emerald-50 border-2 border-slate-100 hover:border-emerald-300 rounded-2xl text-left transition-all active:scale-[0.99]">
                                     <UserCircle2 size={34} className="text-slate-300 shrink-0" />
                                     <div className="flex-1 min-w-0">
                                       <p className="font-black text-xs uppercase text-slate-900 truncate">{(u.inmateName || u.prisonerName || u.name || 'Usuário')}</p>
@@ -1933,7 +1812,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                         ) : (
                           <>
                             {/* Devedor selecionado */}
-                            <div className="flex items-center gap-3 p-3 bg-white border-2 border-slate-100 rounded-lg">
+                            <div className="flex items-center gap-3 p-3 bg-white border-2 border-slate-100 rounded-2xl">
                               <UserCircle2 size={38} className="shrink-0" style={{ color: corPrincipal }} />
                               <div className="flex-1 min-w-0">
                                 <p className="font-black text-xs uppercase text-slate-900 truncate">{((secondUserObj?.inmateName || secondUserObj?.prisonerName || secondUserObj?.name) || 'Usuário')}</p>
@@ -1942,7 +1821,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                                 </p>
                               </div>
                               <button type="button" onClick={() => { setSecondUserId(''); setSecondWalletAmountInput(''); }}
-                                className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-[9px] uppercase tracking-widest transition-all active:scale-95 shrink-0">
+                                className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-[9px] uppercase tracking-widest transition-all active:scale-95 shrink-0">
                                 Trocar
                               </button>
                             </div>
@@ -1953,26 +1832,26 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                               <input
                                 type="number" min="0" step="0.01" inputMode="decimal"
                                 placeholder="0.00"
-                                className="w-full bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 p-4 rounded-lg font-black text-2xl text-center outline-none transition-colors tnum"
+                                className="w-full bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 p-4 rounded-2xl font-black text-2xl text-center outline-none transition-colors tnum"
                                 value={secondWalletAmountInput}
                                 onChange={e => setSecondWalletAmountInput(e.target.value)}
                               />
                               <div className="flex gap-2 mt-2">
                                 {[faltaCarteira, Math.min(segundaParcela || faltaCarteira, limiteSemanalSegundo)].map((v, i) => v > 0 && (
                                   <button key={i} type="button" onClick={() => setSecondWalletAmountInput(v.toFixed(2))}
-                                    className="px-3 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg text-[10px] font-black text-slate-700 transition-all active:scale-95">
+                                    className="px-3 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl text-[10px] font-black text-slate-700 transition-all active:scale-95">
                                     {i === 0 ? 'Valor Exato (Falta)' : 'Máx. Semanal'}
                                   </button>
                                 ))}
                                 <button type="button" onClick={() => setSecondWalletAmountInput('')}
-                                  className="px-3 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg text-[10px] font-black text-slate-500 transition-all active:scale-95">
+                                  className="px-3 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl text-[10px] font-black text-slate-500 transition-all active:scale-95">
                                   Limpar
                                 </button>
                               </div>
                             </div>
 
                             {/* Composição do split */}
-                            <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-1.5 font-bold text-xs tnum">
+                            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-1.5 font-bold text-xs tnum">
                               <div className="flex justify-between">
                                 <span className="uppercase text-slate-500">Devedor 1 ({limparTexto((cliente?.inmateName || cliente?.name) || 'Cliente', 16)})</span>
                                 <span>R$ {formatarMoeda(Math.max(0, totalCarrinho - segundaParcela))}</span>
@@ -1988,7 +1867,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
 
                             {/* Validações inline */}
                             {!jointValido && (
-                              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
+                              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2">
                                 <AlertTriangle size={15} className="text-amber-600 shrink-0 mt-0.5" />
                                 <span className="text-[10px] font-black text-amber-700 uppercase tracking-wide leading-relaxed">
                                   {segundaParcela <= 0 ? 'Informe o valor da 2ª parte.'
@@ -1999,7 +1878,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                               </div>
                             )}
                             {jointValido && (
-                              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-2">
+                              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2">
                                 <CheckCircle size={15} className="text-emerald-600 shrink-0" />
                                 <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider">
                                   Débito será dividido entre as duas carteiras
@@ -2022,7 +1901,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                           key={v}
                           type="button"
                           onClick={() => setValorRecebido((parseMoeda(valorRecebido || '0') + v).toFixed(2))}
-                          className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg text-xs font-black text-slate-700 transition-all active:scale-95 cursor-pointer"
+                          className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl text-xs font-black text-slate-700 transition-all active:scale-95 cursor-pointer"
                         >
                           +R$ {v}
                         </button>
@@ -2030,7 +1909,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                       <button
                         type="button"
                         onClick={() => setValorRecebido(String(totalCarrinho))}
-                        className="px-4 py-2.5 bg-emerald-100 hover:bg-emerald-200 border border-emerald-200 rounded-lg text-xs font-black text-emerald-700 transition-all active:scale-95 cursor-pointer"
+                        className="px-4 py-2.5 bg-emerald-100 hover:bg-emerald-200 border border-emerald-200 rounded-xl text-xs font-black text-emerald-700 transition-all active:scale-95 cursor-pointer"
                       >
                         Valor Exato
                       </button>
@@ -2038,12 +1917,12 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                     <input
                       type="number"
                       placeholder="0.00"
-                      className="w-full bg-slate-50 border border-slate-200 p-6 rounded-lg font-black text-3xl text-center text-slate-900 outline-none focus:border-emerald-500 transition-colors shadow-inner"
+                      className="w-full bg-slate-50 border border-slate-200 p-6 rounded-[2rem] font-black text-3xl text-center text-slate-900 outline-none focus:border-emerald-500 transition-colors shadow-inner"
                       value={valorRecebido}
                       onChange={e => setValorRecebido(e.target.value)}
                     />
                     {valorRecebido && parseMoeda(valorRecebido) >= totalCarrinho && (
-                      <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-6 text-center animate-fadeIn">
+                      <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-[2rem] p-6 text-center animate-fadeIn">
                         <p className="text-[10px] text-emerald-500 font-black uppercase tracking-[0.4em] mb-2">Troco a Devolver</p>
                         <p className="text-3xl font-black text-emerald-600">R$ {formatarMoeda(parseMoeda(valorRecebido) - totalCarrinho)}</p>
                         {calcularDenominacoes(parseMoeda(valorRecebido) - totalCarrinho).length > 0 && (
@@ -2051,7 +1930,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                             <p className="text-[9px] font-black text-emerald-600 uppercase tracking-[0.3em] mb-3">Sugest├úo de Notas e Moedas</p>
                             <div className="flex flex-wrap justify-center gap-2">
                               {calcularDenominacoes(parseMoeda(valorRecebido) - totalCarrinho).map(d => (
-                                <span key={d.valor} className="px-3 py-1.5 bg-white border border-emerald-200 rounded-lg text-[10px] font-black text-emerald-700">
+                                <span key={d.valor} className="px-3 py-1.5 bg-white border border-emerald-200 rounded-xl text-[10px] font-black text-emerald-700">
                                   R$ {d.valor.toFixed(2).replace('.', ',')} ├ù {d.qtd}
                                 </span>
                               ))}
@@ -2064,15 +1943,15 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                 )}
 
                 {formaPagamento === 'MIXED' && (
-                  <motion.div initial={{opacity:0}} animate={{opacity:1}} className="space-y-4 bg-slate-50 p-6 rounded-lg border border-slate-200">
+                  <motion.div initial={{opacity:0}} animate={{opacity:1}} className="space-y-4 bg-slate-50 p-6 rounded-[2.5rem] border border-slate-200">
                     <p className="text-[10px] text-slate-500 font-black uppercase text-center mb-6 tracking-[0.3em]">Composi├º├úo do Pagamento</p>
                     {([
                       { key: 'PIX', label: 'PIX', color: 'blue' },
                       { key: 'WALLET', label: 'Cr├®ditos', color: 'emerald' },
                       { key: 'CASH', label: 'Dinheiro', color: 'slate' },
                     ] as const).map(({ key, label, color }) => (
-                      <div key={key} className="flex items-center gap-4 bg-slate-50 p-3 rounded-lg border border-slate-200/30">
-                        <div className="w-12 h-12 rounded-lg flex items-center justify-center shrink-0"
+                      <div key={key} className="flex items-center gap-4 bg-slate-50 p-3 rounded-[1.5rem] border border-slate-200/30">
+                        <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
                           style={{
                             backgroundColor: key === 'PIX' ? 'rgba(59,130,246,0.1)' : key === 'WALLET' ? 'rgba(16,185,129,0.1)' : 'rgba(100,116,139,0.1)',
                             color: key === 'PIX' ? '#60a5fa' : key === 'WALLET' ? '#34d399' : '#94a3b8',
@@ -2093,14 +1972,14 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                       </div>
                     ))}
                     {parseMoeda(valorMisto.PIX) > 0 && (
-                      <motion.div initial={{opacity:0}} animate={{opacity:1}} className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-6 text-center mt-6">
+                      <motion.div initial={{opacity:0}} animate={{opacity:1}} className="bg-blue-500/5 border border-blue-500/20 rounded-[2rem] p-6 text-center mt-6">
                         <div className="flex items-center gap-3 mb-2 justify-center">
                           <CreditCard size={18} className="text-blue-600" />
                           <span className="font-black text-[10px] uppercase tracking-[0.3em] text-blue-700">PIX ÔÇö Parte da Compra</span>
                         </div>
                         <p className="font-black text-2xl text-blue-700 mb-4">R$ {formatarMoeda(parseMoeda(valorMisto.PIX))}</p>
                         {pixPayloadMisto ? (
-                          <div className="bg-white rounded-lg p-4 inline-block shadow-lg border border-blue-100">
+                          <div className="bg-white rounded-[2rem] p-4 inline-block shadow-lg border border-blue-100">
                             <QRCodeSVG
                               value={pixPayloadMisto}
                               size={180}
@@ -2111,12 +1990,12 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                             />
                           </div>
                         ) : (
-                          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
                             <AlertTriangle size={22} className="text-amber-500 mx-auto mb-2" />
                             <p className="text-[10px] font-black text-amber-600 uppercase tracking-wider">Nenhuma chave PIX cadastrada. Cadastre em Configura├º├Áes ÔåÆ Pagamentos.</p>
                           </div>
                         )}
-                        <div className={`mt-4 rounded-lg p-5 border-2 transition-all duration-300 ${pixConfirmado ? 'bg-emerald-500 border-emerald-500' : 'bg-slate-50 border-slate-200'}`}>
+                        <div className={`mt-4 rounded-2xl p-5 border-2 transition-all duration-300 ${pixConfirmado ? 'bg-emerald-500 border-emerald-500' : 'bg-slate-50 border-slate-200'}`}>
                           <p className={`font-black text-[10px] uppercase tracking-[0.3em] ${pixConfirmado ? 'text-white' : 'text-slate-600'}`}>
                             {pixConfirmado ? 'PIX Confirmado ÔÇö Valor Recebido' : 'Aguardando Confirma├º├úo'}
                           </p>
@@ -2124,7 +2003,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                             <button
                               type="button"
                               onClick={() => setPixConfirmado(true)}
-                              className="mt-3 w-full py-3.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-black text-[10px] uppercase tracking-[0.3em] transition-all active:scale-95 flex items-center justify-center gap-2 shadow-[0_10px_25px_rgba(245,158,11,0.3)]"
+                              className="mt-3 w-full py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-black text-[10px] uppercase tracking-[0.3em] transition-all active:scale-95 flex items-center justify-center gap-2 shadow-[0_10px_25px_rgba(245,158,11,0.3)]"
                             >
                               <CheckCircle size={16} /> CONFIRMAR RECEBIMENTO DO PIX
                             </button>
@@ -2144,11 +2023,11 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                         placeholder="Buscar cliente cadastrado..."
                         value={customerAccountSearch}
                         onChange={e => { setCustomerAccountSearch(e.target.value); setSelectedCustomerAccount(null); }}
-                        className="w-full pl-10 pr-4 py-4 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 font-semibold text-sm outline-none focus:border-emerald-500 transition-all"
+                        className="w-full pl-10 pr-4 py-4 rounded-[1.5rem] bg-slate-50 border border-slate-200 text-slate-900 font-semibold text-sm outline-none focus:border-emerald-500 transition-all"
                       />
                     </div>
                     {customerAccountSearch && !selectedCustomerAccount && (
-                      <div className="bg-white rounded-lg border border-slate-200 shadow-sm max-h-48 overflow-y-auto custom-scrollbar">
+                      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm max-h-48 overflow-y-auto custom-scrollbar">
                         {filteredCustomerAccounts.length === 0 ? (
                           <p className="p-4 text-center text-slate-400 text-xs font-semibold">Nenhum cliente encontrado</p>
                         ) : filteredCustomerAccounts.map(ca => {
@@ -2160,7 +2039,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                               disabled={ca.status === 'blocked' || isOverLimit}
                               className={`w-full flex items-center gap-4 p-4 hover:bg-emerald-50 transition-all border-b border-slate-100 last:border-0 text-left ${ca.status === 'blocked' ? 'opacity-50' : ''}`}
                             >
-                              <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${isOverLimit ? 'bg-red-100 text-red-600' : ca.currentDebt > 0 ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isOverLimit ? 'bg-red-100 text-red-600' : ca.currentDebt > 0 ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>
                                 <BookOpen size={18} />
                               </div>
                               <div className="flex-1 min-w-0">
@@ -2177,7 +2056,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                       </div>
                     )}
                     {selectedCustomerAccount && (
-                      <div className="bg-slate-50 rounded-lg border border-slate-200 p-5 space-y-3">
+                      <div className="bg-slate-50 rounded-2xl border border-slate-200 p-5 space-y-3">
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="font-black text-slate-900 text-sm">{selectedCustomerAccount.nome}</p>
@@ -2197,7 +2076,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                           />
                         </div>
                         {((selectedCustomerAccount.currentDebt || 0) + totalCarrinho) > (selectedCustomerAccount.creditLimit || 0) && (selectedCustomerAccount.creditLimit || 0) > 0 && (
-                          <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+                          <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2">
                             <AlertTriangle size={16} className="text-red-600 shrink-0" />
                             <span className="text-xs font-black text-red-600 uppercase tracking-wider">Sem saldo no momento - Limite excedido</span>
                           </div>
@@ -2209,15 +2088,15 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
               </div>
 
               <div className="flex gap-4 p-8 border-t border-slate-200 bg-slate-50 shrink-0">
-                <button onClick={() => setModalPagamento(false)} className="flex-1 py-5 rounded-lg font-black text-[11px] uppercase tracking-[0.2em] text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 touch-target transition-all active:scale-95">
+                <button onClick={() => setModalPagamento(false)} className="flex-1 py-5 rounded-[1.5rem] font-black text-[11px] uppercase tracking-[0.2em] text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 touch-target transition-all active:scale-95">
                     Cancelar
                 </button>
                 {formaPagamento === 'WALLET' && ((settings?.weeklyWalletLimit || 300) - ((cliente as any)?.weeklySpent || 0)) <= 0 ? (
-                  <div className="w-full py-6 rounded-lg bg-red-50 border-2 border-red-200 flex items-center justify-center">
+                  <div className="w-full py-6 rounded-[2rem] bg-red-50 border-2 border-red-200 flex items-center justify-center">
                     <span className="font-black text-red-600 uppercase tracking-[0.3em] text-xs leading-none">Sem saldo no momento</span>
                   </div>
                 ) : formaPagamento === 'FIADO' && (!selectedCustomerAccount || ((selectedCustomerAccount.currentDebt || 0) + totalCarrinho > (selectedCustomerAccount.creditLimit || 0))) ? (
-                  <div className="w-full py-6 rounded-lg bg-red-50 border-2 border-red-200 flex items-center justify-center px-4">
+                  <div className="w-full py-6 rounded-[2rem] bg-red-50 border-2 border-red-200 flex items-center justify-center px-4">
                     <span className="font-black text-red-600 uppercase tracking-[0.3em] text-xs leading-none text-center">
                       {!selectedCustomerAccount ? 'Selecione um cliente' : 'Sem saldo no momento'}
                     </span>
@@ -2227,7 +2106,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                     <button
                       onClick={finalizarVenda}
                       disabled={processando || pixPendente || (formaPagamento === 'WALLET' && !jointValido && (((cliente as any)?.walletBalance || 0) < totalCarrinho || ((settings?.weeklyWalletLimit || 300) - ((cliente as any)?.weeklySpent || 0)) < totalCarrinho))}
-                      className="w-full py-6 rounded-lg font-black text-base uppercase tracking-[0.4em] text-white hover:brightness-105 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-4"
+                      className="w-full py-6 rounded-[2rem] font-black text-base uppercase tracking-[0.4em] text-white shadow-[0_20px_40px_rgba(0,0,0,0.3)] hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-4"
                       style={{ backgroundColor: corPrincipal }}
                     >
                       {processando ? (
@@ -2268,9 +2147,9 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-[1001] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4">
             <motion.div initial={{ scale: 0.95, y: 16 }} animate={{ scale: 1, y: 0 }}
-              className="w-full max-w-sm bg-white rounded-lg p-8 shadow-[0_40px_100px_rgba(0,0,0,0.5)] border border-slate-200 space-y-4">
+              className="w-full max-w-sm bg-white rounded-[2rem] p-8 shadow-[0_40px_100px_rgba(0,0,0,0.5)] border border-slate-200 space-y-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-slate-900 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center shrink-0">
                   <Lock size={18} className="text-white" />
                 </div>
                 <div>
@@ -2279,14 +2158,14 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                 </div>
               </div>
               {selectedCustomerAccount && (
-                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 flex justify-between items-center font-black text-xs tnum">
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex justify-between items-center font-black text-xs tnum">
                   <span className="uppercase text-slate-600 truncate max-w-[55%]">{selectedCustomerAccount.nome || 'Cliente Fiado'}</span>
                   <span style={{ color: corPrincipal }}>+R$ {formatarMoeda(totalCarrinho)}</span>
                 </div>
               )}
               <input
                 type="password" autoFocus placeholder="••••••••"
-                className="w-full bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 p-4 rounded-lg font-black text-center text-lg outline-none transition-colors"
+                className="w-full bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 p-4 rounded-2xl font-black text-center text-lg outline-none transition-colors"
                 value={senhaFiado}
                 onChange={e => { setSenhaFiado(e.target.value); setSenhaFiadoErro(''); }}
                 onKeyDown={e => { if (e.key === 'Enter') executarVendaFiado(); }}
@@ -2299,11 +2178,11 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
               <div className="flex gap-2 pt-1">
                 <button type="button"
                   onClick={() => { setConfirmandoFiado(false); setSenhaFiado(''); setSenhaFiadoErro(''); }}
-                  className="flex-1 py-3.5 rounded-lg bg-white border-2 border-slate-200 hover:bg-slate-100 font-black text-[10px] uppercase tracking-[0.2em] text-slate-600 transition-all active:scale-95">
+                  className="flex-1 py-3.5 rounded-2xl bg-white border-2 border-slate-200 hover:bg-slate-100 font-black text-[10px] uppercase tracking-[0.2em] text-slate-600 transition-all active:scale-95">
                   Cancelar
                 </button>
                 <button type="button" onClick={executarVendaFiado} disabled={senhaFiadoProcessando}
-                  className="flex-1 py-3.5 rounded-lg text-white font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 shadow-md"
+                  className="flex-1 py-3.5 rounded-2xl text-white font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 shadow-md"
                   style={{ backgroundColor: corPrincipal }}>
                   {senhaFiadoProcessando ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle size={14} />} Confirmar
                 </button>
@@ -2325,21 +2204,21 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
           <motion.div
             initial={{ scale: 0.9, opacity: 0, y: 30 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
-            className="w-full max-w-xl bg-white rounded-lg shadow-[0_40px_120px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col max-h-[90vh] border border-slate-200"
+            className="w-full max-w-xl bg-white rounded-[2.5rem] shadow-[0_40px_120px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col max-h-[90vh] border border-slate-200"
           >
             {/* Header Sucesso */}
-            <div className="p-10 bg-[#0f172a] text-center relative overflow-hidden shrink-0">
-               <div className="absolute inset-0 bg-[#0f172a]"></div>
+            <div className="p-10 bg-emerald-500 text-center relative overflow-hidden shrink-0">
+               <div className="absolute inset-0 bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700"></div>
                {/* Decorative circles */}
                <div className="absolute -top-10 -left-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
-               <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-white/5 rounded-full blur-3xl"></div>
+               <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-emerald-400/20 rounded-full blur-3xl"></div>
                
                <div className="relative z-10 flex flex-col items-center">
                   <motion.div 
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ type: "spring", damping: 12 }}
-                    className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-6 shadow-md border-4 border-emerald-400/30"
+                    className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-6 shadow-2xl border-4 border-emerald-400/30"
                   >
                     <Check size={48} className="text-emerald-600" strokeWidth={3} />
                   </motion.div>
@@ -2385,7 +2264,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                </div>
 
                {/* Resumo Financeiro */}
-               <div className="mt-10 p-8 rounded-lg bg-slate-50 border-2 border-slate-100 relative">
+               <div className="mt-10 p-8 rounded-[2rem] bg-slate-50 border-2 border-slate-100 relative">
                   {/* Decorative notch */}
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-slate-50 rotate-45 border-t-2 border-l-2 border-slate-100"></div>
                   
@@ -2416,7 +2295,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                   onClick={() => {
                     imprimirComPrioridadeFiscal({ type: 'CUPOM', data: ultimoPedido }, settings).catch(console.error);
                   }}
-                  className="flex-1 py-5 rounded-lg font-black text-white text-[10px] uppercase tracking-widest hover:brightness-105 transition-all active:scale-95 flex items-center justify-center gap-3 border border-emerald-400/20"
+                  className="flex-1 py-5 rounded-2xl font-black text-white text-[10px] uppercase tracking-widest shadow-[0_15px_30px_rgba(0,0,0,0.15)] hover:brightness-110 transition-all active:scale-95 flex items-center justify-center gap-3 border border-emerald-400/20"
                   style={{ backgroundColor: corPrincipal }}
                 >
                   <Printer size={18} /> Bobina 48mm (Fiscal)
@@ -2425,13 +2304,13 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                   onClick={() => {
                     if (setPrintOrder) setPrintOrder(ultimoPedido);
                   }}
-                  className="flex-1 py-5 rounded-lg bg-white border border-slate-200 text-slate-600 font-black text-[10px] uppercase tracking-widest hover:bg-slate-100 transition-all active:scale-95 flex items-center justify-center gap-3 shadow-sm hover:shadow-md"
+                  className="flex-1 py-5 rounded-2xl bg-white border border-slate-200 text-slate-600 font-black text-[10px] uppercase tracking-widest hover:bg-slate-100 transition-all active:scale-95 flex items-center justify-center gap-3 shadow-sm hover:shadow-md"
                 >
                   <Scan size={18} /> Imprimir Recibo
                 </button>
                 <button
                   onClick={() => setUltimoPedido(null)}
-                  className="flex-1 py-5 rounded-lg bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest hover:bg-slate-700 transition-all active:scale-95 flex items-center justify-center gap-3 shadow-sm"
+                  className="flex-1 py-5 rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest hover:bg-slate-700 transition-all active:scale-95 flex items-center justify-center gap-3 shadow-sm"
                 >
                   <Plus size={18} /> Nova Operação
                 </button>
@@ -2447,7 +2326,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-lg p-6 shadow-md max-w-5xl w-full max-h-[85vh] overflow-hidden flex flex-col border border-slate-200"
+            className="bg-white rounded-3xl p-6 shadow-2xl max-w-5xl w-full max-h-[85vh] overflow-hidden flex flex-col border border-slate-200"
           >
             <div className="flex justify-between items-center pb-4 border-b border-slate-100 mb-4 shrink-0">
               <div>
@@ -2456,7 +2335,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
               </div>
               <button
                 onClick={() => setShowProductModal(false)}
-                className="p-2 text-slate-400 hover:text-red-500 rounded-lg transition-all"
+                className="p-2 text-slate-400 hover:text-red-500 rounded-xl transition-all"
               >
                 <X size={24} />
               </button>
@@ -2467,7 +2346,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                 <Search size={18} />
               </div>
               <input
-                className="w-full pl-12 pr-6 py-2.5 rounded-lg border border-slate-200 focus:border-emerald-500 outline-none bg-slate-50 text-sm font-bold shadow-inner"
+                className="w-full pl-12 pr-6 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none bg-slate-50 text-sm font-bold shadow-inner"
                 placeholder="Filtrar produtos no catálogo..."
                 value={productModalSearch}
                 onChange={e => setProductModalSearch(e.target.value)}
@@ -2478,7 +2357,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
             <div className="flex-1 overflow-y-auto pr-1">
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                 {filteredProductsForModal.length === 0 ? (
-                  <div className="col-span-full text-center py-20 bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                  <div className="col-span-full text-center py-20 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                     <Package size={40} className="mx-auto mb-4 opacity-25 text-slate-400" />
                     <p className="font-black uppercase tracking-wider text-xs text-slate-400">Nenhum produto encontrado</p>
                   </div>
@@ -2487,14 +2366,14 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                   return (
                     <div
                       key={p?.id || `modal-prod-${idx}`}
-                      className={`bg-white rounded-lg border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 p-4 flex flex-col justify-between h-full relative cursor-pointer ${isOutOfStock ? 'opacity-60 grayscale' : ''}`}
+                      className={`bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 p-4 flex flex-col justify-between h-full relative cursor-pointer ${isOutOfStock ? 'opacity-60 grayscale' : ''}`}
                       onClick={() => {
                         if (!isOutOfStock) {
                           adicionarAoCarrinho(p);
                         }
                       }}
                     >
-                      <div className="w-full aspect-square rounded-lg overflow-hidden bg-slate-50 mb-3 relative">
+                      <div className="w-full aspect-square rounded-xl overflow-hidden bg-slate-50 mb-3 relative">
                         <img src={p.imageUrl || 'https://placehold.co/200'} className="w-full h-full object-contain" alt={p.name} />
                         {isOutOfStock && (
                           <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
@@ -2512,7 +2391,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                               if (!isOutOfStock) adicionarAoCarrinho(p);
                             }}
                             disabled={isOutOfStock}
-                            className="bg-[#0f172a] hover:bg-[#1e293b] text-white rounded-lg p-2 transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                            className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg p-2 transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                           >
                             <Plus size={16} />
                           </button>
@@ -2530,7 +2409,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
       {/* ── Cash Operation Modals ── */}
       {showCashModal && (
         <div className="fixed inset-0 z-[800] flex items-end sm:items-center justify-center bg-black/40 px-4 pb-4 sm:pb-0">
-          <div className="bg-white rounded-lg w-full max-w-sm p-6 shadow-md">
+          <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl">
 
             {showCashModal === 'open' && (
               <>
@@ -2540,7 +2419,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                 <input type="number" min="0" step="0.01" value={cashAmount}
                   onChange={e => setCashAmount(e.target.value)}
                   placeholder="Ex: 100.00"
-                  className="w-full border border-slate-300 rounded-lg px-4 py-3 text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]/20 mb-4" />
+                  className="w-full border border-slate-300 rounded-xl px-4 py-3 text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-400 mb-4" />
               </>
             )}
 
@@ -2556,12 +2435,12 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                 <input type="number" min="0.01" step="0.01" value={cashAmount}
                   onChange={e => setCashAmount(e.target.value)}
                   placeholder="0.00"
-                  className="w-full border border-slate-300 rounded-lg px-4 py-3 text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]/20 mb-3" />
+                  className="w-full border border-slate-300 rounded-xl px-4 py-3 text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 mb-3" />
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Motivo</label>
                 <input type="text" value={cashReason}
                   onChange={e => setCashReason(e.target.value)}
                   placeholder="Ex: Troco inicial, Retirada p/ cofre..."
-                  className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]/20 mb-4" />
+                  className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 mb-4" />
               </>
             )}
 
@@ -2574,13 +2453,13 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                 <input type="number" min="0" step="0.01" value={cashAmount}
                   onChange={e => setCashAmount(e.target.value)}
                   placeholder="0.00"
-                  className="w-full border border-slate-300 rounded-lg px-4 py-3 text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-400/20 mb-4" />
+                  className="w-full border border-slate-300 rounded-xl px-4 py-3 text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-400 mb-4" />
               </>
             )}
 
             <div className="flex gap-3">
               <button onClick={() => { setShowCashModal(null); setCashAmount(''); setCashReason(''); }}
-                className="flex-1 py-3 rounded-lg border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-all">
+                className="flex-1 py-3 rounded-2xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-all">
                 Cancelar
               </button>
               <button
@@ -2591,7 +2470,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                     : handleCashClose
                 }
                 disabled={cashActionLoading}
-                className="flex-1 py-3 rounded-lg text-white font-bold text-sm shadow-md hover:brightness-110 transition-all active:scale-95 disabled:opacity-60"
+                className="flex-1 py-3 rounded-2xl text-white font-bold text-sm shadow-md hover:brightness-110 transition-all active:scale-95 disabled:opacity-60"
                 style={{ backgroundColor: showCashModal === 'close' ? '#ef4444' : showCashModal === 'withdrawal' ? '#ef4444' : corPrincipal }}
               >
                 {cashActionLoading ? '...' : showCashModal === 'open' ? 'Abrir Caixa' : showCashModal === 'supplement' ? 'Registrar' : showCashModal === 'withdrawal' ? 'Registrar Sangria' : 'Confirmar Fechamento'}
@@ -2607,12 +2486,12 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
           <motion.div
             initial={{ opacity: 0, scale: 0.96, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="bg-white rounded-lg w-full max-w-3xl shadow-md flex flex-col overflow-hidden max-h-[92vh]"
+            className="bg-white rounded-[2rem] w-full max-w-3xl shadow-2xl flex flex-col overflow-hidden max-h-[92vh]"
           >
             {/* Header */}
             <div className="px-6 sm:px-8 py-5 border-b border-slate-100 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white flex items-center justify-between shrink-0">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-lg bg-[#0f172a] flex items-center justify-center shadow-sm">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
                   <BarChart3 size={24} />
                 </div>
                 <div>
@@ -2622,7 +2501,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
               </div>
               <button
                 onClick={() => setShowSalesPanel(false)}
-                className="w-11 h-11 rounded-lg bg-white/10 hover:bg-red-500 text-white flex items-center justify-center transition-all active:scale-90"
+                className="w-11 h-11 rounded-xl bg-white/10 hover:bg-red-500 text-white flex items-center justify-center transition-all active:scale-90"
               >
                 <X size={20} />
               </button>
@@ -2638,13 +2517,13 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                   <button
                     key={t.key}
                     onClick={() => { setSalesTab(t.key); setExpandedKey(null); }}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 ${salesTab === t.key ? 'bg-slate-900 text-white shadow-lg' : 'bg-white text-slate-500 border border-slate-200 hover:text-slate-800'}`}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 ${salesTab === t.key ? 'bg-slate-900 text-white shadow-lg' : 'bg-white text-slate-500 border border-slate-200 hover:text-slate-800'}`}
                   >
                     <t.icon size={14} /> {t.label}
                   </button>
                 ))}
               </div>
-              <div className="flex gap-1.5 bg-white rounded-lg p-1 border border-slate-200 w-fit">
+              <div className="flex gap-1.5 bg-white rounded-xl p-1 border border-slate-200 w-fit">
                 {([
                   { key: 'today', label: 'Hoje' },
                   { key: '7', label: '7 Dias' },
@@ -2664,11 +2543,11 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
 
             {/* Resumo geral */}
             <div className="px-6 sm:px-8 py-4 flex gap-4 border-b border-slate-100 shrink-0">
-              <div className="flex-1 bg-emerald-50 border border-emerald-200 rounded-lg px-5 py-4">
+              <div className="flex-1 bg-emerald-50 border border-emerald-200 rounded-2xl px-5 py-4">
                 <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Vendas no Período</p>
                 <p className="text-2xl font-black text-emerald-700 mt-1">{salesOrders.length}</p>
               </div>
-              <div className="flex-1 bg-slate-900 rounded-lg px-5 py-4">
+              <div className="flex-1 bg-slate-900 rounded-2xl px-5 py-4">
                 <p className="text-[9px] font-black text-white/50 uppercase tracking-widest">Faturamento Total</p>
                 <p className="text-2xl font-black text-emerald-400 mt-1">R$ {formatarMoeda(totalPeriodo)}</p>
               </div>
@@ -2688,13 +2567,13 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
               {salesTab === 'day' && salesByDay.map(day => {
                 const isOpen = expandedKey === day.day;
                 return (
-                  <div key={day.day} className="mb-3 rounded-lg border border-slate-200 overflow-hidden bg-white">
+                  <div key={day.day} className="mb-3 rounded-2xl border border-slate-200 overflow-hidden bg-white">
                     <button
                       onClick={() => setExpandedKey(isOpen ? null : day.day)}
                       className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition-all gap-3"
                     >
                       <div className="flex items-center gap-4 min-w-0">
-                        <div className="w-11 h-11 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
+                        <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
                           <Calendar size={20} />
                         </div>
                         <div className="text-left min-w-0">
@@ -2750,13 +2629,13 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
               {salesTab === 'client' && salesByClient.map(cli => {
                 const isOpen = expandedKey === cli.name;
                 return (
-                  <div key={cli.name} className="mb-3 rounded-lg border border-slate-200 overflow-hidden bg-white">
+                  <div key={cli.name} className="mb-3 rounded-2xl border border-slate-200 overflow-hidden bg-white">
                     <button
                       onClick={() => setExpandedKey(isOpen ? null : cli.name)}
                       className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition-all gap-3"
                     >
                       <div className="flex items-center gap-4 min-w-0">
-                        <div className="w-11 h-11 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center font-black shrink-0">
+                        <div className="w-11 h-11 rounded-2xl bg-blue-500/10 text-blue-600 flex items-center justify-center font-black shrink-0">
                           {String(cli.name).charAt(0).toUpperCase()}
                         </div>
                         <div className="text-left min-w-0">
@@ -2811,7 +2690,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
             <div className="px-6 sm:px-8 py-4 border-t border-slate-100 flex justify-end shrink-0 bg-slate-50/60">
               <button
                 onClick={() => setShowSalesPanel(false)}
-                className="px-8 py-3.5 rounded-lg bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95"
+                className="px-8 py-3.5 rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95"
               >
                 Fechar
               </button>
@@ -2826,11 +2705,11 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
           <motion.div
             initial={{ opacity: 0, scale: 0.96, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="bg-white rounded-lg w-full max-w-2xl shadow-md flex flex-col overflow-hidden max-h-[92vh]"
+            className="bg-white rounded-[2rem] w-full max-w-2xl shadow-2xl flex flex-col overflow-hidden max-h-[92vh]"
           >
             <div className="px-6 sm:px-8 py-5 border-b border-slate-100 bg-gradient-to-br from-red-600 via-red-600 to-red-700 text-white flex items-center justify-between shrink-0">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-lg bg-white/15 flex items-center justify-center shadow-lg">
+                <div className="w-12 h-12 rounded-2xl bg-white/15 flex items-center justify-center shadow-lg">
                   <RotateCcw size={24} />
                 </div>
                 <div>
@@ -2840,7 +2719,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
               </div>
               <button
                 onClick={() => setShowRefundModal(false)}
-                className="w-11 h-11 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all active:scale-90"
+                className="w-11 h-11 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all active:scale-90"
               >
                 <X size={20} />
               </button>
@@ -2848,7 +2727,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
 
             <div className="flex-1 overflow-y-auto px-6 sm:px-8 py-5 custom-scrollbar space-y-5">
               {refundResult && (
-                <div className={`rounded-lg border p-4 flex items-start gap-3 ${refundResult.ok ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
+                <div className={`rounded-2xl border p-4 flex items-start gap-3 ${refundResult.ok ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
                   {refundResult.ok
                     ? <CheckCircle size={20} className="text-emerald-500 mt-0.5 shrink-0" />
                     : <AlertTriangle size={20} className="text-red-500 mt-0.5 shrink-0" />}
@@ -2876,11 +2755,11 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                         placeholder="Ex.: #ABC123 ou nome do cliente..."
                         value={refundSearch}
                         onChange={e => { setRefundSearch(e.target.value); setRefundSelected(null); }}
-                        className="w-full pl-10 pr-4 py-3.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 font-semibold text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-400/20 transition-all"
+                        className="w-full pl-10 pr-4 py-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 font-semibold text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-400/20 transition-all"
                       />
                     </div>
                     {!refundSelected && refundResults.length > 0 && (
-                      <div className="mt-2 bg-white rounded-lg border border-slate-200 shadow-sm max-h-52 overflow-y-auto custom-scrollbar">
+                      <div className="mt-2 bg-white rounded-2xl border border-slate-200 shadow-sm max-h-52 overflow-y-auto custom-scrollbar">
                         {refundResults.map(o => (
                           <button
                             key={o.id}
@@ -2897,12 +2776,12 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                       </div>
                     )}
                     {!refundSelected && refundResults.length === 0 && (
-                      <p className="mt-2 p-3 text-center text-xs font-bold text-slate-400 bg-slate-50 rounded-lg">Nenhum pedido ativo encontrado.</p>
+                      <p className="mt-2 p-3 text-center text-xs font-bold text-slate-400 bg-slate-50 rounded-xl">Nenhum pedido ativo encontrado.</p>
                     )}
                   </div>
 
                   {refundSelected && (
-                    <div className="bg-slate-50 rounded-lg border border-slate-200 p-5 space-y-3">
+                    <div className="bg-slate-50 rounded-2xl border border-slate-200 p-5 space-y-3">
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
                           <p className="font-black text-slate-900 text-sm uppercase truncate">#{String(refundSelected.id || '').slice(0, 12)}</p>
@@ -2913,7 +2792,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                       <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                         Cliente: {refundSelected.userName || refundSelected.inmateName || 'CONSUMIDOR GERAL'} · Pagamento: {refundSelected.paymentMethod}
                       </p>
-                      <div className="max-h-32 overflow-y-auto custom-scrollbar bg-white rounded-lg border border-slate-100 p-3 space-y-1.5">
+                      <div className="max-h-32 overflow-y-auto custom-scrollbar bg-white rounded-xl border border-slate-100 p-3 space-y-1.5">
                         {(refundSelected.items || []).map((item: any, idx: number) => (
                           <div key={idx} className="flex justify-between text-xs gap-3">
                             <span className="font-bold text-slate-700 truncate">{item.name}</span>
@@ -2928,7 +2807,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                           placeholder="Ex.: Cliente devolveu o produto / Venda equivocada..."
                           value={refundReason}
                           onChange={e => setRefundReason(e.target.value)}
-                          className="w-full p-4 rounded-lg bg-white border border-slate-200 text-slate-900 font-semibold text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-400/20 transition-all resize-none"
+                          className="w-full p-4 rounded-2xl bg-white border border-slate-200 text-slate-900 font-semibold text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-400/20 transition-all resize-none"
                         />
                       </div>
                     </div>
@@ -2940,7 +2819,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
             <div className="px-6 sm:px-8 py-4 border-t border-slate-100 flex gap-3 shrink-0 bg-slate-50/60">
               <button
                 onClick={() => setShowRefundModal(false)}
-                className="px-6 py-3.5 rounded-lg border border-slate-200 text-slate-600 font-black text-[10px] uppercase tracking-widest hover:bg-slate-100 transition-all"
+                className="px-6 py-3.5 rounded-2xl border border-slate-200 text-slate-600 font-black text-[10px] uppercase tracking-widest hover:bg-slate-100 transition-all"
               >
                 Fechar
               </button>
@@ -2948,7 +2827,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                 <button
                   onClick={confirmarEstorno}
                   disabled={refundLoading || !refundSelected}
-                  className="flex-1 py-3.5 rounded-lg bg-red-600 text-white font-black text-[10px] uppercase tracking-widest hover:bg-red-700 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm"
+                  className="flex-1 py-3.5 rounded-2xl bg-red-600 text-white font-black text-[10px] uppercase tracking-widest hover:bg-red-700 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-red-600/20"
                 >
                   {refundLoading ? <RefreshCw className="animate-spin" size={16} /> : <RotateCcw size={16} />}
                   Confirmar Estorno Completo
@@ -2965,11 +2844,11 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
           <motion.div
             initial={{ opacity: 0, scale: 0.96, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="bg-white rounded-lg w-full max-w-xl shadow-md flex flex-col overflow-hidden max-h-[90vh]"
+            className="bg-white rounded-[2rem] w-full max-w-xl shadow-2xl flex flex-col overflow-hidden max-h-[90vh]"
           >
             <div className="px-6 sm:px-8 py-5 border-b border-slate-100 bg-gradient-to-br from-amber-500 via-amber-500 to-amber-600 text-white flex items-center justify-between shrink-0">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-lg bg-white/15 flex items-center justify-center shadow-lg">
+                <div className="w-12 h-12 rounded-2xl bg-white/15 flex items-center justify-center shadow-lg">
                   <PauseCircle size={24} />
                 </div>
                 <div>
@@ -2979,7 +2858,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
               </div>
               <button
                 onClick={() => setShowSuspendedList(false)}
-                className="w-11 h-11 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all active:scale-90"
+                className="w-11 h-11 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all active:scale-90"
               >
                 <X size={20} />
               </button>
@@ -2995,7 +2874,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                 </div>
               )}
               {suspendedCarts.map(sc => (
-                <div key={sc.id} className="mb-3 rounded-lg border border-slate-200 bg-white overflow-hidden">
+                <div key={sc.id} className="mb-3 rounded-2xl border border-slate-200 bg-white overflow-hidden">
                   <div className="p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
@@ -3038,7 +2917,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
             <div className="px-6 sm:px-8 py-4 border-t border-slate-100 flex justify-end shrink-0 bg-slate-50/60">
               <button
                 onClick={() => setShowSuspendedList(false)}
-                className="px-8 py-3.5 rounded-lg bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95"
+                className="px-8 py-3.5 rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95"
               >
                 Fechar
               </button>

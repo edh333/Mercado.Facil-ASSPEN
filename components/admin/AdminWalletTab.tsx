@@ -1,6 +1,6 @@
 import React from 'react';
-import { CreditCard, Search, CheckCircle, XCircle, Clock, Download, ChevronRight, Users, Wallet, TrendingDown } from 'lucide-react';
-import { formatarMoeda, mascararCpf, csvEscape } from '../../utils';
+import { CreditCard, Search, CheckCircle, XCircle, Clock, Download, ChevronRight, Users, Wallet, TrendingDown, Printer } from 'lucide-react';
+import { formatarMoeda } from '../../utils';
 import { getCustomerAccounts } from '../../utils/customerUtils';
 
 // Data LOCAL (fuso do dispositivo) — sem o bug de toISOString (UTC) que
@@ -115,7 +115,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
       tx.status === 'approved' ? 'Aprovado' : tx.status === 'rejected' ? 'Rejeitado' : 'Pendente'
     ]);
 
-    const csvContent = [headers, ...rows].map(r => r.map(c => csvEscape(c)).join(';')).join('\n');
+    const csvContent = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(';')).join('\n');
     const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -128,16 +128,10 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
   const exportSaldosCSV = () => {
     const withCredits = (users || []).filter(u => Number(u.walletBalance || 0) > 0);
     const withDebt = fiadoAccounts.filter(a => Number(a.currentDebt || 0) > 0);
-    const headers = ['TIPO', 'NOME', 'CPF', 'VALOR', 'STATUS'];
-    const rows: string[][] = [headers];
-    withCredits.forEach(u =>
-      rows.push(['CARTEIRA', u.name || '', mascararCpf(u.cpf), (Number(u.walletBalance) || 0).toFixed(2).replace('.', ','), u.status || ''])
-    );
-    withDebt.forEach(a =>
-      rows.push(['FIADO', a.nome || a.name || '', mascararCpf(a.cpf), (Number(a.currentDebt) || 0).toFixed(2).replace('.', ','), a.status || ''])
-    );
-    const csvContent = rows.map(r => r.map(c => csvEscape(c)).join(';')).join('\n');
-    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const rows: string[] = ['TIPO;NOME;CPF;VALOR;STATUS'];
+    withCredits.forEach(u => rows.push(`CARTEIRA;"${u.name || ''}";"${u.cpf || ''}";${(Number(u.walletBalance) || 0).toFixed(2).replace('.', ',')};${u.status || ''}`));
+    withDebt.forEach(a => rows.push(`FIADO;"${a.nome || a.name || ''}";"${a.cpf || ''}";${(Number(a.currentDebt) || 0).toFixed(2).replace('.', ',')};${a.status || ''}`));
+    const blob = new Blob(['\ufeff' + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -146,25 +140,115 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
     URL.revokeObjectURL(url);
   };
 
+  const printSaldos = () => {
+    const withCredits = (users || [])
+      .filter(u => (Number(u.walletBalance) || 0) > 0)
+      .sort((a, b) => (Number(b.walletBalance) || 0) - (Number(a.walletBalance) || 0));
+    const totalCredits = withCredits.reduce((s, u) => s + (Number(u.walletBalance) || 0), 0);
+    const withDebt = fiadoAccounts
+      .filter(a => (Number(a.currentDebt) || 0) > 0)
+      .sort((a, b) => (Number(b.currentDebt) || 0) - (Number(a.currentDebt) || 0));
+    const totalDebt = withDebt.reduce((s, a) => s + (Number(a.currentDebt) || 0), 0);
+    const hoje = new Date().toLocaleDateString('pt-BR');
+    const esc = (v: any) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const fmt = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+
+    const creditRows = withCredits.map((u, i) => `<tr><td style="text-align:center;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;">${String(i + 1).padStart(2, '0')}</td><td style="padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;font-weight:700;text-transform:uppercase;">${esc(u.name)}</td><td style="text-align:center;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;">${esc(u.cpf || 'N/A')}</td><td style="text-align:right;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;font-weight:700;color:#059669;">R$ ${fmt(Number(u.walletBalance) || 0)}</td><td style="text-align:center;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:11px;">${u.status === 'active' ? 'Ativo' : u.status || '—'}</td></tr>`).join('');
+
+    const debtRows = withDebt.map((a, i) => {
+      const divida = Number(a.currentDebt) || 0;
+      const limite = Number(a.creditLimit) || 0;
+      return `<tr><td style="text-align:center;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;">${String(i + 1).padStart(2, '0')}</td><td style="padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;font-weight:700;text-transform:uppercase;">${esc(a.nome || a.name || '')}</td><td style="text-align:center;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;">${esc(a.cpf || 'N/A')}</td><td style="text-align:right;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;font-weight:700;color:#ef4444;">R$ ${fmt(divida)}</td><td style="text-align:center;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:11px;">${limite > 0 ? `R$ ${fmt(limite)}` : '—'}</td><td style="text-align:center;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:11px;">${a.status === 'blocked' ? 'Bloqueado' : 'Ativo'}</td></tr>`;
+    }).join('');
+
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<title>Relatório de Saldos — Carteira e Fiado</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif; color:#0f172a; padding:32px; background:#fff; }
+    .cabecalho { border-bottom:3px solid #059669; padding-bottom:16px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:flex-end; }
+    .cabecalho h1 { font-size:20px; text-transform:uppercase; letter-spacing:1px; color:#059669; }
+    .cabecalho p { font-size:12px; color:#64748b; margin-top:4px; }
+    .meta { text-align:right; font-size:11px; color:#64748b; }
+    .cards { display:flex; gap:12px; margin-bottom:22px; }
+    .card { flex:1; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:14px 16px; }
+    .card .titulo { font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:1.5px; color:#94a3b8; margin-bottom:4px; }
+    .card .valor { font-size:18px; font-weight:800; }
+    h2 { font-size:14px; text-transform:uppercase; letter-spacing:1px; color:#0f172a; margin:24px 0 10px; padding-bottom:6px; border-bottom:2px solid #e2e8f0; }
+    table { width:100%; border-collapse:collapse; }
+    thead th { background:#0f172a; color:#fff; padding:10px; font-size:10px; text-transform:uppercase; letter-spacing:1px; text-align:left; }
+    tfoot td { padding:10px; font-weight:800; font-size:12px; background:#f8fafc; border-top:2px solid #0f172a; }
+    .assinatura { margin-top:48px; display:flex; justify-content:space-between; }
+    .assinatura div { width:40%; border-top:1px solid #64748b; padding-top:8px; font-size:10px; text-transform:uppercase; text-align:center; color:#475569; }
+    .rodape { margin-top:22px; text-align:center; font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:1px; }
+    @media print { @page { size: A4; margin: 15mm 12mm; } body { padding:16px; } }
+</style>
+</head>
+<body>
+    <div class="cabecalho">
+        <div>
+            <h1>Relatório de Saldos — Carteira e Fiado</h1>
+            <p>Mercado Fácil — Gestão Penitenciária de Alta Performance</p>
+        </div>
+        <div class="meta">
+            <p>Emitido em: <b>${hoje}</b></p>
+            <p>${withCredits.length} com crédito · ${withDebt.length} em fiado</p>
+        </div>
+    </div>
+    <div class="cards">
+        <div class="card"><p class="titulo">Total em Carteira</p><p class="valor" style="color:#059669">R$ ${fmt(totalCredits)}</p></div>
+        <div class="card"><p class="titulo">Total em Fiado</p><p class="valor" style="color:#ef4444">R$ ${fmt(totalDebt)}</p></div>
+        <div class="card"><p class="titulo">Saldo Líquido</p><p class="valor" style="color:${totalCredits - totalDebt >= 0 ? '#059669' : '#ef4444'}">R$ ${fmt(totalCredits - totalDebt)}</p></div>
+    </div>
+    <h2>Créditos de Carteira — ${withCredits.length} familiar(es)</h2>
+    ${withCredits.length > 0 ? `<table>
+        <thead><tr><th style="text-align:center;width:36px;">#</th><th>Familiar</th><th style="text-align:center;">CPF</th><th style="text-align:right;">Saldo</th><th style="text-align:center;">Status</th></tr></thead>
+        <tbody>${creditRows}</tbody>
+        <tfoot><tr><td colspan="3" style="text-align:right;">TOTAL</td><td style="text-align:right;">R$ ${fmt(totalCredits)}</td><td></td></tr></tfoot>
+    </table>` : '<p style="font-size:12px;color:#94a3b8;text-align:center;padding:20px;">Nenhum familiar com crédito na carteira.</p>'}
+    <h2>Dívidas de Fiado — ${withDebt.length} conta(s)</h2>
+    ${withDebt.length > 0 ? `<table>
+        <thead><tr><th style="text-align:center;width:36px;">#</th><th>Cliente</th><th style="text-align:center;">CPF</th><th style="text-align:right;">Dívida</th><th style="text-align:center;">Limite</th><th style="text-align:center;">Status</th></tr></thead>
+        <tbody>${debtRows}</tbody>
+        <tfoot><tr><td colspan="3" style="text-align:right;">TOTAL</td><td style="text-align:right;">R$ ${fmt(totalDebt)}</td><td></td><td></td></tr></tfoot>
+    </table>` : '<p style="font-size:12px;color:#94a3b8;text-align:center;padding:20px;">Nenhuma dívida de fiado registrada.</p>'}
+    <div class="assinatura">
+        <div>Emitido por: Administração</div>
+        <div>Assinatura / Carimbo</div>
+    </div>
+    <p class="rodape">Documento gerado pelo sistema Mercado Fácil — uso interno</p>
+</body>
+</html>`;
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(html);
+      printWindow.document.close();
+      printWindow.print();
+    }
+  };
+
   return (
     <div className="animate-slideUp space-y-6 pb-20">
 
       {/* ─── Summary Cards ─── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm border-l-4 border-l-amber-500 relative overflow-hidden group">
+        <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm border-l-4 border-l-amber-500 relative overflow-hidden group">
           <div className="absolute inset-0 bg-gradient-to-br from-amber-50 to-transparent pointer-events-none" />
           <p className="text-slate-500 font-black text-[10px] uppercase tracking-[0.2em] mb-1 relative z-10">Aportes Pendentes</p>
           <div className="flex items-end justify-between relative z-10">
             <h3 className="text-3xl font-black text-amber-500 tracking-tighter group-hover:scale-105 transition-transform origin-left">R$ {formatarMoeda(stats.pendingAmount)}</h3>
-            <span className="text-[10px] font-black bg-amber-100 text-amber-600 px-3 py-1.5 rounded-lg border border-amber-200">{stats.pendingCount} Itens</span>
+            <span className="text-[10px] font-black bg-amber-100 text-amber-600 px-3 py-1.5 rounded-xl border border-amber-200">{stats.pendingCount} Itens</span>
           </div>
         </div>
-        <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm border-l-4 border-l-emerald-500 relative overflow-hidden group">
+        <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm border-l-4 border-l-emerald-500 relative overflow-hidden group">
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 to-transparent pointer-events-none" />
           <p className="text-slate-500 font-black text-[10px] uppercase tracking-[0.2em] mb-1 relative z-10">Aprovados Hoje</p>
           <h3 className="text-3xl font-black text-emerald-600 tracking-tighter group-hover:scale-105 transition-transform origin-left relative z-10">R$ {formatarMoeda(stats.totalApprovedToday)}</h3>
         </div>
-        <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm border-l-4 border-l-blue-500 relative overflow-hidden group">
+        <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm border-l-4 border-l-blue-500 relative overflow-hidden group">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-transparent pointer-events-none" />
           <div className="relative z-10">
             <p className="text-slate-500 font-black text-[10px] uppercase tracking-[0.2em] mb-1">Sistema de Créditos</p>
@@ -175,47 +259,47 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
       </div>
 
       {/* ─── Header & Sub-Tabs ─── */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
         <h2 className="text-xl font-bold text-slate-900 flex items-center gap-3 tracking-tight">
-          <div className="p-2 bg-emerald-100 rounded-lg">
+          <div className="p-2 bg-emerald-100 rounded-xl">
             <CreditCard size={20} className="text-emerald-600" />
           </div>
           Movimentações
         </h2>
-        <div className="flex bg-slate-100 rounded-lg p-1.5 w-full md:w-auto border border-slate-200">
-          <button onClick={() => setActiveSubTab('ALL')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'ALL' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Todos</button>
-          <button onClick={() => setActiveSubTab('DEPOSITS')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'DEPOSITS' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Depósitos</button>
-          <button onClick={() => setActiveSubTab('WITHDRAWALS')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'WITHDRAWALS' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Débitos</button>
-          <button onClick={() => setActiveSubTab('SALDOS')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'SALDOS' ? 'bg-indigo-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Saldos</button>
+        <div className="flex bg-slate-100 rounded-2xl p-1.5 w-full md:w-auto border border-slate-200">
+          <button onClick={() => setActiveSubTab('ALL')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-[1.25rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'ALL' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Todos</button>
+          <button onClick={() => setActiveSubTab('DEPOSITS')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-[1.25rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'DEPOSITS' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Depósitos</button>
+          <button onClick={() => setActiveSubTab('WITHDRAWALS')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-[1.25rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'WITHDRAWALS' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Débitos</button>
+          <button onClick={() => setActiveSubTab('SALDOS')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-[1.25rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'SALDOS' ? 'bg-indigo-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Saldos</button>
         </div>
-        <button onClick={exportWalletToCSV} className="px-6 py-3 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 bg-slate-100 text-slate-700 hover:bg-slate-200 hover:scale-105 active:scale-95 border border-slate-200">
+        <button onClick={exportWalletToCSV} className="px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 bg-slate-100 text-slate-700 hover:bg-slate-200 hover:scale-105 active:scale-95 border border-slate-200">
           <Download size={16} /> Exportar CSV
         </button>
       </div>
 
       {/* ─── Search & Date Filters ─── */}
-      <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
+      <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-[2] relative group">
             <div className="absolute left-5 top-1/2 -translate-y-1/2 transition-colors z-10 text-slate-400 group-focus-within:text-emerald-500">
               <Search size={20} />
             </div>
             <input
-              className="w-full pl-14 pr-6 py-4 rounded-lg bg-slate-50 border border-slate-200 focus:border-emerald-500 outline-none font-bold text-sm text-slate-900 transition-all placeholder:text-slate-400 uppercase tracking-widest"
+              className="w-full pl-14 pr-6 py-4 rounded-[1.5rem] bg-slate-50 border border-slate-200 focus:border-emerald-500 outline-none font-bold text-sm text-slate-900 transition-all placeholder:text-slate-400 uppercase tracking-widest"
               placeholder="BUSCAR POR NOME OU CPF"
               value={userSearch}
               onChange={e => setUserSearch(e.target.value)}
             />
           </div>
           <div className="flex-1 flex gap-3">
-            <div className="flex bg-slate-100 rounded-lg p-1.5 border border-slate-200 flex-1 overflow-hidden">
-              <button onClick={() => applyQuickDate('ALL')} className={`flex-1 px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'ALL' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>Todas</button>
-              <button onClick={() => applyQuickDate('TODAY')} className={`flex-1 px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'TODAY' ? 'bg-emerald-100 text-emerald-700' : 'text-emerald-600/70 hover:text-emerald-600'}`}>Hoje</button>
-              <button onClick={() => applyQuickDate('WEEK')} className={`flex-1 px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'WEEK' ? 'bg-blue-100 text-blue-700' : 'text-blue-600/70 hover:text-blue-600'}`}>Sem</button>
-              <button onClick={() => applyQuickDate('MONTH')} className={`flex-1 px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'MONTH' ? 'bg-indigo-100 text-indigo-700' : 'text-indigo-600/70 hover:text-indigo-600'}`}>Mês</button>
+            <div className="flex bg-slate-100 rounded-2xl p-1.5 border border-slate-200 flex-1 overflow-hidden">
+              <button onClick={() => applyQuickDate('ALL')} className={`flex-1 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'ALL' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>Todas</button>
+              <button onClick={() => applyQuickDate('TODAY')} className={`flex-1 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'TODAY' ? 'bg-emerald-100 text-emerald-700' : 'text-emerald-600/70 hover:text-emerald-600'}`}>Hoje</button>
+              <button onClick={() => applyQuickDate('WEEK')} className={`flex-1 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'WEEK' ? 'bg-blue-100 text-blue-700' : 'text-blue-600/70 hover:text-blue-600'}`}>Sem</button>
+              <button onClick={() => applyQuickDate('MONTH')} className={`flex-1 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'MONTH' ? 'bg-indigo-100 text-indigo-700' : 'text-indigo-600/70 hover:text-indigo-600'}`}>Mês</button>
             </div>
-            <input type="date" className="w-36 px-4 py-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-lg text-[11px] font-black uppercase text-slate-900 outline-none" value={financeFilters?.start || ''} onChange={e => { setFinanceFilters({...financeFilters, start: e.target.value}); setQuickDateFilter('ALL'); }} />
-            <input type="date" className="w-36 px-4 py-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-lg text-[11px] font-black uppercase text-slate-900 outline-none" value={financeFilters?.end || ''} onChange={e => { setFinanceFilters({...financeFilters, end: e.target.value}); setQuickDateFilter('ALL'); }} />
+            <input type="date" className="w-36 px-4 py-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-2xl text-[11px] font-black uppercase text-slate-900 outline-none" value={financeFilters?.start || ''} onChange={e => { setFinanceFilters({...financeFilters, start: e.target.value}); setQuickDateFilter('ALL'); }} />
+            <input type="date" className="w-36 px-4 py-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-2xl text-[11px] font-black uppercase text-slate-900 outline-none" value={financeFilters?.end || ''} onChange={e => { setFinanceFilters({...financeFilters, end: e.target.value}); setQuickDateFilter('ALL'); }} />
           </div>
         </div>
       </div>
@@ -223,9 +307,9 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
       {/* ─── SALDOS: quem tem crédito na carteira + dívidas de fiado ─── */}
       {activeSubTab === 'SALDOS' && (
         <div className="space-y-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-indigo-100 rounded-lg">
+              <div className="p-2 bg-indigo-100 rounded-xl">
                 <Wallet size={20} className="text-indigo-600" />
               </div>
               <div>
@@ -235,17 +319,22 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                 </p>
               </div>
             </div>
-            <button onClick={exportSaldosCSV} className="px-6 py-3 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 bg-slate-100 text-slate-700 hover:bg-slate-200 hover:scale-105 active:scale-95 border border-slate-200">
-              <Download size={16} /> Exportar CSV
-            </button>
+            <div className="flex gap-3">
+              <button onClick={exportSaldosCSV} className="px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 bg-slate-100 text-slate-700 hover:bg-slate-200 hover:scale-105 active:scale-95 border border-slate-200">
+                <Download size={16} /> Exportar CSV
+              </button>
+              <button onClick={printSaldos} className="px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 bg-emerald-500 text-white hover:bg-emerald-600 hover:scale-105 active:scale-95 shadow-md">
+                <Printer size={16} /> Imprimir PDF
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* CARTEIRA */}
-            <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
               <div className="p-6 border-b border-slate-100 flex items-center justify-between gap-3 bg-gradient-to-br from-emerald-50/80 to-transparent">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-emerald-500 text-white rounded-lg"><Users size={18} /></div>
+                  <div className="p-2.5 bg-emerald-500 text-white rounded-xl"><Users size={18} /></div>
                   <div>
                     <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">Créditos de Carteira</h3>
                     <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">Usuários com saldo positivo</p>
@@ -291,10 +380,10 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
             </div>
 
             {/* FIADO */}
-            <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
               <div className="p-6 border-b border-slate-100 flex items-center justify-between gap-3 bg-gradient-to-br from-red-50/80 to-transparent">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-red-500 text-white rounded-lg"><TrendingDown size={18} /></div>
+                  <div className="p-2.5 bg-red-500 text-white rounded-xl"><TrendingDown size={18} /></div>
                   <div>
                     <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">Dívidas de Fiado</h3>
                     <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">Contas de clientes em aberto</p>
@@ -356,7 +445,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
       )}
 
       {/* ─── Transaction Table ─── */}
-      <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
 
         {/* Desktop Table */}
         <div className="hidden lg:block overflow-x-auto">
@@ -420,14 +509,14 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                         {tx.status === 'pending' && (
                           <button
                             onClick={() => onSelectTransaction?.(tx)}
-                            className="px-4 py-2 min-h-[44px] rounded-lg text-[9px] font-black uppercase tracking-[0.2em] bg-emerald-500 text-white shadow-md hover:bg-[#1e293b] active:scale-95 transition-all"
+                            className="px-4 py-2 min-h-[44px] rounded-xl text-[9px] font-black uppercase tracking-[0.2em] bg-emerald-500 text-white shadow-md hover:bg-emerald-600 active:scale-95 transition-all"
                           >
                             Validar
                           </button>
                         )}
                         <button
                           onClick={() => onSelectTransaction?.(tx)}
-                          className="px-4 py-2 min-h-[44px] rounded-lg text-[9px] font-black uppercase tracking-[0.2em] bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-95 transition-all border border-slate-200"
+                          className="px-4 py-2 min-h-[44px] rounded-xl text-[9px] font-black uppercase tracking-[0.2em] bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-95 transition-all border border-slate-200"
                         >
                           Detalhes
                         </button>
@@ -436,7 +525,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                       <div className="flex items-center justify-center">
                         <button
                           onClick={() => onSelectTransaction?.(tx)}
-                          className="px-4 py-2 min-h-[44px] rounded-lg text-[9px] font-black uppercase tracking-[0.2em] bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-95 transition-all border border-slate-200"
+                          className="px-4 py-2 min-h-[44px] rounded-xl text-[9px] font-black uppercase tracking-[0.2em] bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-95 transition-all border border-slate-200"
                         >
                           Detalhes
                         </button>
@@ -498,14 +587,14 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                       {tx.status === 'pending' && (
                         <button
                           onClick={() => onSelectTransaction?.(tx)}
-                          className="flex items-center gap-1 text-[9px] font-black text-white uppercase cursor-pointer bg-emerald-500 px-4 py-2 min-h-[44px] rounded-lg active:scale-95 transition-all"
+                          className="flex items-center gap-1 text-[9px] font-black text-white uppercase cursor-pointer bg-emerald-500 px-4 py-2 min-h-[44px] rounded-xl active:scale-95 transition-all"
                         >
                           Validar <ChevronRight size={14}/>
                         </button>
                       )}
                       <button
                         onClick={() => onSelectTransaction?.(tx)}
-                        className="flex items-center gap-1 text-[9px] font-black text-slate-700 uppercase cursor-pointer bg-slate-100 hover:bg-slate-200 px-4 py-2 min-h-[44px] rounded-lg border border-slate-200 active:scale-95 transition-all"
+                        className="flex items-center gap-1 text-[9px] font-black text-slate-700 uppercase cursor-pointer bg-slate-100 hover:bg-slate-200 px-4 py-2 min-h-[44px] rounded-xl border border-slate-200 active:scale-95 transition-all"
                       >
                         Detalhes <ChevronRight size={14}/>
                       </button>

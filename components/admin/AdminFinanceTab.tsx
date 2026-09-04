@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
-  DollarSign, Landmark, ArrowDownCircle, Printer, Search, Filter, Plus, X, Check, ArrowRightCircle,
-  Calendar, FileText, TrendingUp, TrendingDown, Receipt, Download, Upload, Wallet, AlertTriangle, Loader2
+  DollarSign, Landmark, Printer, Search, Plus, X, Check, ArrowRightCircle,
+  TrendingUp, TrendingDown, Download, Trash2, Loader2, Wallet, AlertTriangle
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { Expense, Order, Supplier } from '../../types';
@@ -9,8 +9,8 @@ import { ModalShell } from '../ui/ModalShell';
 import { getRecentSessions, CashSession } from '../../utils/cashSession';
 import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
 import { parseMoeda } from '../../utils';
-import { ehReceita } from './adminUtils';
 import { toDate } from '../../utils/dateUtils';
+import { abrirJanelaImpressao } from '../../utils/printUtils';
 
 interface AdminFinanceTabProps {
   expenses: Expense[];
@@ -28,6 +28,7 @@ interface AdminFinanceTabProps {
   totalExits: number;
   settings: any;
   addExpense: (e: Expense) => Promise<void>;
+  deleteExpense?: (id: string) => Promise<void>;
   resetFinance: () => Promise<void>;
   resetCredits: () => Promise<void>;
   showNotification: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
@@ -36,14 +37,13 @@ interface AdminFinanceTabProps {
 
 export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
   expenses, orders, isMaster, suppliers, financeFilters, setFinanceFilters,
-  handleOpenReceipt, totalEntries, totalExits, settings, addExpense, resetFinance, resetCredits, showNotification, loadMoreExpenses
+  handleOpenReceipt, totalEntries, totalExits, settings, addExpense, deleteExpense, resetFinance, resetCredits, showNotification, loadMoreExpenses
 }) => {
   const { colors } = useTheme();
   const [activeSubTab, setActiveSubTab] = useState<'ALL' | 'ENTRIES' | 'EXITS'>('ALL');
   const [confirmacao, setConfirmacao] = useState<null | 'FINANCEIRO' | 'CREDITOS'>(null);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [printReceipt, setPrintReceipt] = useState<any>(null);
-  const [isPrinting, setIsPrinting] = useState(false);
   const [cashSessions, setCashSessions] = useState<CashSession[]>([]);
 
   useEffect(() => {
@@ -66,6 +66,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
   });
 
   const [isSubmittingExpense, setIsSubmittingExpense] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const handleExpenseSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -226,40 +227,122 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
     URL.revokeObjectURL(url);
   };
 
+  const printExpenseList = () => {
+    const hoje = new Date().toLocaleDateString('pt-BR');
+    const esc = (v: any) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const fmt = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+    const exits = filteredData.filter(i => i.type === 'EXIT');
+    const entries = filteredData.filter(i => i.type === 'ENTRY');
+    const totalExit = exits.reduce((s, i) => s + Math.abs(i.amount || 0), 0);
+    const totalEntry = entries.reduce((s, i) => s + (i.amount || 0), 0);
+    const exitRows = exits.map((item: any) => `<tr><td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;">${toDate(item.date)?.toLocaleDateString('pt-BR') || ''}</td><td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;font-weight:700;">${esc(item.name || item.description || '')}</td><td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;">${esc(item.person || item.recipientName || '')}</td><td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;font-size:11px;">${esc(item.category || 'Operacional')}</td><td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;text-align:right;font-size:12px;font-weight:700;color:#ef4444;">- R$ ${fmt(Math.abs(item.amount || 0))}</td></tr>`).join('');
+    const entryRows = entries.map((item: any) => `<tr><td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;">${toDate(item.date)?.toLocaleDateString('pt-BR') || ''}</td><td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;font-weight:700;">${esc(item.name || '')}</td><td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;">${esc(item.person || '')}</td><td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;text-align:right;font-size:12px;font-weight:700;color:#059669;">+ R$ ${fmt(item.amount || 0)}</td></tr>`).join('');
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<title>Relatório Financeiro</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif; color:#0f172a; padding:32px; background:#fff; }
+    .cabecalho { border-bottom:3px solid #059669; padding-bottom:16px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:flex-end; }
+    .cabecalho h1 { font-size:20px; text-transform:uppercase; letter-spacing:1px; color:#059669; }
+    .cabecalho p { font-size:12px; color:#64748b; margin-top:4px; }
+    .meta { text-align:right; font-size:11px; color:#64748b; }
+    .cards { display:flex; gap:12px; margin-bottom:22px; }
+    .card { flex:1; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:14px 16px; }
+    .card .titulo { font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:1.5px; color:#94a3b8; margin-bottom:4px; }
+    .card .valor { font-size:18px; font-weight:800; }
+    h2 { font-size:14px; text-transform:uppercase; letter-spacing:1px; color:#0f172a; margin:24px 0 10px; padding-bottom:6px; border-bottom:2px solid #e2e8f0; }
+    table { width:100%; border-collapse:collapse; }
+    thead th { background:#0f172a; color:#fff; padding:10px; font-size:10px; text-transform:uppercase; letter-spacing:1px; text-align:left; }
+    tfoot td { padding:10px; font-weight:800; font-size:12px; background:#f8fafc; border-top:2px solid #0f172a; }
+    .assinatura { margin-top:48px; display:flex; justify-content:space-between; }
+    .assinatura div { width:40%; border-top:1px solid #64748b; padding-top:8px; font-size:10px; text-transform:uppercase; text-align:center; color:#475569; }
+    .rodape { margin-top:22px; text-align:center; font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:1px; }
+    @media print { @page { size: A4; margin: 15mm 12mm; } body { padding:16px; } }
+</style>
+</head>
+<body>
+    <div class="cabecalho">
+        <div>
+            <h1>Relatório Financeiro</h1>
+            <p>Mercado Fácil — Gestão Penitenciária de Alta Performance</p>
+        </div>
+        <div class="meta">
+            <p>Período: <b>${financeFilters.start || 'Início'} a ${financeFilters.end || 'Fim'}</b></p>
+            <p>Emitido em: <b>${hoje}</b></p>
+        </div>
+    </div>
+    <div class="cards">
+        <div class="card"><p class="titulo">Entradas</p><p class="valor" style="color:#059669">R$ ${fmt(totalEntry)}</p></div>
+        <div class="card"><p class="titulo">Saídas</p><p class="valor" style="color:#ef4444">R$ ${fmt(totalExit)}</p></div>
+        <div class="card"><p class="titulo">Saldo</p><p class="valor" style="color:${totalEntry - totalExit >= 0 ? '#059669' : '#ef4444'}">R$ ${fmt(totalEntry - totalExit)}</p></div>
+    </div>
+    ${exits.length > 0 ? `<h2>Saídas — Despesas (${exits.length})</h2>
+    <table>
+        <thead><tr><th>Data</th><th>Descrição</th><th>Pessoa</th><th>Categoria</th><th style="text-align:right;">Valor</th></tr></thead>
+        <tbody>${exitRows}</tbody>
+        <tfoot><tr><td colspan="4" style="text-align:right;">TOTAL SAÍDAS</td><td style="text-align:right;color:#ef4444;">- R$ ${fmt(totalExit)}</td></tr></tfoot>
+    </table>` : '<p style="font-size:12px;color:#94a3b8;text-align:center;padding:20px;">Nenhuma saída no período.</p>'}
+    ${entries.length > 0 ? `<h2>Entradas — Vendas (${entries.length})</h2>
+    <table>
+        <thead><tr><th>Data</th><th>Descrição</th><th>Pessoa</th><th style="text-align:right;">Valor</th></tr></thead>
+        <tbody>${entryRows}</tbody>
+        <tfoot><tr><td colspan="3" style="text-align:right;">TOTAL ENTRADAS</td><td style="text-align:right;color:#059669;">+ R$ ${fmt(totalEntry)}</td></tr></tfoot>
+    </table>` : '<p style="font-size:12px;color:#94a3b8;text-align:center;padding:20px;">Nenhuma entrada no período.</p>'}
+    <div class="assinatura">
+        <div>Emitido por: ${(settings as any)?.adminName || 'Administração'}</div>
+        <div>Assinatura / Carimbo</div>
+    </div>
+    <p class="rodape">Documento gerado pelo sistema Mercado Fácil — uso interno</p>
+</body>
+</html>`;
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(html);
+      printWindow.document.close();
+      printWindow.print();
+    }
+  };
+
   return (
     <div className="space-y-6 animate-slideUp pb-20">
       {/* Upper Dashboard */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[var(--bg-card)] p-6 rounded-lg border border-[var(--border-color)] shadow-sm relative overflow-hidden">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm relative overflow-hidden">
         <div className="absolute top-0 left-0 w-32 h-32 bg-emerald-600 rounded-full blur-[60px] -ml-16 -mt-16 opacity-10"></div>
         <h2 className="text-xl font-bold text-[var(--text-main)] flex items-center gap-2 tracking-tight relative z-10">
             <DollarSign size={24} className="text-emerald-600"/> Painel Financeiro
         </h2>
         <div className="flex flex-wrap gap-3 w-full md:w-auto relative z-10">
-            <button onClick={() => setShowExpenseModal(true)} className="flex-1 md:flex-none bg-emerald-600 text-white px-6 py-3 rounded-lg font-black text-[10px] uppercase tracking-[0.2em] shadow-sm flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 transition-all">
+            <button onClick={() => setShowExpenseModal(true)} className="flex-1 md:flex-none bg-emerald-600 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 transition-all">
                 <Plus size={18}/> Novo Lançamento
             </button>
-            <button onClick={exportFinanceToCSV} className="flex-1 md:flex-none bg-[var(--text-main)] text-[var(--bg-card)] px-6 py-3 rounded-lg font-black text-[10px] uppercase tracking-[0.2em] shadow-sm flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 transition-all">
+            <button onClick={exportFinanceToCSV} className="flex-1 md:flex-none bg-[var(--text-main)] text-[var(--bg-card)] px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 transition-all">
                 <Download size={18}/> Exportar
+            </button>
+            <button onClick={printExpenseList} className="flex-1 md:flex-none bg-emerald-600 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 transition-all">
+                <Printer size={18}/> Relatório
             </button>
             {isMaster && (
               <>
                 <button
                   onClick={() => setConfirmacao('FINANCEIRO')}
-                  className="flex-1 md:flex-none bg-red-50 text-red-600 border border-red-200 px-6 py-3 rounded-lg font-black text-[10px] uppercase tracking-[0.2em] shadow-sm flex items-center justify-center gap-2 hover:bg-red-100 active:scale-95 transition-all"
+                  className="flex-1 md:flex-none bg-red-50 text-red-600 border border-red-200 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl flex items-center justify-center gap-2 hover:bg-red-100 active:scale-95 transition-all"
                   title="Apagar todos os lançamentos de despesas e caixa"
                 >
                   <X size={18}/> Zerar Lançamentos
                 </button>
                 <button
                   onClick={() => setConfirmacao('CREDITOS')}
-                  className="flex-1 md:flex-none bg-amber-50 text-amber-700 border border-amber-200 px-6 py-3 rounded-lg font-black text-[10px] uppercase tracking-[0.2em] shadow-sm flex items-center justify-center gap-2 hover:bg-amber-100 active:scale-95 transition-all"
+                  className="flex-1 md:flex-none bg-amber-50 text-amber-700 border border-amber-200 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl flex items-center justify-center gap-2 hover:bg-amber-100 active:scale-95 transition-all"
                   title="Zerar o saldo da carteira de todos os familiares"
                 >
                   <X size={18}/> Zerar Créditos
                 </button>
               </>
             )}
-            <div className="flex bg-[var(--bg-main)] rounded-lg p-1 border border-[var(--border-color)] flex-1 md:flex-none">
+            <div className="flex bg-[var(--bg-main)] rounded-xl p-1 border border-[var(--border-color)] flex-1 md:flex-none">
                 <button onClick={() => setActiveSubTab('ALL')} className={`flex-1 px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'ALL' ? 'bg-[var(--bg-card)] text-[var(--text-main)] shadow-sm' : 'text-[var(--text-muted)]'}`}>Tudo</button>
                 <button onClick={() => setActiveSubTab('ENTRIES')} className={`flex-1 px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'ENTRIES' ? 'bg-emerald-600 text-white shadow-sm' : 'text-[var(--text-muted)]'}`}>Entradas</button>
                 <button onClick={() => setActiveSubTab('EXITS')} className={`flex-1 px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'EXITS' ? 'bg-red-600 text-white shadow-sm' : 'text-[var(--text-muted)]'}`}>Saídas</button>
@@ -270,7 +353,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
 {/* Stats Overview */}
         {isMaster && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-[var(--bg-card)] p-8 rounded-lg border border-[var(--border-color)] shadow-sm relative overflow-hidden group">
+            <div className="bg-[var(--bg-card)] p-8 rounded-[3rem] border border-[var(--border-color)] shadow-xl relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-600 opacity-5 rounded-full -mr-16 -mt-16 group-hover:scale-125 transition-transform"></div>
               <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-[0.3em] mb-2">Saldo Consolidado</p>
               <h3 className="text-4xl font-black text-[var(--text-main)] tracking-tighter">
@@ -283,7 +366,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
               </div>
             </div>
 
-          <div className="bg-[var(--bg-card)] p-8 rounded-lg border border-emerald-500/20 shadow-sm flex flex-col justify-between group">
+          <div className="bg-[var(--bg-card)] p-8 rounded-[3rem] border border-emerald-500/20 shadow-xl flex flex-col justify-between group">
             <div>
               <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em] mb-2 flex items-center gap-2">
                 <TrendingUp size={14}/> Total Entradas
@@ -295,7 +378,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
             </div>
           </div>
 
-          <div className="bg-[var(--bg-card)] p-8 rounded-lg border border-red-500/20 shadow-sm flex flex-col justify-between group">
+          <div className="bg-[var(--bg-card)] p-8 rounded-[3rem] border border-red-500/20 shadow-xl flex flex-col justify-between group">
             <div>
               <p className="text-[10px] font-black text-red-500 uppercase tracking-[0.3em] mb-2 flex items-center gap-2">
                 <TrendingDown size={14}/> Total Saídas
@@ -311,7 +394,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
 
       {/* Simple Visual Chart - Daily Breakdown */}
       {isMaster && (
-        <div className="bg-[var(--bg-card)] p-6 rounded-lg border border-[var(--border-color)] shadow-lg">
+        <div className="bg-[var(--bg-card)] p-6 rounded-[2.5rem] border border-[var(--border-color)] shadow-lg">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xs font-black text-[var(--text-main)] uppercase tracking-widest flex items-center gap-2">
               <TrendingUp size={16}/> Resumo dos Últimos 7 Dias
@@ -350,7 +433,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
       )}
 
       {/* Caixa Físico — Sessões do Período */}
-      <div className="bg-[var(--bg-card)] p-6 rounded-lg border border-[var(--border-color)] shadow-lg">
+      <div className="bg-[var(--bg-card)] p-6 rounded-[2.5rem] border border-[var(--border-color)] shadow-lg">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
           <h3 className="text-xs font-black text-[var(--text-main)] uppercase tracking-widest flex items-center gap-2">
             <Wallet size={16}/> Caixa Físico — Sessões do Período
@@ -360,12 +443,12 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
               Saldo físico: <span className="text-emerald-600 text-xs">R$ {cashTotais.saldoFisico.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
             </span>
             {cashTotais.discrepanciaCount > 0 && (
-              <span className="flex items-center gap-1.5 text-[9px] font-black text-red-600 bg-red-50 border border-red-200 px-2.5 py-1.5 rounded-lg uppercase tracking-widest">
+              <span className="flex items-center gap-1.5 text-[9px] font-black text-red-600 bg-red-50 border border-red-200 px-2.5 py-1.5 rounded-xl uppercase tracking-widest">
                 <AlertTriangle size={12}/> {cashTotais.discrepanciaCount} quebra(s): R$ {cashTotais.totalDiscrepancias.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </span>
             )}
             {cashTotais.abertas > 0 && (
-              <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 rounded-lg uppercase tracking-widest">
+              <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 rounded-xl uppercase tracking-widest">
                 {cashTotais.abertas} caixa(s) aberto(s)
               </span>
             )}
@@ -442,25 +525,25 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
       </div>
 
       {/* Main Content Area */}
-      <div className="bg-[var(--bg-card)] rounded-lg shadow-sm border border-[var(--border-color)] overflow-hidden flex flex-col">
+      <div className="bg-[var(--bg-card)] rounded-[3rem] shadow-2xl border border-[var(--border-color)] overflow-hidden flex flex-col">
         <div className="p-8 border-b border-[var(--border-color)] bg-[var(--bg-main)]/50">
           <div className="flex flex-col md:flex-row gap-6 items-end">
             <div className="flex-1 space-y-2 w-full">
                 <label className="text-[var(--text-main)] font-black text-[10px] uppercase tracking-[0.2em] ml-2">Período de Análise</label>
                 <div className="flex gap-3">
-                    <input type="date" className="flex-1 p-4 bg-[var(--bg-card)] border border-[var(--border-input)] focus:border-emerald-500 rounded-lg text-sm font-bold text-[var(--text-main)] outline-none" value={financeFilters.start} onChange={e => setFinanceFilters({...financeFilters, start: e.target.value})} />
-                    <input type="date" className="flex-1 p-4 bg-[var(--bg-card)] border border-[var(--border-input)] focus:border-emerald-500 rounded-lg text-sm font-bold text-[var(--text-main)] outline-none" value={financeFilters.end} onChange={e => setFinanceFilters({...financeFilters, end: e.target.value})} />
+                    <input type="date" className="flex-1 p-4 bg-[var(--bg-card)] border-2 border-[var(--border-color)] focus:border-emerald-500 rounded-2xl text-sm font-bold text-[var(--text-main)] outline-none" value={financeFilters.start} onChange={e => setFinanceFilters({...financeFilters, start: e.target.value})} />
+                    <input type="date" className="flex-1 p-4 bg-[var(--bg-card)] border-2 border-[var(--border-color)] focus:border-emerald-500 rounded-2xl text-sm font-bold text-[var(--text-main)] outline-none" value={financeFilters.end} onChange={e => setFinanceFilters({...financeFilters, end: e.target.value})} />
                 </div>
             </div>
             <div className="flex-[2] space-y-2 w-full">
                 <label className="text-[var(--text-main)] font-black text-[10px] uppercase tracking-[0.2em] ml-2">Pesquisa Inteligente</label>
                 <div className="relative group">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 bg-[var(--bg-card)] p-2 rounded-lg border border-[var(--border-color)] group-focus-within:bg-[var(--text-main)] group-focus-within:border-[var(--text-main)] transition-all duration-300 z-10 shadow-sm">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 bg-[var(--bg-card)] p-2 rounded-xl border border-[var(--border-color)] group-focus-within:bg-[var(--text-main)] group-focus-within:border-[var(--text-main)] transition-all duration-300 z-10 shadow-sm">
                         <Search className="text-[var(--text-muted)] group-focus-within:text-white transition-colors" size={20} />
                     </div>
                     <input
                         placeholder="NOME, CPF OU DESCRIÇÃO..."
-                        className="w-full pl-16 pr-6 py-4.5 bg-[var(--bg-card)] border border-[var(--border-input)] focus:border-emerald-500 rounded-lg text-sm font-bold text-[var(--text-main)] outline-none transition-all placeholder:text-[var(--text-muted)] uppercase tracking-widest"
+                        className="w-full pl-16 pr-6 py-4.5 bg-[var(--bg-card)] border-2 border-[var(--border-color)] focus:border-emerald-500 rounded-[2.5rem] text-sm font-bold text-[var(--text-main)] outline-none transition-all placeholder:text-[var(--text-muted)] uppercase tracking-widest shadow-inner"
                         value={financeFilters.term}
                         onChange={e => setFinanceFilters({...financeFilters, term: e.target.value.toUpperCase()})}
                     />
@@ -495,7 +578,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
                     </td>
                     <td className="p-6">
                       <div className="flex items-center gap-4">
-                          <div className={`p-3 rounded-lg ${item.type === 'ENTRY' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-red-500/10 text-red-600'}`}>
+                          <div className={`p-3 rounded-2xl ${item.type === 'ENTRY' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-red-500/10 text-red-600'}`}>
                               {item.type === 'ENTRY' ? <TrendingUp size={20}/> : <TrendingDown size={20}/>}
                           </div>
                           <div>
@@ -512,15 +595,27 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
                       {item?.type === 'ENTRY' ? '+' : ''} R$ {Number(item?.amount || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
                     </td>
                     <td className="p-6 text-center">
-                      <div className="flex items-center justify-center gap-3">
+                      <div className="flex items-center justify-center gap-2">
                         {item?.type === 'EXIT' && item.recipientDoc && (
                           <span className="hidden xl:inline-block text-[9px] font-mono font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 rounded-lg">
                             {item.recipientDoc}
                           </span>
                         )}
-                        <button onClick={() => handleOpenReceipt(item)} className="p-3 bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-emerald-600 hover:border-emerald-600 rounded-lg shadow-sm transition-all group-hover:scale-110 active:scale-95" title="Visualizar Comprovante">
+                        <button onClick={() => handleOpenReceipt(item)} className="p-3 bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-emerald-600 hover:border-emerald-600 rounded-xl shadow-sm transition-all group-hover:scale-110 active:scale-95" title="Visualizar Comprovante">
                           <Printer size={20}/>
                         </button>
+                        {item?.type === 'EXIT' && deleteExpense && isMaster && (
+                          confirmDeleteId === item.id ? (
+                            <div className="flex items-center gap-1">
+                              <button onClick={() => { deleteExpense(item.id); setConfirmDeleteId(null); }} className="p-2 bg-red-500 text-white rounded-lg text-[9px] font-black uppercase" title="Confirmar">Sim</button>
+                              <button onClick={() => setConfirmDeleteId(null)} className="p-2 bg-slate-200 text-slate-600 rounded-lg text-[9px] font-black uppercase" title="Cancelar">Não</button>
+                            </div>
+                          ) : (
+                            <button onClick={() => setConfirmDeleteId(item.id)} className="p-3 bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-red-500 hover:border-red-500 rounded-xl shadow-sm transition-all active:scale-95 opacity-0 group-hover:opacity-100" title="Excluir Despesa">
+                              <Trash2 size={18}/>
+                            </button>
+                          )
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -532,7 +627,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
                         <td colSpan={5} className="p-6 text-center">
                             <button
                                 onClick={loadMoreExpenses}
-                                className="px-8 py-4 bg-[var(--bg-main)] border border-[var(--border-input)] text-[var(--text-main)] font-black rounded-lg hover:bg-[var(--primary-color)] hover:text-white hover:border-[var(--primary-color)] transition-all text-[10px] uppercase tracking-widest shadow-sm active:scale-95"
+                                className="px-8 py-4 bg-[var(--bg-main)] border-2 border-[var(--border-color)] text-[var(--text-main)] font-black rounded-2xl hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition-all text-[10px] uppercase tracking-widest shadow-sm active:scale-95"
                             >
                                 Carregar Mais Despesas
                             </button>
@@ -551,7 +646,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
                 <div key={item.id} className="p-6 flex flex-col gap-4">
                     <div className="flex justify-between items-start">
                         <div className="flex items-center gap-3">
-<div className={`p-3 rounded-lg ${item.type === 'ENTRY' ? 'bg-[var(--primary-color)]/10 text-[var(--primary-color)]' : 'bg-[var(--color-brand-red)]/10 text-[var(--color-brand-red)]'}`}>
+                            <div className={`p-3 rounded-2xl ${item.type === 'ENTRY' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-red-500/10 text-red-600'}`}>
                                 {item.type === 'ENTRY' ? <TrendingUp size={20}/> : <TrendingDown size={20}/>}
                             </div>
                             <div>
@@ -575,7 +670,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
                                 <span className="shrink-0 text-[9px] font-mono font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 rounded-lg">{item.recipientDoc}</span>
                             )}
                         </div>
-                        <button onClick={() => handleOpenReceipt(item)} className="p-3 bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] rounded-lg active:scale-95 transition-all" title="Visualizar Comprovante">
+                        <button onClick={() => handleOpenReceipt(item)} className="p-3 bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] rounded-xl active:scale-95 transition-all" title="Visualizar Comprovante">
                             <Printer size={20}/>
                         </button>
                     </div>
@@ -586,7 +681,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
             <div className="p-6 text-center border-t border-[var(--border-color)]">
                 <button
                     onClick={loadMoreExpenses}
-                    className="px-8 py-4 bg-[var(--bg-main)] border border-[var(--border-input)] text-[var(--text-main)] font-black rounded-lg hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition-all text-[10px] uppercase tracking-widest shadow-sm active:scale-95 w-full"
+                    className="px-8 py-4 bg-[var(--bg-main)] border-2 border-[var(--border-color)] text-[var(--text-main)] font-black rounded-2xl hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition-all text-[10px] uppercase tracking-widest shadow-sm active:scale-95 w-full"
                 >
                     Carregar Mais Despesas
                 </button>
@@ -604,13 +699,13 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
           subtitle="Registro de despesa operacional com recibo oficial"
           icon={<ArrowRightCircle size={22} className="text-red-300" />}
           size="lg"
-          headerColor="#b91c1c"
+          headerColor="from-red-600 via-rose-700 to-red-800"
           footer={
             <>
               <button
                 type="button"
                 onClick={() => setShowExpenseModal(false)}
-                className="px-6 py-3 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-black uppercase text-[10px] tracking-widest transition-all active:scale-95"
+                className="px-6 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-black uppercase text-[10px] tracking-widest transition-all active:scale-95"
               >
                 Cancelar
               </button>
@@ -618,7 +713,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
                 type="button"
                 disabled={isSubmittingExpense}
                 onClick={() => { if (isSubmittingExpense) return; const f = document.getElementById('expense-form-submit') as HTMLButtonElement; f?.click(); }}
-                className="px-8 py-3 rounded-lg bg-red-600 hover:bg-red-700 text-white font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="px-8 py-3 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white font-black uppercase text-[10px] tracking-widest shadow-lg shadow-red-500/25 transition-all active:scale-95 flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {isSubmittingExpense ? <><Loader2 size={16} className="animate-spin" /> Registrando...</> : <><Check size={16} /> Registrar Despesa</>}
               </button>
@@ -628,7 +723,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
           <form id="expense-form" onSubmit={handleExpenseSubmit} className="p-8 space-y-8">
             <button type="submit" id="expense-form-submit" className="hidden" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="md:col-span-2 p-6 rounded-lg border border-red-200 bg-white focus-within:border-red-500 transition-all shadow-sm">
+              <div className="md:col-span-2 p-6 rounded-3xl border-2 border-red-200 bg-white focus-within:border-red-500 transition-all shadow-sm">
                 <label className="text-[var(--text-main)] font-black text-[10px] uppercase mb-3 block tracking-widest ml-1">Finalidade da Despesa *</label>
                 <input
                   className="w-full bg-transparent font-black text-xl text-[var(--text-main)] focus:outline-none uppercase placeholder:text-[var(--text-muted)] placeholder:uppercase placeholder:tracking-widest"
@@ -639,7 +734,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
                 />
               </div>
 
-              <div className="p-6 rounded-lg border border-red-200 bg-white focus-within:border-red-500 transition-all shadow-sm">
+              <div className="p-6 rounded-3xl border-2 border-red-200 bg-white focus-within:border-red-500 transition-all shadow-sm">
                 <label className="text-[var(--text-main)] font-black text-[10px] uppercase mb-2 block tracking-widest ml-1">Valor Total (R$) *</label>
                 <input
                   type="text"
@@ -652,7 +747,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
                 />
               </div>
 
-              <div className="p-6 rounded-lg border border-red-200 bg-white focus-within:border-red-500 transition-all shadow-sm">
+              <div className="p-6 rounded-3xl border-2 border-red-200 bg-white focus-within:border-red-500 transition-all shadow-sm">
                 <label className="text-[var(--text-main)] font-black text-[10px] uppercase mb-2 block tracking-widest ml-1">Categoria de Custo</label>
                 <select
                   className="w-full bg-transparent font-black text-sm text-[var(--text-main)] focus:outline-none uppercase appearance-none cursor-pointer"
@@ -666,7 +761,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
                 </select>
               </div>
 
-              <div className="p-6 rounded-lg border border-red-200 bg-white focus-within:border-red-500 transition-all shadow-sm">
+              <div className="p-6 rounded-3xl border-2 border-red-200 bg-white focus-within:border-red-500 transition-all shadow-sm">
                 <label className="text-[var(--text-main)] font-black text-[10px] uppercase mb-2 block tracking-widest ml-1">Nome do Recebedor *</label>
                 <input
                   className="w-full bg-transparent font-black text-sm text-[var(--text-main)] focus:outline-none uppercase placeholder:text-[var(--text-muted)] placeholder:uppercase placeholder:tracking-widest"
@@ -677,7 +772,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
                 />
               </div>
 
-              <div className="p-6 rounded-lg border border-red-200 bg-white focus-within:border-red-500 transition-all shadow-sm">
+              <div className="p-6 rounded-3xl border-2 border-red-200 bg-white focus-within:border-red-500 transition-all shadow-sm">
                 <label className="text-[var(--text-main)] font-black text-[10px] uppercase mb-2 block tracking-widest ml-1">Documento do Recebedor (CPF/CNPJ)</label>
                 <input
                   className="w-full bg-transparent font-black text-sm text-[var(--text-main)] focus:outline-none uppercase placeholder:text-[var(--text-muted)] placeholder:uppercase placeholder:tracking-widest"
@@ -687,7 +782,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
                 />
               </div>
 
-              <div className="p-6 rounded-lg border border-red-200 bg-white focus-within:border-red-500 transition-all shadow-sm">
+              <div className="p-6 rounded-3xl border-2 border-red-200 bg-white focus-within:border-red-500 transition-all shadow-sm">
                 <label className="text-[var(--text-main)] font-black text-[10px] uppercase mb-2 block tracking-widest ml-1">Conta Débito</label>
                 <select
                   className="w-full bg-transparent font-black text-sm text-[var(--text-main)] focus:outline-none uppercase appearance-none cursor-pointer"
@@ -700,7 +795,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
                 </select>
               </div>
 
-              <div className="md:col-span-2 p-6 rounded-lg border border-red-200 bg-white focus-within:border-red-500 transition-all shadow-sm">
+              <div className="md:col-span-2 p-6 rounded-3xl border-2 border-red-200 bg-white focus-within:border-red-500 transition-all shadow-sm">
                 <label className="text-[var(--text-main)] font-black text-[10px] uppercase mb-2 block tracking-widest ml-1">Observações Adicionais</label>
                 <textarea
                   className="w-full bg-transparent font-black text-sm text-[var(--text-main)] focus:outline-none h-24 resize-none placeholder:text-[var(--text-muted)] placeholder:uppercase placeholder:tracking-widest uppercase"
@@ -723,10 +818,10 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
           subtitle="Recibo oficial gerado e arquivado"
           icon={<Check size={22} className="text-emerald-300" />}
           size="sm"
-          headerColor="#0f172a"
+          headerColor="from-emerald-600 via-emerald-700 to-teal-800"
         >
           <div className="p-8 space-y-6">
-            <div className="bg-emerald-50 p-5 rounded-lg border border-emerald-100 space-y-2">
+            <div className="bg-emerald-50 p-5 rounded-2xl border border-emerald-100 space-y-2">
               <div className="flex justify-between text-xs">
                 <span className="font-black uppercase text-emerald-600 text-[9px] tracking-widest">Descrição</span>
                 <span className="font-bold text-slate-900 uppercase text-right">{printReceipt.description}</span>
@@ -746,16 +841,16 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
             <div className="flex flex-col gap-3">
               <button
                 onClick={() => {
-                  setPrintReceipt(printReceipt);
-                  setTimeout(() => { window.print(); setPrintReceipt(null); }, 400);
+                  abrirJanelaImpressao({ type: 'RECIBO', subType: 'EXPENSE', data: printReceipt }, settings);
+                  setPrintReceipt(null);
                 }}
-                className="w-full py-5 bg-[#0f172a] hover:bg-[#1e293b] text-white font-black rounded-lg flex items-center justify-center gap-3 uppercase text-[11px] tracking-[0.2em] transition-all active:scale-95"
+                className="w-full py-5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-black rounded-2xl shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-3 uppercase text-[11px] tracking-[0.2em] transition-all hover:brightness-110 active:scale-95"
               >
                 <Printer size={20}/> Imprimir Agora
               </button>
               <button
                 onClick={() => setPrintReceipt(null)}
-                className="w-full py-4 bg-slate-100 text-slate-600 font-black rounded-lg uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all"
+                className="w-full py-4 bg-slate-100 text-slate-600 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all"
               >
                 Imprimir Depois
               </button>
@@ -765,34 +860,6 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
             </div>
           </div>
         </ModalShell>
-      )}
-
-      {isPrinting && printReceipt && (
-        <div className="cupom-gerencial-print" style={{ position: 'absolute', left: '-9999px', top: 0, width: '80mm', padding: '3mm', fontFamily: 'Courier New, monospace', fontSize: '10px', color: '#000', background: '#fff' }}>
-          <div style={{ textAlign: 'center', marginBottom: '3mm' }}>
-            <strong style={{ fontSize: '12px' }}>{settings?.institutionName || 'ASSOCIAÇÃO ASSPEN'}</strong><br />
-            <span style={{ fontSize: '8px' }}>RECIBO DE PAGAMENTO</span>
-          </div>
-          <div style={{ borderTop: '1px dashed #000', borderBottom: '1px dashed #000', padding: '2mm 0', marginBottom: '2mm' }}>
-            <strong>RECIBO #{printReceipt.auditDocNumber || printReceipt.recipientDoc}</strong><br />
-            <span>Data: {toDate(printReceipt.date)?.toLocaleString('pt-BR') || ''}</span><br />
-            <span>Recebedor: {printReceipt.recipientName || 'N/I'}</span><br />
-            <span>Finalidade: {printReceipt.description || 'N/I'}</span><br />
-            {printReceipt.observation && <span>Obs: {printReceipt.observation}</span>}
-          </div>
-          <div style={{ textAlign: 'right', fontSize: '14px', fontWeight: 'bold', margin: '2mm 0' }}>
-            R$ {(printReceipt.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-          </div>
-          <div style={{ textAlign: 'center', marginTop: '3mm', fontSize: '8px' }}>
-            ________________________________<br />
-            Assinatura do Recebedor
-          </div>
-          <div style={{ borderTop: '1px dashed #000', marginTop: '3mm', paddingTop: '1mm', fontSize: '7px', textAlign: 'center' }}>
-            {settings?.customReceiptText || ''}<br />
-            ID: {printReceipt.id?.slice(0, 8) || ''}
-          </div>
-          <div className="fim-do-cupom-corte" style={{ height: '1px', marginTop: '4mm' }}></div>
-        </div>
       )}
 
       <ConfirmacaoDestrutiva

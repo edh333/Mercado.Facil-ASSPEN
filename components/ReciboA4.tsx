@@ -96,9 +96,9 @@ export const ReciboA4: React.FC<ReciboA4Props> = ({ data, type, config, printerN
   const codigoControle = (idClean.slice(0, 24) || '00000000').replace(/(.{4})(?=.)/g, '$1-');
 
   return (
-    <div id="print-root" className={embedded
+    <div id="print-root" className={`documento-a4 ${embedded
       ? "bg-white overflow-visible"
-      : "fixed inset-0 z-[500] bg-slate-100 overflow-y-auto custom-scrollbar animate-fadeIn print:overflow-visible cupom-gerencial-print"}>
+      : "fixed inset-0 z-[500] bg-slate-100 overflow-y-auto custom-scrollbar animate-fadeIn print:overflow-visible cupom-gerencial-print"}`}>
 
       {/* ACTION BAR (PRINT PREVIEW) */}
       {!embedded && (
@@ -111,7 +111,7 @@ export const ReciboA4: React.FC<ReciboA4Props> = ({ data, type, config, printerN
           </div>
         </div>
         <div className="flex gap-4">
-          <button onClick={() => setTimeout(() => window.print(), 350)} className="bg-[#0f172a] hover:bg-[#1e293b] text-white px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-xl hover:-translate-y-1 active:scale-95 transition-all">
+          <button onClick={() => setTimeout(() => window.print(), 350)} className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-xl hover:-translate-y-1 active:scale-95 transition-all">
             <Printer size={20} /> Imprimir Recibo
           </button>
           {onClose && (
@@ -358,6 +358,15 @@ export const ReciboA4: React.FC<ReciboA4Props> = ({ data, type, config, printerN
             z-index: auto !important;
             animation: none !important;
           }
+          /* RAIZ ID vence o override '.dark *' (especificidade (1,0,0) >
+             (0,2,0)): garante a preservação das cores também no dark mode,
+             além do color-adjust: exact global do index.css. */
+          #print-root, #print-root * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          /* Canvas A4 nunca é cortado ao meio entre páginas */
+          #print-root > div { page-break-inside: avoid; break-inside: avoid; }
           .min-h-\\[297mm\\] { min-height: auto !important; height: auto !important; }
           .border-\\[2px\\] { height: auto !important; }  /* mantém borda visual */
           .h-full { height: auto !important; }

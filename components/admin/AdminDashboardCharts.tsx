@@ -153,8 +153,8 @@ export const AdminDashboardCharts: React.FC = () => {
     <div className="space-y-6 animate-fadeIn pb-20">
       {/* Header */}
       <div className="flex items-center gap-4 mb-2">
-        <div className="p-3 bg-[var(--primary-color)]/100 rounded-lg">
-          <BarChart3 size={24} className="text-[var(--primary-color)]" />
+        <div className="p-3 bg-emerald-100 rounded-2xl">
+          <BarChart3 size={24} className="text-emerald-600" />
         </div>
         <div>
           <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Dashboard de BI</h2>
@@ -171,8 +171,8 @@ export const AdminDashboardCharts: React.FC = () => {
           icon={<TrendingUp size={22} />}
           label="Faturamento Total"
           value={fmt(totalRevenue)}
-          color="text-[var(--primary-color)]"
-          bgColor="bg-[var(--primary-color)]/50"
+          color="text-emerald-600"
+          bgColor="bg-emerald-50"
           borderColor="border-emerald-200"
         />
         <MetricCard
@@ -204,7 +204,7 @@ export const AdminDashboardCharts: React.FC = () => {
       {/* Gráficos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Faturamento Diário */}
-        <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-6">
             <BarChart3 size={20} className="text-emerald-500" />
             <h3 className="font-black text-sm text-slate-700 uppercase tracking-wider">Faturamento Diário</h3>
@@ -234,7 +234,7 @@ export const AdminDashboardCharts: React.FC = () => {
         </div>
 
         {/* Meios de Pagamento */}
-        <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-6">
             <PieChartIcon size={20} className="text-emerald-500" />
             <h3 className="font-black text-sm text-slate-700 uppercase tracking-wider">Meios de Pagamento</h3>
@@ -282,7 +282,7 @@ export const AdminDashboardCharts: React.FC = () => {
       </div>
 
       {/* Tabela de resumo por dia */}
-      <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
         <h3 className="font-black text-sm text-slate-700 uppercase tracking-wider mb-4">Detalhamento Diário</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -299,7 +299,7 @@ export const AdminDashboardCharts: React.FC = () => {
                 <tr key={i} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                   <td className="py-3 pr-4 font-bold text-slate-800">{row.date}</td>
                   <td className="py-3 pr-4 text-right font-bold text-slate-800">{row.count}</td>
-                  <td className="py-3 pr-4 text-right font-black text-[var(--primary-color)]">{fmt(row.total)}</td>
+                  <td className="py-3 pr-4 text-right font-black text-emerald-600">{fmt(row.total)}</td>
                   <td className="py-3 text-right font-bold text-slate-600">{row.count > 0 ? fmt(row.total / row.count) : '—'}</td>
                 </tr>
               ))}
@@ -322,7 +322,7 @@ const MetricCard: React.FC<{
   bgColor: string;
   borderColor: string;
 }> = ({ icon, label, value, color, bgColor, borderColor }) => (
-  <div className={`${bgColor} ${borderColor} border rounded-lg p-5 shadow-sm hover:shadow-md transition-all`}>
+  <div className={`${bgColor} ${borderColor} border rounded-2xl p-5 shadow-sm hover:shadow-md transition-all`}>
     <div className="flex items-center gap-3 mb-3">
       <div className={`${color}`}>{icon}</div>
       <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">{label}</span>
@@ -330,5 +330,3 @@ const MetricCard: React.FC<{
     <p className={`text-2xl font-black tracking-tight ${color}`}>{value}</p>
   </div>
 );
-
-

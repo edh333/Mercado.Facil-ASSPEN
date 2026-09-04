@@ -232,7 +232,7 @@ describe('isAdminRole', () => {
     expect(isAdminRole(' master ')).toBe(true);
   });
 
-  it('rejeita familiares e valores inv�lidos', () => {
+  it('rejeita familiares e valores inválidos', () => {
     expect(isAdminRole('FAMILY')).toBe(false);
     expect(isAdminRole('FAMILIAR')).toBe(false);
     expect(isAdminRole('')).toBe(false);

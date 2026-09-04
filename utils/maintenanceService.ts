@@ -33,7 +33,7 @@ export interface RelatorioManutencao {
 const RELATORIO_KEY = 'sistema_relatorio_manutencao';
 const GUARDA_DIARIA_KEY = 'sistema_manutencao_dia';
 /** Chaves que SEMPRE devem conter JSON válido. */
-const CHAVES_JSON = ['appSettings', 'mf_vendas_offline', 'pdv_suspended_carts', 'sistema_pontos_restauracao'];
+const CHAVES_JSON = ['appSettings', 'mf_vendas_offline', 'pdv_suspended_carts', 'sistema_pontos_restauracao', 'printItem', 'printTicket'];
 /** Cota típica do localStorage nos navegadores (5 MB). */
 const COTA_ESTIMADA_BYTES = 5 * 1024 * 1024;
 

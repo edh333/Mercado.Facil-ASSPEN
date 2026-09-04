@@ -20,19 +20,6 @@ export const mascararCpf = (cpf: string | null | undefined): string => {
   return `${inicio}.***.***-${fim}`;
 };
 
-/**
- * Escapa um campo para CSV (RFC 4180): dobra aspas internas e neutraliza
- * injeção de fórmula (células iniciadas com = + - @). Use em TODO export de
- * CSV — nomes, CPFs e itens vindos do usuário podem conter esses caracteres
- * e, sem o escape, quebrariam o arquivo ou executariam fórmula no Excel.
- */
-export const csvEscape = (value: unknown): string => {
-  const raw = String(value ?? '');
-  const comAspas = raw.replace(/"/g, '""');
-  const segura = /^[=+\-@\t\r]/.test(comAspas) ? `'${comAspas}` : comAspas;
-  return `"${segura}"`;
-};
-
 export const formatPhone = (value: string) => {
   return value
     .replace(/\D/g, '')

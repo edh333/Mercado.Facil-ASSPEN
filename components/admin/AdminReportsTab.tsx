@@ -114,11 +114,11 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
 
   return (
     <div className="animate-slideUp space-y-8 pb-20">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[var(--bg-card)] p-6 rounded-lg border border-[var(--border-color)] shadow-sm">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm">
             <h2 className="text-xl font-bold text-[var(--text-main)] flex items-center gap-2 tracking-tight">
                 <ClipboardList size={24} className="text-emerald-400"/> Central de Relatórios
             </h2>
-            <div className="flex items-center gap-2 text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest bg-[var(--bg-main)] px-4 py-2 rounded-lg border border-[var(--border-color)]">
+            <div className="flex items-center gap-2 text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest bg-[var(--bg-main)] px-4 py-2 rounded-xl border border-[var(--border-color)]">
                 <Calendar size={14}/> {new Date().toLocaleDateString('pt-BR')}
             </div>
         </div>
@@ -131,9 +131,9 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
                         <button
                             key={opt.id}
                             onClick={() => setReportConfig({...reportConfig, type: opt.id})}
-                            className={`p-5 rounded-lg border-2 transition-all text-left flex items-start gap-4 group ${reportConfig.type === opt.id ? 'bg-[var(--primary-color)] border-[var(--primary-color)] shadow-sm' : 'bg-[var(--bg-card)] border-[var(--border-color)] hover:border-[var(--primary-color)]'}`}
+                            className={`p-5 rounded-[2rem] border-2 transition-all text-left flex items-start gap-4 group ${reportConfig.type === opt.id ? 'bg-emerald-600 border-emerald-600 shadow-xl' : 'bg-[var(--bg-card)] border-[var(--border-color)] hover:border-emerald-500'}`}
                         >
-                            <div className={`p-3 rounded-lg ${reportConfig.type === opt.id ? 'bg-[var(--bg-card)]/20' : 'bg-[var(--bg-main)]'}`}>
+                            <div className={`p-3 rounded-2xl ${reportConfig.type === opt.id ? 'bg-[var(--bg-card)]/20' : 'bg-[var(--bg-main)]'}`}>
                                 {opt.icon}
                             </div>
                             <div className="min-w-0">
@@ -147,19 +147,19 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
 
             <div className="lg:col-span-5 space-y-6">
                 <p className="text-[var(--text-main)] font-black text-[10px] uppercase tracking-widest ml-2">2. Parametrização e Filtros</p>
-                <div className="bg-[var(--bg-card)] p-8 rounded-lg border border-[var(--border-color)] shadow-sm space-y-6 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--primary-color)] rounded-full -mr-16 -mt-16 opacity-5"/>
+                <div className="bg-[var(--bg-card)] p-8 rounded-[2.5rem] border border-[var(--border-color)] shadow-2xl space-y-6 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-600 rounded-full -mr-16 -mt-16 opacity-5"/>
 
                     <div className="relative z-10 space-y-6">
                         {reportConfig.type === 'INDIVIDUAL' && (
                             <div className="animate-slideDown space-y-2">
                                 <label className="text-[var(--text-main)] font-black text-[10px] uppercase tracking-widest mb-1 block ml-1">Familiar / CPF</label>
                                 <div className="relative group">
-                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 bg-[var(--bg-card)] p-2.5 rounded-lg border border-[var(--border-color)] group-focus-within:bg-[var(--primary-color)] group-focus-within:border-[var(--primary-color)] transition-all duration-500 z-10 shadow-sm">
+                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 bg-[var(--bg-card)] p-2.5 rounded-2xl border border-[var(--border-color)] group-focus-within:bg-emerald-600 group-focus-within:border-emerald-600 transition-all duration-500 z-10 shadow-sm">
                                         <Search className="text-[var(--text-muted)] group-focus-within:text-white transition-colors" size={18}/>
                                     </div>
                                     <input
-                                        className="w-full pl-16 pr-6 py-4.5 bg-[var(--bg-card)] border border-[var(--border-input)] rounded-lg font-black text-sm text-[var(--text-main)] outline-none focus:border-[var(--primary-color)] transition-all placeholder:text-[var(--text-muted)] uppercase tracking-widest"
+                                        className="w-full pl-16 pr-6 py-4.5 bg-[var(--bg-card)] border-2 border-[var(--border-color)] rounded-3xl font-black text-sm text-[var(--text-main)] outline-none focus:border-emerald-500 transition-all placeholder:text-[var(--text-muted)] uppercase tracking-widest shadow-inner"
                                         placeholder="DIGITE O NOME OU CPF..."
                                         value={reportConfig.individualSearch}
                                         onChange={e => {
@@ -171,7 +171,7 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
                                     />
                                 </div>
                                 {showUserDropdown && (
-                                    <div className="border border-[var(--border-color)] rounded-lg mt-2 max-h-48 overflow-y-auto bg-[var(--bg-card)] shadow-sm absolute w-full z-50 custom-scrollbar">
+                                    <div className="border border-[var(--border-color)] rounded-2xl mt-2 max-h-48 overflow-y-auto bg-[var(--bg-card)] shadow-2xl absolute w-full z-50 custom-scrollbar">
                                         {(users || []).filter(u => !isAdminRole(u.role) && (
                                             (u.name || '').toLowerCase().includes((reportConfig.individualSearch || '').toLowerCase()) ||
                                             (u.cpf || '').replace(/\D/g, '').includes((reportConfig.individualSearch || '').replace(/\D/g, ''))
@@ -211,7 +211,7 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
                                                     });
                                                 }
                                             }}
-                                            className={`flex-1 py-2 px-3 rounded-lg font-black text-[9px] uppercase tracking-wider transition-all ${(reportConfig.quickPeriod === q.id || (!reportConfig.quickPeriod && q.id === 'today')) ? 'bg-[#10b981] text-white' : 'bg-[var(--bg-card)] text-[var(--text-muted)] border border-[var(--border-color)] hover:bg-[var(--bg-main)]'}`}
+                                            className={`flex-1 py-2 px-3 rounded-xl font-black text-[9px] uppercase tracking-wider transition-all ${(reportConfig.quickPeriod === q.id || (!reportConfig.quickPeriod && q.id === 'today')) ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20' : 'bg-[var(--bg-card)] text-[var(--text-muted)] border border-[var(--border-color)] hover:bg-[var(--bg-main)]'}`}
                                         >
                                             {q.label}
                                         </button>
@@ -220,11 +220,11 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="text-[var(--text-main)] font-black text-[10px] uppercase tracking-widest mb-1 block ml-1">Data Início</label>
-                                        <input type="date" className="w-full p-4 bg-[var(--bg-card)] border border-[var(--border-input)] focus:border-[var(--primary-color)] rounded-lg font-bold text-sm text-[var(--text-main)] outline-none" value={reportConfig.startDate} onChange={e => setReportConfig({...reportConfig, startDate: e.target.value, quickPeriod: 'custom'})}/>
+                                        <input type="date" className="w-full p-4 bg-[var(--bg-card)] border-2 border-[var(--border-color)] focus:border-emerald-500 rounded-lg font-bold text-sm text-[var(--text-main)] outline-none" value={reportConfig.startDate} onChange={e => setReportConfig({...reportConfig, startDate: e.target.value, quickPeriod: 'custom'})}/>
                                     </div>
                                     <div>
                                         <label className="text-[var(--text-main)] font-black text-[10px] uppercase tracking-widest mb-1 block ml-1">Data Fim</label>
-                                        <input type="date" className="w-full p-4 bg-[var(--bg-card)] border border-[var(--border-input)] focus:border-[var(--primary-color)] rounded-lg font-bold text-sm text-[var(--text-main)] outline-none" value={reportConfig.endDate} onChange={e => setReportConfig({...reportConfig, endDate: e.target.value, quickPeriod: 'custom'})}/>
+                                        <input type="date" className="w-full p-4 bg-[var(--bg-card)] border-2 border-[var(--border-color)] focus:border-emerald-500 rounded-lg font-bold text-sm text-[var(--text-main)] outline-none" value={reportConfig.endDate} onChange={e => setReportConfig({...reportConfig, endDate: e.target.value, quickPeriod: 'custom'})}/>
                                     </div>
                                 </div>
                             </div>
@@ -232,15 +232,15 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
 
                         <div className="pt-4 space-y-3">
                             {reportConfig.type === 'CREDITS_ALL' || reportConfig.type === 'CREDITS_POSITIVE' || reportConfig.type === 'CREDITS_ZERO' ? (
-                                <div className="p-5 rounded-lg bg-[var(--primary-color)]/10 border border-[var(--primary-color)]/30 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] leading-relaxed text-center">
+                                <div className="p-5 rounded-2xl bg-emerald-600/10 border border-emerald-600/30 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] leading-relaxed text-center">
                                     <Wallet size={18} className="mx-auto mb-2 text-emerald-500"/>
                                     Consulta de créditos disponível abaixo: filtro com/sem saldo, impressão A4 profissional ou bobina 80mm.
                                 </div>
                             ) : (<>
-                            <button onClick={handleOpenReport} className="w-full bg-[var(--primary-color)] text-white py-5 rounded-lg font-black hover:opacity-90 shadow-[0_20px_40px_-10px_rgba(16,185,129,0.3)] flex items-center justify-center gap-3 uppercase text-[10px] tracking-[0.2em] transition-all transform active:scale-95 group">
+                            <button onClick={handleOpenReport} className="w-full bg-emerald-600 text-white py-5 rounded-[2rem] font-black hover:opacity-90 shadow-[0_20px_40px_-10px_rgba(16,185,129,0.3)] flex items-center justify-center gap-3 uppercase text-[10px] tracking-[0.2em] transition-all transform active:scale-95 group">
                                 <FileText size={20} className="group-hover:scale-110 transition-transform text-white"/> {reportConfig.type === 'SALES_CSV' ? 'GERAR ARQUIVO DE MOVIMENTAÇÃO' : 'GERAR RELATÓRIO DOCUMENTADO'}
                             </button>
-                            <button onClick={handleExportExcel} className="w-full bg-[var(--primary-color)] text-white py-4 rounded-lg font-black hover:bg-emerald-700 shadow-lg flex items-center justify-center gap-3 uppercase text-[10px] tracking-[0.2em] transition-all transform active:scale-95 group disabled:opacity-30 disabled:cursor-not-allowed" disabled={!reportConfig.type}>
+                            <button onClick={handleExportExcel} className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black hover:bg-emerald-700 shadow-lg flex items-center justify-center gap-3 uppercase text-[10px] tracking-[0.2em] transition-all transform active:scale-95 group disabled:opacity-30 disabled:cursor-not-allowed" disabled={!reportConfig.type}>
                                 <Download size={18} className="group-hover:scale-110 transition-transform"/> {reportConfig.type === 'SALES_CSV' ? 'EXPORTAR CSV PARA CONTADOR' : 'EXPORTAR PARA EXCEL'}
                             </button>
                             </>)}
@@ -262,7 +262,7 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
         </div>
 
         {(reportConfig.type === 'CREDITS_ALL' || reportConfig.type === 'CREDITS_POSITIVE' || reportConfig.type === 'CREDITS_ZERO') && (
-            <div className="bg-[var(--bg-card)] p-8 rounded-lg border border-[var(--border-color)] shadow-sm space-y-6 relative overflow-hidden animate-slideDown">
+            <div className="bg-[var(--bg-card)] p-8 rounded-[2.5rem] border border-[var(--border-color)] shadow-2xl space-y-6 relative overflow-hidden animate-slideDown">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
                         <h3 className="text-[var(--text-main)] font-black text-sm uppercase tracking-tight flex items-center gap-2">
@@ -274,10 +274,10 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
                         </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                        <button onClick={handlePrintCredits} disabled={creditList.length === 0} className="bg-slate-700 text-white px-5 py-3 rounded-lg font-black hover:bg-slate-800 shadow-lg flex items-center gap-2 uppercase text-[9px] tracking-[0.2em] transition-all transform active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed">
+                        <button onClick={handlePrintCredits} disabled={creditList.length === 0} className="bg-slate-700 text-white px-5 py-3 rounded-2xl font-black hover:bg-slate-800 shadow-lg flex items-center gap-2 uppercase text-[9px] tracking-[0.2em] transition-all transform active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed">
                             <Printer size={16}/> {termo ? 'IMPRIMIR CONSULTA (BOBINA)' : 'IMPRIMIR LISTA (BOBINA)'}
                         </button>
-                        <button onClick={handlePrintCreditsA4} disabled={creditList.length === 0} className="bg-[var(--primary-color)] text-white px-5 py-3 rounded-lg font-black hover:bg-emerald-700 shadow-lg flex items-center gap-2 uppercase text-[9px] tracking-[0.2em] transition-all transform active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed">
+                        <button onClick={handlePrintCreditsA4} disabled={creditList.length === 0} className="bg-emerald-600 text-white px-5 py-3 rounded-2xl font-black hover:bg-emerald-700 shadow-lg flex items-center gap-2 uppercase text-[9px] tracking-[0.2em] transition-all transform active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed">
                             <FileText size={16}/> IMPRIMIR A4 PROFISSIONAL
                         </button>
                     </div>
@@ -294,7 +294,7 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
                             <button
                                 key={f.id}
                                 onClick={() => setReportConfig({ ...reportConfig, type: f.id })}
-                                className={`py-3 px-2 rounded-lg font-black text-[9px] uppercase tracking-wider transition-all text-center ${reportConfig.type === f.id ? 'bg-[#10b981] text-white' : 'bg-[var(--bg-card)] text-[var(--text-muted)] border border-[var(--border-color)] hover:bg-[var(--bg-main)]'}`}
+                                className={`py-3 px-2 rounded-2xl font-black text-[9px] uppercase tracking-wider transition-all text-center ${reportConfig.type === f.id ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20' : 'bg-[var(--bg-card)] text-[var(--text-muted)] border border-[var(--border-color)] hover:bg-[var(--bg-main)]'}`}
                             >
                                 <span className="block">{f.label}</span>
                                 <span className={`block text-[10px] mt-0.5 tracking-widest ${reportConfig.type === f.id ? 'text-white/60' : 'opacity-50'}`}>{f.desc}</span>
@@ -304,18 +304,18 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
                 </div>
 
                 <div className="relative">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 bg-[var(--bg-card)] p-2.5 rounded-lg border border-[var(--border-color)] group-focus-within:bg-emerald-600 transition-all duration-500 z-10 shadow-sm">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 bg-[var(--bg-card)] p-2.5 rounded-2xl border border-[var(--border-color)] group-focus-within:bg-emerald-600 transition-all duration-500 z-10 shadow-sm">
                         <Search className="text-[var(--text-muted)]" size={18}/>
                     </div>
                     <input
-                        className="w-full pl-16 pr-6 py-4 bg-[var(--bg-card)] border border-[var(--border-input)] focus:border-[var(--primary-color)] rounded-lg font-black text-sm text-[var(--text-main)] outline-none transition-all placeholder:text-[var(--text-muted)] uppercase tracking-widest"
+                        className="w-full pl-16 pr-6 py-4 bg-[var(--bg-card)] border-2 border-[var(--border-color)] focus:border-emerald-500 rounded-3xl font-black text-sm text-[var(--text-main)] outline-none transition-all placeholder:text-[var(--text-muted)] uppercase tracking-widest shadow-inner"
                         placeholder="CONSULTA INDIVIDUAL: DIGITE NOME, CPF OU UID..."
                         value={creditSearch}
                         onChange={e => setCreditSearch(e.target.value.toUpperCase())}
                     />
                 </div>
 
-                <div className="border border-[var(--border-color)] rounded-lg overflow-hidden">
+                <div className="border border-[var(--border-color)] rounded-2xl overflow-hidden">
                     <div className="grid grid-cols-12 gap-2 px-5 py-3 bg-[var(--bg-main)] border-b border-[var(--border-color)] text-[9px] font-black uppercase tracking-widest text-[var(--text-muted)]">
                         <span className="col-span-4">Cliente</span>
                         <span className="col-span-3">CPF</span>
@@ -357,17 +357,3 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
     </div>
   );
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-

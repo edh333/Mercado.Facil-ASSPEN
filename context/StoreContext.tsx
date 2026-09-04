@@ -6,6 +6,7 @@ import { queuePendingUpload, listPendingUploads, removePendingUpload, attachPend
 import { comprimirImagem } from '../utils/imageCompress';
 import { toDate } from '../utils/dateUtils';
 import { ASSPEN_INFO, INITIAL_UNITS } from '../constants';
+import { ehReceita } from '../components/admin/adminUtils';
 import { db, auth, storage } from '../firebase';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -53,10 +54,10 @@ export interface InvoiceData {
 }
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// MÃ“DULO CONTÃBIL â€” MOTOR DE RELATÃ“RIOS FISCAIS (DRE / CSV / CURVA ABC)
-// AlÃ­quota estimada de impostos (Simples Nacional aproximado para consumo interno)
+// MÓDULO CONTÁBIL — MOTOR DE RELATÓRIOS FISCAIS (DRE / CSV / CURVA ABC)
+// Alíquota estimada de impostos (Simples Nacional aproximado para consumo interno)
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-export const ALIQUOTA_IMPOSTO_ESTIMADA = 0.07; // 7% â€” configuraÃ§Ã£o fiscal estimada
+export const ALIQUOTA_IMPOSTO_ESTIMADA = 0.07; // 7% — configuração fiscal estimada
 
 const toDateContabil = (d: any): Date => {
   if (!d) return new Date(0);
@@ -79,17 +80,17 @@ export const sanitizarCpf = (cpf: string): string => {
 
 export const formatarDataContabil = (d: any): string => {
   const dt = toDateContabil(d);
-  return isNaN(dt.getTime()) ? 'â€”' : dt.toLocaleDateString('pt-BR');
+  return isNaN(dt.getTime()) ? '—' : dt.toLocaleDateString('pt-BR');
 };
 
 /**
- * 1) FECHAMENTO DE CAIXA MENSAL â€” DRE SIMPLIFICADO
- * Consolida o faturamento bruto, subtrai o custo de aquisiÃ§Ã£o das mercadorias
- * (custos importados via NFe/XML â€” campo costPrice) e exibe o Lucro LÃ­quido real.
+ * 1) FECHAMENTO DE CAIXA MENSAL — DRE SIMPLIFICADO
+ * Consolida o faturamento bruto, subtrai o custo de aquisição das mercadorias
+ * (custos importados via NFe/XML — campo costPrice) e exibe o Lucro Líquido real.
  */
 export const buildMonthlyDre = (orders: any[], expenses: any[], products: any[], startDate: string, endDate: string) => {
   const validOrders = (orders || []).filter(o =>
-    String(o.status || '').toUpperCase() !== 'CANCELLED' &&
+    ehReceita(o.status) &&
     inRangeContabil(o.date || o.createdAt, startDate, endDate)
   );
   const cancelledOrders = (orders || []).filter(o =>
@@ -139,16 +140,16 @@ export const buildMonthlyDre = (orders: any[], expenses: any[], products: any[],
 };
 
 /**
- * 2) ARQUIVO DE MOVIMENTAÃ‡ÃƒO DE VENDAS (CSV/EXCEL PARA CONTADOR)
- * Data, NÃºmero do Cupom, CPF do Cliente (sanitizado), Forma de Pagamento,
- * AlÃ­quota/Imposto Estimado e Valor Total.
+ * 2) ARQUIVO DE MOVIMENTAÇÃO DE VENDAS (CSV/EXCEL PARA CONTADOR)
+ * Data, Número do Cupom, CPF do Cliente (sanitizado), Forma de Pagamento,
+ * Alíquota/Imposto Estimado e Valor Total.
  */
 export const buildSalesCsv = (orders: any[], users: any[], startDate: string, endDate: string) => {
   const userMap = new Map((users || []).map(u => [String(u.id), u]));
   const cabecalho = ['DATA', 'NUMERO_CUPOM', 'CPF_CLIENTE', 'FORMA_PAGAMENTO', 'ALIQUOTA_ESTIMADA(%)', 'IMPOSTO_ESTIMADO', 'VALOR_TOTAL'];
 
   const linhas = (orders || [])
-    .filter(o => String(o.status || '').toUpperCase() !== 'CANCELLED' && inRangeContabil(o.date || o.createdAt, startDate, endDate))
+    .filter(o => ehReceita(o.status) && inRangeContabil(o.date || o.createdAt, startDate, endDate))
     .map(o => {
       const u = userMap.get(String(o.userId));
       const cpf = sanitizarCpf(u?.cpf || o.userCpf || '');
@@ -168,20 +169,20 @@ export const buildSalesCsv = (orders: any[], users: any[], startDate: string, en
   const totalImpostos = linhas.reduce((s, l) => s + (parseFloat(String(l.IMPOSTO_ESTIMADO)) || 0), 0);
 
   const linhasCSV = [cabecalho, ...linhas.map(l => cabecalho.map(c => String(l[c]).replace(/;/g, ' ')))];
-  // BOM UTF-8 para o Excel reconhecer acentuaÃ§Ã£o; separador ';' padrÃ£o pt-BR
+  // BOM UTF-8 para o Excel reconhecer acentuação; separador ';' padrão pt-BR
   const csv = '\uFEFF' + linhasCSV.map(row => row.join(';')).join('\r\n');
 
   return { cabecalho, linhas, csv, totalVendas, totalImpostos };
 };
 
 /**
- * 3) RELATÃ“RIO DE CURVA ABC DE ESTOQUE
+ * 3) RELATÓRIO DE CURVA ABC DE ESTOQUE
  * Produtos de maior giro (receita) classificados A/B/C por acumulado %.
- * Inclui o valor totalizado do inventÃ¡rio parado (nunca vendido) para balanÃ§o patrimonial.
+ * Inclui o valor totalizado do inventário parado (nunca vendido) para balanço patrimonial.
  */
 export const buildStockAbc = (products: any[], orders: any[], startDate: string, endDate: string) => {
   const validOrders = (orders || []).filter(o =>
-    String(o.status || '').toUpperCase() !== 'CANCELLED' &&
+    ehReceita(o.status) &&
     inRangeContabil(o.date || o.createdAt, startDate, endDate)
   );
 
@@ -246,7 +247,7 @@ export const buildStockAbc = (products: any[], orders: any[], startDate: string,
  */
 export const buildDailySales = (orders: any[], startDate: string, endDate: string) => {
   const validOrders = (orders || [])
-    .filter(o => String(o.status || '').toUpperCase() !== 'CANCELLED' && inRangeContabil(o.date || o.createdAt, startDate, endDate));
+    .filter(o => ehReceita(o.status) && inRangeContabil(o.date || o.createdAt, startDate, endDate));
 
   const porDia = new Map<string, { data: string; vendas: number; total: number; items: number }>();
   let totalGeral = 0;
@@ -287,7 +288,7 @@ export const buildDailySales = (orders: any[], startDate: string, endDate: strin
 export const buildSalesByCategory = (orders: any[], products: any[], startDate: string, endDate: string) => {
   const productMap = new Map((products || []).map(p => [String(p.id), p]));
   const validOrders = (orders || [])
-    .filter(o => String(o.status || '').toUpperCase() !== 'CANCELLED' && inRangeContabil(o.date || o.createdAt, startDate, endDate));
+    .filter(o => ehReceita(o.status) && inRangeContabil(o.date || o.createdAt, startDate, endDate));
 
   const grupos = new Map<string, { categoria: string; quantidade: number; receita: number }>();
   for (const o of validOrders) {
@@ -316,7 +317,7 @@ export const buildLowStock = (products: any[], startDate: string, endDate: strin
   const linhas = (products || [])
     .map(p => {
       const estoque = Math.max(0, Number(p.stock) || 0);
-      const minimo = Math.max(0, Number(p.minStock || (estoque > 0 ? 5 : 0)) || 0);
+      const minimo = Math.max(0, Number(p.minStock ?? (estoque > 0 ? 5 : 0)) || 0);
       const critico = estoque <= minimo;
       return {
         id: String(p.id),
@@ -423,14 +424,14 @@ export const buildExtratoIndividual = (user: any, orders: any[], transactions: a
   };
 };
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// PARSER DE NOTA FISCAL ELETRÃ”NICA (NFe XML)
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ───────────────────────────────────────────────────────────────────────────
+// PARSER DE NOTA FISCAL ELETRÔNICA (NFe XML)
+// ───────────────────────────────────────────────────────────────────────────
 // Tolerante a namespaces (notas emitidas com prefixos nfe:/NFe: etc. usam
 // getElementsByTagName, que casa pelo nome local ignorando prefixos), com
-// fallbacks de quantidade/preÃ§o (vUnCom â†’ vProd/qCom â†’ vUnTrib) e validaÃ§Ã£o
-// de GTIN/EAN â€” o cÃ³digo de barras sai pronto para o leitor do PDV.
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// fallbacks de quantidade/preço (vUnCom â†’ vProd/qCom â†’ vUnTrib) e validação
+// de GTIN/EAN — o código de barras sai pronto para o leitor do PDV.
+// ───────────────────────────────────────────────────────────────────────────
 const tagPorNome = (el: Document | Element, nome: string): Element | null => {
   const encontrados = el.getElementsByTagName(nome);
   return encontrados && encontrados.length > 0 ? encontrados[0] : null;
@@ -438,12 +439,12 @@ const tagPorNome = (el: Document | Element, nome: string): Element | null => {
 const textoDe = (el: Document | Element, nome: string): string =>
   (tagPorNome(el, nome)?.textContent || '').replace(/\u00A0/g, ' ').trim();
 const numeroNfe = (el: Document | Element, nome: string): number => {
-  // âš  CORREÃ‡ÃƒO CRÃTICA: o layout oficial da NFe usa SEMPRE ponto como
+  // âš  CORREÇÃO CRÍTICA: o layout oficial da NFe usa SEMPRE ponto como
   // separador decimal ("<vUnCom>4.99</vUnCom>" = R$ 4,99). O parser antigo
-  // removia os pontos como se fossem milhar â†’ preÃ§os 100x mais altos
+  // removia os pontos como se fossem milhar â†’ preços 100x mais altos
   // (R$ 4,99 virava R$ 499,00) e quantidades explodidas ("2.0000" â†’ 20000).
-  // Agora: sÃ³ ponto â†’ decimal direto (padrÃ£o NFe); sÃ³ vÃ­rgula â†’ BR;
-  // os dois â†’ o ÃšLTIMO separador Ã© o decimal (convenÃ§Ã£o universal).
+  // Agora: só ponto â†’ decimal direto (padrão NFe); só vírgula â†’ BR;
+  // os dois â†’ o ÚLTIMO separador é o decimal (convenção universal).
   let s = textoDe(el, nome).replace(/\s/g, '');
   if (!s) return NaN;
   const temVirgula = s.includes(',');
@@ -472,7 +473,7 @@ const parseInvoiceXML = (xml: string): InvoiceData | null => {
 
     const result: InvoiceData = { items: [] };
 
-    // Extrair fornecedor (emitente) â€” caminhos NFe e NFeProc (autorizaÃ§Ã£o)
+    // Extrair fornecedor (emitente) — caminhos NFe e NFeProc (autorização)
     const emit = tagPorNome(doc, 'emit');
     if (emit) {
       const nome = textoDe(emit, 'xNome');
@@ -480,7 +481,7 @@ const parseInvoiceXML = (xml: string): InvoiceData | null => {
       result.supplier = { name: nome, cnpj };
     }
 
-    // Extrair itens (produtos) â€” namespace-safe
+    // Extrair itens (produtos) — namespace-safe
     const products = doc.getElementsByTagName('det');
     for (let i = 0; i < products.length; i++) {
       const prodElement = tagPorNome(products[i], 'prod');
@@ -495,18 +496,18 @@ const parseInvoiceXML = (xml: string): InvoiceData | null => {
       const ncm = textoDe(prodElement, 'NCM');
       const unidade = textoDe(prodElement, 'uCom') || textoDe(prodElement, 'uTrib') || 'UN';
 
-      // Marca: lista conhecida ou primeira palavra em maiÃºsculas
+      // Marca: lista conhecida ou primeira palavra em maiúsculas
       let brand = '';
       const brandList = [
-        'ALBA', 'AVIANCA', 'BIC', 'LOREAL', 'NESTLE', 'NESTLÃ‰', 'DANONE', 'AMBEV', 'HEINEKEN', 'COCA COLA', 'COCA-COLA', 'PEPSI',
+        'ALBA', 'AVIANCA', 'BIC', 'LOREAL', 'NESTLE', 'NESTLÉ', 'DANONE', 'AMBEV', 'HEINEKEN', 'COCA COLA', 'COCA-COLA', 'PEPSI',
         'SKOL', 'BRASEIRO', 'PERNAMBUCANAS', 'HAVAN', 'SAMSUNG', 'LG', 'PHILCO', 'ELECTROLUX', 'BRASTEMP', 'CONSUL', 'XIAOMI',
         'MOTOROLA', 'APPLE', 'POSITIVO', 'MULTILASER', 'ARNO', 'MONDIAL', 'PARATI', 'MARILAN', 'UNILEVER', 'P&G', 'BRF', 'JBS',
-        'AURORA', 'MINUANO', 'SADIA', 'PERDIGAO', 'PERDIGÃƒO', 'SEARA', 'KIMBERLY', 'COLGATE', 'PALMOLIVE', 'NIVEA', 'JOHNSON',
+        'AURORA', 'MINUANO', 'SADIA', 'PERDIGAO', 'PERDIGÃO', 'SEARA', 'KIMBERLY', 'COLGATE', 'PALMOLIVE', 'NIVEA', 'JOHNSON',
         'OAKLEY', 'NIKE', 'ADIDAS', 'PUMA', 'FILA', 'ASICS', 'MIZUNO', 'KAPPA', 'UMBRO', 'PENALTY', 'TOPPER', 'LUPO', 'TRIFIL',
         'HERING', 'MALWEE', 'MARISA', 'C&A', 'REACHUELO', 'RENNER', 'ZARA', 'LEVIS', 'DIESEL', 'CALVIN KLEIN', 'GUESS',
         'TOMMY HILFIGER', 'LACOSTE', 'HUGO BOSS', 'ARMANI', 'ROLEX', 'PANDORA', 'VIVARA', 'CHILLI BEANS', 'RAY-BAN',
         'NATURA', 'AVON', 'BOTICARIO', 'EUDORA', 'JEQUITI', 'PAMPERS', 'HUGGIES', 'TURMA DA MONICA', 'RENOVE', 'VEJA',
-        'OMOR', 'IPÃŠ', 'LIMPOL', 'YPÃŠ', 'MINUANO', 'BOMBRIL', 'TIXAN', 'ARIEL', 'BRILHANTE', 'SUFRESH', 'TANG', 'MID',
+        'OMOR', 'IPÊ', 'LIMPOL', 'YPÊ', 'MINUANO', 'BOMBRIL', 'TIXAN', 'ARIEL', 'BRILHANTE', 'SUFRESH', 'TANG', 'MID',
         'CAMP', 'VALLE', 'KAPO', 'MAGUARY', 'GAROTO', 'LACTA', 'HERSHEY', 'ARCOR', 'M&M', 'FINI', 'DOCILE'
       ];
       const brandRegex = new RegExp(`(?:^|\\s)(${brandList.join('|')})(?:\\s|$)`, 'i');
@@ -520,7 +521,7 @@ const parseInvoiceXML = (xml: string): InvoiceData | null => {
         }
       }
 
-      // Quantidade e preÃ§o com fallbacks: vUnCom â†’ vProd/qCom â†’ vUnTrib
+      // Quantidade e preço com fallbacks: vUnCom â†’ vProd/qCom â†’ vUnTrib
       let quantity = numeroNfe(prodElement, 'qCom');
       if (isNaN(quantity) || quantity <= 0) quantity = numeroNfe(prodElement, 'qTrib');
       if (isNaN(quantity) || quantity <= 0) quantity = 1;
@@ -534,9 +535,9 @@ const parseInvoiceXML = (xml: string): InvoiceData | null => {
       }
       if (isNaN(costPrice) || costPrice < 0) costPrice = 0;
 
-      // SANITY: preÃ§o plausÃ­vel de supermercado (R$ 0,01 a R$ 100.000 por unidade).
+      // SANITY: preço plausível de supermercado (R$ 0,01 a R$ 100.000 por unidade).
       // NFe corrompida ("vUnCom=78.434.600.000") â†’ tenta vProd/qCom e vUnTrib;
-      // se continuar absurdo, zera para o operador ajustar o preÃ§o na tela.
+      // se continuar absurdo, zera para o operador ajustar o preço na tela.
       const PRECO_PLAUSIVEL = 100000;
       if (costPrice > PRECO_PLAUSIVEL) {
         const qtdRef = numeroNfe(prodElement, 'qCom') || quantity;
@@ -552,20 +553,20 @@ const parseInvoiceXML = (xml: string): InvoiceData | null => {
       let category = 'Geral';
       if (ncm) {
         if (ncm.startsWith('02') || ncm.startsWith('03')) category = 'Carnes';
-        else if (ncm.startsWith('04') || ncm.startsWith('05')) category = 'LaticÃ­nios';
+        else if (ncm.startsWith('04') || ncm.startsWith('05')) category = 'Laticínios';
         else if (ncm.startsWith('09')) category = 'Bebidas';
         else if (ncm.startsWith('16') || ncm.startsWith('19')) category = 'Massas';
         else if (ncm.startsWith('17') || ncm.startsWith('20')) category = 'Bebidas';
         else if (ncm.startsWith('21') || ncm.startsWith('22')) category = 'Chocolate';
-        else if (ncm.startsWith('23')) category = 'RaÃ§Ãµes';
-        else if (ncm.startsWith('24')) category = 'Bebidas AlcoÃ³licas';
+        else if (ncm.startsWith('23')) category = 'Rações';
+        else if (ncm.startsWith('24')) category = 'Bebidas Alcoólicas';
         else if (ncm.startsWith('25') || ncm.startsWith('28')) category = 'Cervejas';
         else if (ncm.startsWith('30') || ncm.startsWith('32')) category = 'Condimentos';
         else if (ncm.startsWith('33')) category = 'Sopas';
         else if (ncm.startsWith('34')) category = 'Sal';
-        else if (ncm.startsWith('35')) category = 'AÃ§Ãºcar';
-        else if (ncm.startsWith('36')) category = 'CafÃ©';
-        else if (ncm.startsWith('38')) category = 'SabÃ£o';
+        else if (ncm.startsWith('35')) category = 'Açúcar';
+        else if (ncm.startsWith('36')) category = 'Café';
+        else if (ncm.startsWith('38')) category = 'Sabão';
         else if (ncm.startsWith('39') || ncm.startsWith('40')) category = 'Sabonetes';
         else if (ncm.startsWith('44')) category = 'Perfumes';
         else if (ncm.startsWith('48')) category = 'Papel';
@@ -575,20 +576,20 @@ const parseInvoiceXML = (xml: string): InvoiceData | null => {
         else if (ncm.startsWith('63')) category = 'Absorventes';
         else if (ncm.startsWith('64') || ncm.startsWith('65')) category = 'Higiene Pessoal';
         else if (ncm.startsWith('70') || ncm.startsWith('73')) category = 'Limpeza';
-        else if (ncm.startsWith('84')) category = 'UtensÃ­lios';
-        else if (ncm.startsWith('85') || ncm.startsWith('87')) category = 'EletrodomÃ©sticos';
+        else if (ncm.startsWith('84')) category = 'Utensílios';
+        else if (ncm.startsWith('85') || ncm.startsWith('87')) category = 'Eletrodomésticos';
         else if (ncm.startsWith('90')) category = 'Suprimentos';
         else if (ncm.startsWith('94')) category = 'Bebidas';
       }
 
-      // CÃ³digo de barras: GTIN vÃ¡lido da nota, senÃ£o o cÃ³digo do fornecedor
+      // Código de barras: GTIN válido da nota, senão o código do fornecedor
       const codigoBarras = eanValido ? ean : (code || undefined);
       result.items.push({
         name,
         costPrice,
         quantity,
         category,
-        description: `${code ? 'CÃ³digo: ' + code + ' | ' : ''}NCM: ${ncm} | Und: ${unidade}`,
+        description: `${code ? 'Código: ' + code + ' | ' : ''}NCM: ${ncm} | Und: ${unidade}`,
         ean: codigoBarras,
         barcode: codigoBarras,
         brand: brand || undefined
@@ -747,7 +748,7 @@ interface StoreContextType {
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 const DEFAULT_CONFIG: AppConfig = {
-    appName: ASSPEN_INFO.name.split(' - ')[0] || 'MERCADO FÃCIL',
+    appName: ASSPEN_INFO.name.split(' - ')[0] || 'MERCADO FÁCIL',
     institutionName: ASSPEN_INFO.name,
     cnpj: ASSPEN_INFO.cnpj,
     primaryColor: '#0ea5e9',
@@ -763,13 +764,13 @@ const DEFAULT_CONFIG: AppConfig = {
     developerEmail: ASSPEN_INFO.email,
     developerName: 'Edevaldo de Lima Almeida',
     developerPhone: '',
-    footerText: 'MERCADO FÃCIL - Sistema de GestÃ£o Profissional',
+    footerText: 'MERCADO FÁCIL - Sistema de Gestão Profissional',
     isTrial: true,
 
     customReceiptDocName: 'CUPOM DE ENTREGA',
     receiptMainTitleOrder: 'RECIBO DE VENDA',
     receiptMainTitleExpense: 'RECIBO DE PAGAMENTO',
-    receiptFooter: 'Conferir os itens no ato da entrega. NÃ£o aceitamos reclamaÃ§Ãµes posteriores.',
+    receiptFooter: 'Conferir os itens no ato da entrega. Não aceitamos reclamações posteriores.',
 
     fiscalEmission: false,
     fiscalModel: 'NF-E',
@@ -805,7 +806,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const [logs, setLogs] = useState<AuditLog[]>([]);
     const MAX_LOGS = 200;
 
-    // Armazenamento local com limite (evitar acÃºmulo)
+    // Armazenamento local com limite (evitar acúmulo)
     const LOCAL_STORAGE_KEY = 'mercado_app_data';
 
     // Limpar dados antigos do localStorage ao iniciar
@@ -860,8 +861,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const [ordersLimit, setOrdersLimit] = useState(50);
     const [expensesLimit, setExpensesLimit] = useState(50);
     const [productsLimit, setProductsLimit] = useState(500);
-    // Escala: com 1.500+ usuÃ¡rios, o stream admin de users nÃ£o pode ficar
-    // preso em 500 (busca client-side nÃ£o acharia o resto). Cresce sob demanda.
+    // Escala: com 1.500+ usuários, o stream admin de users não pode ficar
+    // preso em 500 (busca client-side não acharia o resto). Cresce sob demanda.
     const [usersLimit, setUsersLimit] = useState(500);
     // Fornecedores e internos: paginação sob demanda (evita ler tudo de uma vez)
     const [suppliersLimit, setSuppliersLimit] = useState(100);
@@ -906,7 +907,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             setNotifications([]);
             setPreRegisteredInmates([]);
             sessionStorage.clear();
-            showNotification('SessÃ£o encerrada com seguranÃ§a.', 'success');
+            showNotification('Sessão encerrada com segurança.', 'success');
         } catch (error) {
             console.error('Erro ao deslogar:', error);
             setCurrentUser(null);
@@ -952,11 +953,11 @@ logoutTimerRef.current = setTimeout(() => {
         if (!currentUser || currentUser.role !== UserRole.ADMIN) return;
 
         try {
-            // Fechamento de caixa abandonado Ã© feito pelo servidor (arquivarDadosAntigos:
-            // auto-close de cash_sessions abertas hÃ¡ mais de 20h).
+            // Fechamento de caixa abandonado é feito pelo servidor (arquivarDadosAntigos:
+            // auto-close de cash_sessions abertas há mais de 20h).
 
-            // 2. Arquivar pedidos cancelados antigos (soft archive â€” preserva trilha de auditoria).
-            // A rotina do servidor (arquivarDadosAntigos) Ã© a fonte oficial do arquivamento.
+            // 2. Arquivar pedidos cancelados antigos (soft archive — preserva trilha de auditoria).
+            // A rotina do servidor (arquivarDadosAntigos) é a fonte oficial do arquivamento.
             try {
                 const qOrders = query(
                     collection(db, 'orders'),
@@ -1021,7 +1022,7 @@ logoutTimerRef.current = setTimeout(() => {
                 }
 
                 await setDoc(doc(db, 'settings', 'maintenance'), { lastWeeklyReset: mondayStr }, { merge: true });
-                console.log('[WeeklyReset] Reset concluÃ­do.');
+                console.log('[WeeklyReset] Reset concluído.');
             }
         } catch (e) {
             console.error('[WeeklyReset Error]', e);
@@ -1045,12 +1046,12 @@ logoutTimerRef.current = setTimeout(() => {
 
     const realizarSaque = async (valor: number): Promise<boolean> => {
         if (!currentUser) {
-            showNotification('UsuÃ¡rio nÃ£o autenticado', 'error');
+            showNotification('Usuário não autenticado', 'error');
             return false;
         }
 
         if (valor <= 0) {
-            showNotification('Valor invÃ¡lido para saque', 'error');
+            showNotification('Valor inválido para saque', 'error');
             return false;
         }
 
@@ -1086,7 +1087,7 @@ logoutTimerRef.current = setTimeout(() => {
             setCurrentUser(prev => prev ? ({ ...prev, walletBalance: novoSaldo }) : prev);
             setCart([]);
 
-            showNotification(`Venda realizada! Total: R$ ${formatarMoeda(data?.order?.total || 0)}\nCrÃ©dito restante: R$ ${formatarMoeda(novoSaldo)}`, 'success');
+            showNotification(`Venda realizada! Total: R$ ${formatarMoeda(data?.order?.total || 0)}\nCrédito restante: R$ ${formatarMoeda(novoSaldo)}`, 'success');
             return true;
 } catch (error: any) {
 console.error('Erro ao finalizar venda:', error);
@@ -1098,23 +1099,23 @@ return false;
 
     const uploadFile = async (file: File, path: string, meta?: { kind?: string; docId?: string }): Promise<string> => {
         if (!file || file.size === 0) {
-            throw new Error("Arquivo vazio. Selecione um arquivo vÃ¡lido.");
+            throw new Error("Arquivo vazio. Selecione um arquivo válido.");
         }
 
         const MAX_FILE_SIZE = 8 * 1024 * 1024;
         const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.pdf', '.heic', '.heif'];
 
         if (file.size > MAX_FILE_SIZE) {
-            throw new Error('Arquivo muito grande (mÃ¡x. 8 MB).');
+            throw new Error('Arquivo muito grande (máx. 8 MB).');
         }
 
         const ext = '.' + (file.name.split('.').pop() || '').toLowerCase();
         if (!ALLOWED_EXTENSIONS.includes(ext)) {
-            throw new Error('Tipo de arquivo nÃ£o permitido (JPG, PNG, HEIC ou PDF).');
+            throw new Error('Tipo de arquivo não permitido (JPG, PNG, HEIC ou PDF).');
         }
 
-        // Comprime fotos antes do envio (menos Storage, uploads mais rÃ¡pidos);
-        // nunca lanÃ§a erro â€” em qualquer falha devolve o arquivo original.
+        // Comprime fotos antes do envio (menos Storage, uploads mais rápidos);
+        // nunca lança erro — em qualquer falha devolve o arquivo original.
         const arquivoFinal = await comprimirImagem(file);
 
         try {
@@ -1136,7 +1137,7 @@ return false;
                     docId: meta?.docId,
                     blob: arquivoFinal,
                 });
-                showNotification('ConexÃ£o instÃ¡vel: o comprovante foi guardado e serÃ¡ enviado automaticamente quando a internet voltar.', 'info');
+                showNotification('Conexão instável: o comprovante foi guardado e será enviado automaticamente quando a internet voltar.', 'info');
             } catch (e2) {
                 showNotification('Falha ao enviar o arquivo. Tente novamente.', 'error');
             }
@@ -1151,16 +1152,16 @@ return false;
         wallet_transactions: 'proofUrl',
     };
 
-    // Familiar reenvia o comprovante de UM pedido/depÃ³sito especÃ­fico que ficou
+    // Familiar reenvia o comprovante de UM pedido/depósito específico que ficou
     // preso no cache local (upload offline falhou). Se o upload seguir falhando,
-    // fica na fila e o retry automÃ¡tico conclui quando a conexÃ£o voltar.
+    // fica na fila e o retry automático conclui quando a conexão voltar.
     const reenviarComprovante = async (kind: 'orders' | 'wallet_transactions', docId: string, file: File): Promise<string> => {
-        if (!currentUser) throw new Error('UsuÃ¡rio nÃ£o autenticado');
+        if (!currentUser) throw new Error('Usuário não autenticado');
         const pasta = kind === 'orders' ? 'comprovantes_pix' : 'wallet_proofs';
         const url = await uploadFile(file, pasta, { kind, docId });
         if (url === 'PENDENTE_UPLOAD_LOCAL_CACHE') {
             await attachPendingUploadDoc(pasta, docId, kind);
-            showNotification('ConexÃ£o instÃ¡vel: o comprovante serÃ¡ enviado automaticamente.', 'info');
+            showNotification('Conexão instável: o comprovante será enviado automaticamente.', 'info');
             return url;
         }
         await updateDoc(doc(db, kind, docId), { [CAMPO_PROVA[kind]]: url });
@@ -1169,12 +1170,12 @@ return false;
     };
 
     // Admin anexa manualmente um comprovante que chegou por outro canal (WhatsApp,
-    // balcÃ£o...) em um pedido/depÃ³sito que ficou com upload pendente/cache local.
-    // O arquivo vai para a pasta privada do DONO do registro, entÃ£o o servidor
-    // continua validando a URL como pertencente ao usuÃ¡rio correto.
+    // balcão...) em um pedido/depósito que ficou com upload pendente/cache local.
+    // O arquivo vai para a pasta privada do DONO do registro, então o servidor
+    // continua validando a URL como pertencente ao usuário correto.
     const attachAdminProof = async (kind: 'orders' | 'wallet_transactions', docId: string, ownerId: string, file: File): Promise<string> => {
         if (!file || file.size === 0) throw new Error("Arquivo vazio.");
-        if (file.size > 8 * 1024 * 1024) throw new Error('Arquivo muito grande (mÃ¡x. 8 MB).');
+        if (file.size > 8 * 1024 * 1024) throw new Error('Arquivo muito grande (máx. 8 MB).');
         const pasta = kind === 'orders' ? 'comprovantes_pix' : 'wallet_proofs';
         const ext = '.' + (file.name.split('.').pop() || 'jpg').toLowerCase();
         const fileName = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`;
@@ -1200,7 +1201,7 @@ return false;
                     await uploadBytes(fileRef, file);
                     const url = await getDownloadURL(fileRef);
                     if (p.kind && p.docId) {
-                        // SÃ³ atualiza o documento se ele existir (evita fila-zumbi
+                        // Só atualiza o documento se ele existir (evita fila-zumbi
                         // reenviando blobs para docs que nunca foram criados).
                         const docRef = doc(db, p.kind, p.docId);
                         const snap = await getDoc(docRef);
@@ -1211,15 +1212,15 @@ return false;
                             reenviados += 1;
                             continue;
                         }
-                        console.warn('[retryPendingProofs] doc nÃ£o existe, mantendo na fila:', p.kind, p.docId);
+                        console.warn('[retryPendingProofs] doc não existe, mantendo na fila:', p.kind, p.docId);
                         continue;
                     }
                     if (p.docId) {
                         await removePendingUpload(p.id);
                         reenviados += 1;
                     } else {
-                        // Ainda sem vÃ­nculo (o pedido/cadastro ainda nÃ£o foi criado):
-                        // guarda a URL na fila e NÃƒO remove â€” o attach vai vincular depois.
+                        // Ainda sem vínculo (o pedido/cadastro ainda não foi criado):
+                        // guarda a URL na fila e NÃO remove — o attach vai vincular depois.
                         await queuePendingUpload({ ...p, uploadedUrl: url });
                     }
                 } catch (e: any) {
@@ -1249,15 +1250,15 @@ return false;
         try {
             const res = await fnBuscarLoginInfo({ identificador: identifier.trim() });
             const info = res.data as any;
-            if (!info?.encontrado) return { success: false, message: 'UsuÃ¡rio nÃ£o encontrado.' };
+            if (!info?.encontrado) return { success: false, message: 'Usuário não encontrado.' };
 
             if (expectedRole === UserRole.FAMILY && toUserRole(info.role) === UserRole.ADMIN) {
-                return { success: false, message: 'Acesso Administrativo detectado. Por favor, utilize a aba Ãrea Administrativa para entrar.' };
+                return { success: false, message: 'Acesso Administrativo detectado. Por favor, utilize a aba Área Administrativa para entrar.' };
             }
-            if (info.status === 'pending') return { success: false, message: 'Cadastro em anÃ¡lise.' };
+            if (info.status === 'pending') return { success: false, message: 'Cadastro em análise.' };
             if (info.status === 'suspended') return { success: false, message: 'Conta suspensa.' };
 
-            // MigraÃ§Ã£o: usuÃ¡rio legado sem conta vinculada â†’ provisiona (valida a senha atual no servidor)
+            // Migração: usuário legado sem conta vinculada â†’ provisiona (valida a senha atual no servidor)
             if (!info.jaVinculado) {
                 try {
                     await fnRegistrarUsuario({
@@ -1268,7 +1269,7 @@ return false;
                 } catch (e: any) {
                     const msg = e?.message || '';
                     if (msg.includes('incorreta')) return { success: false, message: 'Senha incorreta.' };
-                    return { success: false, message: msg || 'Erro de conexÃ£o.' };
+                    return { success: false, message: msg || 'Erro de conexão.' };
                 }
             }
 
@@ -1279,7 +1280,7 @@ return false;
             }
 
             return { success: true };
-        } catch (e: any) { return { success: false, message: 'Erro de conexÃ£o.' }; }
+        } catch (e: any) { return { success: false, message: 'Erro de conexão.' }; }
     };
 
     const loginAdmin = async (email: string, pass: string) => {
@@ -1289,16 +1290,16 @@ return false;
 
             if (!info?.encontrado) {
                 if (!info?.existemAdmins) {
-                    throw new Error("Primeiro acesso do sistema: crie o administrador inicial na Ã¡rea administrativa.");
+                    throw new Error("Primeiro acesso do sistema: crie o administrador inicial na área administrativa.");
                 }
                 throw new Error("E-mail ou senha de administrador incorretos.");
             }
             if (toUserRole(info.role) !== UserRole.ADMIN) {
-                throw new Error("Este e-mail nÃ£o pertence a um administrador.");
+                throw new Error("Este e-mail não pertence a um administrador.");
             }
             if (info.status === 'suspended') throw new Error("Conta suspensa.");
 
-            // MigraÃ§Ã£o: admin legado sem conta vinculada â†’ provisiona (valida a senha atual no servidor)
+            // Migração: admin legado sem conta vinculada â†’ provisiona (valida a senha atual no servidor)
             if (!info.jaVinculado) {
                 try {
                     await fnRegistrarUsuario({
@@ -1332,10 +1333,10 @@ return false;
         try {
             const res = await fnBuscarLoginInfo({ identificador: identifier.trim() });
             const info = res.data as any;
-            if (info?.encontrado) return { success: true, message: 'Utilize a opÃ§Ã£o "Redefinir Senha" com seu CPF e o CPF do interno para criar uma nova senha.' };
-            return { success: false, message: 'UsuÃ¡rio nÃ£o encontrado.' };
+            if (info?.encontrado) return { success: true, message: 'Utilize a opção "Redefinir Senha" com seu CPF e o CPF do interno para criar uma nova senha.' };
+            return { success: false, message: 'Usuário não encontrado.' };
         } catch (e: any) {
-            return { success: false, message: 'Erro de conexÃ£o.' };
+            return { success: false, message: 'Erro de conexão.' };
         }
     };
 
@@ -1356,7 +1357,7 @@ return false;
                 );
             }
 
-            // PreÃ§o anunciado Ã© o cobrado: promoPrice quando ativo, senÃ£o price.
+            // Preço anunciado é o cobrado: promoPrice quando ativo, senão price.
             const precoEfetivo = (Number(product.promoPrice) > 0) ? Number(product.promoPrice) : (Number(product.price) || 0);
             return [...cartArray, { ...product, productId: product.id, quantity: novaQtd, priceAtPurchase: precoEfetivo } as CartItem];
         });
@@ -1367,12 +1368,12 @@ return false;
 
     const createOrder = async (arg1: Partial<Order> | File | null, arg2?: InmateLocation, clientToken?: string, argItems?: CartItem[]) => {
         if (!currentUser) return false;
-        // Fonte da verdade: itens EXPLÃCITOS (carrinho local da tela). O cart do
-        // contexto Ã© usado apenas pelo PDV admin e NUNCA estÃ¡ populado aqui.
+        // Fonte da verdade: itens EXPLÍCITOS (carrinho local da tela). O cart do
+        // contexto é usado apenas pelo PDV admin e NUNCA está populado aqui.
         const carrinhoFonte = argItems || cart;
         const totalCarrinho = (carrinhoFonte || []).reduce((acc, i) => acc + ((Number(i.priceAtPurchase) || 0) * (Number(i.quantity) || 0)), 0);
         if ((carrinhoFonte || []).length === 0) throw new Error("Carrinho vazio.");
-        // Token de idempotÃªncia: o MESMO token em reenvios devolve o pedido jÃ¡
+        // Token de idempotência: o MESMO token em reenvios devolve o pedido já
         // criado no servidor (sem debitar estoque/saldo 2x). Reutilize o token
         // ao reenviar a MESMA tentativa de venda.
         const token = clientToken || crypto.randomUUID();
@@ -1400,7 +1401,7 @@ return false;
                 setCurrentUser(prev => ({ ...(prev || currentUser), walletBalance: novoSaldo }));
                 setCreditoCliente(novoSaldo);
             } else {
-                // Pedido PIX processado NO SERVIDOR (preÃ§os e estoque validados)
+                // Pedido PIX processado NO SERVIDOR (preços e estoque validados)
                 const resPix = await fnRegistrarPedidoPix({
                     items,
                     clientToken: token,
@@ -1408,7 +1409,7 @@ return false;
                     inmateLocation: orderData.inmateLocation || undefined,
                     deliveryLocation: orderData.deliveryLocation || undefined
                 });
-                // Replay de tentativa anterior: o pedido jÃ¡ existia â€” atualiza o
+                // Replay de tentativa anterior: o pedido já existia — atualiza o
                 // comprovante pendente sem duplicar nada no servidor.
                 if ((resPix?.data as any)?.replay && proofUrl && proofUrl !== "PENDENTE_UPLOAD_LOCAL_CACHE") {
                     const orderId = (resPix?.data as any)?.order?.id;
@@ -1416,12 +1417,12 @@ return false;
                         await updateDoc(doc(db, 'orders', orderId), { paymentProofUrl: proofUrl }).catch(() => {});
                     }
                 }
-                // Comprovante em cache local (upload offline): vincula ao pedido criado para reenvio automÃ¡tico
+                // Comprovante em cache local (upload offline): vincula ao pedido criado para reenvio automático
                 if (proofUrl === "PENDENTE_UPLOAD_LOCAL_CACHE") {
                     const orderId = (resPix?.data as any)?.order?.id;
                     if (orderId) {
                         const vinculo = await attachPendingUploadDoc('comprovantes_pix', orderId, 'orders');
-                        // Se um retry jÃ¡ tinha enviado o arquivo ao Storage antes do
+                        // Se um retry já tinha enviado o arquivo ao Storage antes do
                         // pedido existir, grava a URL real imediatamente no pedido.
                         if (typeof vinculo === 'string') {
                             await updateDoc(doc(db, 'orders', orderId), { paymentProofUrl: vinculo }).catch(() => {});
@@ -1438,11 +1439,11 @@ return false;
         }
     };
 
-    const refundOrder = async (orderId: string, reason: string = 'DevoluÃ§Ã£o administrativa') => {
+    const refundOrder = async (orderId: string, reason: string = 'Devolução administrativa') => {
         if (!currentUser) return;
         const order = orders.find(o => o.id === orderId);
-        if (!order) throw new Error("Pedido nÃ£o encontrado.");
-        if (order.status === OrderStatus.CANCELLED) throw new Error("Este pedido jÃ¡ foi cancelado/devolvido.");
+        if (!order) throw new Error("Pedido não encontrado.");
+        if (order.status === OrderStatus.CANCELLED) throw new Error("Este pedido já foi cancelado/devolvido.");
 
         try {
             // Estorno processado NO SERVIDOR (restaura estoque + carteira + status)
@@ -1453,14 +1454,14 @@ return false;
             showNotification(`Pedido #${order.id.slice(0,6)} devolvido com sucesso!`, 'success');
         } catch (e: any) {
             console.error(e);
-            throw new Error("Erro ao processar devoluÃ§Ã£o: " + e.message);
+            throw new Error("Erro ao processar devolução: " + e.message);
         }
     };
 
     const STATUS_VALIDOS = ['pending', 'paid', 'preparing', 'delivered', 'cancelled', 'rejected', 'refunded', 'pago', 'separacao', 'entregue', 'cancelado', 'rejeitado'];
     const updateOrderStatus = async (oid: string, status: string) => {
         const alvo = String(status || '').toLowerCase();
-        if (!STATUS_VALIDOS.includes(alvo)) { showNotification("Status invÃ¡lido.", "error"); return; }
+        if (!STATUS_VALIDOS.includes(alvo)) { showNotification("Status inválido.", "error"); return; }
         try { await updateDoc(doc(db, 'orders', oid), { status }); } catch (e: any) { showNotification("Erro ao atualizar status: " + e.message, "error"); throw e; }
     };
     const aprovarPedido = async (orderId: string, finalizar: boolean = true) => {
@@ -1479,13 +1480,13 @@ return false;
             const order = orders.find(o => o.id === oid);
             const estornado = order ? ['refunded', 'devolvido', 'reembolsado', 'estornado', 'cancelled', 'cancelado'].includes(String(order.status || '').toLowerCase()) : false;
             if (order && !estornado) {
-                // Pedido pago com carteira: o dinheiro PRECISA voltar ao usuÃ¡rio â€”
-                // exclusÃ£o direta deixaria o saldo retido para sempre. Rota obrigatÃ³ria
-                // pelo estorno (servidor devolve saldo + estoque de forma atÃ´mica).
+                // Pedido pago com carteira: o dinheiro PRECISA voltar ao usuário —
+                // exclusão direta deixaria o saldo retido para sempre. Rota obrigatória
+                // pelo estorno (servidor devolve saldo + estoque de forma atômica).
                 const usouCarteira = String(order.paymentMethod || '').toUpperCase() === 'WALLET' ||
                     (Array.isArray(order.payments) && order.payments.some((p: any) => String(p.method || '').toUpperCase() === 'WALLET'));
                 if (usouCarteira) {
-                    await fnEstornarVenda({ orderId: oid, motivo: 'ExclusÃ£o administrativa (restituiÃ§Ã£o da carteira)' });
+                    await fnEstornarVenda({ orderId: oid, motivo: 'Exclusão administrativa (restituição da carteira)' });
                     await updateDoc(doc(db, 'orders', oid), { deleted: true });
                 } else {
                     await runTransaction(db, async (transaction) => {
@@ -1503,7 +1504,7 @@ return false;
             } else {
                 await updateDoc(doc(db, 'orders', oid), { deleted: true });
             }
-            showNotification(estornado ? "Pedido estornado movido para a lixeira (estoque jÃ¡ devolvido)" : "Pedido excluÃ­do e valores restituÃ­dos", "success");
+            showNotification(estornado ? "Pedido estornado movido para a lixeira (estoque já devolvido)" : "Pedido excluído e valores restituídos", "success");
         } catch (e: any) {
             showNotification("Erro ao excluir pedido: " + (e?.message || 'tente novamente'), "error");
         }
@@ -1557,15 +1558,15 @@ return false;
 
     const approveUser = async (uid: string) => {
         if (!currentUser || currentUser.role !== UserRole.ADMIN || !requirePermission('users')) return;
-        try { await updateDoc(doc(db, 'users', uid), { status: 'active', approved: true }); } catch (e: any) { showNotification("Erro ao aprovar usuÃ¡rio", "error"); }
+        try { await updateDoc(doc(db, 'users', uid), { status: 'active', approved: true }); } catch (e: any) { showNotification("Erro ao aprovar usuário", "error"); }
     };
     const suspendUser = async (uid: string, status: boolean) => {
         if (!currentUser || currentUser.role !== UserRole.ADMIN || !requirePermission('users')) return;
-        try { await updateDoc(doc(db, 'users', uid), { status: status ? 'suspended' : 'active', suspended: status }); } catch (e: any) { showNotification("Erro ao suspender usuÃ¡rio", "error"); }
+        try { await updateDoc(doc(db, 'users', uid), { status: status ? 'suspended' : 'active', suspended: status }); } catch (e: any) { showNotification("Erro ao suspender usuário", "error"); }
     };
     const toggleUserCredit = async (uid: string, allow: boolean) => {
         if (!currentUser || currentUser.role !== UserRole.ADMIN || !requirePermission('wallet')) return;
-        try { await updateDoc(doc(db, 'users', uid), { allowCredit: allow }); } catch (e: any) { showNotification("Erro ao alterar crÃ©dito", "error"); }
+        try { await updateDoc(doc(db, 'users', uid), { allowCredit: allow }); } catch (e: any) { showNotification("Erro ao alterar crédito", "error"); }
     };
     const deleteUser = async (uid: string) => {
         if (!currentUser || currentUser.role !== UserRole.ADMIN || !requirePermission('users')) return;
@@ -1576,7 +1577,7 @@ return false;
             if (alvo && (roleAlvo === 'admin' || roleAlvo === 'master')) {
                 await registrarAuditClient('EXCLUIR_ADMIN', { usuarioId: uid, nome: alvo.name, email: alvo.email, permissao: alvo.permissions }, { status: 'ok' });
             }
-        } catch (e: any) { showNotification("Erro ao excluir usuÃ¡rio", "error"); }
+        } catch (e: any) { showNotification("Erro ao excluir usuário", "error"); }
     };
     const updateUserStatus = async (uid: string, s: any) => {
         if (!currentUser || currentUser.role !== UserRole.ADMIN || !requirePermission('users')) return;
@@ -1589,12 +1590,12 @@ return false;
             const batch = writeBatch(db);
             let supplierId = '';
 
-            // Nome normalizado SEM unidade de venda no final (CX, UN, KG...) â€”
-            // "LEITE 1L (CX)" e "LEITE 1L UN" sÃ£o o MESMO produto.
+            // Nome normalizado SEM unidade de venda no final (CX, UN, KG...) —
+            // "LEITE 1L (CX)" e "LEITE 1L UN" são o MESMO produto.
             const normSemUnidade = (nome: string) => {
                 return normalizeName(nome).replace(/(UN|CX|PCT|PCTE|FD|FDO|DSP|UNID|CART|LT|GR|KG|ML|L|G|M|CM|MM)$/g, '');
             };
-            // Pesos/volumes embutidos no nome devem ser compatÃ­veis para fundir:
+            // Pesos/volumes embutidos no nome devem ser compatíveis para fundir:
             // "ARROZ TIO JOAO 5KG" NUNCA funde com "ARROZ TIO JOAO 1KG".
             const pesosCompativeis = (a: string, b: string) => {
                 const pesos = (s: string) => (s.match(/\d+[.,]?\d*\s*(?:KG|G|ML|L|M|GR|LT|CM|MM)/gi) || []).map(m => m.replace(/\s/g, ''));
@@ -1604,7 +1605,7 @@ return false;
             };
             // Predicado de duplicidade (testado em dedup_test): EANs divergentes
             // NUNCA fundem; sem EAN, exige nome equivalente (sem unidade) ou
-            // similaridade alta + peso/volume compatÃ­vel.
+            // similaridade alta + peso/volume compatível.
             const ehDuplicado = (p: Product, item: InvoiceData['items'][number]) => {
                 const eanItem = String(item.ean || item.barcode || '').replace(/^0+/, '').trim();
                 const eanProd = String(p.ean || p.barcode || '').replace(/^0+/, '').trim();
@@ -1628,7 +1629,7 @@ return false;
                         name: data.supplier?.name || 'Fornecedor',
                         cnpjOrCpf: data.supplier.cnpj || '',
                         contact: '',
-                        description: 'ImportaÃ§Ã£o AutomÃ¡tica'
+                        description: 'Importação Automática'
                     });
                 }
             }
@@ -1638,7 +1639,7 @@ return false;
             let newCount = 0;
             const totalInXml = data.items.length;
 
-            // Busca COMPLETA dos produtos existentes (o state `products` Ã© limitado a ~100)
+            // Busca COMPLETA dos produtos existentes (o state `products` é limitado a ~100)
             const allProducts: Product[] = [];
             {
                 let lastDoc: any = null;
@@ -1670,11 +1671,11 @@ return false;
             for (const item of data.items) {
                 const clean = cleanProductName(item.name);
                 if (!clean) {
-                    console.warn("Item ignorado (nome vazio apÃ³s limpeza):", item.name);
+                    console.warn("Item ignorado (nome vazio após limpeza):", item.name);
                     continue;
                 }
 
-                // Margem sanitizada: NaN/negativa cairia para 30% e preÃ§o viraria NaN.
+                // Margem sanitizada: NaN/negativa cairia para 30% e preço viraria NaN.
                 const margemSegura = Number.isFinite(Number(profitMargin)) && Number(profitMargin) >= 0 ? Number(profitMargin) : 30;
                 // Defesa contra custo corrompido no XML (> R$ 100k/un):
                 // zera para o operador cadastrar o custo correto.
@@ -1737,12 +1738,12 @@ return false;
 
             await flush();
             await batch.commit();
-            showNotification(`ImportaÃ§Ã£o concluÃ­da! Detectados: ${totalInXml} | Adicionados: ${newCount} | Atualizados: ${updatedCount}`, 'success');
+            showNotification(`Importação concluída! Detectados: ${totalInXml} | Adicionados: ${newCount} | Atualizados: ${updatedCount}`, 'success');
             if (newCount + updatedCount < totalInXml) {
                 showNotification(`${totalInXml - (newCount + updatedCount)} itens foram ignorados ou fundidos por duplicidade EAN.`, 'warning');
             }
         } catch (e: any) {
-            console.error("Erro na importaÃ§Ã£o:", e);
+            console.error("Erro na importação:", e);
             showNotification('Erro ao processar XML: ' + e.message, 'error');
         } finally {
             setIsLoading(false);
@@ -1764,8 +1765,8 @@ return false;
         }));
     };
 
-    // Varre o catÃ¡logo inteiro e zera preÃ§o/custo absurdos (> R$ 100.000/un),
-    // recuperando produtos corrompidos por NFe defeituosa (ex: margarina a R$ 78 bilhÃµes).
+    // Varre o catálogo inteiro e zera preço/custo absurdos (> R$ 100.000/un),
+    // recuperando produtos corrompidos por NFe defeituosa (ex: margarina a R$ 78 bilhões).
     const sanitizeCatalog = async () => {
         const PLACAO = 100000;
         let corrigidos = 0;
@@ -1802,9 +1803,9 @@ return false;
                 price: Number(p.price) > PLACAO ? 0 : Number(p.price),
                 costPrice: Number(p.costPrice) > PLACAO ? 0 : Number(p.costPrice)
             })));
-            showNotification(`SanitizaÃ§Ã£o: ${corrigidos} produto(s) com preÃ§o/custo corrompido zerado(s).`, 'success');
+            showNotification(`Sanitização: ${corrigidos} produto(s) com preço/custo corrompido zerado(s).`, 'success');
         } else {
-            showNotification('CatÃ¡logo Ã­ntegro â€” nenhum preÃ§o absurdo encontrado.', 'info');
+            showNotification('Catálogo íntegro — nenhum preço absurdo encontrado.', 'info');
         }
         return corrigidos;
     };
@@ -1820,13 +1821,13 @@ return false;
             const { secondaryPassword, adminPassword, ...seguro } = synced as any;
             await setDoc(doc(db, 'settings', 'general'), seguro, { merge: true });
             setAppConfig(seguro);
-            showNotification('ConfiguraÃ§Ãµes salvas!', 'success');
+            showNotification('Configurações salvas!', 'success');
         } catch (e: any) {
-            showNotification("Erro ao salvar configuraÃ§Ãµes: " + e.message, "error");
+            showNotification("Erro ao salvar configurações: " + e.message, "error");
         }
     };
 
-    // FunÃ§Ã£o de ativaÃ§Ã£o do sistema (TOKEN-BASED)
+    // Função de ativação do sistema (TOKEN-BASED)
     const generateActivationKey = async (days: number): Promise<string> => {
         const hex = (Math.random().toString(16).slice(2, 6) + Math.random().toString(16).slice(2, 6) + Math.random().toString(16).slice(2, 6) + Math.random().toString(16).slice(2, 6)).toUpperCase();
         const token = hex.match(/.{1,4}/g)?.join('-') || hex;
@@ -1851,21 +1852,21 @@ return false;
             const tokenRegex = /^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/;
             
             if (!tokenRegex.test(cleanToken)) {
-                return { success: false, message: 'Formato de token invÃ¡lido. Use XXXX-XXXX-XXXX-XXXX' };
+                return { success: false, message: 'Formato de token inválido. Use XXXX-XXXX-XXXX-XXXX' };
             }
 
-            // Busca o token na coleÃ§Ã£o system_licenses
+            // Busca o token na coleção system_licenses
             const licenseRef = doc(db, 'system_licenses', cleanToken);
             const licenseSnap = await getDoc(licenseRef);
 
             if (!licenseSnap.exists()) {
-                return { success: false, message: 'Token de ativaÃ§Ã£o nÃ£o encontrado ou jÃ¡ utilizado.' };
+                return { success: false, message: 'Token de ativação não encontrado ou já utilizado.' };
             }
 
             const licenseData = licenseSnap.data();
             
             if (licenseData.status !== 'active') {
-                return { success: false, message: 'Este token estÃ¡ desativado ou jÃ¡ expirou.' };
+                return { success: false, message: 'Este token está desativado ou já expirou.' };
             }
 
             const expiresAt = new Date(licenseData.expiresAt);
@@ -1889,21 +1890,21 @@ return false;
 
             return { success: true, message: 'Sistema ativado com sucesso!' };
         } catch (e: any) {
-            console.error('Erro na ativaÃ§Ã£o:', e);
+            console.error('Erro na ativação:', e);
             return { success: false, message: 'Erro ao validar token: ' + e.message };
         } finally {
             setIsLoading(false);
         }
     };
 
-    // Verificar se sistema estÃ¡ ativo (baseado na data de expiraÃ§Ã£o da licenÃ§a)
+    // Verificar se sistema está ativo (baseado na data de expiração da licença)
     const isSystemActive = useMemo(() => {
         if (!appConfig.expirationDate) return true;
         const expDate = new Date(appConfig.expirationDate);
         return expDate > serverTime;
     }, [appConfig.expirationDate, serverTime]);
 
-    // NormalizaÃ§Ã£o automÃ¡tica de dados legados (Adiciona deleted: false onde falta)
+    // Normalização automática de dados legados (Adiciona deleted: false onde falta)
     const normalizeLegacyDocuments = async () => {
         if (currentUser?.role !== UserRole.ADMIN) return;
         try {
@@ -1931,12 +1932,12 @@ return false;
             if (count > 0) {
                 console.log(`[NORMALIZE] ${count} registros legados atualizados.`);
             }
-        } catch (e) { console.error('Erro na normalizaÃ§Ã£o:', e); }
+        } catch (e) { console.error('Erro na normalização:', e); }
     };
     const updateAppConfig = updateSettings;
     const downloadBackup = async () => {
-        // 1) Tenta baixar o BACKUP COMPLETO do servidor (diÃ¡rio/manual gerado
-        //    pela Cloud Function â€” o export local abaixo Ã© sÃ³ um recorte parcial).
+        // 1) Tenta baixar o BACKUP COMPLETO do servidor (diário/manual gerado
+        //    pela Cloud Function — o export local abaixo é só um recorte parcial).
         try {
             const listaRes: any = await fnListarBackups({});
             const backups = (listaRes?.data?.backups || []) as { nome: string; tamanho: number }[];
@@ -1954,9 +1955,9 @@ return false;
                 }
             }
         } catch (e: any) {
-            console.warn('[backup] Servidor indisponÃ­vel, usando export local parcial:', e?.message);
+            console.warn('[backup] Servidor indisponível, usando export local parcial:', e?.message);
         }
-        // 2) Fallback: export local dos dados em memÃ³ria (parcial)
+        // 2) Fallback: export local dos dados em memória (parcial)
         const sanitizeUsers = (users || []).map((u: any) => {
             const { password, secondaryPassword, adminPassword, ...limpo } = u || {};
             return limpo;
@@ -1990,8 +1991,8 @@ return false;
         if (!confirm || currentUser?.role !== UserRole.ADMIN) return;
         setIsLoading(true);
         try {
-            // Reset agora roda NO SERVIDOR, sÃ³ para admin principal, com
-            // rate limit â€” nÃ£o Ã© mais possÃ­vel apagar o banco do cliente.
+            // Reset agora roda NO SERVIDOR, só para admin principal, com
+            // rate limit — não é mais possível apagar o banco do cliente.
             await fnResetarSistemaTotal({ confirmar: true });
             showNotification("Sistema resetado com sucesso!", "success");
             window.location.reload();
@@ -2028,10 +2029,10 @@ return false;
             const cleanInmateCpf = (d.prisonerCpf || d.inmateCpf || '').replace(/\D/g, '');
             const preRegistered = preRegisteredInmates.find(inmate => (inmate?.cpf || '').replace(/\D/g, '') === cleanInmateCpf);
             const inmateName = preRegistered ? preRegistered.name : (d.inmateName || d.prisonerName);
-            // ValidaÃ§Ãµes de prÃ©-cadastro e limite de familiares sÃ£o feitas no servidor
-            // (registrarUsuario), pois o cliente ainda nÃ£o estÃ¡ autenticado no momento do cadastro.
+            // Validações de pré-cadastro e limite de familiares são feitas no servidor
+            // (registrarUsuario), pois o cliente ainda não está autenticado no momento do cadastro.
 
-            // Cria a conta no Firebase Auth + documento do usuÃ¡rio (via Cloud Function)
+            // Cria a conta no Firebase Auth + documento do usuário (via Cloud Function)
             const res = await fnRegistrarUsuario({
                 dados: {
                     name: d.name || '',
@@ -2049,7 +2050,7 @@ return false;
             const data = res.data as any;
 
             // Entra automaticamente para permitir upload do documento de identidade
-            // (exceto contas administrativas â€” criaAdminUser/fluxo admin nÃ£o usa auto-login)
+            // (exceto contas administrativas — criaAdminUser/fluxo admin não usa auto-login)
             if (data?.userId && (d.role || UserRole.FAMILY) !== UserRole.ADMIN) {
                 try {
                     const loginInfo = await fnBuscarLoginInfo({ identificador: d.cpf || '' });
@@ -2068,7 +2069,7 @@ return false;
                 }
             }
 
-            return { success: true, message: 'Cadastro enviado com sucesso! Aguarde a aprovaÃ§Ã£o.' };
+            return { success: true, message: 'Cadastro enviado com sucesso! Aguarde a aprovação.' };
         } catch (e: any) {
             throw new Error(e.message);
         } finally {
@@ -2095,15 +2096,15 @@ return false;
     const updateAdminPermissions = async (userId: string, permissions: string[]) => {
         try {
             await fnAtualizarPermissoesAdmin({ userId, permissions: Array.isArray(permissions) ? permissions : [] });
-            showNotification('PermissÃµes atualizadas', 'success');
+            showNotification('Permissões atualizadas', 'success');
         } catch (e: any) {
-            showNotification('Erro ao atualizar permissÃµes: ' + e.message, 'error');
+            showNotification('Erro ao atualizar permissões: ' + e.message, 'error');
         }
     };
     const validateRecovery = async (userCpf: string, prisonerCpf: string, nomeCompleto: string): Promise<User> => {
         setIsLoading(true);
         try {
-            // Valida no servidor (CPF do usuÃ¡rio + CPF do interno + nome completo cadastrado)
+            // Valida no servidor (CPF do usuário + CPF do interno + nome completo cadastrado)
             await fnRedefinirSenhaPublica({ cpf: userCpf, cpfInterno: prisonerCpf, nomeCompleto, novaSenha: '__VALIDACAO__' });
             return { id: 'validated', cpf: userCpf, name: 'Validado' } as User;
         } finally { setIsLoading(false); }
@@ -2185,7 +2186,7 @@ return false;
                 chunk.forEach(d => {
                     const saldo = Number(d.data().walletBalance || 0);
                     if (saldo > 0) {
-                        // Trilha no extrato: cada carteira zerada vira uma correÃ§Ã£o visÃ­vel,
+                        // Trilha no extrato: cada carteira zerada vira uma correção visível,
                         // mantendo o extrato coerente com o saldo (antes sumia sem registro).
                         const txRef = doc(collection(db, 'wallet_transactions'));
                         batch.set(txRef, {
@@ -2193,7 +2194,7 @@ return false;
                             amount: -saldo,
                             type: 'correction',
                             status: 'approved',
-                            description: 'Zeragem de crÃ©ditos (reset manual)',
+                            description: 'Zeragem de créditos (reset manual)',
                             createdAt: agora,
                             proofUrl: '',
                             payerName: currentUser.name || '',
@@ -2205,9 +2206,9 @@ return false;
                 await batch.commit();
             }
             await registrarAuditClient('ZERAR_CREDITOS', { usuariosComSaldo: antes }, { status: 'ok' });
-            showNotification("Todos os crÃ©ditos foram zerados.", "success");
+            showNotification("Todos os créditos foram zerados.", "success");
         } catch (e: any) {
-            showNotification("Erro ao zerar crÃ©ditos: " + e.message, "error");
+            showNotification("Erro ao zerar créditos: " + e.message, "error");
         }
     };
 
@@ -2227,9 +2228,9 @@ return false;
     };
 
     const depositToWallet = async (amount: number, proofFile: File) => {
-        if (!currentUser) throw new Error('UsuÃ¡rio nÃ£o autenticado');
+        if (!currentUser) throw new Error('Usuário não autenticado');
         const valorDeposito = Math.round((Number(amount) || 0) * 100) / 100;
-        if (!(valorDeposito > 0)) throw new Error('Valor do depÃ³sito deve ser maior que zero.');
+        if (!(valorDeposito > 0)) throw new Error('Valor do depósito deve ser maior que zero.');
         try {
             const transaction: WalletTransaction = {
                 id: crypto.randomUUID(),
@@ -2240,14 +2241,14 @@ return false;
                 status: 'pending',
                 createdAt: new Date().toISOString(),
                 type: 'deposit',
-                description: `DepÃ³sito via PIX por ${currentUser?.name || 'UsuÃ¡rio'}`,
+                description: `Depósito via PIX por ${currentUser?.name || 'Usuário'}`,
                 payerName: currentUser?.name || '',
                 payerId: currentUser?.id || ''
             };
             const proofUrl = await uploadFile(proofFile, 'wallet_proofs', { kind: 'wallet_transactions', docId: transaction.id });
             transaction.proofUrl = proofUrl;
             if (proofUrl === "PENDENTE_UPLOAD_LOCAL_CACHE") {
-                showNotification('ConexÃ£o instÃ¡vel: seu comprovante foi guardado e serÃ¡ enviado automaticamente quando a internet voltar.', 'info');
+                showNotification('Conexão instável: seu comprovante foi guardado e será enviado automaticamente quando a internet voltar.', 'info');
             }
             await setDoc(doc(db, 'wallet_transactions', transaction.id), transaction);
         } catch (e: any) {
@@ -2267,20 +2268,18 @@ return false;
                     setCurrentUser(prev => prev ? ({ ...prev, walletBalance: Number(data.novoSaldo) }) : prev);
                 }
             }
-            showNotification("DepÃ³sito aprovado e crÃ©dito adicionado!", "success");
+            showNotification("Depósito aprovado e crédito adicionado!", "success");
         } catch (e: any) {
-            showNotification("Erro ao aprovar depÃ³sito: " + e.message, "error");
-            throw e; // repassa ao chamador para NÃO fechar o modal quando o servidor recusar
+            showNotification("Erro ao aprovar depósito: " + e.message, "error");
         }
     };
 
     const rejectWalletTransaction = async (tid: string) => {
         try {
             await fnRejeitarDeposito({ transacaoId: tid });
-            showNotification("DepÃ³sito recusado.", "info");
+            showNotification("Depósito recusado.", "info");
         } catch (e: any) {
-            showNotification("Erro ao recusar depÃ³sito: " + e.message, "error");
-            throw e; // repassa ao chamador para NÃO fechar o modal quando o servidor recusar
+            showNotification("Erro ao recusar depósito: " + e.message, "error");
         }
     };
 
@@ -2293,7 +2292,7 @@ return false;
                 setCreditoCliente(data.novoSaldo);
                 setCurrentUser(prev => prev ? ({ ...prev, walletBalance: data.novoSaldo }) : prev);
             }
-            showNotification("Retirada de crÃ©dito realizada.", "success");
+            showNotification("Retirada de crédito realizada.", "success");
         } catch (e: any) {
             showNotification(mensagemErroChamada(e), "error");
         }
@@ -2311,8 +2310,8 @@ return false;
                     s = await getDocs(qAll);
                 }
             } catch (queryError) {
-                console.warn('[getWalletTransactions] Fallback preventivo acionado por falta de Ã­ndice ou erro de query:', queryError);
-                // FALLBACK: Query simplificada sem orderBy (evita quebra por falta de Ã­ndice composto)
+                console.warn('[getWalletTransactions] Fallback preventivo acionado por falta de índice ou erro de query:', queryError);
+                // FALLBACK: Query simplificada sem orderBy (evita quebra por falta de índice composto)
                 if (userId) {
                     const qUserFallback = query(collection(db, 'wallet_transactions'), where('userId', '==', userId), limit(300));
                     s = await getDocs(qUserFallback);
@@ -2324,7 +2323,7 @@ return false;
 
             const transactions = s.docs.map(d => ({ ...d.data(), id: d.id } as WalletTransaction));
             
-            // OrdenaÃ§Ã£o manual via JS garante que o usuÃ¡rio sempre veja o mais recente primeiro
+            // Ordenação manual via JS garante que o usuário sempre veja o mais recente primeiro
             return transactions.sort((a, b) => {
                 const dateA = toDate(a.createdAt)?.getTime() || 0;
                 const dateB = toDate(b.createdAt)?.getTime() || 0;
@@ -2360,25 +2359,25 @@ return false;
             const expenseRef = doc(db, 'expenses', id);
             const valor = Math.round((Number(e.amount) || 0) * 100) / 100;
 
-            // Despesa debitada do CAIXA FÃSICO: grava a despesa E a sangria na MESMA
-            // transaÃ§Ã£o (atÃ´mico) â€” nunca uma fica sem a outra. Exige sessÃ£o aberta.
+            // Despesa debitada do CAIXA FÍSICO: grava a despesa E a sangria na MESMA
+            // transação (atômico) — nunca uma fica sem a outra. Exige sessão aberta.
             if (e.debitAccount === 'CAIXA' && currentUser) {
                 const sessao = await getActiveSession(currentUser.id);
                 if (!sessao) {
-                    throw new Error('Nenhuma sessÃ£o de caixa aberta para este operador. Abra o caixa antes de lanÃ§ar despesa debitada no caixa fÃ­sico.');
+                    throw new Error('Nenhuma sessão de caixa aberta para este operador. Abra o caixa antes de lançar despesa debitada no caixa físico.');
                 }
                 const sessaoRef = doc(db, 'cash_sessions', sessao.id);
                 await runTransaction(db, async (tx) => {
                     const sessaoSnap = await tx.get(sessaoRef);
                     if (!sessaoSnap.exists() || String(sessaoSnap.data()?.status || '').toUpperCase() !== 'OPEN') {
-                        throw new Error('A sessÃ£o de caixa foi fechada. Reabra o caixa antes de lanÃ§ar a despesa.');
+                        throw new Error('A sessão de caixa foi fechada. Reabra o caixa antes de lançar a despesa.');
                     }
                     tx.set(expenseRef, { ...e, id, amount: valor });
                     tx.update(sessaoRef, {
                         currentBalance: increment(-valor),
                         withdrawals: arrayUnion({
                             amount: valor,
-                            reason: `Despesa: ${e.description || 'LanÃ§amento'}`,
+                            reason: `Despesa: ${e.description || 'Lançamento'}`,
                             timestamp: Timestamp.now(),
                         }),
                     });
@@ -2434,10 +2433,10 @@ return false;
     };
 
     const showNotification = (message: string, type: any = 'info') => {
-        // HABILITADO PARA TODOS OS TIPOS - CorreÃ§Ã£o cirÃºrgica de lÃ³gica restritiva anterior
+        // HABILITADO PARA TODOS OS TIPOS - Correção cirúrgica de lógica restritiva anterior
         const id = Math.random().toString(36).substring(2, 9);
         setNotifications(prev => {
-            // Filtra notificaÃ§Ãµes idÃªnticas para evitar poluiÃ§Ã£o visual
+            // Filtra notificações idênticas para evitar poluição visual
             const filtered = prev.filter(n => n.message !== message);
             return [...filtered.slice(-3), { id, message, type }];
         });
@@ -2448,21 +2447,21 @@ return false;
     }, []);
 
     // Converte erros de chamadas (httpsCallable) na mensagem REAL do servidor.
-    // Antes o erro era mascarado com "Falha ao processar crÃ©dito." â€” o usuÃ¡rio
-    // nunca sabia o motivo (senha nÃ£o configurada, senha errada, limite de
-    // tentativas etc.). Agora a mensagem do HttpsError chega ao cliente e Ã©
-    // traduzida para um texto acionÃ¡vel.
+    // Antes o erro era mascarado com "Falha ao processar crédito." — o usuário
+    // nunca sabia o motivo (senha não configurada, senha errada, limite de
+    // tentativas etc.). Agora a mensagem do HttpsError chega ao cliente e é
+    // traduzida para um texto acionável.
     const mensagemErroChamada = (e: any): string => {
-        if (!e) return "Falha ao processar a operaÃ§Ã£o. Tente novamente.";
+        if (!e) return "Falha ao processar a operação. Tente novamente.";
         const message = String(e?.message || '').replace(/^\(.*?\)\s*/, '').trim();
         const code = String(e?.code || e?.details?.code || '').toLowerCase().replace(/functions\//, '');
-        if (/unauthenticated/i.test(code)) return "SessÃ£o expirada. Saia e entre novamente.";
+        if (/unauthenticated/i.test(code)) return "Sessão expirada. Saia e entre novamente.";
         if (/unavailable|cancelled|deadline/i.test(code) || /unavailable|deadline|network/i.test(message)) {
             return "Servidor sem resposta. Verifique sua internet e tente novamente.";
         }
         if (/resource-exhausted|rate/i.test(code)) return "Muitas tentativas em pouco tempo. Aguarde 1 minuto e tente novamente.";
         if (message) return message;
-        return "Falha ao processar a operaÃ§Ã£o. Tente novamente.";
+        return "Falha ao processar a operação. Tente novamente.";
     };
 
     const validateMasterPassword = async (pass: string) => {
@@ -2498,7 +2497,7 @@ return false;
 
     const updateAdminPassword = async (newPass: string) => { newPass = newPass.trim();
         if (!currentUser || currentUser.role !== UserRole.ADMIN) { showNotification("Acesso negado.", "error"); return; }
-        if (newPass.length < 6) { showNotification("A senha deve ter no mÃ­nimo 6 caracteres.", "error"); return; }
+        if (newPass.length < 6) { showNotification("A senha deve ter no mínimo 6 caracteres.", "error"); return; }
         try {
             await fnAlterarSenha({ novaSenha: newPass });
             showNotification("Senha de administrador atualizada com sucesso!", "success");
@@ -2512,12 +2511,12 @@ return false;
         try {
             const cleanCpf = (inmate.cpf || '').replace(/\D/g, '');
             if (cleanCpf.length !== 11) {
-                showNotification("CPF invÃ¡lido para prÃ©-cadastro.", "error");
+                showNotification("CPF inválido para pré-cadastro.", "error");
                 return;
             }
-            // Impede duplicidade: CPF jÃ¡ prÃ©-cadastrado (ou importado) nÃ£o entra de novo.
+            // Impede duplicidade: CPF já pré-cadastrado (ou importado) não entra de novo.
             if ((preRegisteredInmates || []).some(i => String(i.cpf || '').replace(/\D/g, '') === cleanCpf)) {
-                showNotification("Este CPF jÃ¡ estÃ¡ prÃ©-cadastrado no sistema.", "error");
+                showNotification("Este CPF já está pré-cadastrado no sistema.", "error");
                 return;
             }
             const id = crypto.randomUUID();
@@ -2531,9 +2530,9 @@ return false;
                 status: 'ATIVO',
                 id
             });
-            showNotification("Interno prÃ©-cadastrado com sucesso!", "success");
+            showNotification("Interno pré-cadastrado com sucesso!", "success");
         } catch (e: any) {
-            showNotification("Erro ao prÃ©-cadastrar interno: " + e.message, "error");
+            showNotification("Erro ao pré-cadastrar interno: " + e.message, "error");
         }
     };
 
@@ -2544,9 +2543,9 @@ return false;
             if (data.name !== undefined) patch.name = (data.name || '').trim().toUpperCase();
             if (data.cpf !== undefined) {
                 const cleanCpf = (data.cpf || '').replace(/\D/g, '');
-                if (cleanCpf.length !== 11) { showNotification("CPF invÃ¡lido.", "error"); return; }
+                if (cleanCpf.length !== 11) { showNotification("CPF inválido.", "error"); return; }
                 if ((preRegisteredInmates || []).some(i => i.id !== id && String(i.cpf || '').replace(/\D/g, '') === cleanCpf)) {
-                    showNotification("Este CPF jÃ¡ pertence a outro interno.", "error");
+                    showNotification("Este CPF já pertence a outro interno.", "error");
                     return;
                 }
                 patch.cpf = cleanCpf;
@@ -2588,7 +2587,7 @@ return false;
             }
 
             if (entries.length === 0) {
-                showNotification("Nenhum dado vÃ¡lido encontrado no CSV. Use o formato: NOME,CPF", "warning");
+                showNotification("Nenhum dado válido encontrado no CSV. Use o formato: NOME,CPF", "warning");
                 return;
             }
 
@@ -2598,9 +2597,9 @@ return false;
                 chunk.forEach(e => batch.set(doc(db, 'pre_registered_inmates', e.id), e));
                 await batch.commit();
             }
-            showNotification(`${entries.length} internos importados com sucesso!${skippedExisting > 0 ? ` (${skippedExisting} jÃ¡ existentes foram ignorados)` : ''}`, 'success');
+            showNotification(`${entries.length} internos importados com sucesso!${skippedExisting > 0 ? ` (${skippedExisting} já existentes foram ignorados)` : ''}`, 'success');
         } catch (e: any) {
-            showNotification("Erro na importaÃ§Ã£o: " + e.message, "error");
+            showNotification("Erro na importação: " + e.message, "error");
         } finally {
             setIsLoading(false);
         }
@@ -2618,8 +2617,8 @@ return false;
 
 
 
-    // â”€â”€ ESTADO DE AUTENTICAÃ‡ÃƒO (Firebase Auth) â”€â”€
-    // Carrega o usuÃ¡rio pelo authUid e sÃ³ entÃ£o libera os listeners de dados.
+    // ── ESTADO DE AUTENTICAÇÃO (Firebase Auth) ──
+    // Carrega o usuário pelo authUid e só então libera os listeners de dados.
     useEffect(() => {
         let ativo = true;
         const unsub = onAuthStateChanged(auth, async (fbUser) => {
@@ -2666,10 +2665,10 @@ return false;
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // â”€â”€ PDV OFFLINE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── PDV OFFLINE ────────────────────────────────────────────────────────
     // Vendas registradas sem internet ficam nesta fila local e sincronizam
-    // sozinhas quando a rede volta (o id da venda Ã© o clientToken â†’ o
-    // servidor nunca cria duplicata ao repetir a sincronizaÃ§Ã£o).
+    // sozinhas quando a rede volta (o id da venda é o clientToken â†’ o
+    // servidor nunca cria duplicata ao repetir a sincronização).
     const [vendasOffline, setVendasOffline] = useState<VendaOffline[]>(() => listarVendasOffline());
 
     const registrarVendaOffline = useCallback(async (
@@ -2709,7 +2708,7 @@ return false;
         return {
             id: venda.id,
             userId: targetUserId,
-            userName: alvo?.name || 'BalcÃ£o',
+            userName: alvo?.name || 'Balcão',
             userCpf: alvo?.cpf,
             unitId: currentUser.unitId || '',
             items: venda.items.map((i) => ({ productId: i.productId, name: i.name, priceAtPurchase: i.price, quantity: i.quantity })),
@@ -2743,7 +2742,7 @@ return false;
                     change: v.change ?? undefined,
                     customerAccountId: v.customerAccountId || undefined,
                 });
-                if (!(res.data as any)?.order) throw new Error('Servidor nÃ£o confirmou a venda.');
+                if (!(res.data as any)?.order) throw new Error('Servidor não confirmou a venda.');
                 removerVendaOffline(v.id);
                 sincronizadas += 1;
             } catch (e: any) {
@@ -2756,7 +2755,7 @@ return false;
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Auto-sincronizaÃ§Ã£o: ao abrir o app online e quando a conexÃ£o voltar.
+    // Auto-sincronização: ao abrir o app online e quando a conexão voltar.
     useEffect(() => {
         const rodar = async () => {
             if (!currentUser || currentUser.role !== UserRole.ADMIN) return;
@@ -2766,7 +2765,7 @@ return false;
             if (r.sincronizadas > 0) {
                 showNotification(`Vendas offline sincronizadas: ${r.sincronizadas}.`, 'success');
             } else if (r.comErro > 0) {
-                showNotification(`${r.comErro} venda(s) offline aguardando conferÃªncia no painel.`, 'warning');
+                showNotification(`${r.comErro} venda(s) offline aguardando conferência no painel.`, 'warning');
             }
         };
         rodar();
@@ -2774,6 +2773,13 @@ return false;
         window.addEventListener('online', handler);
         return () => window.removeEventListener('online', handler);
     }, [currentUser, sincronizarVendasOffline, showNotification]);
+
+    // Admin-only one-time cleanup: runs once per session, NOT on every limit change.
+    useEffect(() => {
+        if (!authReady || !currentUser || currentUser?.role !== UserRole.ADMIN) return;
+        performAutoCleanup();
+        normalizeLegacyDocuments();
+    }, [authReady, currentUser?.id, currentUser?.role]);
 
     useEffect(() => {
         if (!authReady || !currentUser) return;
@@ -2815,15 +2821,15 @@ return false;
             try {
                 const configSnap = await getDoc(doc(db, 'settings', 'general'));
                 if (!configSnap.exists()) {
-                    // CriaÃ§Ã£o do config: apenas admin (regras exigem role admin)
+                    // Criação do config: apenas admin (regras exigem role admin)
                     if (currentUser?.role === UserRole.ADMIN) {
                         await setDoc(doc(db, 'settings', 'general'), semSenhasConfig(DEFAULT_CONFIG));
                     }
                     setAppConfig(DEFAULT_CONFIG);
                 } else {
                     const data = configSnap.data();
-                    if ((data.appName || '').toUpperCase().includes('JUMBO') || (data.systemName || '').toUpperCase().includes('JUMBO') || !(data.systemName || '') || (data.systemName || '').includes('FAMÃLIA')) {
-                        const fixedData = { ...data, appName: 'MERCADO FÃCIL', systemName: 'MERCADO FÃCIL' };
+                    if ((data.appName || '').toUpperCase().includes('JUMBO') || (data.systemName || '').toUpperCase().includes('JUMBO') || !(data.systemName || '') || (data.systemName || '').includes('FAMÍLIA')) {
+                        const fixedData = { ...data, appName: 'MERCADO FÁCIL', systemName: 'MERCADO FÁCIL' };
                         await setDoc(doc(db, 'settings', 'general'), semSenhasConfig(fixedData), { merge: true });
                         setAppConfig({ ...DEFAULT_CONFIG, ...fixedData });
                     } else {
@@ -2878,28 +2884,18 @@ if (currentUser?.role !== UserRole.ADMIN && currentUser) {
             }
 
             if (currentUser?.role === UserRole.ADMIN) {
-                performAutoCleanup();
-                normalizeLegacyDocuments(); // Iniciar normalizaÃ§Ã£o em background
                 // orderBy garante paginação estável ao aumentar usersLimit
                 unsubUsers = onSnapshot(query(collection(db, 'users'), orderBy('name', 'asc'), limit(usersLimit)), (snapshot) => {
-                    // CONSUMER_USER Ã© sintÃ©tico (venda de balcÃ£o) e NÃƒO pertence Ã 
-                    // lista real de usuÃ¡rios â€” se entra, polui contagens de
-                    // familiares em relatÃ³rios/painÃ©is (MÃ‰DIA-2).
+                    // CONSUMER_USER é sintético (venda de balcão) e NÃO pertence à
+                    // lista real de usuários — se entra, polui contagens de
+                    // familiares em relatórios/painéis (MÉDIA-2).
                     const dbUsers = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as User));
                     setUsers(dbUsers.filter(u => (u as any).deleted !== true && u.id !== 'consumidor_geral' && u.id !== 'balcao_anonimo'));
                 }, onErr('users-admin'));
                 const ordersQuery = query(collection(db, 'orders'), orderBy('createdAt', 'desc'), limit(ordersLimit));
                 unsubOrders = onSnapshot(ordersQuery, (snapshot) => {
                     const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Order));
-                    const filtered = items.filter(o => (o as any).deleted !== true);
-                    if (filtered.length === 0 && snapshot.metadata.fromCache) {
-                        getDocsFromServer(ordersQuery).then(serverSnap => {
-                            const serverItems = serverSnap.docs.map(d => ({ ...d.data(), id: d.id } as Order));
-                            setOrders(serverItems.filter(o => (o as any).deleted !== true));
-                        }).catch(() => console.warn('[FALLBACK] getDocsFromServer orders-admin falhou'));
-                        return;
-                    }
-                    setOrders(filtered);
+                    setOrders(items.filter(o => (o as any).deleted !== true));
                 }, onErr('orders-admin'));
             } else if (currentUser) {
                 unsubUsers = onSnapshot(doc(db, 'users', currentUser.id), (docSnap) => {
@@ -3000,7 +2996,7 @@ if (currentUser?.role !== UserRole.ADMIN && currentUser) {
                         }
                         await batch.commit();
                     }
-                    showNotification(`Limpeza concluÃ­da! ${mergedCount} produtos duplicados foram fundidos.`, 'success');
+                    showNotification(`Limpeza concluída! ${mergedCount} produtos duplicados foram fundidos.`, 'success');
                 } finally {
                     setIsLoading(false);
                 }
@@ -3010,7 +3006,7 @@ if (currentUser?.role !== UserRole.ADMIN && currentUser) {
                     throw new Error("Acesso restrito a administradores.");
                 }
                 const isConsumer = targetUserId === 'consumidor_geral' || targetUserId === 'balcao_anonimo';
-                if (!isConsumer && !users.find(u => u.id === targetUserId)) throw new Error("UsuÃ¡rio nÃ£o encontrado.");
+                if (!isConsumer && !users.find(u => u.id === targetUserId)) throw new Error("Usuário não encontrado.");
 
                 const cleanObject = (obj: any): any => {
                     const newObj: any = {};
@@ -3030,11 +3026,11 @@ if (currentUser?.role !== UserRole.ADMIN && currentUser) {
                 };
 
                 try {
-                    // Venda processada NO SERVIDOR: preÃ§os, estoque, carteira e caixa validados no backend.
-                    // clientToken = idempotÃªncia: um clique duplo/replay reenvia o mesmo token e o
-                    // servidor devolve o pedido jÃ¡ criado, sem debitar 2x.
-                    // O token Ã© gerado UMA vez por venda lÃ³gica no modal do PDV e reutilizado
-                    // em reenvios (timeout/retry) â€” nunca um token novo por tentativa.
+                    // Venda processada NO SERVIDOR: preços, estoque, carteira e caixa validados no backend.
+                    // clientToken = idempotência: um clique duplo/replay reenvia o mesmo token e o
+                    // servidor devolve o pedido já criado, sem debitar 2x.
+                    // O token é gerado UMA vez por venda lógica no modal do PDV e reutilizado
+                    // em reenvios (timeout/retry) — nunca um token novo por tentativa.
                     const saleToken = clientToken || crypto.randomUUID();
                     const payloadItems = (items || []).map((i: any) => ({ productId: i?.productId || '', quantity: Number(i?.quantity) || 1 }));
                     const res = await fnProcessarVendaAdmin({
@@ -3052,10 +3048,10 @@ if (currentUser?.role !== UserRole.ADMIN && currentUser) {
                     const createdOrder = cleanObject(data?.order || null);
 
                     if (!createdOrder) {
-                        throw new Error("Venda nÃ£o confirmada pelo servidor. Tente novamente.");
+                        throw new Error("Venda não confirmada pelo servidor. Tente novamente.");
                     }
 
-                    // Sincroniza saldo se a venda usou carteira do prÃ³prio admin logado
+                    // Sincroniza saldo se a venda usou carteira do próprio admin logado
                     if (createdOrder?.walletBalanceAfter !== undefined && targetUserId === currentUser?.id) {
                         setCreditoCliente(createdOrder.walletBalanceAfter);
                         setCurrentUser(prev => prev ? ({ ...prev, walletBalance: createdOrder.walletBalanceAfter }) : prev);
@@ -3075,18 +3071,18 @@ if (currentUser?.role !== UserRole.ADMIN && currentUser) {
             vendasOfflineComErro: vendasOffline.filter((v) => v.status === 'error').length,
             addWalletCreditDirectly: async (userId: string, amount: number, reason: string, senhaMestra?: string) => {
                 if (!currentUser || currentUser.role !== UserRole.ADMIN) throw new Error("Acesso restrito a administradores.");
-                if (!(Number(amount) > 0)) throw new Error("Valor de crÃ©dito invÃ¡lido.");
+                if (!(Number(amount) > 0)) throw new Error("Valor de crédito inválido.");
 
         try {
-            const res = await fnCreditarSaldo({ userId, valor: amount, motivo: `CrÃ©dito Adicionado (Admin): ${reason}`, senhaMestra });
+            const res = await fnCreditarSaldo({ userId, valor: amount, motivo: `Crédito Adicionado (Admin): ${reason}`, senhaMestra });
             const data = res.data as any;
             if (currentUser.id === userId && data?.novoSaldo !== undefined) {
                 setCreditoCliente(data.novoSaldo);
                 setCurrentUser(prev => prev ? ({ ...prev, walletBalance: data.novoSaldo }) : prev);
             }
-            showNotification(`CrÃ©dito de R$ ${formatarMoeda(amount)} adicionado com sucesso!`, 'success');
+            showNotification(`Crédito de R$ ${formatarMoeda(amount)} adicionado com sucesso!`, 'success');
                 } catch (error) {
-                    console.error('Erro ao adicionar crÃ©dito:', error);
+                    console.error('Erro ao adicionar crédito:', error);
                     throw new Error(mensagemErroChamada(error));
                 }
             },

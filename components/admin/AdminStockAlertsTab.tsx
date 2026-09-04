@@ -2,7 +2,6 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { Product } from '../../types';
 import { Package, AlertTriangle, Search, ArrowUpDown, Printer } from 'lucide-react';
 import { gerarListaReposicao, imprimirCupom } from '../../utils/printUtils';
-import { estoqueCritico } from './adminUtils';
 
 interface AdminStockAlertsTabProps {
   products: Product[];
@@ -15,7 +14,11 @@ export function AdminStockAlertsTab({ products, onEditProduct }: AdminStockAlert
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
   const lowStockProducts = useMemo(() => {
-    return (products || []).filter(p => estoqueCritico(p.stock, p.minStock));
+    return (products || []).filter(p => {
+      const minStock = p.minStock || 5;
+      if (p.stock === undefined || p.stock === null) return true;
+      return p.stock <= minStock;
+    });
   }, [products]);
 
   const filteredProducts = useMemo(() => {
@@ -76,7 +79,7 @@ export function AdminStockAlertsTab({ products, onEditProduct }: AdminStockAlert
         <button
           onClick={handlePrintStockAlerts}
           disabled={filteredProducts.length === 0}
-          className="px-5 py-3 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all active:scale-95 disabled:opacity-30"
+          className="px-5 py-3 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all active:scale-95 disabled:opacity-30"
         >
           <Printer size={16} /> Imprimir Lista de Reposição
         </button>
@@ -84,15 +87,15 @@ export function AdminStockAlertsTab({ products, onEditProduct }: AdminStockAlert
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-gradient-to-br from-red-50 to-red-100/50 rounded-lg p-6 border border-red-200 shadow-sm">
+        <div className="bg-gradient-to-br from-red-50 to-red-100/50 rounded-2xl p-6 border border-red-200 shadow-sm">
           <p className="text-[10px] font-black text-red-600 uppercase tracking-widest mb-1">Esgotados</p>
           <p className="text-3xl font-black text-red-700">{outOfStock.length}</p>
         </div>
-        <div className="bg-gradient-to-br from-amber-50 to-amber-100/50 rounded-lg p-6 border border-amber-200 shadow-sm">
+        <div className="bg-gradient-to-br from-amber-50 to-amber-100/50 rounded-2xl p-6 border border-amber-200 shadow-sm">
           <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1">Estoque Crítico</p>
           <p className="text-3xl font-black text-amber-700">{critical.length}</p>
         </div>
-        <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-lg p-6 border border-slate-200 shadow-sm">
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-2xl p-6 border border-slate-200 shadow-sm">
           <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-1">Total em Alerta</p>
           <p className="text-3xl font-black text-slate-700">{lowStockProducts.length}</p>
         </div>
@@ -107,14 +110,14 @@ export function AdminStockAlertsTab({ products, onEditProduct }: AdminStockAlert
             placeholder="Buscar produto..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 rounded-lg bg-white border border-slate-200 text-slate-900 font-semibold text-sm placeholder:text-slate-400 outline-none focus:border-emerald-500 transition-all shadow-sm"
+            className="w-full pl-10 pr-4 py-3 rounded-xl bg-white border border-slate-200 text-slate-900 font-semibold text-sm placeholder:text-slate-400 outline-none focus:border-emerald-500 transition-all shadow-sm"
           />
         </div>
         <div className="flex gap-2">
-          <button onClick={() => toggleSort('stock')} className={`flex items-center gap-2 px-4 py-3 rounded-lg border text-xs font-black uppercase tracking-wider transition-all ${sortBy === 'stock' ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
+          <button onClick={() => toggleSort('stock')} className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-xs font-black uppercase tracking-wider transition-all ${sortBy === 'stock' ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
             <ArrowUpDown size={14} /> Estoque
           </button>
-          <button onClick={() => toggleSort('name')} className={`flex items-center gap-2 px-4 py-3 rounded-lg border text-xs font-black uppercase tracking-wider transition-all ${sortBy === 'name' ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
+          <button onClick={() => toggleSort('name')} className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-xs font-black uppercase tracking-wider transition-all ${sortBy === 'name' ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
             <ArrowUpDown size={14} /> Nome
           </button>
         </div>
@@ -122,20 +125,20 @@ export function AdminStockAlertsTab({ products, onEditProduct }: AdminStockAlert
 
       {/* Product List */}
       {filteredProducts.length === 0 ? (
-        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-16 text-center">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-16 text-center">
           <Package size={48} className="mx-auto mb-4 text-emerald-400" />
           <p className="font-black text-slate-900 text-lg uppercase tracking-tight mb-1">Nenhum alerta!</p>
           <p className="text-slate-500 text-sm">Todos os produtos estão com estoque adequado.</p>
         </div>
       ) : (
-        <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="divide-y divide-slate-100">
             {filteredProducts.map(p => {
               const isOut = (p.stock ?? 0) <= 0;
               const minStock = p.minStock || 5;
               return (
                 <div key={p.id} className={`flex items-center gap-4 p-5 hover:bg-slate-50 transition-all ${isOut ? 'bg-red-50/50' : 'bg-amber-50/30'}`}>
-                  <div className={`w-12 h-12 rounded-lg flex items-center justify-center shrink-0 ${isOut ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}`}>
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${isOut ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}`}>
                     <Package size={22} />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -153,7 +156,7 @@ export function AdminStockAlertsTab({ products, onEditProduct }: AdminStockAlert
                   </div>
                   <button
                     onClick={() => onEditProduct(p)}
-                    className="px-5 py-2.5 bg-[#0f172a] hover:bg-[#1e293b] text-white text-xs font-black rounded-lg transition-all active:scale-95 shadow-sm uppercase tracking-wider shrink-0"
+                    className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black rounded-xl transition-all active:scale-95 shadow-sm uppercase tracking-wider shrink-0"
                   >
                     Repor
                   </button>

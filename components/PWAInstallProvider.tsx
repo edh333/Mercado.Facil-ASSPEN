@@ -27,8 +27,8 @@ function buildManifest(role?: SystemRole) {
     start_url: isAdmin ? '/?mode=admin' : '/?mode=user',
     display: 'standalone' as const,
     orientation: 'portrait-primary' as const,
-background_color: 'var(--bg-main)',
-      theme_color: 'var(--primary-color)',
+    background_color: '#0f172a',
+    theme_color: '#0f172a',
     lang: 'pt-BR',
     scope: '/',
     categories: ['business', 'productivity'],
@@ -137,11 +137,11 @@ export const PWAInstallProvider: React.FC<{ children: ReactNode }> = ({ children
     <PWAInstallContext.Provider value={{ isInstallable: !!deferredPrompt || isIOS, isInstalled, install }}>
       {children}
       {novaVersao && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[9999] bg-slate-900 text-white pl-5 pr-3 py-3 rounded-lg shadow-2xl flex items-center gap-3 text-xs font-bold border border-slate-700 animate-fadeIn">
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[9999] bg-slate-900 text-white pl-5 pr-3 py-3 rounded-2xl shadow-2xl flex items-center gap-3 text-xs font-bold border border-slate-700 animate-fadeIn">
           <span>🔄 Nova versão do sistema disponível</span>
           <button
             onClick={() => window.location.reload()}
-            className="bg-[var(--primary-color)] hover:bg-[var(--secondary-color)] text-white px-4 py-1.5 rounded-lg font-black uppercase tracking-widest text-[10px] transition-colors active:scale-95"
+            className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-1.5 rounded-xl font-black uppercase tracking-widest text-[10px] transition-colors active:scale-95"
           >
             Atualizar agora
           </button>

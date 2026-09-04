@@ -37,7 +37,7 @@ export const CatalogoA4: React.FC<CatalogoA4Props> = ({ products, config, showUn
   const instituicao = String(config?.institutionName || config?.appName || 'Mercado Fácil').toUpperCase();
 
   return (
-    <div className="bg-white p-8 max-w-[210mm] w-full mx-auto text-slate-900 font-sans shadow-xl mb-8 print:shadow-none print:m-0 print:p-6 print:max-w-none print:w-full">
+    <div className="documento-a4 bg-white p-8 max-w-[210mm] w-full mx-auto text-slate-900 font-sans shadow-xl mb-8 print:shadow-none print:m-0 print:p-6 print:max-w-none print:w-full">
       {/* Cabeçalho institucional */}
       <div className="border-b-[6px] border-slate-900 pb-5 mb-6 flex justify-between items-end gap-6">
         <div className="min-w-0">
@@ -61,7 +61,7 @@ export const CatalogoA4: React.FC<CatalogoA4Props> = ({ products, config, showUn
       </div>
 
       {/* Instruções para o interno */}
-      <div className="bg-slate-100 p-4 rounded-lg mb-7 border-l-8 border-slate-900 flex items-start gap-3">
+      <div className="bg-slate-100 p-4 rounded-xl mb-7 border-l-8 border-slate-900 flex items-start gap-3">
         <div className="w-8 h-8 rounded-lg bg-slate-900 text-white font-black text-base flex items-center justify-center shrink-0">?</div>
         <div>
           <p className="text-[10px] font-black uppercase tracking-widest text-slate-800">Como fazer seu pedido</p>
@@ -86,7 +86,7 @@ export const CatalogoA4: React.FC<CatalogoA4Props> = ({ products, config, showUn
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 gap-px bg-slate-100 border border-slate-200 rounded-lg overflow-hidden">
+              <div className="grid grid-cols-1 gap-px bg-slate-100 border border-slate-200 rounded-xl overflow-hidden">
                 {/* Header da tabela */}
                 <div className="grid grid-cols-[1fr,110px,80px] bg-slate-50 px-3 py-2.5 text-[9px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-200">
                   <span>Descrição do Produto</span>

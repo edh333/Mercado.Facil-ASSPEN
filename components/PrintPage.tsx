@@ -104,13 +104,16 @@ export const PrintPage: React.FC = () => {
                     const electronApi = (window as any).electronAPI;
                     if (electronApi?.printHtmlSilent) {
                         // Documento A4 no desktop: imprime silencioso na impressora padrão
-                        const receiptEl = document.querySelector('.print-preview');
+                        const receiptEl = document.querySelector('.print-preview') || document.querySelector('#print-root');
                         const innerHtml = receiptEl
                             ? receiptEl.innerHTML
-                            : document.body.innerHTML;
-                        // A4 precisa de CSS embutido — sem isso o Electron imprime HTML cru sem formatação
-                        const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+                            : '';
+                        if (innerHtml) {
+                            // A4 precisa de CSS embutido — sem isso o Electron imprime HTML cru sem formatação.
+                            // Tailwind CDN recria as utility classes dos componentes A4 na janela silenciosa.
+                            const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
                             <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+                            <script src="https://cdn.tailwindcss.com"><\/script>
                             <style>
                                 @page { size: A4; margin: 8mm; }
                                 * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
@@ -118,11 +121,12 @@ export const PrintPage: React.FC = () => {
                                 body > div { width: 100%; }
                             </style>
                         </head><body>${innerHtml}</body></html>`;
-                        const res = await electronApi.printHtmlSilent(html);
-                        if (mounted && res?.ok) {
-                            setStatus('fiscal');
-                            setCloseCountdown(3);
-                            return;
+                            const res = await electronApi.printHtmlSilent(html);
+                            if (mounted && res?.ok) {
+                                setStatus('fiscal');
+                                setCloseCountdown(3);
+                                return;
+                            }
                         }
                     }
                     setStatus('dialog');
@@ -270,7 +274,7 @@ export const PrintPage: React.FC = () => {
                     <h2 className="text-lg font-black text-white uppercase tracking-tight mb-3">Erro na Impressão</h2>
                     <p className="text-sm text-white/60 mb-8">{error}</p>
                     <div className="space-y-3">
-                        <button onClick={() => { setStatus('ready'); dispararImpressaoUnica(350); }} className="w-full bg-[#0f172a] hover:bg-[#1e293b] text-white px-6 py-3.5 rounded-xl font-black uppercase tracking-widest text-xs shadow-sm transition-all">
+                        <button onClick={() => { setStatus('ready'); dispararImpressaoUnica(350); }} className="w-full bg-emerald-500 hover:bg-emerald-400 text-white px-6 py-3.5 rounded-xl font-black uppercase tracking-widest text-xs shadow-lg shadow-emerald-500/30 transition-all">
                             Tentar Imprimir Novamente
                         </button>
                         <button onClick={handleClose} className="w-full bg-white/10 hover:bg-white/20 text-white px-6 py-3.5 rounded-xl font-black uppercase tracking-widest text-xs transition-all">
@@ -318,7 +322,7 @@ export const PrintPage: React.FC = () => {
                 {/* Header professional */}
                 <header className="print-header sticky top-0 z-50 bg-slate-900 text-white px-6 py-4 flex items-center justify-between shadow-lg">
                     <div className="flex items-center gap-4">
-                        <div className="w-11 h-11 rounded-2xl bg-[#0f172a] flex items-center justify-center shadow-sm">
+                        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
                             <Printer size={22} />
                         </div>
                         <div>
@@ -378,6 +382,12 @@ export const PrintPage: React.FC = () => {
                         {type === 'RELATORIO' && item?.data && (
                             <RelatorioA4 report={item.data} config={config} />
                         )}
+                        {!['RECIBO', 'PROMISSORIA', 'CUPOM', 'CATALOGO', 'RELATORIO'].includes(type) && (
+                            <div className="p-16 text-center">
+                                <p className="font-black text-slate-300 uppercase tracking-[0.2em]">Tipo de impressão não suportado</p>
+                                <p className="text-[11px] font-bold text-slate-400 mt-2">"{type}" — feche a janela e tente novamente.</p>
+                            </div>
+                        )}
                     </div>
                 </main>
 
@@ -406,7 +416,7 @@ export const PrintPage: React.FC = () => {
                                 dispararImpressaoUnica(300);
                             }
                         }}
-                        className="flex items-center gap-2 px-6 py-3.5 rounded-xl bg-[#0f172a] hover:bg-[#1e293b] text-white font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-sm"
+                        className="flex items-center gap-2 px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-emerald-500/25"
                     >
                         <Printer size={16} /> {status === 'dialog' ? 'Imprimir Agora' : 'Imprimir'}
                     </button>

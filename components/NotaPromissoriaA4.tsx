@@ -74,15 +74,16 @@ export const valorPorExtenso = (valor: number): string => {
 };
 
 export const NotaPromissoriaA4: React.FC<NotaPromissoriaA4Props> = ({ data, onClose, embedded }) => {
+  if (!data) return <div className="p-20 text-center text-slate-400 font-black uppercase tracking-widest">Erro: Dados da nota não localizados</div>;
   const emitDate = toDate(data.dataEmissao);
   const dueDate = toDate(data.dataVencimento);
   const dateLong = (d: Date | undefined) => d?.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }) || '';
   const dateShort = (d: Date | undefined) => d?.toLocaleDateString('pt-BR') || '';
 
   return (
-    <div id="print-root" className={embedded
+    <div id="print-root" className={`documento-a4 ${embedded
       ? "bg-white overflow-visible"
-      : "fixed inset-0 z-[500] bg-slate-100 overflow-y-auto custom-scrollbar animate-fadeIn print:overflow-visible cupom-gerencial-print"}>
+      : "fixed inset-0 z-[500] bg-slate-100 overflow-y-auto custom-scrollbar animate-fadeIn print:overflow-visible cupom-gerencial-print"}`}>
       {!embedded && (
       <div className="sticky top-0 bg-white/90 backdrop-blur-md border-b-2 border-slate-200 p-5 flex justify-between items-center z-[510] shadow-xl print:hidden">
         <div className="flex items-center gap-4">
@@ -93,7 +94,7 @@ export const NotaPromissoriaA4: React.FC<NotaPromissoriaA4Props> = ({ data, onCl
           </div>
         </div>
         <div className="flex gap-4">
-          <button onClick={() => setTimeout(() => window.print(), 350)} className="bg-[#0f172a] hover:bg-[#1e293b] text-white px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-xl hover:-translate-y-1 active:scale-95 transition-all">
+          <button onClick={() => setTimeout(() => window.print(), 350)} className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-xl hover:-translate-y-1 active:scale-95 transition-all">
             <Printer size={20} /> Imprimir
           </button>
           {onClose && (
@@ -113,7 +114,7 @@ export const NotaPromissoriaA4: React.FC<NotaPromissoriaA4Props> = ({ data, onCl
 
           <div className="relative z-10 flex flex-col min-h-full">
             {/* Header */}
-            <div className="flex justify-between items-start border-b-3 border-slate-900 pb-6 mb-10">
+            <div className="flex justify-between items-start border-b-[3px] border-slate-900 pb-6 mb-10">
               <div className="flex items-center gap-6">
                 <div className="bg-slate-900 p-4 rounded-2xl"><ShieldCheck size={40} className="text-white" /></div>
                 <div>
@@ -233,7 +234,7 @@ export const NotaPromissoriaA4: React.FC<NotaPromissoriaA4Props> = ({ data, onCl
 
       <style>{`
         @media print {
-          @page { size: A4; margin: 8mm; }
+          @page { size: A4; margin: 10mm; }
           html, body {
             background: white !important;
             margin: 0 !important;
@@ -260,8 +261,8 @@ export const NotaPromissoriaA4: React.FC<NotaPromissoriaA4Props> = ({ data, onCl
           .my-10 { margin: 0 !important; }
           .shadow-2xl { box-shadow: none !important; }
           .min-h-\\[297mm\\] { min-height: auto !important; }
-          .border-\\[3px\\] { border: none !important; }
           .p-10.p-10 { padding: 24px !important; }
+          .overflow-hidden { overflow: visible !important; }
           .print-avoid-break { page-break-inside: avoid; }
         }
       `}</style>

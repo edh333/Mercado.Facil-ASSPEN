@@ -22,7 +22,7 @@ export const InstallButton: React.FC<InstallButtonProps> = ({ variant = 'icon', 
     return (
       <button
         onClick={() => install(role)}
-        className={`flex items-center gap-2 px-4 py-2.5 bg-[#0f172a] text-white rounded-lg font-bold text-[10px] uppercase tracking-widest shadow-sm hover:brightness-110 active:scale-95 transition-all whitespace-nowrap ${className}`}
+        className={`flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-500/30 hover:brightness-110 active:scale-95 transition-all whitespace-nowrap ${className}`}
       >
         <Download size={16} />
         {text}
@@ -34,7 +34,7 @@ export const InstallButton: React.FC<InstallButtonProps> = ({ variant = 'icon', 
     <button
       onClick={() => install(role)}
       title={text}
-      className={`w-10 h-10 sm:w-12 sm:h-12 bg-[#0f172a] text-white rounded-lg flex items-center justify-center hover:brightness-110 active:scale-90 transition-all shadow-sm ${className}`}
+      className={`w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-tr from-emerald-500 to-emerald-600 text-white rounded-2xl flex items-center justify-center hover:brightness-110 active:scale-90 transition-all shadow-lg shadow-emerald-500/30 ${className}`}
     >
       <Download size={18} />
     </button>

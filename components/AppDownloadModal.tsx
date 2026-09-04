@@ -30,7 +30,7 @@ export const AppDownloadButton: React.FC<{
       <>
         <button
           onClick={() => setOpen(true)}
-          className={`flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-slate-800 to-slate-900 text-white rounded-lg font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-slate-900/20 hover:brightness-125 active:scale-95 transition-all whitespace-nowrap ${className}`}
+          className={`flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-slate-800 to-slate-900 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-slate-900/20 hover:brightness-125 active:scale-95 transition-all whitespace-nowrap ${className}`}
         >
           <Download size={16} />
           {label || 'Baixar App'}
@@ -45,7 +45,7 @@ export const AppDownloadButton: React.FC<{
       <button
         onClick={() => setOpen(true)}
         title="Baixar App (setup.exe)"
-        className={`w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-tr from-slate-800 to-slate-950 text-white rounded-lg flex items-center justify-center hover:brightness-125 active:scale-90 transition-all shadow-lg shadow-slate-900/30 ${className}`}
+        className={`w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-tr from-slate-800 to-slate-950 text-white rounded-2xl flex items-center justify-center hover:brightness-125 active:scale-90 transition-all shadow-lg shadow-slate-900/30 ${className}`}
       >
         <Download size={18} />
       </button>
@@ -98,10 +98,10 @@ export const AppDownloadModal: React.FC<{ onClose: () => void }> = ({ onClose })
   };
 
   const CardApp = ({ app, admin }: { app: AppInfo; admin?: boolean }) => (
-    <div className={`relative overflow-hidden rounded-lg border-2 p-5 transition-all ${app.disponivel ? 'border-slate-200 bg-white hover:border-emerald-400 hover:shadow-xl' : 'border-dashed border-slate-300 bg-slate-50'}`}>
+    <div className={`relative overflow-hidden rounded-2xl border-2 p-5 transition-all ${app.disponivel ? 'border-slate-200 bg-white hover:border-emerald-400 hover:shadow-xl' : 'border-dashed border-slate-300 bg-slate-50'}`}>
       <div className={`absolute -top-6 -right-6 w-24 h-24 rounded-full blur-2xl opacity-20 ${admin ? 'bg-indigo-500' : 'bg-emerald-500'}`}></div>
       <div className="flex items-start gap-4">
-        <div className={`w-14 h-14 shrink-0 rounded-lg flex items-center justify-center text-white shadow-sm ${admin ? 'bg-[#4f46e5]' : 'bg-[#0f172a]'}`}>
+        <div className={`w-14 h-14 shrink-0 rounded-2xl flex items-center justify-center text-white shadow-lg ${admin ? 'bg-gradient-to-br from-indigo-500 to-violet-600 shadow-indigo-500/30' : 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/30'}`}>
           {admin ? <ShieldCheck size={26} /> : <UserRound size={26} />}
         </div>
         <div className="min-w-0 flex-1">
@@ -116,13 +116,13 @@ export const AppDownloadModal: React.FC<{ onClose: () => void }> = ({ onClose })
             <button
               onClick={() => baixar(app)}
               disabled={baixando === app.chave}
-              className="mt-4 w-full py-3 bg-slate-900 text-white rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-700 active:scale-95 transition-all disabled:opacity-60"
+              className="mt-4 w-full py-3 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-700 active:scale-95 transition-all disabled:opacity-60"
             >
               {baixando === app.chave ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
               Baixar Instalador (Setup.exe)
             </button>
           ) : (
-            <div className="mt-4 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">
+            <div className="mt-4 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
               <AlertCircle size={14} className="text-amber-500 shrink-0 mt-0.5" />
               <p className="text-[9px] font-black text-amber-700 uppercase tracking-wide leading-relaxed">
                 Aguardando publicação da versão desktop. O administrador deve gerar e publicar o instalador.
@@ -145,10 +145,10 @@ export const AppDownloadModal: React.FC<{ onClose: () => void }> = ({ onClose })
       bodyClassName="p-6 space-y-5"
     >
       {/* Versão PWA — celular e navegador */}
-      <div className="relative overflow-hidden rounded-lg border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-5">
+      <div className="relative overflow-hidden rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-5">
         <div className="absolute -top-8 -right-8 w-32 h-32 bg-blue-400/20 rounded-full blur-2xl"></div>
         <div className="flex items-start gap-4">
-          <div className="w-14 h-14 shrink-0 rounded-lg bg-[#2563eb] flex items-center justify-center text-white shadow-sm">
+          <div className="w-14 h-14 shrink-0 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/30">
             <Smartphone size={26} />
           </div>
           <div className="min-w-0 flex-1">
@@ -159,13 +159,13 @@ export const AppDownloadModal: React.FC<{ onClose: () => void }> = ({ onClose })
               Funciona em qualquer aparelho sem instalação. Ideal para uso diário no celular — instale como um app na tela inicial.
             </p>
             {isInstalled ? (
-              <div className="mt-4 flex items-center gap-2 bg-emerald-100 border border-emerald-300 rounded-lg px-3 py-2.5 text-emerald-700">
+              <div className="mt-4 flex items-center gap-2 bg-emerald-100 border border-emerald-300 rounded-xl px-3 py-2.5 text-emerald-700">
                 <CheckCircle2 size={15} /> <span className="text-[10px] font-black uppercase tracking-wide">App já instalado neste aparelho</span>
               </div>
             ) : (
               <button
                 onClick={() => install(ehAdmin ? 'admin' : 'user')}
-                className="mt-4 w-full py-3 bg-[#4f46e5] hover:bg-[#4338ca] text-white rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all"
+                className="mt-4 w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-blue-500/25"
               >
                 <Download size={15} /> {isInstallable ? 'Instalar no Celular / Navegador' : 'Ver instruções de instalação'}
               </button>
@@ -191,14 +191,14 @@ export const AppDownloadModal: React.FC<{ onClose: () => void }> = ({ onClose })
       )}
 
       {erro && (
-        <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-red-600">
+        <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-600">
           <AlertCircle size={16} className="shrink-0 mt-0.5" />
           <p className="text-[10px] font-black uppercase tracking-wide leading-relaxed">{erro}</p>
         </div>
       )}
 
       {!logado && !loading && !erro && (
-        <div className="flex items-start gap-2 bg-slate-100 border border-slate-200 rounded-lg px-4 py-3 text-slate-600">
+        <div className="flex items-start gap-2 bg-slate-100 border border-slate-200 rounded-xl px-4 py-3 text-slate-600">
           <AlertCircle size={16} className="shrink-0 mt-0.5" />
           <p className="text-[10px] font-black uppercase tracking-wide leading-relaxed">
             Entre no sistema para baixar o instalador para Windows. A versão da internet (acima) funciona sem instalação.
@@ -215,7 +215,7 @@ export const AppDownloadModal: React.FC<{ onClose: () => void }> = ({ onClose })
       )}
 
       {logado && !loading && apps && apps.length === 0 && (
-        <div className="flex items-start gap-2 bg-slate-100 border border-slate-200 rounded-lg px-4 py-3 text-slate-600">
+        <div className="flex items-start gap-2 bg-slate-100 border border-slate-200 rounded-xl px-4 py-3 text-slate-600">
           <AlertCircle size={16} className="shrink-0 mt-0.5" />
           <p className="text-[10px] font-black uppercase tracking-wide leading-relaxed">
             Nenhuma versão desktop publicada ainda. Use a versão Web acima ou fale com o administrador.

@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useApp } from './StoreContext';
-import { ThemeOption } from '../types';
 import { THEME_COLORS } from '../constants';
-import { applyThemeColors } from '../utils/themeUtils';
+import { ThemeOption } from '../types';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 
@@ -10,7 +9,7 @@ export interface ThemeContextData {
   isDark: boolean;
   primaryColor: string;
   themeId: string;
-  colors: Record<string, string>;
+  colors: any;
   themeMode: ThemeMode;
   setThemeMode: (mode: ThemeMode) => void;
 }
@@ -57,30 +56,58 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Theme ID + colors
   const themeId = settings?.theme || ThemeOption.MODERN_GREEN;
-  const themeColors = THEME_COLORS[themeId] || THEME_COLORS[ThemeOption.MODERN_GREEN];
+  const themeData = THEME_COLORS[themeId] || THEME_COLORS[ThemeOption.MODERN_GREEN];
 
-  // Primary color — defaults to the ASPPEN design system success green
-  // (#10b981). Hidden primary-color config still applies when present.
+  // Primary color
   const DEFAULT_PRIMARY = '#10b981';
   const rawPrimary = String(settings?.primaryColor || '').trim().toLowerCase();
-  const primaryColor = /^#[0-9a-fA-F]{6}$/.test(rawPrimary) ? rawPrimary : DEFAULT_PRIMARY;
+  const isLegacyGreen = rawPrimary === '#0e7a4d';
+  const primaryColor = /^#[0-9a-fA-F]{6}$/.test(rawPrimary) && !isLegacyGreen ? rawPrimary : DEFAULT_PRIMARY;
 
   useEffect(() => {
-    applyThemeColors(themeId);
-    
     const root = document.documentElement;
+
+    // Toggle .dark class
     if (isDark) {
       root.classList.add('dark');
     } else {
       root.classList.remove('dark');
     }
-    
+
+    // Primary color
     root.style.setProperty('--primary-color', primaryColor);
     root.style.setProperty('--secondary-color', primaryColor);
-  }, [settings, primaryColor, isDark, themeId]);
+
+    if (isDark) {
+      // Dark mode premium (estética shadcn/zinc)
+      root.style.setProperty('--bg-main', '#09090b');              // zinc-950
+      root.style.setProperty('--bg-card', '#18181b');              // zinc-900
+      root.style.setProperty('--bg-input', 'rgba(255,255,255,0.06)');
+      root.style.setProperty('--text-main', '#fafafa');            // zinc-50
+      root.style.setProperty('--text-muted', '#a1a1aa');           // zinc-400
+      root.style.setProperty('--border-color', '#27272a');         // zinc-800
+      root.style.setProperty('--glass-border', 'rgba(255,255,255,0.08)');
+    } else {
+      // Light mode premium (estética asspen/shadcn — fundo quente, tinta escura)
+      root.style.setProperty('--bg-main', '#f8fafc');              // slate-50
+      root.style.setProperty('--bg-card', '#ffffff');              // white
+      root.style.setProperty('--bg-input', 'rgba(0,0,0,0.03)');
+      root.style.setProperty('--text-main', '#0f172a');            // slate-900
+      root.style.setProperty('--text-muted', '#64748b');           // slate-500
+      root.style.setProperty('--border-color', '#e2e8f0');         // slate-200
+      root.style.setProperty('--glass-border', 'rgba(15,23,42,0.08)');
+    }
+
+    // Wallpaper Global
+    if (settings?.loginBgType === 'image' && settings?.loginBgUrl) {
+      root.style.setProperty('--wallpaper-url', `url(${settings.loginBgUrl})`);
+    } else {
+      root.style.setProperty('--wallpaper-url', 'none');
+    }
+  }, [settings, primaryColor, isDark]);
 
   return (
-    <ThemeContext.Provider value={{ isDark, primaryColor, themeId, colors: themeColors, themeMode, setThemeMode }}>
+    <ThemeContext.Provider value={{ isDark, primaryColor, themeId, colors: themeData, themeMode, setThemeMode }}>
       {children}
     </ThemeContext.Provider>
   );

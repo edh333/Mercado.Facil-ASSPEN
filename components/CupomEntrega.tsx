@@ -70,7 +70,7 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
       {onClose && (
         <div className="print:hidden flex items-center justify-between bg-white border border-slate-200 px-3 py-2 rounded-t-lg mb-2 -mx-2 -mt-2 shadow-sm">
           <span className="font-black uppercase tracking-widest text-slate-600"><Printer size={14} className="inline mr-1" /> Pré-visualização</span>
-          <button onClick={onClose} className="bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-red-600 p-2 rounded-lg transition-all active:scale-90 border border-slate-200 shadow-sm" title="Fechar"><X size={18}/></button>
+          <button onClick={onClose} className="bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-red-600 p-2 rounded-xl transition-all active:scale-90 border border-slate-200 shadow-sm" title="Fechar"><X size={18}/></button>
         </div>
       )}
 

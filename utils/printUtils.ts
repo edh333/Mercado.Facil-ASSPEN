@@ -35,7 +35,7 @@ const CP850: Record<string, number> = {
   'Ç': 0x80, 'é': 0x82, 'â': 0x83, 'ä': 0x84, 'à': 0x85, 'å': 0x86, 'ç': 0x87,
   'ê': 0x88, 'ë': 0x89, 'è': 0x8A, 'ï': 0x8B, 'î': 0x8C, 'ì': 0x8D, 'Ä': 0x8E,
   'Å': 0x8F, 'É': 0x90, 'æ': 0x91, 'Æ': 0x92, 'ô': 0x93, 'ö': 0x94, 'ò': 0x95,
-  'û': 0x96, 'ù': 0x97, 'ÿ': 0x98, 'Ö': 0x99, 'Ü': 0x9A, '¢': 0x9B, '£': 0x9C,
+  'û': 0x96, 'ù': 0x97, 'ÿ': 0x98, 'Ö': 0x99, 'Ü': 0x9A, 'ü': 0x81, '¢': 0x9B, '£': 0x9C,
   '¥': 0x9D, 'á': 0xA0, 'í': 0xA1, 'ó': 0xA2, 'ú': 0xA3, 'ñ': 0xA4, 'Ñ': 0xA5,
   'ª': 0xA6, 'º': 0xA7, '¿': 0xA8, '®': 0xA9, '¬': 0xAA, '½': 0xAB, '¼': 0xAC,
   '¡': 0xAD, '«': 0xAE, '»': 0xAF, 'Á': 0xB5, 'Â': 0xB6, 'À': 0xB7, '©': 0xB8,
@@ -758,6 +758,29 @@ export async function imprimirBobinaFiscal(conteudo: string, config?: any): Prom
 }
 
 /**
+ * Replacer do JSON.stringify que CONVERTE Firestore Timestamp (objeto com
+ * toDate() ou {seconds,nanoseconds}) em string ISO — antes o JSON.stringify
+ * descartava a função toDate() e o dado saía como "{}" (pedido virara recibo
+ * sem data). Objetos circulares continuam lançando; o catch do chamador trata.
+ */
+const SERIALIZER_REPLACER = (_key: string, value: any): any => {
+  if (value && typeof value === 'object') {
+    if (typeof value.toDate === 'function') {
+      const d = value.toDate();
+      return d instanceof Date && !isNaN(d.getTime()) ? d.toISOString() : null;
+    }
+    if (typeof value.seconds === 'number' && typeof value.nanoseconds === 'number') {
+      const d = new Date(value.seconds * 1000);
+      return isNaN(d.getTime()) ? null : d.toISOString();
+    }
+    if (value instanceof Date) {
+      return isNaN(value.getTime()) ? null : value.toISOString();
+    }
+  }
+  return value;
+};
+
+/**
  * Salva o item de impressão em localStorage e abre a janela de impressão profissional (/print).
  * Retorna a janela criada ou null se o popup foi bloqueado.
  */
@@ -766,8 +789,8 @@ export function abrirJanelaImpressao(
   config?: any
 ): Window | null {
   try {
-    localStorage.setItem('printItem', JSON.stringify(item));
-    localStorage.setItem('appSettings', JSON.stringify(config || {}));
+    localStorage.setItem('printItem', JSON.stringify(item, SERIALIZER_REPLACER));
+    localStorage.setItem('appSettings', JSON.stringify(config || {}, SERIALIZER_REPLACER));
     // Ticket único: garante que a janela /print existente detecte a NOVA
     // impressão (evento 'storage' só dispara quando o valor muda) e se
     // atualize sozinha — sem precisar recarregar/atualizar a janela.
@@ -782,7 +805,7 @@ export function abrirJanelaImpressao(
     }
     return win;
   } catch (e) {
-    console.warn('Falha ao abrir janela de impressão:', e);
+    console.warn('Falha ao abrir janela de impressão (popup bloqueado ou dados inválidos):', e);
     return null;
   }
 }

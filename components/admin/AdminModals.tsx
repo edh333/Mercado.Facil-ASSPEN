@@ -310,8 +310,8 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
           size="lg"
           footer={
             <>
-              <button type="button" onClick={() => { setShowProductModal(false); setEditingProduct(null); }} className="flex-1 py-4 bg-white text-slate-700 font-bold rounded-lg hover:bg-slate-50 uppercase text-[11px] tracking-widest transition-all border border-slate-300 shadow-sm hover:shadow-md active:scale-[0.98]">Cancelar</button>
-              <button type="submit" form="product-form" disabled={isProductLoading || !productForm.name.trim()} className="flex-[2] py-4 bg-[#10b981] hover:bg-[#059669] text-white font-bold rounded-lg flex items-center justify-center gap-3 uppercase text-[11px] tracking-widest transition-all px-6 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">
+              <button type="button" onClick={() => { setShowProductModal(false); setEditingProduct(null); }} className="flex-1 py-4 bg-white text-slate-700 font-bold rounded-xl hover:bg-slate-50 uppercase text-[11px] tracking-widest transition-all border border-slate-300 shadow-sm hover:shadow-md active:scale-[0.98]">Cancelar</button>
+              <button type="submit" form="product-form" disabled={isProductLoading || !productForm.name.trim()} className="flex-[2] py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md shadow-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/30 flex items-center justify-center gap-3 uppercase text-[11px] tracking-widest transition-all px-6 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">
                 {isProductLoading ? <Loader2 size={18} className="animate-spin"/> : <Check size={18} />}
                 {editingProduct ? 'Salvar Alterações' : 'Cadastrar Produto'}
               </button>
@@ -322,9 +322,9 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
             <div className="relative flex items-center gap-2">
               <span className="relative flex h-3 w-3">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-[var(--primary-color)]"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
               </span>
-              <span className="text-[10px] font-black text-[var(--primary-color)] uppercase tracking-wider">Leitor de Código Ativo • Escaneie para Adicionar</span>
+              <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider">Leitor de Código Ativo • Escaneie para Adicionar</span>
             </div>
           </div>
 
@@ -333,7 +333,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                    {/* IMAGE MANAGEMENT */}
                    <div className="md:col-span-1">
-                       <div className="bg-white rounded-lg border border-[var(--border-input)] p-4 space-y-3">
+                       <div className="bg-white rounded-xl border-2 border-slate-200 p-4 space-y-3">
                            <label className="text-slate-600 font-black text-[10px] uppercase tracking-widest block">Foto do Produto</label>
                            <div className="w-full aspect-square rounded-lg bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center relative group">
                                {productForm.imageUrl ? (
@@ -357,14 +357,14 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                                <label className="text-slate-400 font-bold text-[9px] uppercase tracking-widest block mb-1">Link da Imagem (URL)</label>
                                <input
                                    type="text"
-                                   className="w-full bg-white border border-[var(--border-input)] rounded-lg px-3 py-2 text-xs font-medium text-slate-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-400 transition-all"
+                                   className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-400 transition-all"
                                    placeholder="https://..."
                                    value={productForm.imageUrl || ''}
                                    onChange={e => setProductForm({...productForm, imageUrl: e.target.value})}
                                />
                            </div>
                            {/* UPLOAD BUTTON */}
-                           <label className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border-2 border-dashed border-slate-300 text-slate-500 hover:border-emerald-500 hover:text-[var(--primary-color)] hover:bg-emerald-50 cursor-pointer transition-all text-[10px] font-bold uppercase tracking-widest">
+                           <label className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border-2 border-dashed border-slate-300 text-slate-500 hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 cursor-pointer transition-all text-[10px] font-bold uppercase tracking-widest">
                                <Upload size={14} />
                                Upload Arquivo
                                <input type="file" className="hidden" accept="image/*" onChange={handleProductImageUpload} />
@@ -388,10 +388,10 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                                onChange={e => setProductForm({...productForm, brand: e.target.value.toUpperCase()})}
                                placeholder="EX: NESTLÉ, COCA-COLA..."
                            />
-                           <div className="bg-white p-4 rounded-lg border border-[var(--border-input)] transition-all focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
+                           <div className="bg-white p-4 rounded-xl border-2 border-slate-200 transition-all focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
                                <label className="text-slate-600 font-black text-[10px] uppercase tracking-widest block mb-2">Categoria</label>
                                <select
-                                   className="w-full bg-white border border-[var(--border-input)] rounded-lg px-3 py-2.5 text-sm font-bold text-slate-900 outline-none appearance-none cursor-pointer"
+                                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-900 outline-none appearance-none cursor-pointer"
                                    value={productForm.category}
                                    onChange={e => setProductForm({...productForm, category: e.target.value})}
                                >
@@ -412,10 +412,10 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                {/* MIDDLE ROW: Código EAN + Custo + Margem */}
                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                    <div className="space-y-1">
-                       <div className="bg-white p-4 rounded-lg border-2 border-slate-200 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
+                       <div className="bg-white p-4 rounded-xl border-2 border-slate-200 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
                            <div className="flex justify-between items-center mb-2">
                                <label className="text-slate-700 font-black text-[10px] uppercase tracking-widest">Código de Barras (EAN)</label>
-                               <span className="px-2 py-0.5 bg-[var(--primary-color)]/100 text-[var(--primary-color)] rounded-full text-[9px] font-black uppercase tracking-wider">Leitor Ativo</span>
+                               <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[9px] font-black uppercase tracking-wider">Leitor Ativo</span>
                            </div>
                            <input
                                ref={barcodeInputRef}
@@ -428,10 +428,10 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                                    }
                                }}
                                placeholder="Escaneie ou digite o código"
-                               className="w-full bg-white border border-[var(--border-input)] rounded-lg font-bold text-slate-900 text-sm outline-none px-4 py-2.5 placeholder:text-slate-400 transition-all focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                               className="w-full bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 text-sm outline-none px-4 py-2.5 placeholder:text-slate-400 transition-all focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                            />
                        </div>
-                       <p className={`text-[9px] font-bold uppercase tracking-wider px-1 flex items-center gap-1 ${scanAviso?.tipo === 'verde' ? 'text-[var(--primary-color)]' : scanAviso?.tipo === 'amarelo' ? 'text-amber-600' : 'text-blue-600'}`}>
+                       <p className={`text-[9px] font-bold uppercase tracking-wider px-1 flex items-center gap-1 ${scanAviso?.tipo === 'verde' ? 'text-emerald-600' : scanAviso?.tipo === 'amarelo' ? 'text-amber-600' : 'text-blue-600'}`}>
                            <Barcode size={11}/> {scanAviso?.texto || 'Leitor ativo — aponte o leitor e escaneie (Enter)'}
                        </p>
                    </div>
@@ -510,7 +510,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
           size="sm"
         >
                    <div className="p-8 space-y-6">
-                      <div className="bg-slate-100 p-5 rounded-lg border border-slate-200">
+                      <div className="bg-slate-100 p-5 rounded-2xl border border-slate-200">
                           <p className="text-[9px] font-black text-slate-400 uppercase mb-1 opacity-60">Beneficiário</p>
                           <p className="font-black text-slate-900 text-base uppercase tracking-tight truncate">{showWithdrawalModal.userName}</p>
                       </div>
@@ -523,7 +523,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                                     <input
                                       type="number"
                                       step="0.01"
-                                      className="w-full pl-16 pr-5 py-5 bg-white border border-[var(--border-input)] group-focus-within:border-emerald-500 rounded-lg font-black text-3xl text-slate-900 outline-none transition-all placeholder:text-slate-400"
+                                      className="w-full pl-16 pr-5 py-5 bg-slate-100 border-2 border-slate-200 group-focus-within:border-emerald-500 group-focus-within:ring-4 group-focus-within:ring-emerald-500/20 rounded-2xl font-black text-3xl text-slate-900 outline-none transition-all placeholder:text-slate-400"
                                       placeholder="0,00"
                                       value={withdrawalAmount}
                                       onChange={e => setWithdrawalAmount(e.target.value)}
@@ -534,7 +534,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                             <div>
                                 <label className="text-slate-600 font-black text-[10px] uppercase tracking-widest mb-3 block">Motivo / Observação</label>
                                 <textarea
-                                  className="w-full p-5 bg-white border border-[var(--border-input)] focus:border-emerald-500 rounded-lg font-black text-slate-900 text-sm outline-none h-28 resize-none placeholder:text-slate-400 uppercase"
+                                  className="w-full p-5 bg-slate-100 border-2 border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 rounded-2xl font-black text-slate-900 text-sm outline-none h-28 resize-none placeholder:text-slate-400 uppercase"
                                   placeholder="Descreva o motivo da operação..."
                                   value={withdrawalReason}
                                   onChange={e => setWithdrawalReason(e.target.value)}
@@ -549,7 +549,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                                   <KeyRound size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-amber-500"/>
                                   <input
                                     type="password"
-                                    className="w-full px-12 py-5 bg-white border border-[var(--border-input)] group-focus-within:border-amber-500 rounded-lg font-black text-lg text-slate-900 outline-none transition-all placeholder:text-slate-400"
+                                    className="w-full px-12 py-5 bg-slate-100 border-2 border-slate-200 group-focus-within:border-amber-500 group-focus-within:ring-4 group-focus-within:ring-amber-500/20 rounded-2xl font-black text-lg text-slate-900 outline-none transition-all placeholder:text-slate-400"
                                     placeholder="••••••••"
                                     value={withdrawalPassword}
                                     onChange={e => setWithdrawalPassword(e.target.value)}
@@ -567,13 +567,13 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                           <button
                             onClick={handleWithdrawal}
                             disabled={!withdrawalAmount || Number(withdrawalAmount) <= 0 || withdrawalPassword.trim().length < 8}
-                            className={`w-full py-5 font-black rounded-lg flex items-center justify-center gap-3 uppercase text-[11px] tracking-widest transition-all active:scale-[0.98] touch-target ${showWithdrawalModal.isDeposit ? 'bg-[#0f172a] hover:bg-[#1e293b]' : showWithdrawalModal.isRefund ? 'bg-blue-600 hover:bg-blue-700' : 'bg-amber-500 hover:bg-amber-600'} disabled:opacity-40 disabled:cursor-not-allowed`}
+                            className={`w-full py-5 font-black rounded-2xl shadow-lg flex items-center justify-center gap-3 uppercase text-[11px] tracking-widest transition-all active:scale-[0.98] touch-target ${showWithdrawalModal.isDeposit ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:brightness-110' : showWithdrawalModal.isRefund ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:brightness-110' : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:brightness-110'} disabled:opacity-40 disabled:cursor-not-allowed`}
                           >
                             <Check size={20}/> Confirmar Operação
                           </button>
                           <button
                             onClick={() => { setShowWithdrawalModal(null); setWithdrawalPassword(''); }}
-                            className="w-full py-4 bg-slate-100 text-slate-600 font-black rounded-lg uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all touch-target active:scale-[0.98]"
+                            className="w-full py-4 bg-slate-100 text-slate-600 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all touch-target active:scale-[0.98]"
                           >
                             Cancelar
                           </button>
@@ -593,8 +593,8 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
           size="sm"
         >
                    <div className="p-8 space-y-6">
-                       <div className="bg-gradient-to-r from-amber-900/30 to-amber-800/30 p-5 rounded-lg border border-amber-700 text-center">
-                          <div className="w-12 h-12 bg-amber-800/50 rounded-lg flex items-center justify-center mx-auto mb-3 text-amber-400">
+                       <div className="bg-gradient-to-r from-amber-900/30 to-amber-800/30 p-5 rounded-2xl border border-amber-700 text-center">
+                          <div className="w-12 h-12 bg-amber-800/50 rounded-2xl flex items-center justify-center mx-auto mb-3 text-amber-400">
                               <RefreshCw size={24}/>
                           </div>
                           <p className="text-[11px] font-black text-amber-300 uppercase tracking-tighter leading-relaxed">
@@ -604,7 +604,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
 <div>
                             <label className="text-slate-600 font-black text-[10px] uppercase tracking-widest mb-3 block">Motivo do Estorno</label>
                             <textarea
-                                className="w-full p-5 bg-white border border-[var(--border-input)] focus:border-amber-500 rounded-lg font-black text-slate-900 text-sm outline-none h-32 resize-none placeholder:text-slate-400 uppercase"
+                                className="w-full p-5 bg-slate-100 border-2 border-slate-200 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 rounded-2xl font-black text-slate-900 text-sm outline-none h-32 resize-none placeholder:text-slate-400 uppercase"
                                 placeholder="EX: DESISTÊNCIA DO CLIENTE, ERRO NO PEDIDO..."
                                 value={refundReason}
                                 onChange={e => setRefundReason(e.target.value.toUpperCase())}
@@ -615,7 +615,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                           <button
                             onClick={handleRefundOrder}
                             disabled={isProcessingRefund || !refundReason.trim()}
-                            className={`w-full py-5 font-black rounded-lg flex items-center justify-center gap-3 uppercase text-[11px] tracking-widest transition-all active:scale-[0.98] touch-target ${!refundReason.trim() ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-amber-500 hover:bg-amber-600'} disabled:opacity-40`}
+                            className={`w-full py-5 font-black rounded-2xl shadow-lg flex items-center justify-center gap-3 uppercase text-[11px] tracking-widest transition-all active:scale-[0.98] touch-target ${!refundReason.trim() ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:brightness-110'} disabled:opacity-40`}
                           >
                             {isProcessingRefund ? (
                                 <>
@@ -630,7 +630,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                           </button>
                           <button
                             onClick={() => setShowRefundModal(null)}
-                            className="w-full py-4 bg-slate-100 text-slate-600 font-black rounded-lg uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all touch-target active:scale-[0.98]"
+                            className="w-full py-4 bg-slate-100 text-slate-600 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all touch-target active:scale-[0.98]"
                           >
                             Cancelar
                           </button>
@@ -639,51 +639,45 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
         </ModalShell>
       )}
 
-{/* MODAL: MASTER AUTH PREMIUM */}
+      {/* MODAL: MASTER AUTH PREMIUM */}
       {showAuthModal && (
-        <ModalShell
-          open
-          onClose={() => setShowAuthModal(false)}
-          title="Autorização"
-          subtitle="Confirme sua senha para acessar as Configurações"
-          icon={<Lock size={24} strokeWidth={2.2} className="text-emerald-400" />}
-          size="sm"
-          accentColor="#10b981"
-          headerColor="#0f172a"
-        >
-          <form onSubmit={async (e) => { e.preventDefault(); setIsAuthLoading(true); try { await handleAuthConfirm(); } finally { setIsAuthLoading(false); } }}>
-            <div className="space-y-6">
-              <div className="w-14 h-14 mx-auto mb-5 rounded-lg flex items-center justify-center shadow-lg" style={{ background: 'linear-gradient(135deg, var(--color-brand-navy), var(--color-brand-navy-800))', boxShadow: '0 8px 24px -4px var(--primary-color)' }}>
-                <Lock size={24} strokeWidth={2.2} className="text-emerald-400" />
-              </div>
-              <h2 className="text-xl font-black text-[var(--text-main)] uppercase tracking-tight">Autorização</h2>
-              <p className="text-xs font-semibold text-[var(--text-muted)] mt-1">Confirme sua senha para acessar as Configurações</p>
-              <div className="relative mt-6 mb-7 group/input">
-                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 z-20 text-[var(--text-muted)] transition-colors group-focus-within/input:text-[var(--primary-color)] pointer-events-none">
-                  <Key size={18} />
+        <div className="modal-container">
+            <form onSubmit={async (e) => { e.preventDefault(); setIsAuthLoading(true); try { await handleAuthConfirm(); } finally { setIsAuthLoading(false); } }} className="glass-card w-full max-w-sm rounded-3xl overflow-hidden border border-slate-200 animate-slideUp relative" style={{ background: 'linear-gradient(135deg, #0f172a, #1e293b, #0f172a)' }}>
+                <div className="relative bg-white rounded-2xl p-8 text-center border border-slate-200/80 shadow-xl m-4 md:m-6">
+                    <div className="w-14 h-14 mx-auto mb-5 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-700 flex items-center justify-center shadow-lg shadow-slate-900/20">
+                        <Lock size={24} strokeWidth={2.2} className="text-emerald-400"/>
+                    </div>
+
+                    <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Autorização</h2>
+                    <p className="text-xs font-semibold text-slate-500 mt-1">Confirme sua senha para acessar as Configurações</p>
+
+                    <div className="relative mt-6 mb-7 group/input">
+                        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 z-20 text-slate-400 transition-colors group-focus-within/input:text-emerald-600 pointer-events-none">
+                            <Key size={18}/>
+                        </div>
+                        <input
+                            type="password"
+                            autoCapitalize="none" autoCorrect="off" autoComplete="off" spellCheck={false}
+                            className="w-full pl-11 pr-4 py-3.5 bg-slate-50/70 border border-slate-200 focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/15 rounded-xl font-bold text-lg tracking-[0.35em] text-slate-900 outline-none transition-all placeholder:text-slate-300 relative z-10"
+                            placeholder="••••"
+                            value={authPass}
+                            onChange={e => setAuthPass(e.target.value)}
+                            autoFocus
+                            required
+                            disabled={isAuthLoading}
+                        />
+                    </div>
+
+                    <div className="flex flex-col gap-3">
+                        <button type="submit" disabled={isAuthLoading || !authPass.trim()} className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:brightness-110 text-white font-black rounded-xl shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 uppercase text-[11px] tracking-widest active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed transition-all touch-target">
+                            {isAuthLoading ? <><Loader2 size={16} className="animate-spin" /> Validando...</> : 'Confirmar Acesso'}
+                            {!isAuthLoading && <Check size={16} />}
+                        </button>
+                        <button type="button" disabled={isAuthLoading} onClick={() => setShowAuthModal(false)} className="w-full py-2.5 text-slate-400 font-bold hover:text-slate-700 uppercase text-[10px] tracking-widest transition-all touch-target">Cancelar</button>
+                    </div>
                 </div>
-                <input
-                  type="password"
-                  autoCapitalize="none" autoCorrect="off" autoComplete="off" spellCheck={false}
-                  className="w-full pl-11 pr-4 py-3.5 bg-[var(--bg-input)] border border-[var(--border-color)] focus:border-[var(--primary-color)] focus:bg-[var(--bg-card)] focus:ring-2 focus:ring-[var(--primary-color)]/15 rounded-lg font-bold text-lg tracking-[0.35em] text-[var(--text-main)] outline-none transition-all placeholder:text-[var(--text-muted)] relative z-10"
-                  placeholder="••••"
-                  value={authPass}
-                  onChange={e => setAuthPass(e.target.value)}
-                  autoFocus
-                  required
-                  disabled={isAuthLoading}
-                />
-              </div>
-              <div className="flex flex-col gap-3">
-                <button type="submit" disabled={isAuthLoading || !authPass.trim()} className="w-full py-3.5 bg-[#0f172a] hover:bg-[#1e293b] text-white font-black rounded-lg flex items-center justify-center gap-2 uppercase text-[11px] tracking-widest active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed transition-all touch-target">
-                  {isAuthLoading ? <><Loader2 size={16} className="animate-spin" /> Validando...</> : 'Confirmar Acesso'}
-                  {!isAuthLoading && <Check size={16} />}
-                </button>
-                <button type="button" disabled={isAuthLoading} onClick={() => setShowAuthModal(false)} className="w-full py-2.5 text-[var(--text-muted)] font-bold hover:text-[var(--text-main)] uppercase text-[10px] tracking-widest transition-all touch-target">Cancelar</button>
-              </div>
-            </div>
-          </form>
-        </ModalShell>
+            </form>
+        </div>
       )}
       {/* MODAL: RECIBO A4 */}
       {viewingReceipt && (
@@ -701,14 +695,14 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                   onClick={() => {
                     abrirJanelaImpressao({ type: 'RECIBO', subType: viewingReceipt.type === 'EXPENSE' ? 'EXPENSE' : 'ORDER', data: viewingReceipt.data }, viewingReceipt.config || settings);
                   }}
-                  className="bg-[var(--primary-color)] hover:bg-[var(--primary-color)] text-white px-5 py-2.5 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95 shadow-sm"
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95 shadow-sm"
                 >
-                  <Printer size={16}/> Bobina 48mm
+                  <Printer size={16}/> Janela de Impressão
                 </button>
               )}
               {/* Duplo rAF: garante layout/paint concluído ANTES do snapshot de
                   impressão — 1ª impressão não sai mais em branco. */}
-              <button onClick={() => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => window.print(), 150)))} className="bg-slate-700 hover:bg-[var(--primary-color)] text-white px-5 py-2.5 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95 shadow-sm">
+              <button onClick={() => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => window.print(), 150)))} className="bg-slate-700 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95 shadow-sm">
                 <Printer size={16}/> Imprimir
               </button>
             </>
@@ -716,87 +710,127 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
         >
             <div className="p-0 lg:p-4 bg-slate-100/70">
               <div id="print-root-a4">
-                <ReciboA4 data={viewingReceipt.data} type={viewingReceipt.type || 'ORDER'} config={viewingReceipt.config || {}} embedded />
+                <ReciboA4 data={viewingReceipt.data} type={viewingReceipt.type || 'ORDER'} config={viewingReceipt.config || settings || {}} embedded />
               </div>
             </div>
             <style>{`
               @media print {
+                @page { size: A4; margin: 10mm; }
+                html, body { height: auto !important; max-height: none !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; width: auto !important; }
                 body * { visibility: hidden !important; }
+                /* Reset dos ancestrais do modal: container fixo height:100vh +
+                   overflow oculto (e modal-content max-height:85vh) RECORTAVAM
+                   o recibo na folha A4 — imprimia só a primeira dobra e cortava
+                   assinatura/código de controle. Aqui eles fluem soltos. */
+                .modal-container, .modal-overlay {
+                  position: static !important;
+                  height: auto !important;
+                  max-height: none !important;
+                  overflow: visible !important;
+                  width: auto !important;
+                  padding: 0 !important;
+                  display: block !important;
+                  background: transparent !important;
+                }
+                .modal-content, .modal-shell-fixed {
+                  position: static !important;
+                  height: auto !important;
+                  max-height: none !important;
+                  overflow: visible !important;
+                  width: auto !important;
+                  max-width: none !important;
+                  box-shadow: none !important;
+                  border-radius: 0 !important;
+                  border: none !important;
+                  background: #ffffff !important;
+                }
                 #print-root-a4, #print-root-a4 * { visibility: visible !important; }
-                #print-root-a4 { position: absolute !important; left: 0 !important; top: 0 !important; width: 210mm !important; }
-                @page { size: A4; margin: 8mm; }
+                #print-root-a4 {
+                  position: static !important;
+                  left: auto !important;
+                  top: auto !important;
+                  width: 210mm !important;
+                  max-width: 100% !important;
+                  margin: 0 auto !important;
+                  box-sizing: border-box !important;
+                }
+                #print-root-a4 > * { max-width: 100% !important; box-sizing: border-box !important; }
               }
             `}</style>
         </ModalShell>
       )}
 
-{/* MODAL: CUPOM PDV */}
+      {/* MODAL: CUPOM PDV */}
       {printOrder && (
-        <ModalShell
-          open
-          onClose={() => setPrintOrder(null)}
-          title="Cupom PDV"
-          subtitle="Visualização e impressão do cupom de venda"
-          icon={<Printer size={22} className="text-[var(--primary-color)]" />}
-          size="md"
-          accentColor="#10b981"
-                  headerColor="#0f172a"
-          footer={
-            <>
-              <button
-                onClick={handleRawPrint}
-                className="px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-90 bg-[#4f46e5] text-white hover:bg-[#4338ca] shadow-sm"
-              >
-                <Printer size={14} /> Imprimir na Fiscal
-              </button>
-              <button onClick={handleBaixarTxt} className="px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-90 bg-[var(--bg-input)] text-[var(--text-main)] hover:bg-[var(--bg-main)] border border-[var(--border-color)] shadow-sm" title="Baixar .txt para impressão externa">
-                TXT
-              </button>
-              <button
-                onClick={async () => {
-                  const api = (window as any).electronAPI;
-                  if (api?.printHtmlSilent) {
-                    const ok = await imprimirHtmlSilencioso(gerarCupomEntregaRaw(printOrder, settings), settings);
-                    if (ok) return;
-                  }
-                  requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => window.print(), 150)));
-                }}
-                className="px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-90 bg-[var(--color-brand-navy)] text-white hover:bg-[var(--color-brand-navy-800)] shadow-sm"
-                title="Imprimir nesta janela"
-              >
-                <Printer size={14} /> Imprimir
-              </button>
-            </>
-          }
-        >
-          <div className="p-0 lg:p-4 bg-[var(--bg-card)]">
-            <div id="print-root-a4">
-              <CupomEntrega order={printOrder} remainingBalance={printOrder.walletBalanceAfter} config={(settings as any)} />
+        <div className="fixed inset-0 z-[5000] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}>
+          <div className="w-full max-w-md mx-auto bg-white rounded-2xl shadow-xl flex flex-col overflow-hidden max-h-[90vh]">
+            <div className="toolbar-recibo-superior flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-white">
+              <div className="flex items-center gap-3">
+                <Printer size={20} className="text-emerald-600"/>
+                <span className="font-black text-sm uppercase tracking-tight text-slate-900">Cupom PDV</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={handleRawPrint} className="px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-90 bg-emerald-600 text-white hover:bg-emerald-500 shadow-sm">
+                  <Printer size={14}/> Imprimir na Fiscal
+                </button>
+                <button onClick={handleBaixarTxt} className="px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-90 bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 shadow-sm" title="Baixar .txt para impressão externa">
+                  TXT
+                </button>
+                <button onClick={async () => {
+                    const api = (window as any).electronAPI;
+                    if (api?.printHtmlSilent) {
+                        const ok = await imprimirHtmlSilencioso(gerarCupomEntregaRaw(printOrder, settings), settings);
+                        if (ok) return;
+                    }
+                    requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => window.print(), 150)));
+                  }} className="px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-90 bg-slate-900 text-white hover:bg-slate-700 shadow-sm" title="Imprimir nesta janela">
+                  <Printer size={14}/> Imprimir
+                </button>
+                <button onClick={() => setPrintOrder(null)} className="p-2 rounded-lg transition-all active:scale-90 bg-slate-100 text-slate-700 hover:bg-red-50 hover:text-red-600 border border-slate-200 shadow-sm" title="Fechar">
+                  <X size={22}/>
+                </button>
+              </div>
             </div>
+            <div className="w-full mx-auto bg-white flex-1 overflow-y-auto p-4 md:p-6 flex justify-center shadow-inner" style={{ minHeight: '200px' }}>
+              <div className="bg-white shadow-xl origin-top" style={{ width: '76mm' }}>
+                <CupomEntrega order={printOrder} remainingBalance={printOrder.walletBalanceAfter} config={(settings as any)} />
+              </div>
+              {printOrder && createPortal(
+                <div id="print-root-modal" style={{ position: 'fixed', left: '-9999px', top: 0 }}>
+                  <CupomEntrega order={printOrder} remainingBalance={printOrder.walletBalanceAfter} config={(settings as any)} />
+                </div>,
+                document.body
+              )}
+            </div>
+            <style>{`
+              @media screen {
+                .toolbar-recibo-superior { display: flex !important; }
+              }
+              @media print {
+                .toolbar-recibo-superior { display: none !important; }
+                body { background: white !important; }
+                body * { visibility: hidden !important; }
+                #print-root-modal, #print-root-modal * { visibility: visible !important; }
+                #print-root-modal { position: absolute !important; left: 0 !important; top: 0 !important; width: 76mm !important; max-width: 76mm !important; margin: 0 !important; padding: 0 1mm !important; box-sizing: border-box !important; }
+                @page { size: 76mm auto; margin: 0 !important; }
+              }
+            `}</style>
           </div>
-          <style>{`
-            @media print {
-              body * { visibility: hidden !important; }
-              #print-root-a4, #print-root-a4 * { visibility: visible !important; }
-              #print-root-a4 { position: absolute !important; left: 0 !important; top: 0 !important; width: 210mm !important; }
-              @page { size: A4; margin: 8mm; }
-            }
-          `}</style>
-        </ModalShell>
+        </div>
       )}
     </>
   );
 };
 
 const PremiumInput = ({ label, value, onChange, placeholder, type = "text", error, required }: { label: string; value: string; onChange: (e: any) => void; placeholder?: string; type?: string; error?: string; required?: boolean }) => (
-    <div className={`bg-white p-4 rounded-lg border-2 transition-all ${error ? 'border-red-500 focus-within:border-red-500 focus-within:ring-4 focus-within:ring-red-500/20' : 'border-slate-200 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20'}`}>
+    <div className={`bg-white p-4 rounded-xl border-2 transition-all ${error ? 'border-red-500 focus-within:border-red-500 focus-within:ring-4 focus-within:ring-red-500/20' : 'border-slate-200 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20'}`}>
        <div className="flex justify-between items-center mb-2">
          <label className="text-slate-700 font-black text-[10px] uppercase tracking-widest">{label}</label>
          {required && <span className="text-red-400 text-[10px] font-bold">*OBRIGATÓRIO</span>}
        </div>
        <input
           type={type}
-          className={`w-full bg-slate-50 border rounded-lg font-bold text-slate-900 text-sm outline-none px-4 py-2.5 placeholder:text-slate-400 transition-all ${error ? 'border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20' : 'border-[var(--border-input)] focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20'}`}
+          className={`w-full bg-slate-50 border rounded-xl font-bold text-slate-900 text-sm outline-none px-4 py-2.5 placeholder:text-slate-400 transition-all ${error ? 'border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20' : 'border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20'}`}
           placeholder={placeholder}
           value={value}
           onChange={onChange}
@@ -806,15 +840,14 @@ const PremiumInput = ({ label, value, onChange, placeholder, type = "text", erro
 );
 
 const ToggleSwitch = ({ label, sublabel, checked, onChange }: any) => (
-    <div className="bg-white p-4 rounded-lg flex items-center justify-between border border-[var(--border-input)]">
+    <div className="bg-white p-4 rounded-xl flex items-center justify-between border-2 border-slate-200">
         <div>
             <p className="text-[10px] font-bold text-slate-900 uppercase tracking-widest">{label}</p>
             <p className="text-[9px] text-slate-400 font-bold uppercase mt-0.5">{sublabel}</p>
         </div>
         <label className="relative inline-flex items-center cursor-pointer">
             <input type="checkbox" className="sr-only peer" checked={checked} onChange={onChange} />
-            <div className="w-12 h-7 bg-slate-600 rounded-full peer peer-checked:bg-[var(--primary-color)] transition-all after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all after:shadow-lg peer-checked:after:translate-x-5"></div>
+            <div className="w-12 h-7 bg-slate-600 rounded-full peer peer-checked:bg-emerald-500 transition-all after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all after:shadow-lg peer-checked:after:translate-x-5"></div>
         </label>
     </div>
 );
-

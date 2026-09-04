@@ -13,7 +13,7 @@
   /* ═══════════════════════════════════════════════════════════
      BRAND COLORS - Pro Max Palette
      ═══════════════════════════════════════════════════════════ */
-
+  
   /* Primary: Navy Deep (#0f172a) */
   --color-brand-navy: #0f172a;
   --color-brand-navy-50: #f8fafc;
@@ -75,7 +75,7 @@
   /* ═══════════════════════════════════════════════════════════
      ANIMATIONS
      ═══════════════════════════════════════════════════════════ */
-
+  
   --animate-fadeIn: fadeIn 0.4s ease-out;
   --animate-slideUp: slideUp 0.4s ease-out;
   --animate-pulse-slow: pulse-slow 3s infinite;
@@ -86,82 +86,36 @@
   --animate-scaleIn: scaleIn 0.3s ease-out;
 
   @keyframes fadeIn {
-    0% {
-      opacity: 0;
-    }
-    100% {
-      opacity: 1;
-    }
+    0% { opacity: 0; }
+    100% { opacity: 1; }
   }
   @keyframes slideUp {
-    0% {
-      transform: translateY(30px);
-      opacity: 0;
-    }
-    100% {
-      transform: translateY(0);
-      opacity: 1;
-    }
+    0% { transform: translateY(30px); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
   }
   @keyframes slideInRight {
-    0% {
-      transform: translateX(100%);
-      opacity: 0;
-    }
-    100% {
-      transform: translateX(0);
-      opacity: 1;
-    }
+    0% { transform: translateX(100%); opacity: 0; }
+    100% { transform: translateX(0); opacity: 1; }
   }
   @keyframes slideDown {
-    0% {
-      transform: translateY(-15px);
-      opacity: 0;
-    }
-    100% {
-      transform: translateY(0);
-      opacity: 1;
-    }
+    0% { transform: translateY(-15px); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
   }
   @keyframes pulse-slow {
-    0%,
-    100% {
-      opacity: 0.8;
-      transform: scale(1);
-    }
-    50% {
-      opacity: 1;
-      transform: scale(1.03);
-    }
+    0%, 100% { opacity: 0.8; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.03); }
   }
   @keyframes slideLeft {
-    0% {
-      transform: translateX(-40px);
-      opacity: 0;
-    }
-    100% {
-      transform: translateX(0);
-      opacity: 1;
-    }
+    0% { transform: translateX(-40px); opacity: 0; }
+    100% { transform: translateX(0); opacity: 1; }
   }
   @keyframes float {
-    0%,
-    100% {
-      transform: translateY(0);
-    }
-    50% {
-      transform: translateY(-20px);
-    }
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-20px); }
   }
   @keyframes scaleIn {
-    0% {
-      transform: scale(0.9);
-      opacity: 0;
-    }
-    100% {
-      transform: scale(1);
-      opacity: 1;
-    }
+    0% { transform: scale(0.9); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
   }
 }
 
@@ -170,31 +124,21 @@
    ═══════════════════════════════════════════════════════════ */
 
 :root {
-  /* ═══ DESIGN SYSTEM RÍGIDO ASSPEN ═══
-     Paleta lockada (Stripe/Tailwind corporativo):
-       --primary-dark   Dark Slate (sidebar, botões primários, total PDV)
-       --accent-color   Success Green (ações de sucesso / confirmação)
-       --bg-main        Canvas Light Gray
-       --text-main      Text Dark
-     Gerenciado junto ao ThemeContext.tsx (mesmos valores). */
-  --primary-dark: #0f172a;
   --primary-color: #10b981;
   --secondary-color: #059669;
   --accent-color: #10b981;
   --primary-light: rgba(16, 185, 129, 0.1);
-  /* Muted deep corporate dark green — sidebar active items / primary actions */
-  --brand-dark: #0f172a;
-
-  --bg-card: #ffffff;
+  --primary-dark: #059669;
+  
+--bg-card: #ffffff;
   /* Canvas ÚNICO do sistema (slate) — mesmo valor em ThemeContext.tsx.
      Antes: 3 fundos diferentes (login branco, admin #f8fafc, usuário bege). */
   --bg-main: #f8fafc;
-  --text-main: #1e293b;
+  --text-main: #0f172a;
   --text-muted: #64748b;
   --border-color: #e2e8f0;
-  --border-input: #cbd5e1;
-  --bg-input: #ffffff;
-
+  --bg-input: rgba(0, 0, 0, 0.03);
+  
   --overlay-bg: rgba(0, 0, 0, 0.5);
   --overlay-blur: 16px;
   --card-bg: rgba(255, 255, 255, 0.95);
@@ -204,9 +148,7 @@
    GLOBAL STYLES
    ═══════════════════════════════════════════════════════════ */
 
-*,
-*::before,
-*::after {
+*, *::before, *::after {
   box-sizing: border-box;
 }
 
@@ -223,15 +165,12 @@ body {
   -webkit-user-select: none;
   user-select: none;
 }
-body input,
-body textarea,
-body select,
-body [contenteditable="true"] {
+body input, body textarea, body select, body [contenteditable="true"] {
   -webkit-user-select: text;
   user-select: text;
 }
 body {
-  font-family: "Inter", "Plus Jakarta Sans", sans-serif;
+  font-family: 'Inter', 'Plus Jakarta Sans', sans-serif;
   font-weight: 500;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -251,55 +190,33 @@ body {
 
 /* Interface parece software nativo: sem seleção de texto acidental
    nos controles (inputs/impressões continuam selecionáveis) */
-button,
-a,
-label,
-.no-select {
+button, a, label, .no-select {
   -webkit-user-select: none;
   user-select: none;
   touch-action: manipulation;
 }
 
-input,
-select,
-textarea {
+input, select, textarea {
   -webkit-user-select: text;
   user-select: text;
 }
 
 /* Touch devices: disable hover effects to prevent sticky artifacts */
 @media (hover: none) {
-  .hover-lift:hover,
-  .hover-scale:hover,
-  .hover-glow-emerald:hover,
-  .hover-glow-green:hover,
-  .hover-glow-sky:hover,
-  .hover-glow-red:hover {
+  .hover-lift:hover, .hover-scale:hover, .hover-glow-emerald:hover,
+  .hover-glow-green:hover, .hover-glow-sky:hover, .hover-glow-red:hover {
     transform: none !important;
     box-shadow: none !important;
   }
-  .card:hover {
-    transform: none;
-    box-shadow: none;
-  }
+  .card:hover { transform: none; box-shadow: none; }
 }
 
 /* Rolagem discreta, como sistema instalado (Windows/ChromeOS/macOS) */
 @media (hover: hover) {
-  ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: rgba(100, 116, 139, 0.4);
-    border-radius: 8px;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: rgba(100, 116, 139, 0.6);
-  }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, 0.4); border-radius: 8px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 0.6); }
 }
 
 /* Bottom sheets respeitam o notch/barra de gestos do iOS */
@@ -307,20 +224,12 @@ textarea {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  font-weight: 800 !important;
+h1, h2, h3, h4, h5, h6 { 
+  font-weight: 800 !important; 
   letter-spacing: -0.02em;
 }
 
-input,
-select,
-textarea,
-button {
+input, select, textarea, button {
   font-family: inherit;
 }
 
@@ -330,100 +239,27 @@ button {
   outline: none;
 }
 
-/* ═══ INPUTS PADRÃO (Design System) ═══
-   Campos de formulário, busca e seletores herdam automaticamente:
-   fundo branco, borda fina #CBD5E1, raio 8px, texto/placeholder escuros.
-   Classes utilitárias (bg-white, border-*, focus:...) têm precedência. */
-input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
-select:not([multiple]),
-textarea {
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-input);
-  border-radius: 8px;
-  color: var(--text-main);
-  font-weight: 600;
-  outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):focus,
-select:not([multiple]):focus,
-textarea:focus {
-  border-color: #10b981;
-}
-
-input::placeholder,
-textarea::placeholder {
-  color: var(--text-muted);
-  opacity: 1;
-}
-
 /* ═══════════════════════════════════════════════════════════
    SCROLLBAR - Premium
    ═══════════════════════════════════════════════════════════ */
 
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-::-webkit-scrollbar-track {
-  background: var(--bg-main);
-}
-::-webkit-scrollbar-thumb {
-  background: #94a3b8;
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
-}
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg-main); }
+::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #64748b; }
 
-.dark ::-webkit-scrollbar-track {
-  background: #1e293b;
-}
-.dark ::-webkit-scrollbar-thumb {
-  background: #475569;
-}
+.dark ::-webkit-scrollbar-track { background: #1e293b; }
+.dark ::-webkit-scrollbar-thumb { background: #475569; }
 
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
 /* Scrollbar customizada usada em modais e painéis (classe padrão do sistema) */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: var(--bg-input);
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 9999px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-.custom-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 var(--bg-input);
-}
-
-.dark .custom-scrollbar::-webkit-scrollbar-track {
-  background: var(--bg-input);
-}
-.dark .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #3f3f46;
-}
-.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #52525b;
-}
-.dark .custom-scrollbar {
-  scrollbar-color: #3f3f46 var(--bg-input);
-}
+.custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+.custom-scrollbar { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
 
 /* ═══════════════════════════════════════════════════════════
    OVERLAYS - Glassmorphism Premium
@@ -480,15 +316,11 @@ textarea::placeholder {
 }
 
 .shadow-card {
-  box-shadow:
-    0 10px 40px -10px rgba(0, 0, 0, 0.12),
-    0 4px 16px -4px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.12), 0 4px 16px -4px rgba(0, 0, 0, 0.08);
 }
 
 .shadow-premium {
-  box-shadow:
-    0 4px 6px -1px rgba(0, 0, 0, 0.1),
-    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 .shadow-success {
@@ -778,649 +610,498 @@ textarea::placeholder {
   border: 1px solid rgba(14, 165, 233, 0.25);
 }
 
-.dark .badge-success {
-  color: #34d399;
-}
-.dark .badge-warning {
-  color: #fbbf24;
-}
-.dark .badge-error {
-  color: #f87171;
-}
+.dark .badge-success { color: #34d399; }
+.dark .badge-warning { color: #fbbf24; }
+.dark .badge-error { color: #f87171; }
 
 /* ═══════════════════════════════════════════════════════════
-   MODALS - Unified Professional System (v3)
+   MODALS - Premium Standard
    ═══════════════════════════════════════════════════════════ */
 
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: var(--overlay-bg);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  z-index: 9998;
-  animation: modalFadeIn 0.2s ease-out;
-}
-
-.modal-wrapper {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  z-index: 9999;
-  overflow-y: auto;
-}
-
-.modal-card {
+.modal {
   background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  box-shadow:
-    0 40px 80px -20px rgba(15, 23, 42, 0.25),
-    0 16px 32px -16px rgba(15, 23, 42, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
+  border-radius: 28px;
   overflow: hidden;
-  animation: modalPop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.dark .modal-card {
-  box-shadow:
-    0 40px 80px -20px rgba(0, 0, 0, 0.5),
-    0 16px 32px -16px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.03);
-}
-
-.modal-card[data-size="sm"] {
-  max-width: 420px;
-}
-.modal-card[data-size="md"] {
-  max-width: 640px;
-}
-.modal-card[data-size="lg"] {
-  max-width: 896px;
-}
-.modal-card[data-size="xl"] {
-  max-width: 1152px;
-}
-.modal-card[data-size="full"] {
-  max-width: 95vw;
-}
-
-.modal-accent-bar {
-  height: 3px;
-  background: var(--primary-color);
+  box-shadow: 0 40px 80px -20px rgba(0, 0, 0, 0.3);
 }
 
 .modal-header {
+  padding: 24px 28px;
+  background: linear-gradient(135deg, var(--color-brand-navy) 0%, #1e293b 100%);
+  color: #ffffff;
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 20px 24px;
-  background: var(--primary-dark);
-  color: #fff;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.dark .modal-header {
-  background: linear-gradient(
-    135deg,
-    var(--primary-color) 0%,
-    var(--secondary-color) 100%
-  );
-}
-
-.modal-header-content {
-  display: flex;
   align-items: center;
-  gap: 12px;
-  min-width: 0;
-  flex: 1;
-}
-
-.modal-header-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 8px;
-  background: var(--primary-color);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  flex-shrink: 0;
-  box-shadow: none;
-}
-
-.modal-header-text {
-  min-width: 0;
-}
-
-.modal-title {
-  font-size: 14px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  line-height: 1.2;
-  color: #fff;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.modal-subtitle {
-  font-size: 11px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.65);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.modal-close {
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease;
-  flex-shrink: 0;
-}
-
-.modal-close:hover {
-  background: rgba(239, 68, 68, 0.2);
-  color: #fca5a5;
-}
-
-.dark .modal-close:hover {
-  background: rgba(239, 68, 68, 0.3);
 }
 
 .modal-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px;
-  background: var(--bg-main);
-}
-
-.modal-body-compact {
-  padding: 16px 24px;
+  padding: 28px;
+  background: var(--bg-card);
 }
 
 .modal-footer {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-  padding: 16px 24px;
+  padding: 20px 28px;
   border-top: 1px solid var(--border-color);
-  background: var(--bg-card);
-  flex-shrink: 0;
+  background: var(--bg-main);
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
 }
 
-.modal-footer-center {
-  justify-content: center;
-}
-
-@keyframes modalFadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@media (max-width: 640px) {
-    .modal-wrapper {
-      padding: 12px;
-      align-items: flex-start;
-    }
-    .modal-card {
-      max-height: 100%;
-      border-radius: 8px;
-      max-width: 100%;
-    }
-    .modal-body {
-      padding: 20px;
-    }
-    .modal-header {
-      padding: 16px 20px;
-    }
-    .modal-footer {
-      padding: 12px 20px;
-    }
-  }
-
-  /* Print: hide modals */
-  @media print {
-    .modal-overlay,
-    .modal-wrapper,
-    .modal-card {
-      display: none !important;
-    }
-  }
-
-  /* ═══════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════
    TABLES → CARDS (Mobile Responsive)
    ═══════════════════════════════════════════════════════════ */
 
-  @media (max-width: 768px) {
-    .table-as-cards {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-    .table-as-cards thead {
-      display: none;
-    }
-    .table-as-cards tbody {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-    .table-as-cards tr {
-      display: flex;
-      flex-direction: column;
-      background: var(--bg-card);
-      border-radius: 18px;
-      padding: 18px;
-      border: 1.5px solid var(--border-color);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    }
-    .table-as-cards td {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 12px 0;
-      border: none !important;
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--text-main);
-    }
-    .table-as-cards td:first-child {
-      padding-top: 0;
-    }
-    .table-as-cards td:last-child {
-      padding-bottom: 0;
-    }
-    .table-as-cards td::before {
-      content: attr(data-label);
-      font-weight: 700;
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--text-muted);
-      min-width: 110px;
-    }
+@media (max-width: 768px) {
+  .table-as-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
   }
+  .table-as-cards thead {
+    display: none;
+  }
+  .table-as-cards tbody {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .table-as-cards tr {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-card);
+    border-radius: 18px;
+    padding: 18px;
+    border: 1.5px solid var(--border-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  }
+  .table-as-cards td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border: none !important;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-main);
+  }
+  .table-as-cards td:first-child {
+    padding-top: 0;
+  }
+  .table-as-cards td:last-child {
+    padding-bottom: 0;
+  }
+  .table-as-cards td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    min-width: 110px;
+  }
+}
 
-  /* ═══════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════
    HOVER EFFECTS - Premium
    ═══════════════════════════════════════════════════════════ */
 
-  .hover-lift {
-    transition:
-      transform 0.3s ease,
-      box-shadow 0.3s ease,
-      filter 0.3s ease;
-  }
-  .hover-lift:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.18);
-  }
-  .hover-lift:active {
-    transform: translateY(0);
-  }
+.hover-lift {
+  transition: transform 0.3s ease, box-shadow 0.3s ease, filter 0.3s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.18);
+}
+.hover-lift:active {
+  transform: translateY(0);
+}
 
-  .hover-scale:hover {
-    transform: scale(1.03);
-  }
+.hover-scale:hover {
+  transform: scale(1.03);
+}
 
-  .hover-glow-success:hover {
-    box-shadow: 0 0 30px rgba(16, 185, 129, 0.4);
-  }
+.hover-glow-success:hover {
+  box-shadow: 0 0 30px rgba(16, 185, 129, 0.4);
+}
 
-  .hover-glow-error:hover {
-    box-shadow: 0 0 30px rgba(239, 68, 68, 0.4);
-  }
+.hover-glow-error:hover {
+  box-shadow: 0 0 30px rgba(239, 68, 68, 0.4);
+}
 
-  /* ═══════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════
    GRADIENTS - Premium
    ═══════════════════════════════════════════════════════════ */
 
-  .gradient-brand {
-    background: linear-gradient(
-      135deg,
-      var(--primary-color) 0%,
-      var(--secondary-color) 100%
-    );
-  }
+.gradient-brand {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+}
 
-  .gradient-navy {
-    background: linear-gradient(
-      135deg,
-      var(--color-brand-navy) 0%,
-      #1e293b 100%
-    );
-  }
+.gradient-navy {
+  background: linear-gradient(135deg, var(--color-brand-navy) 0%, #1e293b 100%);
+}
 
-  .gradient-success {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  }
+.gradient-success {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
 
-  .gradient-gold {
-    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-  }
+.gradient-gold {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
 
-  /* ═══════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════
    RESPONSIVE MOBILE
    ═══════════════════════════════════════════════════════════ */
 
-  @media (max-width: 768px) {
-    ::-webkit-scrollbar {
-      width: 4px;
-      height: 4px;
-    }
-
-    input,
-    select,
-    textarea {
-      font-size: 16px !important;
-    }
-
-    .card {
-      border-radius: 16px;
-    }
-
-    .modal {
-      border-radius: 20px;
-    }
+@media (max-width: 768px) {
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  
+  input, select, textarea {
+    font-size: 16px !important;
   }
-
-  .no-scrollbar::-webkit-scrollbar {
-    display: none;
+  
+  .card {
+    border-radius: 16px;
   }
-  .no-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+  
+  .modal {
+    border-radius: 20px;
   }
+}
 
-  .animate-float-slow {
-    animation: float 6s ease-in-out infinite;
-  }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-  /* ═══════════════════════════════════════════════════════════
+.animate-float-slow {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════
    MODAL POSITIONING - Forçado com !important
    ═══════════════════════════════════════════════════════════ */
 
-  /* ModalShell: header/rodapé fixos e corpo rolável (sobrescreve o auto
+.modal-container {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  height: 100vh !important;
+  background-color: rgba(3, 7, 18, 0.62) !important;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  overflow-y: auto !important;
+  z-index: 9999 !important;
+  padding: 40px 16px !important;
+  animation: modalFadeIn 0.22s ease-out both;
+}
+
+.modal-content {
+  position: relative !important;
+  overflow-y: auto !important;
+  max-height: 85vh !important;
+  max-width: 95vw !important;
+  z-index: 10000 !important;
+}
+
+/* ModalShell: header/rodapé fixos e corpo rolável (sobrescreve o auto
    genérico acima apenas para o shell, mantendo max-height/max-width) */
-  /* ═══════════════════════════════════════════════════════════
+.modal-shell-fixed {
+  overflow: hidden !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
    CARD HOVER - Efeito Padrão SaaS
    ═══════════════════════════════════════════════════════════ */
 
-  .card-hover {
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  .card-hover:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.15);
-  }
-  .card-hover:active {
-    transform: translateY(-1px);
-  }
+.card-hover {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.15);
+}
+.card-hover:active {
+  transform: translateY(-1px);
+}
 
-  /* ═══════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════
    ADMIN LIGHT THEME - Sidebar
    ═══════════════════════════════════════════════════════════ */
 
-  .admin-sidebar {
-    background: linear-gradient(180deg, #0f172a, #1e293b);
-    border-right: 1px solid #1e293b;
-  }
+.admin-sidebar {
+  background: linear-gradient(180deg, #0f172a, #1e293b);
+  border-right: 1px solid #1e293b;
+}
 
-  /* ═══════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════
    TYPOGRAPHY UTILITIES
    ═══════════════════════════════════════════════════════════ */
 
-  .text-label {
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-  }
+.text-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
 
-  /* ═══════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════
    CUPOM FOOTER INPUT - High Contrast Diurno
    ═══════════════════════════════════════════════════════════ */
 
-  .input-cupom-footer {
-    color: #1e293b !important;
-    background-color: #ffffff !important;
-    border: 1px solid #cbd5e1 !important;
-    font-weight: 500 !important;
-  }
+.input-cupom-footer {
+  color: #1e293b !important;
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  font-weight: 500 !important;
+}
 
-  .dark .input-cupom-footer {
-    color: #f1f5f9 !important;
-    background-color: #18181b !important;
-    border: 1px solid #3f3f46 !important;
-  }
-
-  /* ═══════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════
    DARK FORM ELEMENTS
    ═══════════════════════════════════════════════════════════ */
 
-  input[type="date"]::-webkit-calendar-picker-indicator,
-  input[type="time"]::-webkit-calendar-picker-indicator {
-    filter: invert(1);
-    cursor: pointer;
-  }
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+}
 
-  /* AUTOFILL DO NAVEGADOR: a regra antiga pintava TODOS os campos com fundo
+/* AUTOFILL DO NAVEGADOR: a regra antiga pintava TODOS os campos com fundo
    escuro (#1e293b) mesmo em telas claras — no login aparecia um "bloco/borda"
    escura dentro do campo ao autocompletar e-mail/senha. Agora: claro por
    padrão, escuro apenas dentro do tema .dark. */
-  input:-webkit-autofill,
-  input:-webkit-autofill:hover,
-  input:-webkit-autofill:focus {
-    -webkit-text-fill-color: #0f172a;
-    -webkit-box-shadow: 0 0 0px 1000px #ffffff inset;
-    transition: background-color 5000s ease-in-out 0s;
-  }
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #0f172a;
+  -webkit-box-shadow: 0 0 0px 1000px #ffffff inset;
+  transition: background-color 5000s ease-in-out 0s;
+}
 
-  .dark input:-webkit-autofill,
-  .dark input:-webkit-autofill:hover,
-  .dark input:-webkit-autofill:focus {
-    -webkit-text-fill-color: #f1f5f9;
-    -webkit-box-shadow: 0 0 0px 1000px #1e293b inset;
-    transition: background-color 5000s ease-in-out 0s;
-  }
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover,
+.dark input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #f1f5f9;
+  -webkit-box-shadow: 0 0 0px 1000px #1e293b inset;
+  transition: background-color 5000s ease-in-out 0s;
+}
 
-  .font-display {
-    font-family: "Plus Jakarta Sans", sans-serif;
-  }
+.font-display {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
 
-  .font-body {
-    font-family: "Inter", sans-serif;
-  }
+.font-body {
+  font-family: 'Inter', sans-serif;
+}
 
-  /* ═══════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════
    ANIMATION UTILITIES
    ═══════════════════════════════════════════════════════════ */
 
-  .animate-fade-in {
-    animation: fadeIn 0.4s ease-out;
-  }
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out;
+}
 
-  .animate-slide-up {
-    animation: slideUp 0.4s ease-out;
-  }
+.animate-slide-up {
+  animation: slideUp 0.4s ease-out;
+}
 
-  .animate-scale-in {
-    animation: scaleIn 0.3s ease-out;
-  }
+.animate-scale-in {
+  animation: scaleIn 0.3s ease-out;
+}
 
-  /* ═══════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════
    BORDER RADIUS - Standardized
    ═══════════════════════════════════════════════════════════ */
 
-  .rounded-premium {
-    border-radius: 16px;
-  }
+.rounded-premium {
+  border-radius: 16px;
+}
 
-  .rounded-premium-lg {
-    border-radius: 24px;
-  }
+.rounded-premium-lg {
+  border-radius: 24px;
+}
 
-  .rounded-premium-xl {
-    border-radius: 32px;
-  }
+.rounded-premium-xl {
+  border-radius: 32px;
+}
 
-  /* ═══════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════
    PRINT MEDIA - Cupom 80mm & A4
    ═══════════════════════════════════════════════════════════ */
 
-  @media print {
-    /* Anula todo o HTML envolvente para impressão contínua */
-    *,
-    ::before,
-    ::after {
-      background: transparent !important;
-      color: #000000 !important;
-      box-shadow: none !important;
-      text-shadow: none !important;
-      /* ANIMAÇÕES MORTAS NA IMPRESSÃO: window.print() disparado durante o
+@media print {
+  /* Anula todo o HTML envolvente para impressão contínua */
+  *, ::before, ::after {
+    box-shadow: none !important;
+    text-shadow: none !important;
+    /* ANIMAÇÕES MORTAS NA IMPRESSÃO: window.print() disparado durante o
        modalPop/backdrop-blur produzia PRIMEIRA IMPRESSÃO EM BRANCO (bug do
        Chromium ao tirar snapshot com transform/blur ativos). */
-      animation: none !important;
-      transition: none !important;
-      backdrop-filter: none !important;
-      -webkit-backdrop-filter: none !important;
-    }
+    animation: none !important;
+    transition: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    /* FIEL ÀS CORES: A4 (recibos, notas, relatórios) imprime com as cores do
+       documento. O preto/transparente obrigatório fica SÓ na bobina térmica,
+       escopado com :not(.documento-a4) abaixo. */
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
 
-    body * {
-      visibility: hidden !important;
-    }
+  body * {
+    visibility: hidden !important;
+  }
 
-    /* Define base elástica contínua sem quebras de página.
+  /* Define base elástica contínua sem quebras de página.
      width: auto permite que documentos A4 usem a folha inteira;
      a largura 76mm é aplicada SOMENTE no container .cupom-gerencial-print. */
-    html,
-    body {
-      background: #ffffff !important;
-      color: #000000 !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      height: auto !important;
-      min-height: auto !important;
-      max-height: none !important;
-      overflow: visible !important;
-      width: auto !important;
-    }
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    min-height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    width: auto !important;
+  }
 
-    /* Força a visibilidade apenas dos blocos de impressão.
+  /* Força a visibilidade apenas dos blocos de impressão.
      O seletor com * é OBRIGATÓRIO: `body *` acima esconde DIRETO cada filho,
      e elemento com regra direta não herda o visible do pai — sem isso o
      recibo de despesa imprimia em branco/só parte do texto.
      Agora inclui #print-root-a4 e .print-preview para recibos A4. */
-    .cupom-gerencial-print,
-    div.cupom-gerencial-print,
-    .cupom-gerencial-print *,
-    #print-root,
-    #print-root *,
-    #print-root-a4,
-    #print-root-a4 *,
-    .print-preview,
-    .print-preview * {
-      visibility: visible !important;
-    }
-
-    /* Garante impressao sem cortes e sem saltos de página */
-    .cupom-gerencial-print,
-    div.cupom-gerencial-print {
-      display: block !important;
-      position: absolute !important;
-      left: 0 !important;
-      top: 0 !important;
-      width: 76mm !important;
-      max-width: 76mm !important;
-      height: auto !important;
-      max-height: none !important;
-      padding: 2mm 1mm !important;
-      font-family: "Courier New", Courier, monospace !important;
-      box-sizing: border-box !important;
-      page-break-inside: avoid !important;
-      page-break-after: avoid !important;
-      break-inside: avoid !important;
-    }
-
-    /* Garante fluxo inline de todos os filhos */
-    .cupom-gerencial-print * {
-      background: transparent !important;
-      color: #000000 !important;
-      opacity: 1 !important;
-      height: auto !important;
-      max-height: none !important;
-    }
-
-    /* Fallback para recibos A4 impressos fora do /print page (ex: modal admin).
-     Se o componente não injetou seu próprio @page A4, este regra aplica. */
-    #print-root-a4 {
-      position: absolute !important;
-      left: 0 !important;
-      top: 0 !important;
-      width: 210mm !important;
-    }
-
-    /* Reset radical contra looping de página Chrome.
-     NOTA: margin NÃO usa !important para permitir que @page A4
-     dos componentes (ReciboA4, PrintPage) sobrescreva com margin: 8-10mm. */
-    @page {
-      size: auto;
-      margin: 0;
-      height: auto !important;
-      max-height: none !important;
-    }
-
-    /* Elemento sinalizador de corte - evita salto e garante 1 página por venda */
-    .fim-do-cupom-corte {
-      display: block !important;
-      visibility: visible !important;
-      height: 1px !important;
-      margin-top: 4mm !important;
-      page-break-after: avoid !important;
-      break-after: avoid !important;
-      height: auto !important;
-      max-height: none !important;
-    }
+  .cupom-gerencial-print,
+  div.cupom-gerencial-print,
+  .cupom-gerencial-print *,
+  #print-root,
+  #print-root *,
+  #print-root-a4,
+  #print-root-a4 *,
+  .print-preview,
+  .print-preview * {
+    visibility: visible !important;
   }
 
-  /* ═══════════════════════════════════════════════════════════
+  /* Garante impressao sem cortes e sem saltos de página (APENAS bobina térmica;
+     os documentos A4 têm a classe .documento-a4 e são moldados pelos seus
+     próprios componentes — sem 76mm, sem Courier forçado). */
+  .cupom-gerencial-print:not(.documento-a4),
+  div.cupom-gerencial-print:not(.documento-a4) {
+    display: block !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 76mm !important;
+    max-width: 76mm !important;
+    height: auto !important;
+    max-height: none !important;
+    padding: 2mm 1mm !important;
+    font-family: 'Courier New', Courier, monospace !important;
+    box-sizing: border-box !important;
+    page-break-inside: avoid !important;
+    page-break-after: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Garante fluxo inline de todos os filhos (bobina = preto no papel) */
+  .cupom-gerencial-print:not(.documento-a4) * {
+    background: transparent !important;
+    color: #000000 !important;
+    opacity: 1 !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  /* Fallback para recibos A4 impressos fora do /print page (ex: modal admin).
+     Se o componente não injetou seu próprio @page A4, este regra aplica. */
+  #print-root-a4 {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 210mm !important;
+  }
+
+  /* Reset radical contra looping de página Chrome.
+     NOTA: margin NÃO usa !important para permitir que @page A4
+     dos componentes (ReciboA4, PrintPage) sobrescreva com margin: 8-10mm. */
+  @page {
+    size: auto;
+    margin: 0;
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  /* Elemento sinalizador de corte - evita salto e garante 1 página por venda */
+  .fim-do-cupom-corte {
+    display: block !important;
+    visibility: visible !important;
+    height: 1px !important;
+    margin-top: 4mm !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
    DARK MODE OVERRIDES
    ═══════════════════════════════════════════════════════════ */
 
-  /* ═══════════════════════════════════════════════════════════
+.modal-content:not(.bg-white), [role="dialog"]:not(.bg-white) {
+  background-color: #1e293b !important;
+  color: #f1f5f9 !important;
+}
+
+.modal-content:not(.bg-white) button:has(svg):hover {
+  background-color: #ef4444 !important;
+  color: #ffffff !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
    MODAL PREMIUM V2 - Padrão Profissional (todas as janelas)
    Animações apenas em transform/opacity (GPU) p/ evitar travamentos
    ═══════════════════════════════════════════════════════════ */
 
-  /* ════════════════════════════════════════════════════════════
-   MODAL PREMIUM V2 - Light Mode
-   ════════════════════════════════════════════════════════════ */ /* Modais sem a classe modal-content (janelas inline) também recebem o padrão */
+.modal-container .modal-content {
+  border-radius: 26px !important;
+  border: 1px solid rgba(255, 255, 255, 0.10) !important;
+  box-shadow:
+    0 50px 140px -30px rgba(2, 6, 23, 0.65),
+    0 24px 48px -24px rgba(2, 6, 23, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+  animation: modalPop 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
+  overscroll-behavior: contain;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalPop {
+  from { opacity: 0; transform: translateY(26px) scale(0.965); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Modais sem a classe modal-content (janelas inline) também recebem o padrão */
+.fixed.inset-0[style*="z-index"] {
+  animation: modalFadeIn 0.22s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-container,
+  .modal-container .modal-content,
   .fixed.inset-0[style*="z-index"] {
-    animation: modalFadeIn 0.22s ease-out both;
+    animation: none !important;
   }
+}
 
 /* ═══════════════════════════════════════════════════════════
    POLISH PROFISSIONAL v2.6 — Tipografia, Foco e Impressão
@@ -1428,13 +1109,9 @@ textarea::placeholder {
 
 /* Números tabulares: valores monetários alinham verticalmente em
    listas/cupons/relatórios (dígito tem largura fixa — sem "dança" de R$) */
-.tnum,
-input[type="number"],
-.font-mono {
+.tnum, input[type="number"], .font-mono {
   font-variant-numeric: tabular-nums lining-nums;
-  font-feature-settings:
-    "tnum" 1,
-    "lnum" 1;
+  font-feature-settings: "tnum" 1, "lnum" 1;
 }
 
 /* Renderização de texto mais nítida em telas de PDV (monitores distantes) */
@@ -1449,55 +1126,37 @@ body {
 
 /* ═══ FOCO VISÍVEL PROFISSIONAL (navegação por teclado F1-F12 do PDV)
    Só aparece via teclado (focus-visible), nunca polui o clique do mouse.
-   Anel suave na COR DO TEMA (--primary-color) — nunca verde fixo, para não
-   virar "contorno fantasma" quando o tema é trocado. */
+   Anel suave (ring) no padrão shadcn: borda dupla (nítida + glow) em vez do
+   outline chapado, para integrar com o acabamento moderno das janelas. */
 :focus-visible {
   outline: 2px solid var(--primary-color);
   outline-offset: 2px;
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary-color) 16%, transparent);
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.18);
   border-radius: 4px;
 }
-/* Clica com mouse/toque não deve exibir anel NENHUM — e cobre TODOS os
-   elementos clicáveis (links, divs com onClick/tabindex/role, não só
-   button/input/select/textarea). Elimina os "contornos fantasmas" que
-   apareciam após clique em cards/botões. */
 button:focus:not(:focus-visible),
 input:focus:not(:focus-visible),
 select:focus:not(:focus-visible),
-textarea:focus:not(:focus-visible),
-a:focus:not(:focus-visible),
-[tabindex]:focus:not(:focus-visible),
-[role]:focus:not(:focus-visible),
-[onclick]:focus:not(:focus-visible),
-[onkeydown]:focus:not(:focus-visible) {
-  outline: none !important;
-  box-shadow: none !important;
+textarea:focus:not(:focus-visible) {
+  outline: none;
 }
 
 /* Firefox: scrollbars discretas equivalentes ao WebKit já definido */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(100, 116, 139, 0.4) var(--bg-input);
-}
-
-.dark * {
-  scrollbar-color: rgba(100, 116, 139, 0.4) var(--bg-input);
+  scrollbar-color: rgba(100, 116, 139, 0.4) transparent;
 }
 
 /* ═══ IMPRESSÃO TÉRMICA/A4 — robustez anti-corte ═══ */
 @media print {
   /* Linhas de item nunca são cortadas no meio entre páginas */
-  tr,
-  td,
-  th,
-  .cupom-row {
+  tr, td, th, .cupom-row {
     page-break-inside: avoid;
     break-inside: avoid;
   }
 
   /* Preserva cores de fundo intencionais (faixas do cupom gerencial) */
-  .cupom-gerencial-print,
-  #print-root {
+  .cupom-gerencial-print, #print-root {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -1505,7 +1164,7 @@ a:focus:not(:focus-visible),
   /* Métrica monoespaçada estável para bobina (48 colunas exatas) */
   .cupom-gerencial-print pre,
   .cupom-gerencial-print code {
-    font-family: "Consolas", "Courier New", Courier, monospace !important;
+    font-family: 'Consolas', 'Courier New', Courier, monospace !important;
     font-size: 9.5pt !important;
     line-height: 1.25 !important;
     letter-spacing: 0 !important;
@@ -1514,35 +1173,22 @@ a:focus:not(:focus-visible),
   }
 }
 
+
+
+
 /* ═══════════════════════════════════════════════════════════
    PROFILE ASSPEN 2026 - Janelas Modernas (estética shadcn)
    Aplaina raios exagerados das janelas para o padrão do 2º sistema
    ═══════════════════════════════════════════════════════════ */
 
-.rounded-3xl {
-  border-radius: 1rem;
-}
-.rounded-\[2rem\] {
-  border-radius: 1.125rem;
-}
-.rounded-\[2\.5rem\] {
-  border-radius: 1.25rem;
-}
-.rounded-\[3rem\] {
-  border-radius: 1.5rem;
-}
-.rounded-\[1\.75rem\] {
-  border-radius: 1rem;
-}
-.rounded-\[4rem\] {
-  border-radius: 2rem;
-}
-.rounded-premium-lg {
-  border-radius: 20px;
-}
-.rounded-premium-xl {
-  border-radius: 24px;
-}
+.rounded-3xl { border-radius: 1rem; }
+.rounded-\[2rem\] { border-radius: 1.125rem; }
+.rounded-\[2\.5rem\] { border-radius: 1.25rem; }
+.rounded-\[3rem\] { border-radius: 1.5rem; }
+.rounded-\[1\.75rem\] { border-radius: 1rem; }
+.rounded-\[4rem\] { border-radius: 2rem; }
+.rounded-premium-lg { border-radius: 20px; }
+.rounded-premium-xl { border-radius: 24px; }
 
 /* ─────────────────────────────────────────────
    CAMADA POLISH PROFISSIONAL v2.7 — UX fina
@@ -1557,15 +1203,16 @@ a:focus:not(:focus-visible),
 }
 
 /* Títulos longos quebram em linhas equilibradas (menos "viúvas") */
-h1,
-h2,
-h3,
-.titulo-balanceado {
+h1, h2, h3, .titulo-balanceado {
   text-wrap: balance;
 }
 
 /* Modais e overlays: sem "scroll borboleta" (rolagem não vaza pro fundo) */
 .fixed.overflow-y-auto,
+.modal-container {
+  overscroll-behavior: contain;
+}
+
 /* Inputs numéricos estilo caixa registradora: sem setinhas do navegador */
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {
@@ -1579,9 +1226,7 @@ input[type="number"] {
 
 /* Botões: feedback tátil consistente em TODOS os botões primários */
 button:not(:disabled) {
-  transition:
-    transform 0.08s ease,
-    filter 0.15s ease;
+  transition: transform 0.08s ease, filter 0.15s ease;
 }
 button:not(:disabled):active:not(.no-scale) {
   transform: scale(0.97);
@@ -1598,9 +1243,7 @@ button:not(:disabled):active:not(.no-scale) {
 
 /* Transição suave quando o tema/cor primária muda (Configurações) */
 body {
-  transition:
-    background-color 0.3s ease,
-    color 0.3s ease;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Scrollbar WebKit com identidade: trilho invisível, polegar slate,
@@ -1611,9 +1254,7 @@ body {
 
 /* Respeita usuários sensíveis a movimento (acessibilidade profissional) */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
@@ -1662,19 +1303,14 @@ body {
   .bg-white.rounded-xl,
   .bg-white.rounded-2xl,
   .bg-white.rounded-3xl {
-    box-shadow:
-      0 1px 2px rgba(15, 23, 42, 0.04),
-      0 8px 24px -12px rgba(15, 23, 42, 0.08);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px -12px rgba(15, 23, 42, 0.08);
   }
 
   /* Campos de formulário: borda mais calma, foco já coberto pela camada global */
   input:not([type="checkbox"]):not([type="radio"]),
   select,
   textarea {
-    transition:
-      border-color 0.2s ease,
-      box-shadow 0.2s ease,
-      background-color 0.2s ease;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
   }
 }
 
@@ -1796,22 +1432,10 @@ body {
 }
 
 /* ── Badges ── */
-.dark .badge-success {
-  background: rgba(16, 185, 129, 0.2);
-  color: #34d399;
-}
-.dark .badge-warning {
-  background: rgba(245, 158, 11, 0.2);
-  color: #fbbf24;
-}
-.dark .badge-error {
-  background: rgba(239, 68, 68, 0.2);
-  color: #f87171;
-}
-.dark .badge-info {
-  background: rgba(14, 165, 233, 0.2);
-  color: #38bdf8;
-}
+.dark .badge-success { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+.dark .badge-warning { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+.dark .badge-error { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+.dark .badge-info { background: rgba(14, 165, 233, 0.2); color: #38bdf8; }
 
 /* ── Tabelas ── */
 @media screen {
@@ -1829,6 +1453,22 @@ body {
   .dark .tabela-densa tbody tr:nth-child(even) {
     background-color: rgba(255, 255, 255, 0.02);
   }
+}
+
+/* ── Modais ── */
+.dark .modal {
+  background: var(--bg-card);
+  box-shadow: 0 40px 80px -20px rgba(0, 0, 0, 0.6);
+}
+.dark .modal-header {
+  background: linear-gradient(135deg, #18181b, #27272a);
+}
+.dark .modal-body {
+  background: var(--bg-card);
+}
+.dark .modal-footer {
+  background: var(--bg-main);
+  border-top-color: var(--border-color);
 }
 
 /* ── Glass Cards ── */
@@ -1851,22 +1491,12 @@ body {
 }
 
 /* ── Scrollbar ── */
-.dark ::-webkit-scrollbar-track {
-  background: #18181b;
-}
-.dark ::-webkit-scrollbar-thumb {
-  background: #3f3f46;
-}
-.dark ::-webkit-scrollbar-thumb:hover {
-  background: #52525b;
-}
+.dark ::-webkit-scrollbar-track { background: #18181b; }
+.dark ::-webkit-scrollbar-thumb { background: #3f3f46; }
+.dark ::-webkit-scrollbar-thumb:hover { background: #52525b; }
 
-.dark .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #3f3f46;
-}
-.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #52525b;
-}
+.dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #3f3f46; }
+.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #52525b; }
 
 /* ── Autofill ── */
 .dark input:-webkit-autofill,
@@ -1906,89 +1536,36 @@ select option {
 
 /* ── Print NUNCA é afetado por dark mode ── */
 @media print {
-  .dark body,
-  .dark,
-  .dark * {
+  .dark body, .dark {
+    background: transparent !important;
+    color: #000000 !important;
+  }
+  /* Recibos/notas/relatórios/catálogos A4 preservam as CORES na impressão
+     mesmo no dark mode: o override universal '.dark *' apagava blocos
+     bg-slate-900 (cabeçalho, caixa de valor) e fundos coloridos dos
+     documentos, mesmo com color-adjust: exact. ':not(.documento-a4 *)'
+     exclui toda a subárvore A4; '#print-root-a4' e '.print-preview'
+     são as áreas de impressão dos modais e da janela /print. A bobina
+     térmica continua monocromática pela regra própria. */
+  .dark :not(.documento-a4 *):not(#print-root-a4 *):not(.print-preview *) {
     background: transparent !important;
     color: #000000 !important;
   }
 }
 
-/* ── Tokens de texto: TODAS as escalas semânticas remapeadas no dark mode ──
-   Corrige contraste de textos escritos com utilitários fixos (text-*-900/800/700/600/500/400)
+/* ── Tokens de texto: escala slate remapeada no dark mode ──
+   Corrige contraste de textos escritos com utilitário fixo (text-slate-*)
    fora de .card/.bg-white (cabeçalhos, labels, descrições sobre --bg-main),
-   que ficavam invisíveis no tema escuro.
-   Todas as cores semânticas (emerald, blue, purple, teal, amber, orange, sky, indigo, pink, slate)
-   mapeiam para --text-main (900/800/700) ou --text-muted (600/500/400).
+   que ficavam quase invisíveis (#0f172a sobre #09090b) no tema escuro.
+   Valores idênticos aos tokens: slate-900 = --text-main, slate-500/600 = --text-muted.
    O light mode fica intocado (override escopado apenas ao .dark). */
 .dark .text-slate-900,
-.dark .text-emerald-900,
-.dark .text-blue-900,
-.dark .text-purple-900,
-.dark .text-teal-900,
-.dark .text-amber-900,
-.dark .text-orange-900,
-.dark .text-sky-900,
-.dark .text-indigo-900,
-.dark .text-pink-900,
-.dark .text-rose-900,
-.dark .text-slate-950,
 .dark .text-slate-800,
-.dark .text-emerald-800,
-.dark .text-blue-800,
-.dark .text-purple-800,
-.dark .text-teal-800,
-.dark .text-amber-800,
-.dark .text-orange-800,
-.dark .text-sky-800,
-.dark .text-indigo-800,
-.dark .text-pink-800,
-.dark .text-rose-800,
-.dark .text-slate-700,
-.dark .text-emerald-700,
-.dark .text-blue-700,
-.dark .text-purple-700,
-.dark .text-teal-700,
-.dark .text-amber-700,
-.dark .text-orange-700,
-.dark .text-sky-700,
-.dark .text-indigo-700,
-.dark .text-pink-700,
-.dark .text-rose-700 {
+.dark .text-slate-700 {
   color: var(--text-main) !important;
 }
 .dark .text-slate-600,
-.dark .text-emerald-600,
-.dark .text-blue-600,
-.dark .text-purple-600,
-.dark .text-teal-600,
-.dark .text-amber-600,
-.dark .text-orange-600,
-.dark .text-sky-600,
-.dark .text-indigo-600,
-.dark .text-pink-600,
-.dark .text-rose-600,
 .dark .text-slate-500,
-.dark .text-emerald-500,
-.dark .text-blue-500,
-.dark .text-purple-500,
-.dark .text-teal-500,
-.dark .text-amber-500,
-.dark .text-orange-500,
-.dark .text-sky-500,
-.dark .text-indigo-500,
-.dark .text-pink-500,
-.dark .text-rose-500,
-.dark .text-slate-400,
-.dark .text-emerald-400,
-.dark .text-blue-400,
-.dark .text-purple-400,
-.dark .text-teal-400,
-.dark .text-amber-400,
-.dark .text-orange-400,
-.dark .text-sky-400,
-.dark .text-indigo-400,
-.dark .text-pink-400,
-.dark .text-rose-400 {
+.dark .text-slate-400 {
   color: var(--text-muted) !important;
 }

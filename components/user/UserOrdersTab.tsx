@@ -45,7 +45,7 @@ export const UserOrdersTab: React.FC<UserOrdersTabProps> = ({
           {settings?.enablePrisonerWallet && (
               <button
                   onClick={() => setViewingWalletHistory(!viewingWalletHistory)}
-                  className={`text-[10px] font-black uppercase tracking-widest px-4 py-2.5 rounded-lg border-2 transition-all ${viewingWalletHistory ? 'bg-slate-900 border-slate-900 text-white shadow-lg' : 'border-slate-700 text-slate-400 hover:border-slate-500 bg-slate-800'}`}
+                  className={`text-[10px] font-black uppercase tracking-widest px-4 py-2.5 rounded-xl border-2 transition-all ${viewingWalletHistory ? 'bg-slate-900 border-slate-900 text-white shadow-lg' : 'border-slate-700 text-slate-400 hover:border-slate-500 bg-slate-800'}`}
               >
                   {viewingWalletHistory ? 'Ver Pedidos' : 'Extrato Carteira'}
               </button>
@@ -59,7 +59,7 @@ export const UserOrdersTab: React.FC<UserOrdersTabProps> = ({
                   placeholder="Buscar pedido por ID, data ou produto..."
                   value={searchOrder}
                   onChange={e => setSearchOrder(e.target.value)}
-                  className="w-full pl-10 pr-10 py-3 bg-slate-800 border-2 border-slate-700 rounded-lg focus:border-white outline-none font-black text-sm text-white placeholder:text-slate-500"
+                  className="w-full pl-10 pr-10 py-3 bg-slate-800 border-2 border-slate-700 rounded-xl focus:border-white outline-none font-black text-sm text-white placeholder:text-slate-500"
               />
               {searchOrder && (
                   <button onClick={() => setSearchOrder('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
@@ -72,15 +72,15 @@ export const UserOrdersTab: React.FC<UserOrdersTabProps> = ({
       {viewingWalletHistory ? (
           <div className="space-y-4 animate-fadeIn">
               {(walletTxs || []).length === 0 ? (
-                  <div className="text-center py-16 opacity-50 bg-slate-800 rounded-lg border border-dashed border-slate-700">
+                  <div className="text-center py-16 opacity-50 bg-slate-800 rounded-3xl border border-dashed border-slate-700">
                       <CreditCard size={48} className="mx-auto mb-2 text-slate-500" />
                       <p className="font-bold text-xs uppercase tracking-widest text-slate-500">Nenhuma movimentação</p>
                   </div>
               ) : (
                   (walletTxs || []).map(tx => (
-                      <div key={tx.id} className="bg-slate-800 p-4 rounded-lg shadow-sm border border-slate-700 flex justify-between items-center hover:shadow-md transition-shadow">
+                      <div key={tx.id} className="bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-700 flex justify-between items-center hover:shadow-md transition-shadow">
                           <div className="flex items-center gap-3">
-                             <div className={`p-2.5 rounded-lg ${tx.amount > 0 ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'}`}>
+                             <div className={`p-2.5 rounded-xl ${tx.amount > 0 ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'}`}>
                                 <CreditCard size={18}/>
                              </div>
                              <div>
@@ -112,13 +112,13 @@ export const UserOrdersTab: React.FC<UserOrdersTabProps> = ({
       ) : (
           <div className="space-y-4">
               {filteredOrders.length === 0 ? (
-                  <div className="text-center py-16 opacity-50 bg-slate-800 rounded-lg border border-dashed border-slate-700">
+                  <div className="text-center py-16 opacity-50 bg-slate-800 rounded-3xl border border-dashed border-slate-700">
                       <FileText size={48} className="mx-auto mb-2 text-slate-500" />
                       <p className="font-bold text-xs uppercase tracking-widest text-slate-500">{searchOrder ? 'Nenhum resultado encontrado' : 'Nenhum pedido recente'}</p>
                   </div>
               ) : (
                   filteredOrders.map(order => (
-                      <div key={order.id} className="bg-slate-800 p-6 rounded-lg shadow-sm border border-slate-700 relative overflow-hidden hover:shadow-md transition-shadow">
+                      <div key={order.id} className="bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-700 relative overflow-hidden hover:shadow-md transition-shadow">
                           <div className="flex justify-between items-start mb-4">
                                <div>
                                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pedido #{(order.id || '').slice(0, 6).toUpperCase()}</span>
@@ -134,7 +134,7 @@ export const UserOrdersTab: React.FC<UserOrdersTabProps> = ({
                               </span>
                           </div>
 
-                          <div className="bg-slate-900/50 rounded-lg p-4 mb-4 border border-slate-700">
+                          <div className="bg-slate-900/50 rounded-2xl p-4 mb-4 border border-slate-700">
                                <div className="flex justify-between text-[10px] mb-1 font-black text-slate-400 uppercase tracking-tighter">
                                    <span>Produtos</span>
                                    <span>Total</span>
@@ -151,7 +151,7 @@ export const UserOrdersTab: React.FC<UserOrdersTabProps> = ({
 
                               <button
                                   onClick={() => toggleOrderDetails(order.id)}
-                                  className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2.5 text-xs font-black text-slate-400 flex items-center justify-center gap-2 hover:bg-slate-700 transition-colors shadow-sm"
+                                  className="w-full bg-slate-800 border border-slate-700 rounded-xl py-2.5 text-xs font-black text-slate-400 flex items-center justify-center gap-2 hover:bg-slate-700 transition-colors shadow-sm"
                               >
                                   {expandedOrders.includes(order.id) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                                   {expandedOrders.includes(order.id) ? 'OCULTAR ITENS' : `VER ${(order.items || []).length} ITENS COMPRADOS`}
@@ -183,7 +183,7 @@ export const UserOrdersTab: React.FC<UserOrdersTabProps> = ({
                               {canViewCupom(order.status) && (
                                   <button
                                       onClick={() => setViewingOrderCupom(order)}
-                                      className="flex-1 py-3 bg-slate-900 text-white rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl hover:bg-black transition-all transform active:scale-95"
+                                      className="flex-1 py-3 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl hover:bg-black transition-all transform active:scale-95"
                                   >
                                       <Printer size={18} /> VISUALIZAR CUPOM
                                   </button>
@@ -197,7 +197,7 @@ export const UserOrdersTab: React.FC<UserOrdersTabProps> = ({
                                                cancelOrder(order.id);
                                            }
                                        }}
-                                       className="py-3 px-4 bg-red-900/30 text-red-400 rounded-lg font-black text-[10px] uppercase tracking-widest border border-red-800 hover:bg-red-800/50 transition-colors"
+                                       className="py-3 px-4 bg-red-900/30 text-red-400 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-red-800 hover:bg-red-800/50 transition-colors"
                                    >
                                        Cancelar
                                    </button>
@@ -209,7 +209,7 @@ export const UserOrdersTab: React.FC<UserOrdersTabProps> = ({
                                        href={order.paymentProofUrl}
                                        target="_blank"
                                        rel="noopener noreferrer"
-                                       className="py-3 px-4 bg-blue-900/30 text-blue-400 rounded-lg font-black text-[10px] uppercase tracking-widest border border-blue-800 hover:bg-blue-800/50 transition-colors flex items-center gap-2"
+                                       className="py-3 px-4 bg-blue-900/30 text-blue-400 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-blue-800 hover:bg-blue-800/50 transition-colors flex items-center gap-2"
                                    >
                                        <FileText size={14} /> Comprovante
                                    </a>
@@ -221,7 +221,7 @@ export const UserOrdersTab: React.FC<UserOrdersTabProps> = ({
                                       const event = new CustomEvent('reorder', { detail: order.items });
                                       window.dispatchEvent(event);
                                   }}
-                                  className="py-3 px-4 bg-emerald-900/30 text-emerald-400 rounded-lg font-black text-[10px] uppercase tracking-widest border border-emerald-800 hover:bg-emerald-800/50 transition-colors"
+                                  className="py-3 px-4 bg-emerald-900/30 text-emerald-400 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-emerald-800 hover:bg-emerald-800/50 transition-colors"
                               >
                                   Comprar Novamente
                               </button>

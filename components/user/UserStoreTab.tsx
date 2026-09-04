@@ -29,7 +29,7 @@ export const UserStoreTab: React.FC<UserStoreTabProps> = ({
         }}
       >
           <div
-            className="rounded-lg p-1 flex items-center shadow-lg border"
+            className="rounded-2xl p-1 flex items-center shadow-lg border"
             style={{
               backgroundColor: '#0f172a',
               borderColor: '#1e293b'
@@ -40,19 +40,19 @@ export const UserStoreTab: React.FC<UserStoreTabProps> = ({
                     <Search size={18} />
                   </div>
                   <input
-                    className="w-full pl-12 pr-4 py-3.5 bg-slate-800 border-2 border-slate-700 rounded-lg outline-none transition-all font-bold text-sm text-white placeholder:text-slate-500 focus:border-[var(--primary-color)] focus:ring-2 focus:ring-[var(--primary-color)]/20"
+                    className="w-full pl-12 pr-4 py-3.5 bg-slate-800 border-2 border-slate-700 rounded-xl outline-none transition-all font-bold text-sm text-white placeholder:text-slate-500 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-900"
                     placeholder="Buscar produtos..."
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
                   />
                 </div>
               <div
-                className="flex items-center p-1.5 rounded-lg mx-1"
+                className="flex items-center p-1.5 rounded-xl mx-1"
                 style={{ backgroundColor: '#1e293b' }}
               >
                   <button
                     onClick={() => setViewMode('grid')}
-                    className={`p-2.5 rounded-lg transition-all ${viewMode === 'grid' ? 'shadow-md' : ''}`}
+                    className={`p-2.5 rounded-xl transition-all ${viewMode === 'grid' ? 'shadow-md' : ''}`}
                     style={{
                       backgroundColor: viewMode === 'grid' ? '#10b981' : 'transparent',
                       color: viewMode === 'grid' ? '#ffffff' : '#64748b'
@@ -62,7 +62,7 @@ export const UserStoreTab: React.FC<UserStoreTabProps> = ({
                   </button>
                   <button
                     onClick={() => setViewMode('list')}
-                    className={`p-2.5 rounded-lg transition-all ${viewMode === 'list' ? 'shadow-md' : ''}`}
+                    className={`p-2.5 rounded-xl transition-all ${viewMode === 'list' ? 'shadow-md' : ''}`}
                     style={{
                       backgroundColor: viewMode === 'list' ? '#10b981' : 'transparent',
                       color: viewMode === 'list' ? '#ffffff' : '#64748b'
@@ -78,7 +78,7 @@ export const UserStoreTab: React.FC<UserStoreTabProps> = ({
       <div className="px-4 md:px-5 pt-2">
           {(filteredProducts || []).length === 0 ? (
               <div
-                className="text-center py-20 rounded-lg border-2 border-dashed"
+                className="text-center py-20 rounded-3xl border-2 border-dashed"
                 style={{
                   backgroundColor: '#0f172a',
                   borderColor: '#1e293b'
@@ -189,7 +189,7 @@ export const UserStoreTab: React.FC<UserStoreTabProps> = ({
                                       <button
                                           disabled={isOutOfStock}
                                           onClick={() => addToCart(p.id)}
-                                          className="w-11 h-11 rounded-lg flex items-center justify-center shadow-lg active:scale-90 transition-all"
+                                          className="w-11 h-11 rounded-2xl flex items-center justify-center shadow-lg active:scale-90 transition-all"
                                           style={{
                                             backgroundColor: isOutOfStock ? '#94a3b8' : '#10b981',
                                             color: '#ffffff'
@@ -211,14 +211,14 @@ export const UserStoreTab: React.FC<UserStoreTabProps> = ({
                           <motion.div
                               layout
                               key={p.id}
-                              className="rounded-lg p-4 flex gap-4 transition-all"
+                              className="rounded-2xl p-4 flex gap-4 transition-all"
                               style={{
                                 backgroundColor: '#0f172a',
                                 border: '1px solid #1e293b'
                               }}
                           >
                               <div
-                                className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0"
+                                className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0"
                                 style={{ backgroundColor: '#1e293b' }}
                               >
                                   <img
@@ -235,7 +235,7 @@ export const UserStoreTab: React.FC<UserStoreTabProps> = ({
                                       <button
                                           disabled={isOutOfStock}
                                           onClick={() => addToCart(p.id)}
-                                          className="p-2.5 rounded-lg"
+                                          className="p-2.5 rounded-xl"
                                           style={{
                                             backgroundColor: isOutOfStock ? '#94a3b8' : '#10b981',
                                             color: '#ffffff'

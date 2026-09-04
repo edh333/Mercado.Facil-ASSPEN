@@ -2,9 +2,9 @@ import React, { useMemo } from 'react';
 import { X, Printer, FileText, TrendingUp, TrendingDown, Package, Users, Download, Calendar, BarChart3, PieChart, Activity, FileSpreadsheet, Landmark, Wallet } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { User } from '../../types';
-import { isAdminRole, mascararCpf } from '../../utils';
+import { isAdminRole } from '../../utils';
 import { toDate } from '../../utils/dateUtils';
-import { getLocalDateStr } from './adminUtils';
+import { getLocalDateStr, ehReceita } from './adminUtils';
 import { buildMonthlyDre, buildSalesCsv, buildStockAbc, buildDailySales, buildSalesByCategory, buildLowStock, buildProductsCatalog, buildExtratoIndividual } from '../../context/StoreContext';
 
 const PAYMENT_LABELS: Record<string, string> = {
@@ -24,7 +24,7 @@ const esc = (v: any): string => String(v ?? '')
     .replace(/>/g, '&gt;');
 
 const buildDailyClosing = (orders: any[], expenses: any[], transactions: any[], startDateStr: string, endDateStr: string) => {
-    const statusReceita = (s?: string) => !['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'reembolsado', 'rejected', 'rejeitado'].includes(String(s || '').toLowerCase());
+    const statusReceita = ehReceita; // Fonte ÚNICA de verdade (adminUtils) — mesmo conceito dos cards/financeiro
     const inPeriod = (ts?: string | number) => {
         if (!ts) return false;
         const d = toDate(ts);
@@ -51,9 +51,8 @@ const buildDailyClosing = (orders: any[], expenses: any[], transactions: any[], 
             const label = PAYMENT_LABELS[method] || method;
             if (!methods[method]) methods[method] = { label, amount: 0, count: 0 };
             methods[method].amount += Number(split.amount) || 0;
+            methods[method].count += 1;
         });
-        if (!methods[primary]) methods[primary] = { label: PAYMENT_LABELS[primary] || primary, amount: 0, count: 0 };
-        methods[primary].count += 1;
         totalSales += Number(order.total) || 0;
     });
 
@@ -91,7 +90,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
     const [fontSize, setFontSize] = React.useState(14);
 
     // Pedidos cancelados/estornados/rejeitados NÃO são receita (contagem e valores).
-    const statusReceita = (s?: string) => !['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'reembolsado', 'rejected', 'rejeitado'].includes(String(s || '').toLowerCase());
+    const statusReceita = ehReceita; // Fonte ÚNICA de verdade (adminUtils) — mesmo conceito dos cards/financeiro
 
     // Familiar selecionado no Extrato Individual (objeto completo OU apenas o id)
     const selectedUser = config?.selectedUser && (config.selectedUser as User)?.id
@@ -237,10 +236,10 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-[var(--bg-main)]/50 p-6 rounded-[2rem] border border-[var(--border-color)] shadow-inner group">
                     <div className="flex items-center gap-3 mb-3">
-                        <div className="p-2 bg-[var(--primary-color)]/10 text-[var(--primary-color)] rounded-lg"><TrendingUp size={16}/></div>
+                        <div className="p-2 bg-emerald-500/10 text-emerald-600 rounded-lg"><TrendingUp size={16}/></div>
                         <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest leading-none">Receita Bruta</p>
                     </div>
-                    <p className="text-2xl font-black text-[var(--primary-color)] tracking-tighter">R$ {report.summary.totalSales.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+                    <p className="text-2xl font-black text-emerald-600 tracking-tighter">R$ {report.summary.totalSales.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
                 </div>
                 <div className="bg-[var(--bg-main)]/50 p-6 rounded-[2rem] border border-[var(--border-color)] shadow-inner group">
                     <div className="flex items-center gap-3 mb-3">
@@ -316,7 +315,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                                         </div>
                                     </td>
                                     <td className="p-5">
-                                        <span className={`px-3 py-1 rounded-lg font-black text-[10px] uppercase tracking-widest shadow-sm ${item.type === 'ENTRY' ? 'bg-[var(--primary-color)]/10 text-[var(--primary-color)] border border-[var(--primary-color)]/50/20' : 'bg-red-500/10 text-red-600 border border-red-500/20'}`}>
+                                        <span className={`px-3 py-1 rounded-lg font-black text-[10px] uppercase tracking-widest shadow-sm ${item.type === 'ENTRY' ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' : 'bg-red-500/10 text-red-600 border border-red-500/20'}`}>
                                             {item.type === 'ENTRY' ? 'Entrada' : 'Saída'}
                                         </span>
                                     </td>
@@ -325,7 +324,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                                             {item.description}
                                         </span>
                                     </td>
-                                    <td className={`p-5 text-right font-black text-sm tracking-tighter ${item.type === 'ENTRY' ? 'text-[var(--primary-color)]' : 'text-red-600'}`}>
+                                    <td className={`p-5 text-right font-black text-sm tracking-tighter ${item.type === 'ENTRY' ? 'text-emerald-600' : 'text-red-600'}`}>
                                         <span className="text-[10px] opacity-40 mr-1">{item.type === 'ENTRY' ? '+' : '-'} R$</span>
                                         {item.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
                                     </td>
@@ -365,10 +364,10 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
         const linhaDre = (label: string, valor: number, destaque?: 'positivo' | 'negativo' | 'neutro', sub?: string) => (
             <div className="flex justify-between items-center p-5 border-b border-[var(--border-color)] last:border-0">
                 <div>
-                    <p className={`text-[11px] font-black uppercase tracking-tight ${destaque === 'positivo' ? 'text-[var(--primary-color)]' : destaque === 'negativo' ? 'text-red-600' : 'text-[var(--text-main)]'}`}>{label}</p>
+                    <p className={`text-[11px] font-black uppercase tracking-tight ${destaque === 'positivo' ? 'text-emerald-600' : destaque === 'negativo' ? 'text-red-600' : 'text-[var(--text-main)]'}`}>{label}</p>
                     {sub && <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest mt-0.5">{sub}</p>}
                 </div>
-                <span className={`text-base font-black tracking-tighter ${destaque === 'positivo' ? 'text-[var(--primary-color)]' : destaque === 'negativo' ? 'text-red-600' : 'text-[var(--text-main)]'}`}>
+                <span className={`text-base font-black tracking-tighter ${destaque === 'positivo' ? 'text-emerald-600' : destaque === 'negativo' ? 'text-red-600' : 'text-[var(--text-main)]'}`}>
                     {valor >= 0 ? 'R$ ' : '- R$ '}{Math.abs(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </span>
             </div>
@@ -424,7 +423,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
         if (!csv) return null;
         return (
             <div className="space-y-6 animate-fadeIn">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[var(--primary-color)] text-white p-6 rounded-[2rem] shadow-xl">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-emerald-600 text-white p-6 rounded-[2rem] shadow-xl">
                     <div className="flex items-center gap-4">
                         <FileSpreadsheet size={28}/>
                         <div>
@@ -444,7 +443,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                     </div>
                     <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
                         <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Faturamento Bruto</p>
-                        <p className="text-xl font-black text-[var(--primary-color)]">R$ {csv.totalVendas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                        <p className="text-xl font-black text-emerald-600">R$ {csv.totalVendas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                     </div>
                     <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
                         <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Impostos Estimados (7%)</p>
@@ -475,7 +474,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                                         <td className="p-4 text-[10px] font-black text-[var(--text-main)]">{l.NUMERO_CUPOM}</td>
                                         <td className="p-4 text-[10px] font-black font-mono text-[var(--text-muted)]">{l.CPF_CLIENTE}</td>
                                         <td className="p-4">
-                                            <span className="px-2.5 py-1 rounded-lg font-black text-[10px] uppercase tracking-widest bg-[var(--primary-color)]/10 text-[var(--primary-color)] border border-[var(--primary-color)]/50/20">{l.FORMA_PAGAMENTO}</span>
+                                            <span className="px-2.5 py-1 rounded-lg font-black text-[10px] uppercase tracking-widest bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">{l.FORMA_PAGAMENTO}</span>
                                         </td>
                                         <td className="p-4 text-right text-[10px] font-black text-[var(--text-muted)]">{l['ALIQUOTA_ESTIMADA(%)']}%</td>
                                         <td className="p-4 text-right text-[10px] font-black text-amber-600">R$ {l.IMPOSTO_ESTIMADO}</td>
@@ -496,13 +495,13 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
     const renderStockAbc = () => {
         const abc = report.stockAbc;
         if (!abc) return null;
-        const corClasse = (c: string) => c === 'A' ? 'bg-[var(--primary-color)]/15 text-[var(--primary-color)] border-[var(--primary-color)]/50/30' : c === 'B' ? 'bg-amber-500/15 text-amber-600 border-amber-500/30' : 'bg-red-500/15 text-red-600 border-red-500/30';
+        const corClasse = (c: string) => c === 'A' ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30' : c === 'B' ? 'bg-amber-500/15 text-amber-600 border-amber-500/30' : 'bg-red-500/15 text-red-600 border-red-500/30';
         return (
             <div className="space-y-6 animate-fadeIn">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
                         <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Receita Gerada (Giro)</p>
-                        <p className="text-xl font-black text-[var(--primary-color)]">R$ {abc.totalReceita.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                        <p className="text-xl font-black text-emerald-600">R$ {abc.totalReceita.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                     </div>
                     <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
                         <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Inventário Total (Custo)</p>
@@ -544,7 +543,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                                             {l.qtdVendida === 0 && <span className="text-[10px] font-black text-red-500 uppercase tracking-widest">Sem giro no período</span>}
                                         </td>
                                         <td className="p-4 text-right text-[11px] font-black text-[var(--text-main)]">{l.qtdVendida}</td>
-                                        <td className="p-4 text-right text-[11px] font-black text-[var(--primary-color)]">R$ {l.receita.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                        <td className="p-4 text-right text-[11px] font-black text-emerald-600">R$ {l.receita.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                                         <td className="p-4 text-right text-[11px] font-black text-[var(--text-muted)]">{l.acumuladoPct.toFixed(1)}%</td>
                                         <td className="p-4 text-right text-[11px] font-black text-[var(--text-main)]">{l.estoque}</td>
                                         <td className="p-4 text-right text-[11px] font-black text-[var(--text-main)]">R$ {l.valorEstoqueCusto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
@@ -576,7 +575,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
         const totalGastoSemanal = lista.reduce((a, b) => a + b.gastoSemanal, 0);
         const saldoMedio = lista.length ? totalSaldo / lista.length : 0;
         const statusBadge = (s: string) =>
-            s === 'active' ? 'bg-[var(--primary-color)]/15 text-[var(--primary-color)] border-[var(--primary-color)]/50/30'
+            s === 'active' ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30'
             : s === 'pending' ? 'bg-amber-500/15 text-amber-600 border-amber-500/30'
             : 'bg-red-500/15 text-red-600 border-red-500/30';
         const statusLabel = (s: string) =>
@@ -584,7 +583,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
         return (
             <div className="space-y-6 animate-fadeIn">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="bg-[var(--primary-color)] p-5 rounded-[2rem] shadow-xl text-white relative overflow-hidden group">
+                    <div className="bg-emerald-600 p-5 rounded-[2rem] shadow-xl text-white relative overflow-hidden group">
                         <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
                         <p className="text-[9px] font-black uppercase tracking-widest opacity-70 mb-1">Saldo Total Disponível</p>
                         <p className="text-2xl font-black tracking-tighter">R$ {totalSaldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
@@ -592,7 +591,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                     </div>
                     <div className="bg-[var(--bg-main)]/50 p-5 rounded-[2rem] border border-[var(--border-color)]">
                         <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Familiares Ativos</p>
-                        <p className="text-2xl font-black text-[var(--primary-color)]">{ativos}</p>
+                        <p className="text-2xl font-black text-emerald-600">{ativos}</p>
                     </div>
                     <div className="bg-[var(--bg-main)]/50 p-5 rounded-[2rem] border border-[var(--border-color)]">
                         <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Saldo Médio por Familiar</p>
@@ -642,7 +641,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                                         <td className="p-5">
                                             <span className={`px-3 py-1 rounded-lg font-black text-[10px] uppercase tracking-widest border ${statusBadge(x.u.status)}`}>{statusLabel(x.u.status)}</span>
                                         </td>
-                                        <td className={`p-5 text-right font-black text-sm tracking-tighter ${x.saldo > 0 ? 'text-[var(--primary-color)]' : 'text-[var(--text-muted)]'}`}>R$ {x.saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                        <td className={`p-5 text-right font-black text-sm tracking-tighter ${x.saldo > 0 ? 'text-emerald-600' : 'text-[var(--text-muted)]'}`}>R$ {x.saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                                         <td className="p-5 text-right font-black text-sm tracking-tighter text-amber-600">R$ {x.gastoSemanal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                                     </tr>
                                 ))}
@@ -669,7 +668,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
     const printUsersCredits = () => {
         const lista = (users || [])
             .filter((u: User) => !isAdminRole(u.role))
-            .map(u => ({ name: u.name || '—', cpf: mascararCpf(u.cpf), status: u.status, saldo: Number(u.walletBalance) || 0, gastoSemanal: Number(u.weeklySpent) || 0 }))
+            .map(u => ({ name: u.name || '—', cpf: u.cpf || '—', status: u.status, saldo: Number(u.walletBalance) || 0, gastoSemanal: Number(u.weeklySpent) || 0 }))
             .sort((a, b) => b.saldo - a.saldo);
         const totalSaldo = lista.reduce((a, b) => a + b.saldo, 0);
         const totalGasto = lista.reduce((a, b) => a + b.gastoSemanal, 0);
@@ -708,7 +707,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
     .rodape { margin-top:22px; text-align:center; font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:1px; }
     .assinatura { margin-top:48px; display:flex; justify-content:space-between; }
     .assinatura div { width:40%; border-top:1px solid #64748b; padding-top:8px; font-size:10px; text-transform:uppercase; text-align:center; color:#475569; }
-    @media print { body { padding:16px; } }
+    @media print { @page { size: A4; margin: 15mm 12mm; } body { padding:16px; } }
 </style>
 </head>
 <body>
@@ -759,10 +758,10 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="bg-[var(--bg-main)]/50 p-5 rounded-[2rem] border border-[var(--border-color)] shadow-inner">
                         <div className="flex items-center gap-3 mb-2">
-                            <div className="p-2 bg-[var(--primary-color)]/10 text-[var(--primary-color)] rounded-lg"><TrendingUp size={16}/></div>
+                            <div className="p-2 bg-emerald-500/10 text-emerald-600 rounded-lg"><TrendingUp size={16}/></div>
                             <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest leading-none">Vendas do Período</p>
                         </div>
-                        <p className="text-2xl font-black text-[var(--primary-color)] tracking-tighter">{fmt(dc.totalSales)}</p>
+                        <p className="text-2xl font-black text-emerald-600 tracking-tighter">{fmt(dc.totalSales)}</p>
                         <p className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest mt-1">{dc.salesCount} venda(s)</p>
                     </div>
                     <div className="bg-[var(--bg-main)]/50 p-5 rounded-[2rem] border border-[var(--border-color)] shadow-inner">
@@ -842,7 +841,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
             .card .valor{font-size:20px;font-weight:800}
             .assinatura{margin-top:70px;display:flex;justify-content:space-between;font-size:13px;color:#475569}
             .rodape{margin-top:30px;font-size:11px;color:#94a3b8;text-align:center}
-            @media print{body{background:white!important;padding:20px!important}}
+            @media print{@page{size:A4;margin:15mm 12mm}body{background:white!important;padding:20px!important}}
         </style></head><body>
             <h1>${report.title}</h1>
             <p class="sub">Período: ${report.period} · Emitido em: ${hoje} · ${dc.salesCount} venda(s) no período</p>
@@ -873,7 +872,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
         <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[2.5rem] overflow-hidden shadow-xl">
             <div className="p-6 border-b border-[var(--border-color)] bg-[var(--bg-main)]/30">
                 <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--text-muted)] flex items-center gap-2">
-                    <BarChart3 size={16} className="text-[var(--primary-color)]"/> {titulo}
+                    <BarChart3 size={16} className="text-emerald-600"/> {titulo}
                 </h4>
             </div>
             <div className="max-h-[48vh] overflow-y-auto custom-scrollbar">
@@ -927,7 +926,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                     </div>
                     <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
                         <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Faturamento Total</p>
-                        <p className="text-xl font-black text-[var(--primary-color)]">{fmt(ds.totalGeral)}</p>
+                        <p className="text-xl font-black text-emerald-600">{fmt(ds.totalGeral)}</p>
                     </div>
                     <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
                         <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Ticket Médio</p>
@@ -942,7 +941,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                         dia.data,
                         String(dia.vendas),
                         String(dia.items),
-                        { texto: fmt(dia.total), classe: 'text-[var(--primary-color)]' }
+                        { texto: fmt(dia.total), classe: 'text-emerald-600' }
                     ]),
                     [
                         'TOTAL',
@@ -973,7 +972,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                     </div>
                     <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
                         <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Receita Total</p>
-                        <p className="text-xl font-black text-[var(--primary-color)]">{fmt(c.totalReceita)}</p>
+                        <p className="text-xl font-black text-emerald-600">{fmt(c.totalReceita)}</p>
                     </div>
                 </div>
                 {renderTabelaPadrao(
@@ -983,7 +982,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                     c.linhas.map((l: any) => [
                         l.categoria,
                         String(l.quantidade),
-                        { texto: fmt(l.receita), classe: 'text-[var(--primary-color)]' },
+                        { texto: fmt(l.receita), classe: 'text-emerald-600' },
                         { texto: `${c.totalReceita ? ((l.receita / c.totalReceita) * 100).toFixed(1) : 0}%`, classe: 'text-[var(--text-muted)]' }
                     ]),
                     ['TOTAL', String(c.totalQuantidade), fmt(c.totalReceita), '100%'],
@@ -1047,7 +1046,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                     </div>
                     <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
                         <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Valor do Estoque (Venda)</p>
-                        <p className="text-xl font-black text-[var(--primary-color)]">{fmt(pc.totalValorEstoque)}</p>
+                        <p className="text-xl font-black text-emerald-600">{fmt(pc.totalValorEstoque)}</p>
                     </div>
                 </div>
                 {renderTabelaPadrao(
@@ -1080,7 +1079,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
         return (
             <div className="space-y-6 animate-fadeIn">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="bg-[var(--primary-color)] p-5 rounded-[2rem] shadow-xl text-white relative overflow-hidden">
+                    <div className="bg-emerald-600 p-5 rounded-[2rem] shadow-xl text-white relative overflow-hidden">
                         <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
                         <p className="text-[9px] font-black uppercase tracking-widest opacity-70 mb-1">Familiar</p>
                         <p className="text-lg font-black uppercase tracking-tighter max-w-[220px] truncate">{ex.usuario.name}</p>
@@ -1088,7 +1087,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                     </div>
                     <div className="bg-[var(--bg-main)]/50 p-5 rounded-[2rem] border border-[var(--border-color)]">
                         <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Entradas no Período</p>
-                        <p className="text-2xl font-black text-[var(--primary-color)]">{fmt(ex.totalEntradas)}</p>
+                        <p className="text-2xl font-black text-emerald-600">{fmt(ex.totalEntradas)}</p>
                     </div>
                     <div className="bg-[var(--bg-main)]/50 p-5 rounded-[2rem] border border-[var(--border-color)]">
                         <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Saídas no Período</p>
@@ -1105,9 +1104,9 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                     ['left', 'center', 'left', 'right'],
                     ex.movs.map((m: any) => [
                         toDate(m.date)?.toLocaleDateString('pt-BR') || '',
-                        { texto: m.type === 'ENTRY' ? 'Entrada' : 'Saída', classe: m.type === 'ENTRY' ? 'text-[var(--primary-color)]' : 'text-red-500' },
+                        { texto: m.type === 'ENTRY' ? 'Entrada' : 'Saída', classe: m.type === 'ENTRY' ? 'text-emerald-600' : 'text-red-500' },
                         m.description,
-                        { texto: `${m.type === 'ENTRY' ? '+' : '-'} ${fmt(m.amount)}`, classe: m.type === 'ENTRY' ? 'text-[var(--primary-color)]' : 'text-red-500' }
+                        { texto: `${m.type === 'ENTRY' ? '+' : '-'} ${fmt(m.amount)}`, classe: m.type === 'ENTRY' ? 'text-emerald-600' : 'text-red-500' }
                     ]),
                     null,
                     'Nenhuma movimentação neste período.'
@@ -1159,6 +1158,40 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                 const cor = m.type === 'ENTRY' ? '#059669' : '#ef4444';
                 return `<tr><td>${toDate(m.date)?.toLocaleDateString('pt-BR') || ''}</td><td style="text-align:center;color:${cor};font-weight:700;">${m.type === 'ENTRY' ? 'Entrada' : 'Saída'}</td><td>${esc(m.description)}</td><td style="text-align:right;color:${cor};font-weight:700;">${m.type === 'ENTRY' ? '+' : '-'} R$ ${m.amount.toFixed(2)}</td></tr>`;
             });
+        } else if (report.type === 'DRE_MONTHLY') {
+            const d = report.dre;
+            if (!d) return;
+            titulo = 'Fechamento Mensal — DRE Simplificado';
+            cabecalhoRow = '<th>Descrição</th><th style="text-align:right;">Valor</th>';
+            linhas = [
+                `<tr><td style="font-weight:700;">Receita Bruta de Vendas (${d.qtdPedidos} pedidos, ${d.qtdItensVendidos} itens)</td><td style="text-align:right;color:#059669;font-weight:700;">R$ ${d.receitaBruta.toFixed(2)}</td></tr>`,
+                `<tr><td>(-) Custo das Mercadorias Vendidas (CMV)</td><td style="text-align:right;color:#ef4444;font-weight:700;">- R$ ${d.custoMercadoriasVendidas.toFixed(2)}</td></tr>`,
+                `<tr><td style="font-weight:700;">(=) Lucro Bruto</td><td style="text-align:right;color:${d.lucroBruto >= 0 ? '#059669' : '#ef4444'};font-weight:800;">R$ ${d.lucroBruto.toFixed(2)}</td></tr>`,
+                `<tr><td>(-) Impostos Estimados (${(d.aliquotaImposto * 100).toFixed(0)}%)</td><td style="text-align:right;color:#ef4444;font-weight:700;">- R$ ${d.impostosEstimados.toFixed(2)}</td></tr>`,
+                `<tr><td>(-) Despesas Operacionais</td><td style="text-align:right;color:#ef4444;font-weight:700;">- R$ ${d.despesasOperacionais.toFixed(2)}</td></tr>`,
+            ];
+            rodapeHtml = `<tr><td style="font-weight:800;text-transform:uppercase;">Lucro Líquido do Período — Ticket Médio R$ ${d.ticketMedio.toFixed(2)}</td><td style="text-align:right;font-weight:800;font-size:14px;color:${d.lucroLiquido >= 0 ? '#059669' : '#ef4444'};">R$ ${d.lucroLiquido.toFixed(2)}</td></tr>`;
+        } else if (report.type === 'STOCK_ABC') {
+            const abc = report.stockAbc;
+            if (!abc) return;
+            titulo = 'Curva ABC de Estoque';
+            cabecalhoRow = '<th>Produto</th><th style="text-align:center;">Qtd Vendida</th><th style="text-align:right;">Receita</th><th style="text-align:right;">% Acum.</th><th style="text-align:center;">Estoque</th><th style="text-align:center;">Classe</th>';
+            linhas = abc.linhas.map((l: any) => `<tr><td style="font-weight:700;">${esc(l.name)}</td><td style="text-align:center;">${l.qtdVendida}</td><td style="text-align:right;font-weight:700;color:#059669;">R$ ${l.receita.toFixed(2)}</td><td style="text-align:right;">${l.acumuladoPct.toFixed(1)}%</td><td style="text-align:center;">${l.estoque}</td><td style="text-align:center;font-weight:800;color:${l.classe === 'A' ? '#059669' : l.classe === 'B' ? '#d97706' : '#ef4444'};">${l.classe}</td></tr>`);
+            rodapeHtml = `<tr><td style="font-weight:800;">TOTAL (${abc.qtdProdutosTotais} produtos)</td><td></td><td style="text-align:right;font-weight:800;color:#059669;">R$ ${abc.totalReceita.toFixed(2)}</td><td></td><td></td><td></td></tr>`;
+        } else if (report.type === 'SALES_CSV') {
+            const csv = report.salesCsv;
+            if (!csv) return;
+            titulo = 'Arquivo de Movimentação de Vendas';
+            cabecalhoRow = '<th>Data</th><th style="text-align:center;">Cupom</th><th style="text-align:center;">CPF</th><th>Pagamento</th><th style="text-align:right;">Alíq.</th><th style="text-align:right;">Imposto</th><th style="text-align:right;">Valor</th>';
+            linhas = csv.linhas.map((l: any) => `<tr><td>${esc(l.DATA)}</td><td style="text-align:center;">${esc(l.NUMERO_CUPOM)}</td><td style="text-align:center;">${esc(l.CPF_CLIENTE)}</td><td>${esc(l.FORMA_PAGAMENTO)}</td><td style="text-align:right;">${l['ALIQUOTA_ESTIMADA(%)']}%</td><td style="text-align:right;font-weight:700;color:#d97706;">R$ ${l.IMPOSTO_ESTIMADO}</td><td style="text-align:right;font-weight:700;">R$ ${l.VALOR_TOTAL}</td></tr>`);
+            rodapeHtml = `<tr><td style="font-weight:800;">TOTAL (${csv.linhas.length} vendas)</td><td></td><td></td><td></td><td></td><td style="text-align:right;font-weight:800;color:#d97706;">R$ ${csv.totalImpostos.toFixed(2)}</td><td style="text-align:right;font-weight:800;color:#059669;">R$ ${csv.totalVendas.toFixed(2)}</td></tr>`;
+        } else if (report.type === 'GENERAL' || report.type === 'FINANCIAL' || report.type === 'ACCOUNTABILITY') {
+            cabecalhoRow = '<th>Data</th><th style="text-align:center;">Tipo</th><th>Descrição</th><th style="text-align:right;">Valor</th>';
+            linhas = report.items.map((i: any) => {
+                const cor = i.type === 'ENTRY' ? '#059669' : '#ef4444';
+                return `<tr><td>${toDate(i.date)?.toLocaleDateString('pt-BR') || ''}</td><td style="text-align:center;color:${cor};font-weight:700;">${i.type === 'ENTRY' ? 'Entrada' : 'Saída'}</td><td>${esc(i.description)}</td><td style="text-align:right;color:${cor};font-weight:700;">${i.type === 'ENTRY' ? '+' : '-'} R$ ${(i.amount || 0).toFixed(2)}</td></tr>`;
+            });
+            rodapeHtml = `<tr><td colspan="3" style="text-align:right;font-weight:800;">SALDO DO PERÍODO</td><td style="text-align:right;font-weight:800;color:${report.summary.net >= 0 ? '#059669' : '#ef4444'};">R$ ${report.summary.net.toFixed(2)}</td></tr>`;
         }
 
         if (!cabecalhoRow) return;
@@ -1182,7 +1215,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
     .assinatura { margin-top:48px; display:flex; justify-content:space-between; }
     .assinatura div { width:40%; border-top:1px solid #64748b; padding-top:8px; font-size:10px; text-transform:uppercase; text-align:center; color:#475569; }
     .rodape { margin-top:22px; text-align:center; font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:1px; }
-    @media print { body { padding:16px; } }
+    @media print { @page { size: A4; margin: 15mm 12mm; } body { padding:16px; } }
 </style>
 </head>
 <body>
@@ -1307,7 +1340,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                             link.click();
                             document.body.removeChild(link);
                             URL.revokeObjectURL(url);
-                        }} className="flex-1 sm:flex-none px-6 py-3 bg-[var(--primary-color)]/10 text-[var(--primary-color)] border border-emerald-600/20 font-black rounded-2xl hover:bg-[var(--primary-color)] hover:text-white transition-all text-[9px] uppercase tracking-widest flex items-center justify-center gap-2">
+                        }} className="flex-1 sm:flex-none px-6 py-3 bg-emerald-600/10 text-emerald-600 border border-emerald-600/20 font-black rounded-2xl hover:bg-emerald-600 hover:text-white transition-all text-[9px] uppercase tracking-widest flex items-center justify-center gap-2">
                             <Download size={16}/> JSON
                         </button>
                         <button onClick={() => {
@@ -1319,7 +1352,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                                 printDailyClosing();
                                 return;
                             }
-                            if (report.type === 'VENDAS_DIARIAS' || report.type === 'COLLECTIVE_PURCHASES' || report.type === 'SALES_BY_CATEGORY' || report.type === 'STOCK_LOW' || report.type === 'PRODUCTS_ALL' || report.type === 'INDIVIDUAL') {
+                            if (report.type === 'VENDAS_DIARIAS' || report.type === 'COLLECTIVE_PURCHASES' || report.type === 'SALES_BY_CATEGORY' || report.type === 'STOCK_LOW' || report.type === 'PRODUCTS_ALL' || report.type === 'INDIVIDUAL' || report.type === 'DRE_MONTHLY' || report.type === 'STOCK_ABC' || report.type === 'SALES_CSV' || report.type === 'GENERAL' || report.type === 'FINANCIAL' || report.type === 'ACCOUNTABILITY') {
                                 printTabelaProfissional();
                                 return;
                             }
@@ -1329,7 +1362,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                                 // monospace apenas no modo cupom térmico.
                                 const thermalClass = thermalMode ? 'max-width:380px;margin:0 auto;font-family:monospace;' : '';
                                 const bodyFont = thermalMode ? 'font-family:monospace' : "font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif";
-                                const html = `<html><head><title>${report.title}</title><style>body{${bodyFont};padding:40px;${thermalClass}}h1{font-size:24px;text-transform:uppercase;letter-spacing:1px;border-bottom:3px solid #059669;padding-bottom:12px}h2{font-size:14px;margin-bottom:8px}.sub{color:#64748b;font-size:13px;margin-bottom:20px}table{width:100%;border-collapse:collapse;margin-top:20px}th{padding:10px;text-align:left;background:#0f172a;color:#fff;font-size:10px;text-transform:uppercase;letter-spacing:1px}td{padding:12px;text-align:left;border-bottom:1px solid #e2e8f0}.entry{color:#059669;font-weight:700}.exit{color:#ef4444;font-weight:700}.summary{margin-top:30px;padding:20px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0}.assinatura{margin-top:60px;display:flex;justify-content:space-between;font-size:13px;color:#475569}.assinatura div{width:40%;border-top:1px solid #64748b;padding-top:8px;font-size:10px;text-transform:uppercase;text-align:center}.rodape{margin-top:24px;text-align:center;color:#94a3b8;font-size:10px;text-transform:uppercase;letter-spacing:1px}@media print{body{background:white!important;padding:20px!important}}</style></head><body><h1>${report.title}</h1><p class="sub">Período: ${report.period} · Emitido em: ${new Date().toLocaleDateString('pt-BR')}</p><table>${report.items.map((i: any) => `<tr><td>${toDate(i.date)?.toLocaleDateString('pt-BR') || ''}</td><td class="${i.type === 'ENTRY' ? 'entry' : 'exit'}">${i.type === 'ENTRY' ? 'Entrada' : 'Saída'}</td><td>${esc(i.description)}</td><td class="${i.type === 'ENTRY' ? 'entry' : 'exit'}">${i.type === 'ENTRY' ? '+' : '-'} R$ ${i.amount.toFixed(2)}</td></tr>`).join('')}</table><div class="summary"><h2>Resumo do Período</h2><p>Total de Entradas: <b>R$ ${report.summary.totalEntries.toFixed(2)}</b></p><p>Total de Saídas: <b>R$ ${report.summary.totalExits.toFixed(2)}</b></p><p>Resultado Líquido: <b style="color:${report.summary.net >= 0 ? '#059669' : '#ef4444'}">R$ ${report.summary.net.toFixed(2)}</b></p></div><div class="assinatura"><div>Emitido por: ${(settings as any)?.adminName || 'Administração'}</div><div>Assinatura / Carimbo</div></div><p class="rodape">Documento gerado pelo sistema Mercado Fácil — uso interno</p></body></html>`;
+                                const html = `<html><head><title>${report.title}</title><style>body{${bodyFont};padding:40px;${thermalClass}}h1{font-size:24px;text-transform:uppercase;letter-spacing:1px;border-bottom:3px solid #059669;padding-bottom:12px}h2{font-size:14px;margin-bottom:8px}.sub{color:#64748b;font-size:13px;margin-bottom:20px}table{width:100%;border-collapse:collapse;margin-top:20px}th{padding:10px;text-align:left;background:#0f172a;color:#fff;font-size:10px;text-transform:uppercase;letter-spacing:1px}td{padding:12px;text-align:left;border-bottom:1px solid #e2e8f0}.entry{color:#059669;font-weight:700}.exit{color:#ef4444;font-weight:700}.summary{margin-top:30px;padding:20px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0}.assinatura{margin-top:60px;display:flex;justify-content:space-between;font-size:13px;color:#475569}.assinatura div{width:40%;border-top:1px solid #64748b;padding-top:8px;font-size:10px;text-transform:uppercase;text-align:center}.rodape{margin-top:24px;text-align:center;color:#94a3b8;font-size:10px;text-transform:uppercase;letter-spacing:1px}@media print{@page{size:A4;margin:15mm 12mm}body{background:white!important;padding:20px!important}}</style></head><body><h1>${report.title}</h1><p class="sub">Período: ${report.period} · Emitido em: ${new Date().toLocaleDateString('pt-BR')}</p><table>${report.items.map((i: any) => `<tr><td>${toDate(i.date)?.toLocaleDateString('pt-BR') || ''}</td><td class="${i.type === 'ENTRY' ? 'entry' : 'exit'}">${i.type === 'ENTRY' ? 'Entrada' : 'Saída'}</td><td>${esc(i.description)}</td><td class="${i.type === 'ENTRY' ? 'entry' : 'exit'}">${i.type === 'ENTRY' ? '+' : '-'} R$ ${i.amount.toFixed(2)}</td></tr>`).join('')}</table><div class="summary"><h2>Resumo do Período</h2><p>Total de Entradas: <b>R$ ${report.summary.totalEntries.toFixed(2)}</b></p><p>Total de Saídas: <b>R$ ${report.summary.totalExits.toFixed(2)}</b></p><p>Resultado Líquido: <b style="color:${report.summary.net >= 0 ? '#059669' : '#ef4444'}">R$ ${report.summary.net.toFixed(2)}</b></p></div><div class="assinatura"><div>Emitido por: ${(settings as any)?.adminName || 'Administração'}</div><div>Assinatura / Carimbo</div></div><p class="rodape">Documento gerado pelo sistema Mercado Fácil — uso interno</p></body></html>`;
                                 printWindow.document.write(html);
                                 printWindow.document.close();
                                 printWindow.print();
@@ -1359,4 +1392,3 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
         </div>
     );
 };
-

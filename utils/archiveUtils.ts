@@ -64,7 +64,8 @@ function markArchiveDone(): void {
  * @returns Total number of documents archived.
  */
 export async function executarArquivamentoLocal(): Promise<number> {
-  console.log("🗂️ Iniciando arquivamento local (45 dias)...");
+  const inicio = Date.now();
+  console.info(`[Arquivamento 45d] início: ${COLLECTIONS_TO_ARCHIVE.map(c => c.name).join(', ')}.`);
 
   const dataLimite = new Date();
   dataLimite.setDate(dataLimite.getDate() - INTERVAL_DAYS);
@@ -83,7 +84,6 @@ export async function executarArquivamentoLocal(): Promise<number> {
       const snapshot = await getDocs(q);
 
       if (snapshot.empty) {
-        console.log(`✅ Coleção '${colecao.name}' já está limpa.`);
         continue;
       }
 
@@ -107,14 +107,13 @@ export async function executarArquivamentoLocal(): Promise<number> {
 
       // 3. Execute the batch delete
       await batch.commit();
-      console.log(`📦 ${snapshot.size} itens de '${colecao.name}' arquivados.`);
 
     } catch (erro) {
-      console.error(`❌ Erro ao arquivar coleção '${colecao.name}':`, erro);
+      console.error(`[Arquivamento 45d] erro em '${colecao.name}':`, erro);
     }
   }
 
   markArchiveDone();
-  console.log(`✅ Arquivamento concluído. Total: ${totalProcessado} documentos movidos.`);
+  console.info(`[Arquivamento 45d] concluído: ${totalProcessado} documento(s) em ${Date.now() - inicio}ms.`);
   return totalProcessado;
 }

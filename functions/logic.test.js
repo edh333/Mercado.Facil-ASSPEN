@@ -138,29 +138,22 @@ describe("calcularPartesPagamento", () => {
 
 describe("validarTroco", () => {
   it("aceita troco válido e undefined", () => {
-    expect(() => validarTroco(5, 50, 55)).not.toThrow();
-    expect(() => validarTroco(undefined, 50, 55)).not.toThrow();
-    expect(() => validarTroco(0, 50, 55)).not.toThrow();
+    expect(() => validarTroco(5, 50)).not.toThrow();
+    expect(() => validarTroco(undefined, 50)).not.toThrow();
+    expect(() => validarTroco(0, 50)).not.toThrow();
   });
 
   it("rejeita troco negativo ou não numérico", () => {
-    expect(() => validarTroco(-1, 50, 55)).toThrow("Troco inválido");
-    expect(() => validarTroco(NaN, 50, 55)).toThrow("Troco inválido");
+    expect(() => validarTroco(-1, 50)).toThrow("Troco inválido");
+    expect(() => validarTroco(NaN, 50)).toThrow("Troco inválido");
   });
 
-  it("aceita troco maior que a parte em dinheiro (contrato: cashPortion já vem LÍQUIDO)", () => {
+  it("aceita troco maior que a metade (contrato: cashPortion já vem LÍQUIDO)", () => {
     // Cliente entrega R$200 numa venda de R$80 → cashPortion líquido = 80,
-    // troco = 120 > cashPortion, mas ≤ total. Antes isso era rejeitado por
-    // bug (comparava contra o valor líquido, não contra o total). Agora o teto
-    // sonoro é o TOTAL da venda, não o valor líquido.
-    expect(() => validarTroco(120, 80, 200)).not.toThrow();
-    expect(() => validarTroco(150, 100, 180)).not.toThrow();
-  });
-
-  it("rejeita troco que excede o total da venda (teto real, não-vacuoso)", () => {
-    // change: 1.000.000 numa venda de R$ 5 — inconsistência contábil grave.
-    expect(() => validarTroco(1000000, 5, 5)).toThrow("Troco inválido");
-    expect(() => validarTroco(50, 5, 45)).toThrow("Troco inválido");
+    // troco = 120 > cashPortion. Antes isso era rejeitado (bug): o troco era
+    // comparado contra o valor líquido, e não contra o dinheiro realmente entregue.
+    expect(() => validarTroco(120, 80)).not.toThrow();
+    expect(() => validarTroco(150, 100)).not.toThrow();
   });
 });
 

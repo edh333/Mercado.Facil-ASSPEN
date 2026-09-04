@@ -9,9 +9,17 @@ interface RelatorioA4Props {
 
 export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
     if (!report) return null;
+    const itens = Array.isArray(report.items) ? report.items : [];
+    const summary = report.summary || {};
+    // Código de autenticação DETERMINÍSTICO (mesmo relatório → mesmo código):
+    // derivado do título + período + 1º registro, nunca de Math.random().
+    const authSeed = String(report.title || 'RELATORIO') + '|' + String(report.period || '') + '|' + String(itens[0]?.id || itens[0]?.date || '');
+    let authHash = 0;
+    for (let i = 0; i < authSeed.length; i++) authHash = (authHash * 31 + authSeed.charCodeAt(i)) >>> 0;
+    const codigoAutenticacao = authHash.toString(36).toUpperCase().padStart(9, '0').slice(0, 9);
 
     return (
-        <div className="bg-white p-12 max-w-[210mm] w-full mx-auto text-slate-900 font-sans print:p-0 print:m-0">
+        <div className="documento-a4 bg-white p-12 max-w-[210mm] w-full mx-auto text-slate-900 font-sans print:p-0 print:m-0">
             {/* Cabeçalho Institucional */}
             <div className="border-b-4 border-slate-900 pb-6 mb-8 flex justify-between items-center">
                 <div>
@@ -27,17 +35,17 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
 
             {/* Resumo Consolidado */}
             <div className="grid grid-cols-3 gap-6 mb-10">
-                <div className="border-2 border-slate-100 p-4 rounded-lg">
+                <div className="border-2 border-slate-100 p-4 rounded-xl">
                     <p className="text-[8px] font-black uppercase text-slate-400 mb-1">Total de Entradas</p>
-                    <p className="text-lg font-black text-emerald-600">R$ {formatarMoeda(report.summary.totalEntries || report.summary.totalSales || 0)}</p>
+                    <p className="text-lg font-black text-emerald-600">R$ {formatarMoeda(summary.totalEntries || summary.totalSales || 0)}</p>
                 </div>
-                <div className="border-2 border-slate-100 p-4 rounded-lg">
+                <div className="border-2 border-slate-100 p-4 rounded-xl">
                     <p className="text-[8px] font-black uppercase text-slate-400 mb-1">Total de Saídas</p>
-                    <p className="text-lg font-black text-red-600">R$ {formatarMoeda(report.summary.totalExits || report.summary.totalExpenses || 0)}</p>
+                    <p className="text-lg font-black text-red-600">R$ {formatarMoeda(summary.totalExits || summary.totalExpenses || 0)}</p>
                 </div>
-                <div className="bg-slate-900 p-4 rounded-lg text-white">
+                <div className="bg-slate-900 p-4 rounded-xl text-white">
                     <p className="text-[8px] font-black uppercase text-slate-400 mb-1">Saldo Final</p>
-                    <p className="text-lg font-black">R$ {formatarMoeda(report.summary.net || 0)}</p>
+                    <p className="text-lg font-black">R$ {formatarMoeda(summary.net || 0)}</p>
                 </div>
             </div>
 
@@ -53,7 +61,7 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
                         </tr>
                     </thead>
                     <tbody>
-                        {(report.items || []).map((item: any, idx: number) => (
+                        {itens.map((item: any, idx: number) => (
                             <tr key={idx} className="border-b border-slate-100 last:border-0 hover:bg-slate-50 break-inside-avoid">
                                 <td className="p-2 text-[10px] font-medium whitespace-nowrap">{toDate(item.date)?.toLocaleDateString('pt-BR') || ''}</td>
                                 <td className="p-2 text-[10px] font-bold text-slate-700">{item.description}</td>
@@ -68,7 +76,7 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
                     </tbody>
                 </table>
 
-                {report.items.length === 0 && (
+                {itens.length === 0 && (
                     <div className="py-10 text-center text-[10px] font-black uppercase text-slate-400">Nenhum registro encontrado no período.</div>
                 )}
             </div>
@@ -87,7 +95,7 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
                 </div>
                 <p className="mt-12 text-center text-[8px] font-bold text-slate-300 uppercase tracking-tight">
                     Documento gerado eletronicamente pelo Sistema de Gestão Prisional Mercado Fácil.
-                    Código de Autenticação: {Math.random().toString(36).substr(2, 9).toUpperCase()}
+                    Código de Autenticação: {codigoAutenticacao}
                 </p>
             </div>
         </div>
