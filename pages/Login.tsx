@@ -461,7 +461,7 @@ const [recoveryName, setRecoveryName] = useState('');
                                     ) : (
                                         <>
                                             {isAdmin ? (
-                                                <PremiumInput icon={User} label="E-mail" value={adminEmail} onChange={(e: any) => setAdminEmail(e.target.value)} type="email" />
+                                                <PremiumInput icon={User} label="Login" value={adminEmail} onChange={(e: any) => setAdminEmail(e.target.value)} type="email" />
                                             ) : (
                                                 <PremiumInput icon={UserCheck} label="Digite seu CPF" value={cpf} onChange={(e: any) => setCpf(e.target.value)} />
                                             )}
@@ -562,12 +562,12 @@ const PremiumInput = ({ icon: Icon, label, value, onChange, type = "text", actio
     return (
         <div>
             <label htmlFor={inputId} className="block text-xs font-semibold tracking-wide text-slate-500 mb-2 ml-1">{label}</label>
-            <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/70 px-3.5 transition-all focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/15 focus-within:bg-white">
-                <Icon size={17} className="text-slate-400 shrink-0" aria-hidden="true" />
+            <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/70 px-3.5 transition-all focus-within:border-emerald-500 focus-within:bg-white dark:border-slate-700 dark:bg-slate-800/50 dark:focus-within:border-emerald-500 dark:focus-within:bg-slate-800">
+                <Icon size={17} className="text-slate-400 shrink-0 dark:text-slate-500" aria-hidden="true" />
                 <input
                     type={type}
                     id={inputId}
-                    className="flex-1 py-3 bg-transparent border-none outline-none text-sm font-semibold text-slate-900"
+                    className="flex-1 py-3 bg-transparent border-none outline-none text-sm font-semibold text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500"
                     placeholder=" "
                     value={value}
                     onChange={onChange}
@@ -577,7 +577,7 @@ const PremiumInput = ({ icon: Icon, label, value, onChange, type = "text", actio
                 />
                 {action}
             </div>
-            {error && <p id={errorId} className="mt-1.5 text-[10px] font-medium text-red-600" role="alert">{error}</p>}
+            {error && <p id={errorId} className="mt-1.5 text-[10px] font-medium text-red-600 dark:text-red-400" role="alert">{error}</p>}
         </div>
     );
 };

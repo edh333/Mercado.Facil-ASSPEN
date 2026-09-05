@@ -49,13 +49,14 @@ const ComprovanteImg: React.FC<{ src: string }> = ({ src }) => {
         onClick={() => setPreviewOpen(true)}
       >
         {isPdf ? (
-          <iframe
-            src={`${src}#toolbar=0&navpanes=0&scrollbar=0`}
-            className="w-full h-full border-0 rounded-xl"
-            title="Comprovante PDF"
-            onError={() => setErro(true)}
-            onLoad={() => setErro(false)}
-          />
+          <div className="w-full h-full flex flex-col items-center justify-center p-6 bg-slate-50 rounded-xl border border-slate-200">
+            <FileText size={48} className="text-emerald-500 mb-3" />
+            <p className="font-black text-emerald-600 text-sm mb-1">Comprovante em PDF</p>
+            <p className="text-[10px] text-slate-500 text-center mb-4">Clique para abrir em tela cheia</p>
+            <button className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2">
+              <ExternalLink size={12} /> Abrir PDF
+            </button>
+          </div>
         ) : (
           <img
             src={src}
