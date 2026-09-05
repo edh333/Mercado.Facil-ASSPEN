@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   ShoppingCart, X, MessageSquareX, Send, Users, FileText, Printer,
-  RefreshCw, XCircle, CheckCircle, Box, Truck, CreditCard, MapPin, Loader2
+  RefreshCw, XCircle, CheckCircle, Box, Truck, CreditCard, MapPin, Loader2, ExternalLink
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { Order, OrderStatus } from '../../types';
@@ -147,6 +147,16 @@ export const AdminOrderDetailsModal: React.FC<AdminOrderDetailsModalProps> = ({
       console.error('Falha ao abrir impressão fiscal:', e);
     } finally {
       setTimeout(() => setIsRawPrinting(false), 800);
+    }
+  };
+
+  const handlePrint = () => {
+    if (!proofSrc) return;
+    const win = window.open(proofSrc, '_blank');
+    if (win) {
+      setTimeout(() => { try { win.print(); } catch { /* noop */ } }, 1000);
+    } else {
+      alert('Popup bloqueado. Permita popups para imprimir.');
     }
   };
 
@@ -332,24 +342,30 @@ export const AdminOrderDetailsModal: React.FC<AdminOrderDetailsModalProps> = ({
                   ) : proofSrc && proofSrc !== 'PENDENTE_UPLOAD_LOCAL_CACHE' ? (
                     <div className="w-full h-full p-3 flex flex-col items-center justify-center gap-3">
                       {(proofSrc).toLowerCase().includes('.pdf') || (proofSrc).toLowerCase().includes('pdf') ? (
-                        <div className="w-full h-full flex-1 min-h-[300px] relative">
-                          <iframe
-                            src={`${proofSrc}#toolbar=0&navpanes=0&scrollbar=0`}
-                            className="w-full h-full border-0 rounded-xl"
-                            title="Comprovante PDF"
-                          />
+                        <div className="w-full h-full flex-1 min-h-[300px] flex flex-col items-center justify-center p-6 bg-slate-50 rounded-xl border border-slate-200">
+                          <FileText size={48} className="text-emerald-500 mb-3" />
+                          <p className="font-black text-emerald-600 text-sm mb-1">Comprovante em PDF</p>
+                          <p className="text-[10px] text-slate-500 text-center mb-4">PDFs não podem ser visualizados inline devido a restrições de segurança do navegador.</p>
+                          <div className="flex flex-col gap-3 w-full max-w-xs">
+                            <button onClick={() => window.open(proofSrc, '_blank')} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2">
+                              <ExternalLink size={14} /> Abrir PDF em Nova Aba
+                            </button>
+                            <button onClick={handlePrint} className="px-4 py-2 bg-slate-600 hover:bg-slate-500 text-white rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2">
+                              <Printer size={14} /> Imprimir
+                            </button>
+                            <a 
+                              href={proofSrc} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="px-4 py-2 bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-[10px] font-black uppercase transition-all block text-center hover:bg-slate-200"
+                            >
+                              <ExternalLink size={14} className="mr-1" /> Nova Aba
+                            </a>
+                          </div>
                         </div>
                       ) : (
                         <ComprovanteImg src={proofSrc} />
                       )}
-                      <a 
-                        href={proofSrc} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="px-4 py-2 bg-slate-800 text-white font-bold rounded-xl text-xs hover:bg-slate-700 transition-all block text-center w-full max-w-xs"
-                      >
-                        ↗️ VER EM ALTA DEFINIÇÃO (FULL HD)
-                      </a>
                     </div>
                   ) : proofSrc === 'PENDENTE_UPLOAD_LOCAL_CACHE' ? (
                     <div className="text-center p-10 animate-fadeIn">

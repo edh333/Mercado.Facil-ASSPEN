@@ -76,11 +76,13 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
   };
 
   const printPdf = () => {
-    const win = window.open('', '_blank');
-    if (!win) { alert('Popup bloqueado. Permita popups para imprimir o documento.'); return; }
-    win.document.write(`<html><head><title>Documento do Familiar</title></head><body style="margin:0"><iframe src="${docUrl}" style="width:100vw;height:100vh;border:0"></iframe></body></html>`);
-    win.document.close();
-    setTimeout(() => { try { win.focus(); win.print(); } catch (e) { /* noop */ } }, 800);
+    if (!docUrl) return;
+    const win = window.open(docUrl, '_blank');
+    if (win) {
+      setTimeout(() => { try { win.print(); } catch { /* noop */ } }, 1000);
+    } else {
+      alert('Popup bloqueado. Permita popups para imprimir o documento.');
+    }
   };
 
   const statusBadge =
@@ -224,8 +226,26 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
                   ) : docUrl ? (
                     <>
                       {isPdf ? (
-                        <div className="flex-1 min-h-[260px] rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 relative">
-                          <iframe src={`${docUrl}#toolbar=0&navpanes=0&scrollbar=0`} className="w-full h-full min-h-[260px] border-0" title="Documento PDF" />
+                        <div className="flex-1 min-h-[260px] flex flex-col items-center justify-center p-6 bg-slate-50 rounded-2xl border border-slate-200">
+                          <FileText size={48} className="text-emerald-500 mb-3" />
+                          <p className="font-black text-emerald-600 text-sm mb-1">Documento em PDF</p>
+                          <p className="text-[10px] text-slate-500 text-center mb-4">PDFs não podem ser visualizados inline devido a restrições de segurança do navegador.</p>
+                          <div className="flex flex-col gap-3 w-full max-w-xs">
+                            <button onClick={() => window.open(docUrl, '_blank')} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2">
+                              <ExternalLink size={14} /> Abrir PDF em Nova Aba
+                            </button>
+                            <button onClick={printPdf} className="px-4 py-2 bg-slate-600 hover:bg-slate-500 text-white rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2">
+                              <Printer size={14} /> Imprimir
+                            </button>
+                            <a
+                              href={docUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-4 py-2 bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-[10px] font-black uppercase transition-all block text-center hover:bg-slate-200"
+                            >
+                              <ExternalLink size={14} className="mr-1" /> Nova Aba
+                            </a>
+                          </div>
                         </div>
                       ) : (
                         <div
