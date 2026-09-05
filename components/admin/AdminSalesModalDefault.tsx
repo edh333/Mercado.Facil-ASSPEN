@@ -19,8 +19,8 @@ interface AdminSalesModalProps {
   users: User[];
   products: Product[];
   orders?: Order[];
-  onConfirm: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'MIXED' | 'FIADO', total: number, payments?: {method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO', amount: number}[], change?: number, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }) => Promise<any>;
-  onConfirmOffline?: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'MIXED' | 'FIADO', total: number, payments?: {method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO', amount: number}[], change?: number, customerAccountId?: string) => Promise<any>;
+  onConfirm: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO', total: number, payments?: {method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO', amount: number}[], change?: number, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }) => Promise<any>;
+  onConfirmOffline?: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO', total: number, payments?: {method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO', amount: number}[], change?: number, customerAccountId?: string) => Promise<any>;
   setPrintOrder?: (order: any) => void;
   settings?: AppConfig;
   currentUser?: User;
@@ -37,7 +37,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
   const [buscaCliente, setBuscaCliente] = useState('');
   const [codigoProduto, setCodigoProduto] = useState('');
   const [mostrarListaClientes, setMostrarListaClientes] = useState(false);
-  const [formaPagamento, setFormaPagamento] = useState<'PIX' | 'WALLET' | 'CASH' | 'MIXED' | 'FIADO'>('PIX');
+  const [formaPagamento, setFormaPagamento] = useState<'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO'>('PIX');
   const [valorMisto, setValorMisto] = useState({ PIX: '', WALLET: '', CASH: '' });
   const [valorRecebido, setValorRecebido] = useState('');
   const [processando, setProcessando] = useState(false);
@@ -1586,6 +1586,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                   { key: 'PIX', label: 'PIX', icon: CreditCard },
                   { key: 'WALLET', label: 'Créditos Internos', icon: Wallet },
                   { key: 'CASH', label: 'Dinheiro', icon: DollarSign },
+                  { key: 'CARD', label: 'Cartão', icon: CreditCard },
                   { key: 'MIXED', label: 'Pagamento Misto', icon: Box },
                   { key: 'FIADO', label: 'Fiado / Conta', icon: BookOpen },
                 ].map(({ key, label, icon: Icon }) => (
@@ -1892,7 +1893,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                   </motion.div>
                 )}
 
-                {formaPagamento === 'CASH' && (
+{formaPagamento === 'CASH' && (
                   <motion.div initial={{opacity:0}} animate={{opacity:1}} className="space-y-4">
                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] ml-2">Valor Recebido do Cliente</p>
                     <div className="flex flex-wrap justify-center gap-2">
@@ -1927,11 +1928,11 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                         <p className="text-3xl font-black text-emerald-600">R$ {formatarMoeda(parseMoeda(valorRecebido) - totalCarrinho)}</p>
                         {calcularDenominacoes(parseMoeda(valorRecebido) - totalCarrinho).length > 0 && (
                           <div className="mt-4 pt-4 border-t border-emerald-500/20">
-                            <p className="text-[9px] font-black text-emerald-600 uppercase tracking-[0.3em] mb-3">Sugest├úo de Notas e Moedas</p>
+                            <p className="text-[9px] font-black text-emerald-600 uppercase tracking-[0.3em] mb-3">Sugestão de Notas e Moedas</p>
                             <div className="flex flex-wrap justify-center gap-2">
                               {calcularDenominacoes(parseMoeda(valorRecebido) - totalCarrinho).map(d => (
                                 <span key={d.valor} className="px-3 py-1.5 bg-white border border-emerald-200 rounded-xl text-[10px] font-black text-emerald-700">
-                                  R$ {d.valor.toFixed(2).replace('.', ',')} ├ù {d.qtd}
+                                  R$ {d.valor.toFixed(2).replace('.', ',')} × {d.qtd}
                                 </span>
                               ))}
                             </div>
@@ -1939,6 +1940,24 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                         )}
                       </div>
                     )}
+                  </motion.div>
+                )}
+
+                {formaPagamento === 'CARD' && (
+                  <motion.div initial={{opacity:0}} animate={{opacity:1}} className="space-y-4 bg-blue-50 p-6 rounded-[2.5rem] border border-blue-200">
+                    <p className="text-[10px] font-black text-blue-700 uppercase tracking-[0.3em] text-center mb-2">Pagamento com Cartão</p>
+                    <p className="text-sm font-bold text-slate-600 text-center">Confirme o valor na maquininha e selecione a bandeira se necessário.</p>
+                    <div className="flex flex-wrap justify-center gap-2 mt-4">
+                      {['Visa', 'Mastercard', 'Elo', 'Amex', 'Hipercard', 'Outro'].map(bandeira => (
+                        <button
+                          key={bandeira}
+                          type="button"
+                          className="px-4 py-2 bg-white hover:bg-blue-50 border border-blue-200 rounded-xl text-sm font-black text-blue-700 transition-all active:scale-95"
+                        >
+                          {bandeira}
+                        </button>
+                      ))}
+                    </div>
                   </motion.div>
                 )}
 

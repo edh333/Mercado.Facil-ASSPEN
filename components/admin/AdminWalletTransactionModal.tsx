@@ -1,5 +1,5 @@
 import React from 'react';
-import { Printer, CheckCircle, XCircle, User, UserCheck, DollarSign, ImageIcon, ArrowRight, Activity, FileText, Loader2 } from 'lucide-react';
+import { Printer, CheckCircle, XCircle, User, UserCheck, DollarSign, ImageIcon, ArrowRight, Activity, FileText, Loader2, ExternalLink, AlertTriangle } from 'lucide-react';
 import { WalletTransaction } from '../../types';
 import { formatarMoeda } from '../../utils';
 import { ModalShell } from '../ui/ModalShell';
@@ -10,10 +10,16 @@ import { useApp } from '../../context/StoreContext';
 const ComprovanteImg: React.FC<{ src: string }> = ({ src }) => {
   const [erro, setErro] = React.useState(false);
   const [previewOpen, setPreviewOpen] = React.useState(false);
+  const isPdf = src.toLowerCase().includes('.pdf') || src.toLowerCase().includes('pdf');
 
   React.useEffect(() => {
     setErro(false);
   }, [src]);
+
+  const handleOpenNewTab = () => {
+    const win = window.open(src, '_blank');
+    if (!win) alert('Popup bloqueado. Permita popups.');
+  };
 
   if (erro) {
     return (
@@ -23,11 +29,13 @@ const ComprovanteImg: React.FC<{ src: string }> = ({ src }) => {
             <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
           </div>
           <h5 className="font-black text-amber-800 uppercase text-xs mb-1">Visualização Direta Indisponível</h5>
-          <p className="text-[10px] text-amber-600 font-bold mb-3">Tente abrir o link diretamente ou recarregar</p>
-          <div className="flex gap-2 justify-center">
-            <button onClick={() => setErro(false)} className="px-3 py-1.5 bg-amber-200 hover:bg-amber-300 text-amber-800 rounded-lg text-[10px] font-black uppercase transition-all">Tentar Novamente</button>
+          <p className="text-[10px] text-amber-600 font-bold mb-3">A imagem não pôde ser carregada (URL expirada ou CORS).</p>
+          <div className="flex flex-col gap-2 justify-center items-center">
+            <button onClick={() => setErro(false)} className="px-4 py-2 bg-amber-200 hover:bg-amber-300 text-amber-800 rounded-lg text-[10px] font-black uppercase transition-all w-full max-w-xs">Tentar Recarregar</button>
             {src && src.startsWith('http') && (
-              <a href={src} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-[10px] font-black uppercase transition-all">Abrir Link ↗</a>
+              <button onClick={handleOpenNewTab} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white rounded-lg text-[10px] font-black uppercase transition-all w-full max-w-xs flex items-center justify-center gap-2">
+                <ExternalLink size={14} /> Abrir em Nova Aba
+              </button>
             )}
           </div>
         </div>
@@ -40,16 +48,32 @@ const ComprovanteImg: React.FC<{ src: string }> = ({ src }) => {
         className="w-full h-full cursor-zoom-in transition-transform duration-700 group-hover:scale-110 relative"
         onClick={() => setPreviewOpen(true)}
       >
-        <img
-          src={src}
-          className="w-full h-full object-contain"
-          alt="Comprovante PIX"
-          onError={() => setErro(true)}
-        />
+        {isPdf ? (
+          <iframe
+            src={`${src}#toolbar=0&navpanes=0&scrollbar=0`}
+            className="w-full h-full border-0 rounded-xl"
+            title="Comprovante PDF"
+            onError={() => setErro(true)}
+            onLoad={() => setErro(false)}
+          />
+        ) : (
+          <img
+            src={src}
+            className="w-full h-full object-contain"
+            alt="Comprovante PIX"
+            onError={() => setErro(true)}
+            onLoad={() => setErro(false)}
+          />
+        )}
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/70 text-white text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full backdrop-blur-sm pointer-events-none flex items-center gap-1.5 shadow-xl whitespace-nowrap">
           <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line><polyline points="14 21 3 21 3 12"></polyline><line x1="3" y1="3" x2="9" y2="9"></line></svg>
           Ampliar e Imprimir
         </div>
+        {erro && (
+          <div className="absolute top-2 right-2 bg-amber-500/90 text-amber-900 text-[9px] font-black px-2 py-1 rounded-xl flex items-center gap-1">
+            <AlertTriangle size={10} /> Falha ao carregar
+          </div>
+        )}
       </div>
       {previewOpen && (
         <ImagePreviewModal src={src} alt="Comprovante PIX" onClose={() => setPreviewOpen(false)} />

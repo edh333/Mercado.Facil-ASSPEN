@@ -377,7 +377,7 @@ export const PrintPage: React.FC = () => {
                             <CupomEntrega order={item.data} remainingBalance={item.data.walletBalanceAfter} config={config} />
                         )}
                         {type === 'CATALOGO' && item?.data && (
-                            <CatalogoA4 products={item.data} config={config} />
+                            <CatalogoA4 products={item.data} config={config} showUnavailable={true} />
                         )}
                         {type === 'RELATORIO' && item?.data && (
                             <RelatorioA4 report={item.data} config={config} />

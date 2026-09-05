@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Printer, Download, ExternalLink, ZoomIn, ZoomOut } from 'lucide-react';
+import { X, Printer, Download, ExternalLink, ZoomIn, ZoomOut, RefreshCw, AlertTriangle } from 'lucide-react';
 
 interface ImagePreviewModalProps {
   src: string;
@@ -9,8 +9,25 @@ interface ImagePreviewModalProps {
 
 const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ src, alt, onClose }) => {
   const [zoom, setZoom] = React.useState(1);
+  const [imgError, setImgError] = React.useState(false);
+  const [isPdf, setIsPdf] = React.useState(false);
+
+  React.useEffect(() => {
+    setIsPdf(src.toLowerCase().includes('.pdf') || src.toLowerCase().includes('pdf'));
+    setImgError(false);
+  }, [src]);
 
   const handlePrint = () => {
+    if (isPdf) {
+      // Para PDF, abre em nova aba e imprime de lá
+      const win = window.open(src, '_blank');
+      if (win) {
+        setTimeout(() => { try { win.print(); } catch { /* noop */ } }, 1000);
+      } else {
+        alert('Popup bloqueado. Permita popups para imprimir PDFs.');
+      }
+      return;
+    }
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed';
     iframe.style.right = '0';
@@ -65,7 +82,8 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ src, alt, onClose
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'comprovante.' + ((blob.type.split('/')[1]) || 'jpg');
+      const ext = blob.type.split('/')[1] || (isPdf ? 'pdf' : 'jpg');
+      a.download = `comprovante.${ext}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -73,7 +91,7 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ src, alt, onClose
     } catch {
       const a = document.createElement('a');
       a.href = src;
-      a.download = 'comprovante';
+      a.download = isPdf ? 'comprovante.pdf' : 'comprovante';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -85,6 +103,12 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ src, alt, onClose
     if (!win) alert('Popup bloqueado. Permita popups.');
   };
 
+  const handleRetry = () => {
+    setImgError(false);
+    // Força recarregar a imagem adicionando um timestamp
+    // Nota: isso não resolve URLs expiradas do Firebase Storage, mas ajuda com erros de rede temporários
+  };
+
   return (
     <div
       className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4 md:p-8 animate-fadeIn"
@@ -94,7 +118,7 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ src, alt, onClose
         className="relative max-w-full max-h-full flex flex-col items-center"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center gap-2 mb-4 bg-black/50 rounded-2xl p-2 backdrop-blur-sm">
+        <div className="flex items-center gap-2 mb-4 bg-black/50 rounded-2xl p-2 backdrop-blur-sm flex-wrap justify-center">
           <button
             onClick={() => setZoom(z => Math.max(0.5, z - 0.25))}
             className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-xl flex items-center justify-center text-white transition-all active:scale-90"
@@ -127,11 +151,20 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ src, alt, onClose
           </button>
           <button
             onClick={handleOpenNewTab}
-            className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-xl flex items-center justify-center text-white transition-all active:scale-90"
-            title="Abrir em nova aba"
+            className="w-10 h-10 bg-emerald-500/20 hover:bg-emerald-500/30 rounded-xl flex items-center justify-center text-emerald-300 transition-all active:scale-90"
+            title="Abrir em nova aba (recomendado para PDFs e se a imagem não carregar)"
           >
             <ExternalLink size={18} />
           </button>
+          {imgError && (
+            <button
+              onClick={handleRetry}
+              className="w-10 h-10 bg-amber-500/20 hover:bg-amber-500/30 rounded-xl flex items-center justify-center text-amber-300 transition-all active:scale-90"
+              title="Tentar recarregar a imagem"
+            >
+              <RefreshCw size={18} className="animate-spin" />
+            </button>
+          )}
           <div className="w-px h-8 bg-white/20 mx-1" />
           <button
             onClick={onClose}
@@ -142,12 +175,38 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ src, alt, onClose
           </button>
         </div>
         <div className="overflow-auto max-w-full max-h-[85vh] rounded-2xl" style={{ cursor: zoom > 1 ? 'grab' : 'default' }}>
-          <img
-            src={src}
-            alt={alt || 'Comprovante'}
-            className="rounded-xl transition-transform duration-200"
-            style={{ transform: `scale(${zoom})`, transformOrigin: 'center center' }}
-          />
+          {imgError ? (
+            <div className="flex flex-col items-center justify-center p-10 bg-slate-900/50 rounded-xl text-center min-w-[300px]">
+              <AlertTriangle size={48} className="text-amber-400 mb-4" />
+              <h5 className="font-black text-amber-300 uppercase text-sm mb-2">Não foi possível carregar a visualização</h5>
+              <p className="text-[11px] text-slate-400 mb-4 max-w-xs">A URL do comprovante pode ter expirado ou há restrição de acesso (CORS).</p>
+              <div className="flex gap-3">
+                <button onClick={handleOpenNewTab} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl text-[10px] font-black uppercase transition-all">
+                  <ExternalLink size={14} className="mr-1" /> Abrir em Nova Aba
+                </button>
+                <button onClick={handleDownload} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-xl text-[10px] font-black uppercase transition-all">
+                  <Download size={14} className="mr-1" /> Baixar Arquivo
+                </button>
+              </div>
+            </div>
+          ) : isPdf ? (
+            <iframe
+              src={`${src}#toolbar=0&navpanes=0&scrollbar=0`}
+              className="w-full h-[70vh] min-h-[400px] border-0 rounded-xl"
+              title="Visualização de PDF"
+              onLoad={() => setImgError(false)}
+              onError={() => setImgError(true)}
+            />
+          ) : (
+            <img
+              src={src}
+              alt={alt || 'Comprovante'}
+              className="rounded-xl transition-transform duration-200"
+              style={{ transform: `scale(${zoom})`, transformOrigin: 'center center' }}
+              onError={() => setImgError(true)}
+              onLoad={() => setImgError(false)}
+            />
+          )}
         </div>
       </div>
     </div>

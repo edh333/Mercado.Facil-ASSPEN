@@ -58,3 +58,6 @@ pnpm-debug.log*
 lerna-debug.log*
 
 temp.txt
+
+# Chave de acesso do Firebase (secreto - NUNCA commitar)
+*firebase-adminsdk*.json

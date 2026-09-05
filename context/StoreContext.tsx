@@ -738,7 +738,7 @@ interface StoreContextType {
     expandUsersLimit: (limite: number) => void;
     importInmatesCsv: (file: File) => Promise<void>;
     addWalletCreditDirectly: (userId: string, amount: number, reason: string, senhaMestra?: string) => Promise<void>;
-    registrarVendaOffline: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'MIXED' | 'FIADO', total: number, payments?: { method: string; amount: number }[], change?: number, customerAccountId?: string) => Promise<Order | null>;
+    registrarVendaOffline: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO', total: number, payments?: { method: string; amount: number }[], change?: number, customerAccountId?: string) => Promise<Order | null>;
     sincronizarVendasOffline: (incluirErros?: boolean) => Promise<{ ok: boolean; sincronizadas: number; comErro: number; total: number }>;
     vendasOfflinePendentes: number;
     vendasOfflineComErro: number;
@@ -2619,6 +2619,8 @@ return false;
 
     // ── ESTADO DE AUTENTICAÇÃO (Firebase Auth) ──
     // Carrega o usuário pelo authUid e só então libera os listeners de dados.
+    // OTIMIZAÇÃO: usa getDoc direto no Firestore (regras permitem ler próprio doc
+    // pelo authUid) — elimina o cold-start da Cloud Function 'buscarUsuarioAtual'.
     useEffect(() => {
         let ativo = true;
         const unsub = onAuthStateChanged(auth, async (fbUser) => {
@@ -2640,23 +2642,40 @@ return false;
                 return;
             }
             try {
-                // Server-side: Cloud Function retorna dados do próprio usuário logado.
-                // NÃO usa mais query client-side where('authUid') que vaza PII.
-                const buscarUsuario = httpsCallable(functions, 'buscarUsuarioAtual');
-                const result = await buscarUsuario({});
-                const userData = (result as any).data;
-                if (!userData?.id) {
+                // Busca direta no Firestore pelo authUid (regras permitem get próprio doc)
+                const userQuery = query(collection(db, 'users'), where('authUid', '==', fbUser.uid), limit(1));
+                const snap = await getDocs(userQuery);
+                if (snap.empty) {
                     await signOut(auth).catch(() => {});
                     return;
                 }
+                const docSnap = snap.docs[0];
+                const userData = { ...docSnap.data(), id: docSnap.id } as any;
                 const u = { ...userData, role: toUserRole(userData.role) } as User;
                 if (ativo) {
                     setCurrentUser(u);
                     setCreditoCliente(u.walletBalance || 0);
                 }
             } catch (e: any) {
-                console.warn('[AUTH LOADER]', e);
-                try { await signOut(auth).catch(() => {}); } catch { /* noop */ }
+                console.warn('[AUTH LOADER] Fallback para Cloud Function', e);
+                // Fallback: tenta a Cloud Function se a query falhar
+                try {
+                    const buscarUsuario = httpsCallable(functions, 'buscarUsuarioAtual');
+                    const result = await buscarUsuario({});
+                    const userData = (result as any).data;
+                    if (userData?.id) {
+                        const u = { ...userData, role: toUserRole(userData.role) } as User;
+                        if (ativo) {
+                            setCurrentUser(u);
+                            setCreditoCliente(u.walletBalance || 0);
+                        }
+                    } else {
+                        await signOut(auth).catch(() => {});
+                    }
+                } catch (cfErr) {
+                    console.error('[AUTH LOADER] Falha total:', cfErr);
+                    try { await signOut(auth).catch(() => {}); } catch { /* noop */ }
+                }
             } finally {
                 if (ativo) { setAuthReady(true); setIsLoading(false); }
             }
@@ -2674,7 +2693,7 @@ return false;
     const registrarVendaOffline = useCallback(async (
         targetUserId: string,
         items: any[],
-        paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'MIXED' | 'FIADO',
+        paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO',
         total: number,
         payments?: { method: string; amount: number }[],
         change?: number,

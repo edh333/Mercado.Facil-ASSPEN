@@ -906,12 +906,29 @@ export function AdminDashboard() {
                   previewXmlImport={previewXmlImport}
                   margin={margin}
                   setMargin={setMargin}
-                  onPrintCatalog={() => {
-                    if (!products || products.length === 0) {
-                      showNotification('Nenhum produto no catálogo para imprimir.', 'warning');
-                      return;
+                  onPrintCatalog={async () => {
+                    // Busca TODOS os produtos do Firestore (sem limite do productsLimit)
+                    // para garantir que o catálogo mostre tudo, não apenas os primeiros 500.
+                    try {
+                      const { getDocs, query: fsQuery, collection, orderBy, where } = await import('firebase/firestore');
+                      const { db } = await import('../firebase');
+                      const snap = await getDocs(fsQuery(collection(db, 'products'), orderBy('name', 'asc')));
+                      const allProducts = snap.docs.map(d => ({ ...d.data(), id: d.id } as Product))
+                        .filter(p => (p as any).deleted !== true);
+                      if (allProducts.length === 0) {
+                        showNotification('Nenhum produto no catálogo para imprimir.', 'warning');
+                        return;
+                      }
+                      abrirJanelaImpressao({ type: 'CATALOGO', data: allProducts }, settings);
+                    } catch (e) {
+                      console.error('Erro ao buscar todos os produtos para catálogo:', e);
+                      // Fallback: usa a lista limitada do contexto
+                      if (!products || products.length === 0) {
+                        showNotification('Nenhum produto no catálogo para imprimir.', 'warning');
+                        return;
+                      }
+                      abrirJanelaImpressao({ type: 'CATALOGO', data: products }, settings);
                     }
-                    abrirJanelaImpressao({ type: 'CATALOGO', data: products }, settings);
                   }}
                   mergeDuplicateProducts={mergeDuplicateProducts}
                   sanitizeCatalog={sanitizeCatalog}
