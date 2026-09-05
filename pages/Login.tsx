@@ -589,7 +589,7 @@ const SelectInput = ({ label, value, onChange, children, required = true, id, er
     return (
         <div>
             <label htmlFor={selectId} className="block text-xs font-semibold tracking-wide text-slate-500 mb-2 ml-1">{label}</label>
-            <div className="relative rounded-lg border border-slate-200 bg-slate-50/70 transition-all focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/15 focus-within:bg-white">
+            <div className="relative rounded-lg border border-slate-200 bg-slate-50/70 transition-all focus-within:border-emerald-500 focus-within:bg-white dark:border-slate-700 dark:bg-slate-800/50 dark:focus-within:border-emerald-500 dark:focus-within:bg-slate-800">
                 <select
                     id={selectId}
                     className="w-full px-3.5 py-3 bg-transparent border-none outline-none text-sm font-semibold text-slate-900 appearance-none cursor-pointer tracking-wide"

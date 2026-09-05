@@ -1,5 +1,5 @@
 import React from 'react';
-import { Printer, CheckCircle, XCircle, User, UserCheck, DollarSign, ImageIcon, ArrowRight, Activity, FileText, Loader2, ExternalLink, AlertTriangle } from 'lucide-react';
+import { Printer, CheckCircle, XCircle, User, UserCheck, DollarSign, ImageIcon, ArrowRight, Activity, FileText, Loader2, ExternalLink, AlertTriangle, Download } from 'lucide-react';
 import { WalletTransaction } from '../../types';
 import { formatarMoeda } from '../../utils';
 import { ModalShell } from '../ui/ModalShell';
@@ -231,6 +231,30 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
     }
   };
 
+  const handleDownload = async () => {
+    if (!proofSrc) return;
+    try {
+      const response = await fetch(proofSrc);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const ext = blob.type.split('/')[1] || 'pdf';
+      a.download = `comprovante-${transaction.id}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      const a = document.createElement('a');
+      a.href = proofSrc;
+      a.download = `comprovante-${transaction.id}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+  };
+
   if (showNotaPromissoria) {
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + 30);
@@ -379,13 +403,21 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
               <div className="flex-1 min-h-[400px] bg-white p-4 rounded-[3rem] border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden shadow-2xl group relative">
                 {proofSrc && proofSrc !== 'PENDENTE_UPLOAD_LOCAL_CACHE' ? (
                   (proofSrc).toLowerCase().includes('.pdf') || (proofSrc).toLowerCase().includes('pdf') ? (
-                    <div className="w-full h-full relative">
-                      <iframe
-                        src={`${proofSrc}#toolbar=0&navpanes=0&scrollbar=0`}
-                        className="w-full h-full border-0"
-                        title="Document Preview"
-                      />
-                      <div className="absolute bottom-4 right-4 bg-red-600 text-white text-[10px] px-3 py-1.5 rounded-xl font-black shadow-2xl uppercase tracking-widest animate-pulse">Preview PDF</div>
+                    <div className="w-full h-full flex flex-col items-center justify-center p-6 bg-slate-50 rounded-xl border border-slate-200">
+                      <FileText size={48} className="text-emerald-500 mb-3" />
+                      <p className="font-black text-emerald-600 text-sm mb-1">Comprovante em PDF</p>
+                      <p className="text-[10px] text-slate-500 text-center mb-4">PDFs não podem ser visualizados inline devido a restrições de segurança do navegador.</p>
+                      <div className="flex gap-3">
+                        <button onClick={() => window.open(proofSrc, '_blank')} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2">
+                          <ExternalLink size={14} /> Abrir PDF em Nova Aba
+                        </button>
+                        <button onClick={handleDownload} className="px-4 py-2 bg-slate-600 hover:bg-slate-500 text-white rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2">
+                          <Download size={14} /> Baixar PDF
+                        </button>
+                        <button onClick={handlePrint} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2">
+                          <Printer size={14} /> Imprimir
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <ComprovanteImg src={proofSrc} />
