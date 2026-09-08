@@ -1256,6 +1256,9 @@ exports.processarVendaAdmin = onCall(async (request) => {
   const caller = await exigirAdminPermissao(request, "sales");
   const targetUserId = String(request.data?.targetUserId || "balcao_anonimo");
   const paymentMethod = String(request.data?.paymentMethod || "CASH");
+  const cardBrand = paymentMethod === "CARD"
+    ? String(request.data?.cardBrand || "").replace(/[^A-Za-z0-9áéíóúâêôãõçÁÉÍÓÚÂÊÔÃÕÇ ]/g, "").slice(0, 20).trim()
+    : "";
   const itens = validarItens(request.data?.items);
   const payments = Array.isArray(request.data?.payments) ? request.data.payments : undefined;
   const change = request.data?.change === undefined || request.data?.change === null ? undefined : Number(request.data.change);
@@ -1333,7 +1336,7 @@ exports.processarVendaAdmin = onCall(async (request) => {
     const secondWalletAmount = splitVenda.segundaParcela;
     const firstUserWalletAmount = splitVenda.primeiraParcela;
 
-    if (((walletPortion > 0 || paymentMethod === "WALLET") || (paymentMethod === "FIADO" && !isConsumer)) && !isConsumer) {
+    if (!isConsumer) {
       const uSnap = await t.get(db.collection("users").doc(targetUserId));
       if (uSnap.exists) {
         userData = { ...uSnap.data(), id: uSnap.id };
@@ -1397,11 +1400,9 @@ exports.processarVendaAdmin = onCall(async (request) => {
     debitarEstoque(t, itensComPreco);
 
     let walletBalanceBefore, walletBalanceAfter;
-    if (userData) {
+    if (userData && firstUserWalletAmount > 0) {
       walletBalanceBefore = arredondar(Number(userData.walletBalance || 0));
-      walletBalanceAfter = firstUserWalletAmount > 0
-        ? arredondar(Number(userData.walletBalance || 0) - firstUserWalletAmount)
-        : walletBalanceBefore;
+      walletBalanceAfter = arredondar(Number(userData.walletBalance || 0) - firstUserWalletAmount);
     }
     if (firstUserWalletAmount > 0 && userData) {
       t.update(db.collection("users").doc(targetUserId), {
@@ -1474,7 +1475,9 @@ exports.processarVendaAdmin = onCall(async (request) => {
       userCpf: isConsumer ? "000.000.000-00" : (userData?.cpf || "000.000.000-00"),
       unitId: isConsumer ? "1" : (userData?.selectedUnitId || userData?.unitId || "1"),
       total,
+      items: itensComPreco,
       paymentMethod,
+      ...(paymentMethod === "CARD" && cardBrand ? { cardBrand: cardBrand.toUpperCase() } : {}),
       ...(paymentMethod === "MIXED" ? { payments } : {}),
       ...(change !== undefined && (paymentMethod === "MIXED" || paymentMethod === "CASH") ? { change } : {}),
       inmateName: isConsumer ? "CONSUMIDOR FINAL" : (userData?.inmateName || userData?.prisonerName || "NÃO INFORMADO"),

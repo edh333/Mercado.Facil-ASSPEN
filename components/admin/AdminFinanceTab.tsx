@@ -605,16 +605,9 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
                           <Printer size={20}/>
                         </button>
                         {item?.type === 'EXIT' && deleteExpense && isMaster && (
-                          confirmDeleteId === item.id ? (
-                            <div className="flex items-center gap-1">
-                              <button onClick={() => { deleteExpense(item.id); setConfirmDeleteId(null); }} className="p-2 bg-red-500 text-white rounded-lg text-[9px] font-black uppercase" title="Confirmar">Sim</button>
-                              <button onClick={() => setConfirmDeleteId(null)} className="p-2 bg-slate-200 text-slate-600 rounded-lg text-[9px] font-black uppercase" title="Cancelar">Não</button>
-                            </div>
-                          ) : (
-                            <button onClick={() => setConfirmDeleteId(item.id)} className="p-3 bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-red-500 hover:border-red-500 rounded-xl shadow-sm transition-all active:scale-95 opacity-0 group-hover:opacity-100" title="Excluir Despesa">
-                              <Trash2 size={18}/>
-                            </button>
-                          )
+                          <button onClick={() => setConfirmDeleteId(item.id)} className="p-3 bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-red-500 hover:border-red-500 rounded-xl shadow-sm transition-all active:scale-95 opacity-0 group-hover:opacity-100" title="Excluir Despesa">
+                            <Trash2 size={18}/>
+                          </button>
                         )}
                       </div>
                     </td>
@@ -876,6 +869,18 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
         palavraChave="ZERAR CREDITOS"
         onConfirm={() => { setConfirmacao(null); resetCredits(); }}
         onClose={() => setConfirmacao(null)}
+      />
+      <ConfirmacaoDestrutiva
+        isOpen={confirmDeleteId !== null}
+        titulo="Excluir Despesa"
+        descricao="A despesa será movida para a lixeira e deixará de aparecer no fluxo de caixa e nos relatórios do período. O histórico financeiro desta data muda. Esta ação só pode ser revertida restaurando um backup."
+        palavraChave="EXCLUIR"
+        onConfirm={() => {
+          const id = confirmDeleteId;
+          setConfirmDeleteId(null);
+          if (id) deleteExpense(id);
+        }}
+        onClose={() => setConfirmDeleteId(null)}
       />
     </div>
   );

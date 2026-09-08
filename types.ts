@@ -141,6 +141,7 @@ export interface Order {
   paymentMethod?: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO';
   payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO'; amount: number }[];
   change?: number;
+  cardBrand?: string;
   walletBalanceBefore?: number;
   walletBalanceAfter?: number;
   jointWallet?: {

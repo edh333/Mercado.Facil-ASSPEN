@@ -1,7 +1,8 @@
-const CACHE_NAME = 'mercado-facil-v12';
+const CACHE_NAME = 'mercado-facil-v14';
 const CORE_ASSETS = [
   '/',
   '/index.html',
+  '/print.html',
   '/manifest.json',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
@@ -55,10 +56,14 @@ self.addEventListener('fetch', (event) => {
       fetch(event.request)
         .then((response) => {
           const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', clone));
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
           return response;
         })
-        .catch(() => caches.match('/index.html').then((cached) => cached || caches.match('/')))
+        .catch(() =>
+          caches.match(event.request.url).then((cached) =>
+            cached || caches.match('/index.html').then((idx) => idx || caches.match('/'))
+          )
+        )
     );
     return;
   }

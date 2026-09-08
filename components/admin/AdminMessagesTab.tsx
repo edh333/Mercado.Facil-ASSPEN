@@ -3,6 +3,7 @@ import { MessageSquare, Search, Send, Users, Megaphone, Inbox } from 'lucide-rea
 import { Message, User } from '../../types';
 import { isAdminRole } from '../../utils';
 import { toDate } from '../../utils/dateUtils';
+import { useApp } from '../../context/StoreContext';
 
 interface AdminMessagesTabProps {
   users: User[];
@@ -13,6 +14,7 @@ interface AdminMessagesTabProps {
 const ALL_USERS = 'ALL';
 
 export const AdminMessagesTab: React.FC<AdminMessagesTabProps> = ({ users, messages, sendMessage }) => {
+  const { showNotification } = useApp();
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
   const [body, setBody] = useState('');
@@ -70,7 +72,7 @@ export const AdminMessagesTab: React.FC<AdminMessagesTabProps> = ({ users, messa
       // agora propaga erros, então uma falha do Firestore preserva o rascunho.
       setBody('');
     } catch (e: any) {
-      alert('Falha ao enviar a mensagem. Seu texto foi preservado — tente reenviar.');
+      showNotification('Falha ao enviar a mensagem. Seu texto foi preservado — tente reenviar.', 'error');
     } finally {
       setSending(false);
     }
@@ -265,7 +267,7 @@ export const AdminMessagesTab: React.FC<AdminMessagesTabProps> = ({ users, messa
                   onKeyDown={e => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
-                      handleSend();
+                      if (!sending && body.trim()) handleSend();
                     }
                   }}
                 />

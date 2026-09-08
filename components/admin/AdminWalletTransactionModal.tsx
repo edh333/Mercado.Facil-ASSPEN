@@ -3,11 +3,12 @@ import { Printer, CheckCircle, XCircle, User, UserCheck, DollarSign, ImageIcon, 
 import { WalletTransaction } from '../../types';
 import { formatarMoeda } from '../../utils';
 import { ModalShell } from '../ui/ModalShell';
+import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
 import { NotaPromissoriaA4 } from '../NotaPromissoriaA4';
 import ImagePreviewModal from '../ImagePreviewModal';
 import { useApp } from '../../context/StoreContext';
 
-const ComprovanteImg: React.FC<{ src: string }> = ({ src }) => {
+const ComprovanteImg: React.FC<{ src: string; onBlocked?: () => void }> = ({ src, onBlocked }) => {
   const [erro, setErro] = React.useState(false);
   const [previewOpen, setPreviewOpen] = React.useState(false);
   const isPdf = src.toLowerCase().includes('.pdf') || src.toLowerCase().includes('pdf');
@@ -18,7 +19,7 @@ const ComprovanteImg: React.FC<{ src: string }> = ({ src }) => {
 
   const handleOpenNewTab = () => {
     const win = window.open(src, '_blank');
-    if (!win) alert('Popup bloqueado. Permita popups.');
+    if (!win) onBlocked?.();
   };
 
   if (erro) {
@@ -102,6 +103,7 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
   const [isAttaching, setIsAttaching] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const { attachAdminProof, showNotification: notifCtx } = useApp();
+  const [confirmAction, setConfirmAction] = React.useState<'approve' | 'reject' | null>(null);
   const proofSrc = proofLocal || transaction.proofUrl || '';
 
   const handleAttachProof = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -133,7 +135,6 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
 
   const handleApprove = async () => {
     if (isApproving) return;
-    if (!window.confirm('CONFIRMAR RECEBIMENTO?\nO saldo será creditado imediatamente na conta do interno.')) return;
     setIsApproving(true);
     try {
       await onApprove(transaction.id);
@@ -141,7 +142,7 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
     } catch (e: any) {
       // Falha ao mover dinheiro NÃO fecha o modal: o admin precisa ver o erro.
       console.error('Erro ao aprovar:', e);
-      window.alert('Erro ao aprovar: ' + (e?.message || 'falha desconhecida') + '\nO modal permanecerá aberto. Tente novamente.');
+      notifCtx('Erro ao aprovar: ' + (e?.message || 'falha desconhecida') + '. O modal permanecerá aberto. Tente novamente.', 'error');
     } finally {
       setIsApproving(false);
     }
@@ -149,14 +150,13 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
 
   const handleReject = async () => {
     if (isRejecting) return;
-    if (!window.confirm('REJEITAR CRÉDITO?\nEsta ação impedirá que o valor seja creditado.')) return;
     setIsRejecting(true);
     try {
       await onReject(transaction.id);
       onClose();
     } catch (e: any) {
       console.error('Erro ao rejeitar:', e);
-      window.alert('Erro ao rejeitar: ' + (e?.message || 'falha desconhecida') + '\nO modal permanecerá aberto. Tente novamente.');
+      notifCtx('Erro ao rejeitar: ' + (e?.message || 'falha desconhecida') + '. O modal permanecerá aberto. Tente novamente.', 'error');
     } finally {
       setIsRejecting(false);
     }
@@ -173,7 +173,7 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
     document.body.appendChild(iframe);
     const doc = iframe.contentDocument || iframe.contentWindow?.document;
     if (!doc) {
-      alert('Não foi possível abrir a impressão.');
+      notifCtx('Não foi possível abrir a impressão.', 'error');
       iframe.remove();
       return;
     }
@@ -225,7 +225,7 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
       iframe.contentWindow?.focus();
       iframe.contentWindow?.print();
     } catch (e) {
-      alert('Falha ao imprimir. Tente novamente ou use outro navegador.');
+      notifCtx('Falha ao imprimir. Tente novamente ou use outro navegador.', 'error');
     } finally {
       setTimeout(() => iframe.remove(), 1000);
     }
@@ -363,14 +363,14 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
                 {transaction.status === 'pending' && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <button
-                        onClick={handleReject}
+                        onClick={() => setConfirmAction('reject')}
                         disabled={isApproving || isRejecting}
                         className="py-5 bg-red-50 text-red-600 border-2 border-red-200 rounded-3xl font-black text-[11px] uppercase tracking-widest hover:bg-red-100 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50 touch-target"
                       >
                         <XCircle size={20}/> {isRejecting ? 'REJEITANDO...' : 'Recusar Depósito'}
                       </button>
                       <button
-                        onClick={handleApprove}
+                        onClick={() => setConfirmAction('approve')}
                         disabled={isApproving || isRejecting}
                         className="py-5 bg-emerald-600 text-white rounded-3xl font-black text-[11px] uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50 touch-target"
                       >
@@ -420,7 +420,7 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
                       </div>
                     </div>
                   ) : (
-                    <ComprovanteImg src={proofSrc} />
+                    <ComprovanteImg src={proofSrc} onBlocked={() => notifCtx('Popup bloqueado. Permita popups para este site.', 'error')} />
                   )
                 ) : proofSrc === 'PENDENTE_UPLOAD_LOCAL_CACHE' ? (
                   <div className="text-center p-10 animate-fadeIn">
@@ -455,7 +455,7 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
                     A auditoria visual é obrigatória antes da validação
                 </p>
               )}
-              {!proofSrc || proofSrc === 'PENDENTE_UPLOAD_LOCAL_CACHE' ? (
+              {!proofSrc ? (
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isAttaching}
@@ -473,6 +473,17 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
               />
             </div>
           </div>
+      <ConfirmacaoDestrutiva
+        isOpen={confirmAction !== null}
+        titulo={confirmAction === 'reject' ? 'Recusar Depósito' : 'Confirmar Recebimento'}
+        descricao={confirmAction === 'reject'
+          ? 'O valor não será creditado na conta do interno. Impacta o saldo do familiar pagador.'
+          : `O saldo de R$ ${formatarMoeda(transaction.amount)} será creditado imediatamente na conta do interno ${transaction.inmateName || '—'}.`}
+        palavraChave={confirmAction === 'reject' ? 'RECUSAR' : 'CONFIRMAR'}
+        processando={confirmAction === 'reject' ? isRejecting : isApproving}
+        onConfirm={() => { if (confirmAction === 'reject') handleReject(); else handleApprove(); }}
+        onClose={() => { if (!isApproving && !isRejecting) setConfirmAction(null); }}
+      />
     </ModalShell>
   );
 };

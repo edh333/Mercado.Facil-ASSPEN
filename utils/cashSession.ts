@@ -47,6 +47,8 @@ export interface CashSession {
   hasDiscrepancy?: boolean;
   /** True quando fechada automaticamente pelo servidor (sessão abandonada). */
   autoClosed?: boolean;
+  /** Quem confirmou o fechamento físico (nome do operador/admin). */
+  closedByName?: string;
 }
 
 // ──────────────────────────────────────────────
@@ -175,7 +177,8 @@ export async function addWithdrawal(
  */
 export async function closeCashSession(
   sessionId: string,
-  closedBalance: number
+  closedBalance: number,
+  closedByName?: string
 ): Promise<{ diff: number; expected: number }> {
   try {
     // Contagem física negativa não existe — registraria "sobra" absurda
@@ -203,6 +206,7 @@ export async function closeCashSession(
       cashDifference: diff,
       balanceDiff: diff,
       hasDiscrepancy: diff !== 0,
+      ...(closedByName ? { closedByName } : {}),
     });
 
     return { diff, expected };

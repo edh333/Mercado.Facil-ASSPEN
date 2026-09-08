@@ -89,6 +89,13 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
     const [thermalMode, setThermalMode] = React.useState(false);
     const [fontSize, setFontSize] = React.useState(14);
 
+    // Código do relatório: gerado UMA vez por configuração (fonte estável).
+    // Antes era Math.random() no próprio render — mudava a cada re-render.
+    const codigoRelatorio = useMemo(
+        () => Math.random().toString(36).substr(2, 6).toUpperCase(),
+        [config?.type, config?.startDate, config?.endDate, config?.selectedUser?.id, config?.selectedUserId]
+    );
+
     // Pedidos cancelados/estornados/rejeitados NÃO são receita (contagem e valores).
     const statusReceita = ehReceita; // Fonte ÚNICA de verdade (adminUtils) — mesmo conceito dos cards/financeiro
 
@@ -1297,7 +1304,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                         <h3 className="text-lg font-black uppercase tracking-tighter leading-none">{report.title}</h3>
                         <div className="flex items-center gap-3 mt-1">
                             <span className="px-2.5 py-0.5 bg-[var(--primary-color)]/20 text-[var(--primary-color)] rounded-full text-[10px] font-black uppercase tracking-widest">{report.period}</span>
-                            <span className="text-[10px] font-black text-[var(--bg-card)] opacity-40 uppercase tracking-[0.2em]">Cód: {Math.random().toString(36).substr(2, 6).toUpperCase()}</span>
+                            <span className="text-[10px] font-black text-[var(--bg-card)] opacity-40 uppercase tracking-[0.2em]">Cód: {codigoRelatorio}</span>
                         </div>
                     </div>
                 </div>

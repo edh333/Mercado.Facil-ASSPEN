@@ -7,8 +7,8 @@ import {
   AlertTriangle, BarChart3, TrendingUp, Award, PackageX, Plus, Banknote, Printer
 } from 'lucide-react';
 import { OrderStatus, WalletTransaction } from '../../types';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import { ChartMount } from '../ui/ChartMount';
+import { useRecharts, RechartsSkeleton } from '../../utils/rechartsLoader';
 import { useTheme } from '../../context/ThemeContext';
 import { formatarMoeda } from '../../utils';
 import { toDate } from '../../utils/dateUtils';
@@ -46,10 +46,18 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
 }) => {
   const { colors } = useTheme();
 
+  // recharts é carregado sob demanda (só quem abre o dash admin baixa ~395 kB).
+  const RC = useRecharts();
+  const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip: RechartsTooltip, ResponsiveContainer } = (RC || {}) as any;
+
   // ── TOP 5 PRODUTOS MAIS VENDIDOS ─────────────────────────────
   const topProducts = React.useMemo(() => {
     const map: Record<string, { name: string; qty: number; total: number }> = {};
     (orders || []).forEach(order => {
+      // Top 5 deve refletir apenas vendas que são receita (ehReceita) — mesmo
+      // conceito dos cards, Financeiro e do Resumo de Hoje. Antes contava
+      // pedidos CANCELADOS/estornados como se tivessem saído do estoque.
+      if (!ehReceita(order.status)) return;
       (order.items || []).forEach((item: any) => {
         const key = item?.productId || item?.name || 'unknown';
         if (!map[key]) map[key] = { name: item?.name || item?.productId || 'Produto sem nome', qty: 0, total: 0 };
@@ -66,7 +74,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
       .sort((a, b) => a.stock - b.stock).slice(0, 5),
   [products]);
 
-  const zeroStock = (products || []).filter(p => p.stock !== undefined && p.stock <= 0).length;
+  const zeroStock = React.useMemo(() => (products || []).filter(p => p.stock !== undefined && p.stock <= 0).length, [products]);
 
   // ── RESUMO DO DIA — VENDAS POR FORMA DE PAGAMENTO (HOJE) ───────────
   const todayPayments = React.useMemo(() => {
@@ -132,9 +140,9 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Nenhuma venda registrada ainda</span>
         ) : (
           <>
-            {todayPayments.rows.map(r => (
+            {todayPayments.rows.map((r, ri) => (
               <span key={r.method} className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-[10px] font-black text-slate-700">
-                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: ['#10b981', '#6366f1', '#f59e0b', '#3b82f6', '#ef4444', '#8b5cf6'][todayPayments.rows.indexOf(r) % 6] }}></span>
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: ['#10b981', '#6366f1', '#f59e0b', '#3b82f6', '#ef4444', '#8b5cf6'][ri % 6] }}></span>
                 {r.label}: <span className="text-emerald-600">{formatarMoeda(r.amount)}</span>
               </span>
             ))}
@@ -215,7 +223,12 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
       )}
 
       {/* Mini Trend Chart - Visualização Rápida de Performance */}
-      {isMaster && chartData && chartData.length > 0 && (
+      {isMaster && chartData && chartData.length > 0 && !RC && (
+        <div className="bg-[var(--bg-card)] p-6 rounded-[2.5rem] border border-[var(--border-color)] shadow-sm animate-fadeIn">
+          <RechartsSkeleton minHeight={120} label="Carregando gráfico..." />
+        </div>
+      )}
+      {isMaster && chartData && chartData.length > 0 && RC && (
         <div className="bg-[var(--bg-card)] p-6 rounded-[2.5rem] border border-[var(--border-color)] shadow-sm animate-fadeIn">
           <div className="flex items-center justify-between mb-4 px-2">
             <div className="flex items-center gap-2">
@@ -376,7 +389,12 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
         )}
 
         {/* Sales Chart */}
-        {isMaster && chartData && chartData.length > 0 && (
+        {isMaster && chartData && chartData.length > 0 && !RC && (
+          <div className={`${topProducts.length > 0 ? 'lg:col-span-2' : 'lg:col-span-3'} bg-[var(--bg-card)] p-8 rounded-3xl shadow-sm border border-[var(--border-color)]`}>
+            <RechartsSkeleton minHeight={288} label="Carregando gráfico..." />
+          </div>
+        )}
+        {isMaster && chartData && chartData.length > 0 && RC && (
           <div className={`${topProducts.length > 0 ? 'lg:col-span-2' : 'lg:col-span-3'} bg-[var(--bg-card)] p-8 rounded-3xl shadow-sm border border-[var(--border-color)]`}>
             <h3 className="text-xl font-bold text-[var(--text-main)] mb-8 flex items-center gap-3 tracking-tight">
               <BarChart3 className="text-blue-500" size={24}/> Fluxo de Vendas

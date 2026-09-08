@@ -521,7 +521,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                           Detalhes
                         </button>
                       </div>
-                    ) : tx.type === 'deposit' ? (
+                    ) : tx.type === 'withdrawal' || tx.type === 'refund' ? (
                       <div className="flex items-center justify-center">
                         <button
                           onClick={() => onSelectTransaction?.(tx)}

@@ -1,6 +1,8 @@
 import React from 'react';
 import { formatarMoeda } from '../../utils';
-import { Shield, Plus, Trash2, Search, UserCheck, FileUp, LayoutGrid, Smartphone } from 'lucide-react';
+import { Shield, Plus, Trash2, Search, UserCheck, FileUp, LayoutGrid, Smartphone, Loader2 } from 'lucide-react';
+import { useApp } from '../../context/StoreContext';
+import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
 
 interface AdminInmatesTabProps {
   preRegisteredInmates: any[];
@@ -19,6 +21,8 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [viewMode, setViewMode] = React.useState<'table' | 'cards'>('table');
+  const [inmateParaExcluir, setInmateParaExcluir] = React.useState<any>(null);
+  const { showNotification: notifCtx } = useApp();
 
   const consolidatedData = React.useMemo(() => {
     return (preRegisteredInmates || []).map(inmate => {
@@ -43,15 +47,14 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
 
   // Bloqueia exclusão de interno COM família vinculada: o saldo fica nos docs
   // dos usuários, mas cadastros futuros daquele CPF seriam barrados (Login exige
-  // pré-cadastro) e a supervisão consolidada perderia a referência. Um único
-  // diálogo — sem o duplo confirm que existia antes.
+  // pré-cadastro) e a supervisão consolidada perderia a referência.
   const handleDeleteInmate = (inmate: any) => {
     const vinculados = inmate?.linkedUsers?.length || 0;
     if (vinculados > 0) {
-      alert(`NÃO É POSSÍVEL REMOVER: ${vinculados} familiar(es) vinculado(s) a ${inmate?.name || 'este interno'}.\nTransfira os familiares para outro interno antes de remover.`);
+      notifCtx(`NÃO É POSSÍVEL REMOVER: ${vinculados} familiar(es) vinculado(s) a ${inmate?.name || 'este interno'}. Transfira os familiares para outro interno antes de remover.`, 'error');
       return;
     }
-    if (confirm(`REMOVER DEFINITIVAMENTE ${inmate?.name || 'este preso'}?`)) deletePreRegisteredInmate(inmate?.id);
+    setInmateParaExcluir(inmate);
   };
 
   return (
@@ -244,8 +247,26 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
                     </>
                 )}
             </div>
+            {loadMoreInmates && inmatesLimit && (preRegisteredInmates || []).length >= inmatesLimit && (
+              <div className="p-4 border-t border-[var(--border-color)] bg-[var(--bg-main)]">
+                <button
+                  onClick={loadMoreInmates}
+                  className="w-full py-3 bg-[var(--bg-card)] border-2 border-[var(--border-color)] text-[var(--text-main)] rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-all flex items-center justify-center gap-2"
+                >
+                  <Loader2 size={14} /> Carregar mais internos
+                </button>
+              </div>
+            )}
         </div>
       </div>
+      <ConfirmacaoDestrutiva
+        isOpen={inmateParaExcluir !== null}
+        titulo="Remover Interno"
+        descricao={`REMOVER DEFINITIVAMENTE ${inmateParaExcluir?.name || 'este preso'}? O histórico de vinculo será perdido, mas os saldos dos familiares não são afetados.`}
+        palavraChave="REMOVER"
+        onConfirm={() => { if (inmateParaExcluir?.id) deletePreRegisteredInmate(inmateParaExcluir.id); setInmateParaExcluir(null); }}
+        onClose={() => setInmateParaExcluir(null)}
+      />
     </div>
   );
 };

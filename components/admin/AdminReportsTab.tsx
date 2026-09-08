@@ -30,7 +30,11 @@ const getQuickDateRange = (period?: string): { start: Date; end: Date } => {
   if (safePeriod === 'today') return { start: today, end };
   if (safePeriod === 'week') {
     const start = new Date(today);
-    start.setDate(today.getDate() - today.getDay());
+    // Semana padrão pt-BR começa na SEGUNDA-feira (no Sunday, o getDay() = 0
+    // zerava a janela para o próprio dia — a "Semana" durava 1 dia).
+    const dow = today.getDay();
+    const diffToMonday = dow === 0 ? 6 : dow - 1;
+    start.setDate(today.getDate() - diffToMonday);
     return { start, end };
   }
   if (safePeriod === 'month') {
@@ -99,8 +103,8 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
     { id: 'PRODUCTS_ALL', name: 'Catálogo de Produtos', desc: 'Lista completa de itens, preços e estoque.', icon: <Package className="text-blue-400" size={24}/> },
     { id: 'USERS_CREDITS', name: 'Usuários e Saldos', desc: 'Relatório de familiares e créditos em conta.', icon: <Users className="text-indigo-600" size={24}/> },
     { id: 'CREDITS_ALL', name: 'Todos os Créditos', desc: 'Listagem completa com filtro por com/sem crédito, individual e em lote.', icon: <Wallet className="text-emerald-500" size={24}/> },
-    { id: 'CREDITS_POSITIVE', name: 'Créditos Ativos (com Saldo)', desc: 'Familiários com crédito em conta > R$ 0, consulta individual e em lote.', icon: <Wallet className="text-emerald-500" size={24}/> },
-    { id: 'CREDITS_ZERO', name: 'Créditos Zerados (sem Saldo)', desc: 'Familiários sem crédito em conta, consulta individual e em lote.', icon: <Coins className="text-slate-500" size={24}/> },
+    { id: 'CREDITS_POSITIVE', name: 'Créditos Ativos (com Saldo)', desc: 'Familiares com crédito em conta > R$ 0, consulta individual e em lote.', icon: <Wallet className="text-emerald-500" size={24}/> },
+    { id: 'CREDITS_ZERO', name: 'Créditos Zerados (sem Saldo)', desc: 'Familiares sem crédito em conta, consulta individual e em lote.', icon: <Coins className="text-slate-500" size={24}/> },
     { id: 'INDIVIDUAL', name: 'Extrato Individual', desc: 'Movimentações completas de um familiar.', icon: <Users className="text-orange-500" size={24}/> },
     { id: 'COLLECTIVE_PURCHASES', name: 'Compras Coletivas', desc: 'Consolidado de vendas por período.', icon: <CreditCard className="text-emerald-400" size={24}/> },
     { id: 'STOCK_LOW', name: 'Reposição / Inventário', desc: 'Itens abaixo da margem de segurança.', icon: <Package className="text-red-500" size={24}/> },
@@ -152,7 +156,7 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
 
                     <div className="relative z-10 space-y-6">
                         {reportConfig.type === 'INDIVIDUAL' && (
-                            <div className="animate-slideDown space-y-2">
+                            <div className="relative animate-slideDown space-y-2">
                                 <label className="text-[var(--text-main)] font-black text-[10px] uppercase tracking-widest mb-1 block ml-1">Familiar / CPF</label>
                                 <div className="relative group">
                                     <div className="absolute left-4 top-1/2 -translate-y-1/2 bg-[var(--bg-card)] p-2.5 rounded-2xl border border-[var(--border-color)] group-focus-within:bg-emerald-600 group-focus-within:border-emerald-600 transition-all duration-500 z-10 shadow-sm">

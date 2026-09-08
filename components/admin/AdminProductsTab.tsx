@@ -1,8 +1,8 @@
 import React from 'react';
 import {
-  Package, Search, Grid, List, Plus, Upload, Trash2, Edit, ImageIcon, Printer, AlertTriangle, Check, RefreshCw, Download
+  Package, Search, Grid, List, Plus, Upload, Trash2, Edit, ImageIcon, Printer, AlertTriangle, Check, RefreshCw, Download, Package as PackageIcon
 } from 'lucide-react';
-import { formatarMoeda } from '../../utils';
+import { formatarMoeda, normalizeName } from '../../utils';
 import { toDate } from '../../utils/dateUtils';
 import { Product, Supplier } from '../../types';
 import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
@@ -28,19 +28,25 @@ interface AdminProductsTabProps {
   handleResetStock: () => void;
   loadMoreProducts?: () => void;
   productsLimit?: number;
-  previewXmlImport?: (file: File) => Promise<{ name: string; cost: number; qty: number }[]>;
+  previewXmlImport?: (file: File) => Promise<{ name: string; cost: number; qty: number; ean: string; brand: string }[]>;
+  showStockEditModal: Product | null;
+  setShowStockEditModal: (val: Product | null) => void;
 }
 
 export const AdminProductsTab: React.FC<AdminProductsTabProps> = ({
   products, suppliers, searchTerm, setSearchTerm, viewMode, setViewMode,
   setShowProductModal, setEditingProduct, deleteProduct,
-  xmlFile, setXmlFile, handleImportXML, margin, setMargin, onPrintCatalog, mergeDuplicateProducts, sanitizeCatalog, handleResetStock, loadMoreProducts, productsLimit, previewXmlImport
+  xmlFile, setXmlFile, handleImportXML, margin, setMargin, onPrintCatalog, mergeDuplicateProducts, sanitizeCatalog, handleResetStock, loadMoreProducts, productsLimit, previewXmlImport,
+  showStockEditModal, setShowStockEditModal
 }) => {
   const [categoryFilter, setCategoryFilter] = React.useState('ALL');
   const [supplierFilter, setSupplierFilter] = React.useState('ALL');
   const [confirmarEstoque, setConfirmarEstoque] = React.useState(false);
-  const [xmlPreview, setXmlPreview] = React.useState<{ name: string; cost: number; qty: number }[]>([]);
+  const [xmlPreview, setXmlPreview] = React.useState<{ name: string; cost: number; qty: number; ean: string; brand: string }[]>([]);
   const [xmlPreviewLoading, setXmlPreviewLoading] = React.useState(false);
+  const [produtoParaExcluir, setProdutoParaExcluir] = React.useState<Product | null>(null);
+  const [confirmarSanitizar, setConfirmarSanitizar] = React.useState(false);
+  const [mesclando, setMesclando] = React.useState(false);
 
   // Ao selecionar um XML, lê a NFe e mostra o CUSTO de cada item.
   // O preço de venda é calculado AO VIVO com a margem digitada:
@@ -61,6 +67,23 @@ export const AdminProductsTab: React.FC<AdminProductsTabProps> = ({
   const margemNum = parseFloat(margin);
   const margemPct = Number.isFinite(margemNum) && margemNum >= 0 ? margemNum : 30;
   const precoComMargem = (custo: number) => custo * (1 + margemPct / 100);
+
+  // Flag de duplicidade da prévia: mesmo critério da importação (EAN normalizado
+  // ou nome canônico). Mostra se o item entra como NOVO ou ATUALIZA um produto.
+  const ehExistente = React.useCallback((it: { name: string; ean?: string }) => {
+    const ean = String(it.ean || '').replace(/^0+/, '').trim();
+    if (ean) {
+      const hit = (products || []).find(p => String(p.ean || p.barcode || '').replace(/^0+/, '').trim() === ean);
+      if (hit) return hit;
+    }
+    const nomeKey = normalizeName(it.name);
+    return (products || []).find(p => normalizeName(p.name || '') === nomeKey) || null;
+  }, [products]);
+
+  const resumoPreview = React.useMemo(() => {
+    const existentes = xmlPreview.filter(i => ehExistente(i)).length;
+    return { existentes, novos: xmlPreview.length - existentes, truncado: xmlPreview.length > 100 };
+  }, [xmlPreview, ehExistente]);
 
   const categories = React.useMemo(() => {
     const cats = new Set((products || []).map(p => p.category).filter(Boolean));
@@ -274,9 +297,14 @@ return (
                   placeholder="0"
                 />
               </div>
-<button onClick={handleImportXML} disabled={!xmlFile} className={`w-full md:w-auto px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-2 ${!xmlFile ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-emerald-600 text-white hover:opacity-90'}`}>
-                   <Check size={18}/> Processar NFe
+<button onClick={handleImportXML} disabled={!xmlFile || xmlPreviewLoading} className={`w-full md:w-auto px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-2 ${(!xmlFile || xmlPreviewLoading) ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-emerald-600 text-white hover:opacity-90 active:scale-95'}`}>
+                   {xmlPreviewLoading ? <RefreshCw size={18} className="animate-spin"/> : <Check size={18}/>} {xmlPreviewLoading ? 'Lendo Nota...' : 'Processar NFe'}
                </button>
+               {margin.trim() !== '' && margemPct !== parseFloat(margin) && (
+                 <p className="mt-2 text-[10px] font-black uppercase tracking-wider text-amber-600">
+                   Margem inválida — será usada 30% na importação.
+                 </p>
+               )}
             </div>
 
             {/* PRÉVIA: custo detectado no XML → preço de venda com a margem digitada */}
@@ -299,26 +327,40 @@ return (
                     <thead className="sticky top-0 bg-[var(--bg-main)]">
                       <tr className="text-left text-[9px] font-black uppercase tracking-widest text-slate-400 border-b border-[var(--border-color)]">
                         <th className="py-2 pr-2">Produto</th>
+                        <th className="py-2 pr-2 text-center">Situação</th>
                         <th className="py-2 pr-2 text-right">Qtd</th>
                         <th className="py-2 pr-2 text-right">Custo Un.</th>
                         <th className="py-2 text-right text-emerald-600">Venda (+{margemPct}%)</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {xmlPreview.slice(0, 100).map((it, i) => (
+                      {xmlPreview.slice(0, 100).map((it, i) => {
+                        const existente = ehExistente(it);
+                        return (
                         <tr key={i} className="border-b border-[var(--border-color)]/50 last:border-0">
                           <td className="py-1.5 pr-2 font-bold text-[var(--text-main)] truncate max-w-[220px]">{it.name}</td>
+                          <td className="py-1.5 pr-2 text-center">
+                            <span className={`inline-block text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${existente ? 'bg-amber-500/10 text-amber-700 border border-amber-500/30' : 'bg-emerald-500/10 text-emerald-700 border border-emerald-500/30'}`}>
+                              {existente ? 'Atualiza' : 'Novo'}
+                            </span>
+                          </td>
                           <td className="py-1.5 pr-2 text-right font-bold text-slate-500">{it.qty}</td>
                           <td className="py-1.5 pr-2 text-right font-black text-[var(--text-main)]">{formatarMoeda(it.cost)}</td>
                           <td className="py-1.5 text-right font-black text-emerald-600">{formatarMoeda(precoComMargem(it.cost))}</td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
+                {resumoPreview.truncado && (
+                  <p className="mt-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Exibindo os 100 primeiros de {xmlPreview.length} itens — a importação processa a nota inteira.
+                  </p>
+                )}
               </div>
             )}
-            <button onClick={() => { if(confirm('Zerar preço/custo de TODOS os produtos com valor absurdo (>R$ 100 mil)? Use após NFe corrompida dar preços gigantescos.')) void sanitizeCatalog(); }} className="mt-3 w-full md:w-auto px-4 py-2.5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all bg-amber-500/10 text-amber-600 border border-amber-500/30 hover:bg-amber-500 hover:text-white flex items-center justify-center gap-2">
+            <button onClick={() => setConfirmarSanitizar(true)} className="mt-3 w-full md:w-auto px-4 py-2.5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all bg-amber-500/10 text-amber-600 border border-amber-500/30 hover:bg-amber-500 hover:text-white flex items-center justify-center gap-2">
                 <AlertTriangle size={14}/> Sanitizar Preços Corrompidos
             </button>
           </div>
@@ -333,9 +375,9 @@ return (
                   <div className="p-3 bg-emerald-100 rounded-2xl text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-colors"><Download size={20}/></div>
                   <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-main)]">Lista PDF</span>
               </button>
-              <button onClick={mergeDuplicateProducts} className="bg-[var(--bg-card)] border border-[var(--border-color)] p-6 rounded-[2.5rem] flex flex-col items-center justify-center gap-3 hover:shadow-xl transition-all active:scale-95 group">
-                  <div className="p-3 bg-[var(--bg-main)] rounded-2xl text-[var(--text-muted)] group-hover:text-emerald-500 transition-colors"><RefreshCw size={20}/></div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-main)]">Mesclar</span>
+              <button onClick={async () => { if (mesclando) return; setMesclando(true); try { await mergeDuplicateProducts(); } finally { setMesclando(false); } }} disabled={mesclando} className="bg-[var(--bg-card)] border border-[var(--border-color)] p-6 rounded-[2.5rem] flex flex-col items-center justify-center gap-3 hover:shadow-xl transition-all active:scale-95 group disabled:opacity-50">
+                  <div className="p-3 bg-[var(--bg-main)] rounded-2xl text-[var(--text-muted)] group-hover:text-emerald-500 transition-colors">{mesclando ? <RefreshCw size={20} className="animate-spin"/> : <RefreshCw size={20}/>}</div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-main)]">{mesclando ? 'Mesclando...' : 'Mesclar'}</span>
               </button>
               <button onClick={() => setConfirmarEstoque(true)} className="col-span-2 bg-red-500/5 border border-red-500/20 p-4 rounded-2xl flex items-center justify-center gap-3 hover:bg-red-500 text-red-600 hover:text-white transition-all active:scale-95 group">
                   <AlertTriangle size={18}/>
@@ -352,6 +394,24 @@ return (
         onClose={() => setConfirmarEstoque(false)}
       />
 
+      <ConfirmacaoDestrutiva
+        isOpen={confirmarSanitizar}
+        titulo="Sanitizar Preços Corrompidos"
+        descricao="Zera preço/custo de TODOS os produtos com valor absurdo (>R$ 100 mil) para que voltem à loja com valor manual. Use após uma NFe corrompida gerar preços gigantescos."
+        palavraChave="SANITIZAR"
+        onConfirm={() => { setConfirmarSanitizar(false); void sanitizeCatalog(); }}
+        onClose={() => setConfirmarSanitizar(false)}
+      />
+
+      <ConfirmacaoDestrutiva
+        isOpen={!!produtoParaExcluir}
+        titulo="Excluir Produto"
+        descricao={produtoParaExcluir ? `${produtoParaExcluir.name?.toUpperCase() || 'Este produto'} será ARQUIVADO (removido do catálogo ativo). O histórico de vendas é preservado.` : ''}
+        palavraChave="EXCLUIR"
+        onConfirm={() => { if (produtoParaExcluir) deleteProduct(produtoParaExcluir.id); setProdutoParaExcluir(null); }}
+        onClose={() => setProdutoParaExcluir(null)}
+      />
+
       {/* Grid / List of Products */}
       <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6' : 'bg-[var(--bg-card)] rounded-[2.5rem] border border-[var(--border-color)] shadow-sm overflow-hidden'}>
         {filteredProducts.length === 0 ? (
@@ -364,9 +424,6 @@ return (
 {/* Estoque Crítico - Borda de alerta */}
               {product?.stock > 0 && product?.stock <= (product.minStock || 5) && (
                 <div className="absolute inset-0 rounded-[2.5rem] border-2 border-amber-400 pointer-events-none z-11 opacity-50"></div>
-              )}
-              {(product?.stock || 0) <= 0 && (
-                <div className="absolute inset-0 rounded-[2.5rem] border-2 border-red-500 pointer-events-none z-11 opacity-50"></div>
               )}
               {(product?.stock || 0) <= 0 && (
                 <div className="absolute inset-0 rounded-[2.5rem] border-2 border-red-500 pointer-events-none z-10 opacity-50"></div>
@@ -439,7 +496,8 @@ return (
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => { setEditingProduct(product); setShowProductModal(true); }} className="p-3 bg-[var(--bg-main)] text-[var(--text-muted)] hover:text-emerald-500 rounded-2xl border border-[var(--border-color)] shadow-sm active:scale-95 transition-all"><Edit size={18}/></button>
-                      <button onClick={() => { if(confirm(`EXCLUIR DEFINITIVAMENTE ${product?.name || 'este produto'}?`)) deleteProduct(product?.id); }} className="p-3 bg-red-500/5 text-red-500 hover:bg-red-600 hover:text-white rounded-2xl border border-red-500/20 shadow-sm active:scale-95 transition-all"><Trash2 size={18}/></button>
+                      <button onClick={() => { setShowStockEditModal(product); }} className="p-3 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-2xl border border-blue-200 shadow-sm active:scale-95 transition-all" title="Editar Estoque"><PackageIcon size={18}/></button>
+                      <button onClick={() => setProdutoParaExcluir(product)} className="p-3 bg-red-500/5 text-red-500 hover:bg-red-600 hover:text-white rounded-2xl border border-red-500/20 shadow-sm active:scale-95 transition-all"><Trash2 size={18}/></button>
                     </div>
                 </div>
              </div>

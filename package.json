@@ -27,6 +27,7 @@
     "deploy:web": "npm run build && firebase deploy --only hosting",
     "deploy:rules": "firebase deploy --only firestore,storage",
     "deploy:functions": "firebase deploy --only functions",
+    "deploy:pages": "npm run build && npx --yes wrangler pages deploy build",
     "publish:apps": "node scripts/publish-apps.cjs",
     "release": "node scripts/release.mjs"
   },

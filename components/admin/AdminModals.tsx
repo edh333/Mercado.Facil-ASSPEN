@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { Fragment } from 'react';
 import { createPortal } from 'react-dom';
 import {
   X, Check, Upload, ImageIcon, Barcode,
-  MinusCircle, RefreshCw, Loader2, Lock, Package, Key, PlusCircle, Printer, KeyRound, ShieldCheck
+  MinusCircle, RefreshCw, Loader2, Lock, Package, Key, PlusCircle, Printer, KeyRound, ShieldCheck, Edit, Shield, AlertTriangle, Save
 } from 'lucide-react';
 import { Product, Expense, Order } from '../../types';
 import { compressImageFile, fileToBase64, normalizeName } from '../../utils';
@@ -10,6 +10,7 @@ import { ModalShell } from '../ui/ModalShell';
 import { CupomEntrega } from '../CupomEntrega';
 import { ReciboA4 } from '../ReciboA4';
 import { gerarCupomEntregaRaw, baixarCupomTxt, abrirJanelaImpressao, imprimirComPrioridadeFiscal, imprimirHtmlSilencioso } from '../../utils/printUtils';
+import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
 
 interface AdminModalsProps {
   showProductModal: boolean;
@@ -48,6 +49,13 @@ interface AdminModalsProps {
   printOrder: Order | null;
   setPrintOrder: (val: Order | null) => void;
   settings: any;
+
+  // Stock edit modal
+  showStockEditModal: Product | null;
+  setShowStockEditModal: (val: Product | null) => void;
+  validateMasterPassword: (password: string) => Promise<boolean>;
+  currentUser: any;
+  showNotification: (msg: string, type?: string) => void;
 }
 
 export const AdminModals: React.FC<AdminModalsProps> = ({
@@ -56,10 +64,105 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
   showWithdrawalModal, setShowWithdrawalModal, withdrawalAmount, setWithdrawalAmount, withdrawalReason, setWithdrawalReason, withdrawalPassword, setWithdrawalPassword, handleWithdrawal,
   showRefundModal, setShowRefundModal, refundReason, setRefundReason, isProcessingRefund, handleRefundOrder,
   showAuthModal, setShowAuthModal, authPass, setAuthPass, handleAuthConfirm,
-  viewingReceipt, setViewingReceipt, printOrder, setPrintOrder, settings
+  viewingReceipt, setViewingReceipt, printOrder, setPrintOrder, settings,
+  showStockEditModal, setShowStockEditModal, validateMasterPassword, currentUser, showNotification
 }) => {
   const [isProductLoading, setIsProductLoading] = React.useState(false);
   const [isAuthLoading, setIsAuthLoading] = React.useState(false);
+  const [confirmarDuplicata, setConfirmarDuplicata] = React.useState(false);
+  const confirmarDuplicataStorage = React.useRef<null | { productData: Product }>(null);
+
+  const executarSalvarDuplicata = async () => {
+    const pendente = confirmarDuplicataStorage.current;
+    if (!pendente) return;
+    setConfirmarDuplicata(false);
+    setIsProductLoading(true);
+    try {
+      await addProduct(pendente.productData);
+      setShowProductModal(false);
+      setEditingProduct(null);
+      showNotification('Produto criado mesmo com duplicidade.', 'success');
+    } catch (error: any) {
+      showNotification('Erro ao salvar produto: ' + (error?.message || 'tente novamente'), 'error');
+    } finally {
+      setIsProductLoading(false);
+      confirmarDuplicataStorage.current = null;
+    }
+  };
+
+  // Categorias: padrões + TODAS as existentes no catálogo (inclusive as criadas
+  // pela importação da NFe — antes o <select> fixo fazia a edição de um produto
+  // importado (ex.: "Carnes", "Laticínios") exibir um campo vazio).
+  const categorias = React.useMemo(() => {
+    const set = new Set<string>(['Geral', 'Alimentos', 'Bebidas', 'Higiene', 'Limpeza', 'Vestuário', 'Eletrônicos', 'Outros']);
+    (products || []).forEach(p => { if (p.category) set.add(p.category); });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }, [products]);
+
+  // Stock edit modal state
+  const [stockEditLoading, setStockEditLoading] = React.useState(false);
+  const [stockEditPassword, setStockEditPassword] = React.useState('');
+  const [stockEditError, setStockEditError] = React.useState('');
+  const [stockEditForm, setStockEditForm] = React.useState('');
+
+  // Check if current user is master admin
+  const isMasterAdmin = React.useMemo(() => {
+    if (!currentUser) return false;
+    return currentUser.mainAdmin === true ||
+           currentUser.id === 'master' ||
+           currentUser.id === 'admin' ||
+           currentUser.email === 'admin@mercado.com';
+  }, [currentUser]);
+
+  const handleStockEditSubmit = async () => {
+    if (!showStockEditModal) return;
+    const newStock = Math.round(parseFloat(stockEditForm) || 0);
+    if (newStock < 0) {
+      setStockEditError('Quantidade inválida');
+      return;
+    }
+
+    // Check if master admin - if not, require master password
+    if (!isMasterAdmin) {
+      if (!stockEditPassword.trim()) {
+        setStockEditError('Senha mestra obrigatória para admins secundários');
+        return;
+      }
+      const valid = await validateMasterPassword(stockEditPassword);
+      if (!valid) {
+        setStockEditError('Senha mestra incorreta');
+        return;
+      }
+    }
+
+    setStockEditLoading(true);
+    setStockEditError('');
+    try {
+      await updateProduct({
+        ...showStockEditModal,
+        stock: newStock
+      });
+      setShowStockEditModal(null);
+      setStockEditPassword('');
+      setStockEditForm('');
+      showNotification('Estoque atualizado com sucesso!', 'success');
+    } catch (error: any) {
+      setStockEditError('Erro ao atualizar: ' + (error?.message || 'tente novamente'));
+    } finally {
+      setStockEditLoading(false);
+    }
+  };
+
+  // Reset form when modal opens/closes
+  React.useEffect(() => {
+    if (showStockEditModal) {
+      setStockEditForm((showStockEditModal.stock ?? 0).toString());
+    } else {
+      setStockEditForm('');
+      setStockEditPassword('');
+      setStockEditError('');
+    }
+  }, [showStockEditModal]);
 
   const handleRawPrint = () => {
     if (!printOrder) return;
@@ -148,7 +251,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
     // Validação positiva: preço/custo não podem ser negativos (nem NaN/Infinity).
     const valoresValidos = [costNum, marginNum, stockNum, priceNum].every(v => Number.isFinite(v) && v >= 0);
     if (!valoresValidos || priceNum <= 0) {
-      alert('Valores inválidos: o preço deve ser maior que zero e nenhum valor pode ser negativo.');
+      showNotification('Valores inválidos: o preço deve ser maior que zero e nenhum valor pode ser negativo.', 'error');
       return;
     }
     setIsProductLoading(true);
@@ -165,7 +268,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
         price: parseFloat(priceNum.toFixed(2)),
         margin: marginNum,
         stock: stockNum,
-        minStock: parseInt(productForm.minStock) || 0,
+        minStock: Math.max(0, parseInt(productForm.minStock) || 0),
         imageUrl: productForm.imageUrl,
         available: productForm.available,
         dynamicPrice: productForm.dynamicPrice,
@@ -187,10 +290,10 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
         });
         if (duplicate) {
           const reason = barcode ? `código de barras ${productForm.barcode}` : `nome "${productData.name}"`;
-          if (!window.confirm(`Já existe um produto com ${reason}:\n\n${duplicate.name} (R$ ${duplicate.price?.toFixed(2)} | Estoque: ${duplicate.stock || 0})\n\nDeseja criar mesmo assim?`)) {
-            setIsProductLoading(false);
-            return;
-          }
+          confirmarDuplicataStorage.current = { productData };
+          setConfirmarDuplicata(true);
+          setIsProductLoading(false);
+          return;
         }
       }
 
@@ -203,6 +306,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
       setEditingProduct(null);
     } catch (error: any) {
       console.error('Erro ao salvar produto:', error);
+      showNotification('Erro ao salvar produto: ' + (error?.message || 'tente novamente'), 'error');
     } finally {
       setIsProductLoading(false);
     }
@@ -388,23 +492,19 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                                onChange={e => setProductForm({...productForm, brand: e.target.value.toUpperCase()})}
                                placeholder="EX: NESTLÉ, COCA-COLA..."
                            />
-                           <div className="bg-white p-4 rounded-xl border-2 border-slate-200 transition-all focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
-                               <label className="text-slate-600 font-black text-[10px] uppercase tracking-widest block mb-2">Categoria</label>
-                               <select
-                                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-900 outline-none appearance-none cursor-pointer"
-                                   value={productForm.category}
-                                   onChange={e => setProductForm({...productForm, category: e.target.value})}
-                               >
-                                   <option value="Geral">Geral</option>
-                                   <option value="Alimentos">Alimentos</option>
-                                   <option value="Bebidas">Bebidas</option>
-                                   <option value="Higiene">Higiene</option>
-                                   <option value="Limpeza">Limpeza</option>
-                                   <option value="Vestuário">Vestuário</option>
-                                   <option value="Eletrônicos">Eletrônicos</option>
-                                   <option value="Outros">Outros</option>
-                               </select>
-                           </div>
+<div className="bg-white p-4 rounded-xl border-2 border-slate-200 transition-all focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
+                                <label className="text-slate-600 font-black text-[10px] uppercase tracking-widest block mb-2">Categoria</label>
+                                <input
+                                    list="lista-categorias-produto"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-900 outline-none placeholder:text-slate-400 transition-all focus:border-emerald-500"
+                                    placeholder="Escolha ou digite..."
+                                    value={productForm.category}
+                                    onChange={e => setProductForm({...productForm, category: e.target.value})}
+                                />
+                                <datalist id="lista-categorias-produto">
+                                    {categorias.map(cat => <option key={cat} value={cat} />)}
+                                </datalist>
+                            </div>
                        </div>
                    </div>
                </div>
@@ -566,7 +666,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                       <div className="flex flex-col gap-3 pt-2">
                           <button
                             onClick={handleWithdrawal}
-                            disabled={!withdrawalAmount || Number(withdrawalAmount) <= 0 || withdrawalPassword.trim().length < 8}
+                            disabled={!withdrawalAmount || (parseFloat(String(withdrawalAmount).replace(',', '.')) || 0) <= 0 || withdrawalPassword.trim().length < 8}
                             className={`w-full py-5 font-black rounded-2xl shadow-lg flex items-center justify-center gap-3 uppercase text-[11px] tracking-widest transition-all active:scale-[0.98] touch-target ${showWithdrawalModal.isDeposit ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:brightness-110' : showWithdrawalModal.isRefund ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:brightness-110' : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:brightness-110'} disabled:opacity-40 disabled:cursor-not-allowed`}
                           >
                             <Check size={20}/> Confirmar Operação
@@ -812,10 +912,115 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
             `}</style>
           </div>
         </div>
+)}
+
+      {/* ── MODAL: EDITAR ESTOQUE (COM SENHA MESTRA PARA ADMIN SECUNDÁRIO) ── */}
+      {showStockEditModal && (
+        <ModalShell
+          open
+          onClose={() => {
+            setShowStockEditModal(null);
+            setStockEditPassword('');
+            setStockEditError('');
+          }}
+          title="Editar Estoque"
+          subtitle="Ajuste manual de quantidade — requer senha mestra para admins secundários"
+          icon={<Package size={22} />}
+          size="md"
+          actions={
+            <>
+              <button
+                onClick={() => {
+                  setShowStockEditModal(null);
+                  setStockEditPassword('');
+                  setStockEditError('');
+                }}
+                className="flex-1 py-3 bg-slate-100 text-slate-700 rounded-xl font-black uppercase hover:bg-slate-200"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleStockEditSubmit}
+                disabled={stockEditLoading}
+                className="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-black uppercase hover:bg-emerald-500 disabled:opacity-50"
+              >
+                {stockEditLoading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Salvar Estoque
+              </button>
+            </>
+          }
+        >
+          <div className="p-6 space-y-6">
+            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+              <h3 className="font-black text-slate-900 mb-2">{showStockEditModal.name}</h3>
+              <p className="text-sm text-slate-500">Código: {showStockEditModal.barcode || showStockEditModal.ean || showStockEditModal.id?.slice(0, 8)}</p>
+              <div className="mt-4 flex items-center gap-4">
+                <div className="flex-1">
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Estoque Atual</p>
+                  <p className="text-3xl font-black text-slate-900">{showStockEditModal.stock ?? 0} UN</p>
+                </div>
+                <div className="flex-1">
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Estoque Mínimo</p>
+                  <p className="text-xl font-black text-slate-700">{showStockEditModal.minStock ?? 0} UN</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Nova Quantidade</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={stockEditForm}
+                  onChange={(e) => setStockEditForm(e.target.value)}
+                  className="w-full px-4 py-4 bg-slate-50 border-2 border-slate-200 rounded-xl font-black text-2xl text-center text-slate-900 outline-none focus:border-emerald-500"
+                  placeholder="0"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Senha Mestra (obrigatória para admins secundários)</label>
+                <input
+                  type="password"
+                  value={stockEditPassword}
+                  onChange={(e) => {
+                    setStockEditPassword(e.target.value);
+                    setStockEditError('');
+                  }}
+                  onKeyDown={(e) => e.key === 'Enter' && handleStockEditSubmit()}
+                  className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 rounded-xl font-black text-lg outline-none transition-colors placeholder:text-slate-400"
+                  placeholder="••••••••"
+                  autoComplete="off"
+                />
+                {stockEditError && <p className="mt-2 text-red-600 font-black text-sm">{stockEditError}</p>}
+              </div>
+
+              <p className="text-[10px] text-slate-500 text-center">
+                O master admin (mainAdmin) não precisa digitar senha. Admins secundários devem inserir a senha mestra.
+              </p>
+            </div>
+          </div>
+</ModalShell>
       )}
+      <ConfirmacaoDestrutiva
+        isOpen={confirmarDuplicata}
+        titulo="Produto Duplicado"
+        descricao={
+          confirmarDuplicataStorage.current
+            ? `Já existe um produto com ${confirmarDuplicataStorage.current.productData.barcode ? 'código de barras ' + confirmarDuplicataStorage.current.productData.barcode : 'nome "' + confirmarDuplicataStorage.current.productData.name + '"'}: ${confirmarDuplicataStorage.current.productData.name} (R$ ${confirmarDuplicataStorage.current.productData.price?.toFixed(2)} | Estoque: ${confirmarDuplicataStorage.current.productData.stock || 0}). Deseja criar mesmo assim?`
+            : 'Já existe um produto com código ou nome igual. Deseja criar mesmo assim?'
+        }
+        palavraChave="CRIAR"
+        onConfirm={() => void executarSalvarDuplicata()}
+        onClose={() => { setConfirmarDuplicata(false); setIsProductLoading(false); }}
+      />
     </>
   );
 };
+
+export default AdminModals;
 
 const PremiumInput = ({ label, value, onChange, placeholder, type = "text", error, required }: { label: string; value: string; onChange: (e: any) => void; placeholder?: string; type?: string; error?: string; required?: boolean }) => (
     <div className={`bg-white p-4 rounded-xl border-2 transition-all ${error ? 'border-red-500 focus-within:border-red-500 focus-within:ring-4 focus-within:ring-red-500/20' : 'border-slate-200 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20'}`}>

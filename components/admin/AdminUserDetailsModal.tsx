@@ -5,9 +5,10 @@ import {
   Camera, Loader2
 } from 'lucide-react';
 import { User, Order, WalletTransaction } from '../../types';
-import { formatarMoeda } from '../../utils';
+import { formatarMoeda, formatCPF, formatPhone } from '../../utils';
 import { ModalShell } from '../ui/ModalShell';
 import ImagePreviewModal from '../ImagePreviewModal';
+import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
 
 interface AdminUserDetailsModalProps {
   user: User;
@@ -35,6 +36,7 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
     const [saving, setSaving] = React.useState(false);
   const [previewDoc, setPreviewDoc] = React.useState(false);
   const [activeSection, setActiveSection] = React.useState<'GERAL' | 'HISTORICO' | 'SALDO'>('GERAL');
+  const [confirmAcao, setConfirmAcao] = React.useState<null | { tipo: 'aprovar' | 'suspender' | 'excluir' }>(null);
 
   React.useEffect(() => {
     if (user) {
@@ -81,7 +83,7 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
     if (win) {
       setTimeout(() => { try { win.print(); } catch { /* noop */ } }, 1000);
     } else {
-      alert('Popup bloqueado. Permita popups para imprimir o documento.');
+      showNotification('Popup bloqueado. Permita popups para imprimir o documento.', 'error');
     }
   };
 
@@ -142,7 +144,7 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
                     <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-500">Dados Cadastrais</h4>
                     {user.status === 'pending' && (
                       <button
-                        onClick={() => { if (confirm(`Aprovar cadastro de ${user.name}?`)) { approveUser(user.id); showNotification('Cadastro aprovado!', 'success'); onClose(); } }}
+                        onClick={() => setConfirmAcao({ tipo: 'aprovar' })}
                         className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:brightness-110 active:scale-95 transition-all"
                       >
                         <CheckCircle size={15} /> Aprovar Cadastro
@@ -157,7 +159,7 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className={labelCls}>Telefone</label>
-                      <input className={inputCls} value={form.phone || ''} onChange={e => setForm({ ...form, phone: e.target.value })} />
+                      <input inputMode="tel" className={inputCls} value={formatPhone(form.phone || '')} onChange={e => setForm({ ...form, phone: formatPhone(e.target.value) })} />
                     </div>
                     <div>
                       <label className={labelCls}>E-mail</label>
@@ -186,7 +188,7 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
                       </div>
                       <div>
                         <label className={labelCls}>CPF do Interno</label>
-                        <input className={inputCls} value={form.inmateCpf || ''} onChange={e => setForm({ ...form, inmateCpf: e.target.value.replace(/\D/g, '') })} />
+                        <input inputMode="numeric" className={inputCls} value={formatCPF(form.inmateCpf || '')} onChange={e => setForm({ ...form, inmateCpf: formatCPF(e.target.value) })} />
                       </div>
                     </div>
                   </div>
@@ -224,63 +226,79 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
                       <p className="text-[10px] text-amber-600 font-bold mt-1 uppercase tracking-widest">Peça ao familiar que reenvie o anexo</p>
                     </div>
                   ) : docUrl ? (
-                    <>
-                      {isPdf ? (
-                        <div className="flex-1 min-h-[260px] flex flex-col items-center justify-center p-6 bg-slate-50 rounded-2xl border border-slate-200">
-                          <FileText size={48} className="text-emerald-500 mb-3" />
-                          <p className="font-black text-emerald-600 text-sm mb-1">Documento em PDF</p>
-                          <p className="text-[10px] text-slate-500 text-center mb-4">PDFs não podem ser visualizados inline devido a restrições de segurança do navegador.</p>
-                          <div className="flex flex-col gap-3 w-full max-w-xs">
-                            <button onClick={() => window.open(docUrl, '_blank')} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2">
+                    <div className="flex flex-col flex-1 min-h-[350px]">
+                      {/* Preview Area */}
+                      <div className="flex-1 min-h-[300px] max-h-[500px] bg-white rounded-xl border border-slate-200 relative overflow-hidden flex flex-col">
+                        {isPdf ? (
+                          <div className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-50 rounded-xl">
+                            <FileText size={64} className="text-emerald-500 mb-4" />
+                            <p className="font-black text-emerald-600 text-lg mb-2">Documento em PDF</p>
+                            <p className="text-sm text-slate-500 text-center mb-6 max-w-md">PDFs não podem ser visualizados inline devido a restrições de segurança do navegador. Use os botões abaixo para abrir, imprimir ou baixar.</p>
+                          </div>
+                        ) : (
+                          <div
+                            className="flex-1 min-h-[260px] rounded-xl overflow-hidden border border-slate-200 bg-slate-100 cursor-pointer flex items-center justify-center"
+                            onClick={() => setPreviewDoc(true)}
+                          >
+                            <img src={docUrl} alt="Documento do cadastro" className="w-full h-full object-contain" />
+                          </div>
+                        )}
+                        {isPdf && (
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-slate-100 to-transparent h-16 pointer-events-none" />
+                        )}
+                      </div>
+                      
+                      {/* Action Buttons Below Preview */}
+                      <div className="flex flex-wrap gap-3 mt-4 p-2 bg-slate-50 rounded-xl border border-slate-200">
+                        {isPdf ? (
+                          <>
+                            <button 
+                              onClick={() => window.open(docUrl, '_blank')} 
+                              className="flex-1 min-w-[140px] py-3 px-4 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2"
+                            >
                               <ExternalLink size={14} /> Abrir PDF em Nova Aba
                             </button>
-                            <button onClick={printPdf} className="px-4 py-2 bg-slate-600 hover:bg-slate-500 text-white rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2">
+                            <button 
+                              onClick={printPdf} 
+                              className="flex-1 min-w-[140px] py-3 px-4 bg-slate-600 hover:bg-slate-500 text-white rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2"
+                            >
                               <Printer size={14} /> Imprimir
                             </button>
                             <a
                               href={docUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="px-4 py-2 bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-[10px] font-black uppercase transition-all block text-center hover:bg-slate-200"
+                              className="flex-1 min-w-[140px] py-3 px-4 bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-[10px] font-black uppercase transition-all block text-center hover:bg-slate-200"
                             >
                               <ExternalLink size={14} className="mr-1" /> Nova Aba
                             </a>
-                          </div>
-                        </div>
-                      ) : (
-                        <div
-                          className="flex-1 min-h-[260px] rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 cursor-pointer flex items-center justify-center"
-                          onClick={() => setPreviewDoc(true)}
-                        >
-                          <img src={docUrl} alt="Documento do cadastro" className="w-full h-full object-contain" />
-                        </div>
-                      )}
-                      <div className="flex gap-2 mt-4">
-                        {isPdf ? (
-                          <button
-                            onClick={printPdf}
-                            className="flex-1 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-700 active:scale-95 transition-all"
-                          >
-                            <Printer size={15} /> Imprimir
-                          </button>
+                          </>
                         ) : (
-                          <button
-                            onClick={() => setPreviewDoc(true)}
-                            className="flex-1 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-700 active:scale-95 transition-all"
-                          >
-                            <FileText size={15} /> Visualizar / Imprimir
-                          </button>
+                          <>
+                            <button 
+                              onClick={() => setPreviewDoc(true)} 
+                              className="flex-1 min-w-[140px] py-3 px-4 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2"
+                            >
+                              <FileText size={14} /> Visualizar / Imprimir
+                            </button>
+                            <button 
+                              onClick={printPdf} 
+                              className="flex-1 min-w-[140px] py-3 px-4 bg-slate-600 hover:bg-slate-500 text-white rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2"
+                            >
+                              <Printer size={14} /> Imprimir
+                            </button>
+                            <a
+                              href={docUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-1 min-w-[140px] py-3 px-4 bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-[10px] font-black uppercase transition-all block text-center hover:bg-slate-200"
+                            >
+                              <ExternalLink size={14} className="mr-1" /> Nova Aba
+                            </a>
+                          </>
                         )}
-                        <a
-                          href={docUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex-1 py-3 bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-200 active:scale-95 transition-all"
-                        >
-                          <ExternalLink size={15} /> Nova Aba
-                        </a>
                       </div>
-                    </>
+                    </div>
                   ) : (
                     <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-slate-100 rounded-2xl border border-slate-200">
                       <FileText size={40} className="text-slate-300 mb-3" />
@@ -355,14 +373,14 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
                   )}
                   {user.status !== 'suspended' && (
                     <button
-                      onClick={() => { if (confirm(`Bloquear acesso de ${user.name}?`)) suspendUser(user.id, true); }}
+                      onClick={() => setConfirmAcao({ tipo: 'suspender' })}
                       className="flex-1 py-4 bg-amber-50 border border-amber-200 text-amber-700 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-amber-100 active:scale-95 transition-all"
                     >
                       <Ban size={17} /> Suspender Acesso
                     </button>
                   )}
                   <button
-                    onClick={() => { if (confirm(`EXCLUIR ${user.name}? O histórico será preservado (soft delete).`)) deleteUser(user.id); }}
+                    onClick={() => setConfirmAcao({ tipo: 'excluir' })}
                     className="flex-1 py-4 bg-red-50 border border-red-200 text-red-600 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-red-100 active:scale-95 transition-all"
                   >
                     <Trash2 size={17} /> Excluir (Soft Delete)
@@ -448,6 +466,26 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
       {previewDoc && !isPdf && (
         <ImagePreviewModal src={docUrl} alt="Documento do cadastro" onClose={() => setPreviewDoc(false)} />
       )}
+
+      <ConfirmacaoDestrutiva
+        isOpen={confirmAcao !== null}
+        titulo={confirmAcao?.tipo === 'aprovar' ? 'Aprovar Cadastro' : confirmAcao?.tipo === 'suspender' ? 'Suspender Acesso' : 'Excluir Usuário'}
+        descricao={
+          confirmAcao?.tipo === 'aprovar'
+            ? `Liberar o acesso de ${user.name || 'este usuário'} à loja dos familiares?`
+            : confirmAcao?.tipo === 'suspender'
+            ? `Bloquear o acesso de ${user.name || 'este usuário'}? A ação pode ser revertida depois (Reativar).`
+            : `EXCLUIR ${user.name || 'este usuário'}? O histórico será preservado (soft delete).`
+        }
+        palavraChave={confirmAcao?.tipo === 'aprovar' ? 'APROVAR' : confirmAcao?.tipo === 'suspender' ? 'BLOQUEAR' : 'EXCLUIR'}
+        onConfirm={() => {
+          if (confirmAcao?.tipo === 'aprovar') { approveUser(user.id); showNotification('Cadastro aprovado!', 'success'); onClose(); }
+          else if (confirmAcao?.tipo === 'suspender') suspendUser(user.id, true);
+          else deleteUser(user.id);
+          setConfirmAcao(null);
+        }}
+        onClose={() => setConfirmAcao(null)}
+      />
     </ModalShell>
   );
 };

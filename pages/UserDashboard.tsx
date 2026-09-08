@@ -49,6 +49,8 @@ export const UserDashboard: React.FC = () => {
     const [isMsgOpen, setIsMsgOpen] = useState(false);
     const [showUninstallModal, setShowUninstallModal] = useState(false);
     const [confirmarLimpar, setConfirmarLimpar] = useState(false);
+    const [confirmarSair, setConfirmarSair] = useState(false);
+    const [sortOpt, setSortOpt] = useState<'relevance' | 'price_asc' | 'price_desc' | 'name'>('relevance');
     const [catFilter, setCatFilter] = useState<string>('ALL');
     const [searchTerm, setSearchTerm] = useState('');
     const [stage, setStage] = useState<'cart' | 'location' | 'pay' | 'proof'>('cart');
@@ -192,11 +194,26 @@ export const UserDashboard: React.FC = () => {
             } catch { console.warn("orders snapshot error"); }
         }
 
-        // === WALLET ===
-        const fetchWallet = async () => {
-            try { setWalletTxs(await getWalletTransactions(currentUser.id)); } catch { console.warn("wallet txs fetch"); }
+        // === WALLET: extrato em TEMPO REAL (crédito entra sem recarregar) ===
+        let unsubWallet: (() => void) | undefined;
+        const qWallet = query(
+            collection(db, 'wallet_transactions'),
+            where('userId', '==', currentUser.id),
+            orderBy('createdAt', 'desc'),
+            limit(50)
+        );
+        const aplicarWallet = (snapshot: any) => {
+            const items = snapshot.docs.map((d: any) => ({ ...d.data(), id: d.id } as WalletTransaction));
+            items.sort((a: any, b: any) => (toDate(b.createdAt)?.getTime() || 0) - (toDate(a.createdAt)?.getTime() || 0));
+            setWalletTxs(items);
         };
-        fetchWallet();
+        try {
+            unsubWallet = onSnapshot(qWallet, (snapshot) => aplicarWallet(snapshot), async () => {
+                try { setWalletTxs(await getWalletTransactions(currentUser.id)); } catch { console.warn("wallet txs fallback"); }
+            });
+        } catch {
+            getWalletTransactions(currentUser.id).then(r => setWalletTxs(r)).catch(() => console.warn("wallet txs fetch"));
+        }
 
         // === KEYBOARD ===
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -253,6 +270,7 @@ export const UserDashboard: React.FC = () => {
 
         return () => {
             if (unsubOrders) unsubOrders();
+            if (unsubWallet) unsubWallet();
             if (isAdmin) window.removeEventListener('keydown', handleKeyDown);
         };
     }, [currentUser?.id]);
@@ -272,14 +290,24 @@ export const UserDashboard: React.FC = () => {
 
     const filteredProducts = useMemo(() => {
         const termo = (searchTerm || '').toLowerCase().trim();
-        return safeProducts.filter(p => {
+        const base = safeProducts.filter(p => {
             if (p.available === false) return false;
             if (catFilter !== 'ALL' && (p.category || '').trim() !== catFilter) return false;
             if (!termo) return true;
             const alvo = `${p.name || ''} ${p.brand || ''} ${p.category || ''} ${p.description || ''}`.toLowerCase();
             return alvo.includes(termo);
         });
-    }, [safeProducts, searchTerm, catFilter]);
+        const lista = [...base];
+        const precoDe = (p: any) => {
+            const prom = Number(p?.promoPrice) || 0;
+            const normal = Number(p?.price) || 0;
+            return prom > 0 && prom < normal ? prom : normal;
+        };
+        if (sortOpt === 'price_asc') lista.sort((a, b) => precoDe(a) - precoDe(b));
+        else if (sortOpt === 'price_desc') lista.sort((a, b) => precoDe(b) - precoDe(a));
+        else if (sortOpt === 'name') lista.sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'pt-BR'));
+        return lista;
+    }, [safeProducts, searchTerm, catFilter, sortOpt]);
 
     const categorias = useMemo(() =>
         Array.from(new Set(safeProducts.filter(p => p.available !== false).map(p => (p.category || '').trim()).filter(Boolean)))
@@ -480,6 +508,24 @@ export const UserDashboard: React.FC = () => {
         if (s.includes('separa') || s.includes('prepar')) return 'bg-indigo-100 text-indigo-700';
         if (s.includes('saiu') || s.includes('delivery')) return 'bg-sky-100 text-sky-700';
         return 'bg-amber-100 text-amber-700';
+    };
+
+    const getWalletStatus = (tx: any) => {
+        const s = String(tx?.status || '').toLowerCase();
+        if (s.includes('approv') || s === 'paid' || s === 'pago') return { label: 'Aprovado', cls: 'bg-green-100 text-green-700' };
+        if (s.includes('reject')) return { label: 'Rejeitado', cls: 'bg-red-100 text-red-700' };
+        return { label: 'Pendente', cls: 'bg-amber-100 text-amber-700' };
+    };
+
+    const handleLogout = () => {
+        // Dois toques no lugar do confirm nativo: desarma sozinho em 3,5s.
+        if (!confirmarSair) {
+            setConfirmarSair(true);
+            window.setTimeout(() => setConfirmarSair(false), 3500);
+            return;
+        }
+        setConfirmarSair(false);
+        logout();
     };
 
     const handleFinish = async () => {
@@ -868,6 +914,8 @@ export const UserDashboard: React.FC = () => {
                         {/* Ícone de Mensagens */}
                         <button
                             onClick={() => setIsMsgOpen(!isMsgOpen)}
+                            aria-label="Mensagens"
+                            aria-expanded={isMsgOpen}
                             className="relative size-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:border-[var(--primary-color)]/40 hover:text-[var(--primary-color)] active:scale-95 transition-all shrink-0"
                         >
                             <MessageSquare size={17} />
@@ -908,7 +956,7 @@ export const UserDashboard: React.FC = () => {
                         autoComplete="off" 
                     />
                     {searchTerm && (
-                        <button onClick={() => setSearchTerm('')} title="Limpar busca" className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-slate-400 transition-all active:scale-90">
+                        <button onClick={() => setSearchTerm('')} title="Limpar busca" aria-label="Limpar busca" className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-slate-400 transition-all active:scale-90">
                             <X size={16} />
                         </button>
                     )}
@@ -916,8 +964,9 @@ export const UserDashboard: React.FC = () => {
             </div>
 
             {/* Chips de categoria */}
+            <div className="flex items-center justify-between gap-3 flex-wrap">
             {categorias.length > 1 && (
-                <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: 'none' }}>
+                <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 min-w-0" style={{ scrollbarWidth: 'none' }}>
                     {[{ id: 'ALL', label: `Tudo (${safeProducts.filter(p => p.available !== false).length})` },
                       ...categorias.map(c => ({ id: c, label: c }))]
                         .map(cat => (
@@ -931,6 +980,24 @@ export const UserDashboard: React.FC = () => {
                         ))}
                 </div>
             )}
+            {filteredProducts.length > 1 && (
+                <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+                    <label htmlFor="sortSelect" className="text-[10px] font-bold uppercase tracking-wide text-slate-400 hidden sm:block">Ordenar</label>
+                    <select
+                        id="sortSelect"
+                        value={sortOpt}
+                        onChange={(e) => setSortOpt(e.target.value as any)}
+                        aria-label="Ordenar produtos"
+                        className="text-[11px] font-bold text-slate-600 bg-white border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-[var(--primary-color)] cursor-pointer"
+                    >
+                        <option value="relevance">Relevância</option>
+                        <option value="price_asc">Menor preço</option>
+                        <option value="price_desc">Maior preço</option>
+                        <option value="name">Nome A-Z</option>
+                    </select>
+                </div>
+            )}
+            </div>
 
             {/* Vitrine Premium — Grid 2 colunas */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
@@ -971,6 +1038,7 @@ export const UserDashboard: React.FC = () => {
                                     <button
                                         onClick={(e) => { e.stopPropagation(); if (!isOutOfStock) addToCart(p); }}
                                         disabled={isOutOfStock}
+                                        aria-label={`Adicionar ${p.name} ao carrinho`}
                                         className="bg-[var(--primary-color)] hover:brightness-110 text-white rounded-lg p-2 transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer shadow-sm shrink-0"
                                     >
                                         <Plus size={15} />
@@ -1059,18 +1127,26 @@ export const UserDashboard: React.FC = () => {
                             disabled={myOrders.length === 0}
                             className="hidden sm:flex size-10 border border-slate-200 bg-white text-slate-500 rounded-lg items-center justify-center hover:border-[var(--primary-color)]/40 hover:text-[var(--primary-color)] transition-all active:scale-90 disabled:opacity-30"
                             title="Reimprimir Último Cupom"
+                            aria-label="Reimprimir último cupom"
                         >
                             <Printer size={17} />
                         </button>
-                        <button onClick={() => setIsMsgOpen(!isMsgOpen)} className="hidden sm:flex size-11 border border-slate-200 bg-white text-slate-500 rounded-lg items-center justify-center hover:border-[var(--primary-color)]/40 hover:text-[var(--primary-color)] transition-all active:scale-90 relative">
+                        <button onClick={() => setIsMsgOpen(!isMsgOpen)} aria-label="Mensagens" aria-expanded={isMsgOpen} className="hidden sm:flex size-11 border border-slate-200 bg-white text-slate-500 rounded-lg items-center justify-center hover:border-[var(--primary-color)]/40 hover:text-[var(--primary-color)] transition-all active:scale-90 relative">
                             <MessageSquare size={17} />
                             {unreadMsg > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center font-bold border-2 border-white">{unreadMsg}</span>}
                         </button>
                         {!isAdmin && !isStandalone && (
                             <span className="hidden sm:inline-flex"><InstallButton role="user" /></span>
                         )}
-                        <button onClick={() => setShowUninstallModal(true)} title="Desinstalar aplicativo" className="size-11 border border-slate-200 bg-white text-slate-400 rounded-lg hidden sm:flex items-center justify-center hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all active:scale-90"><Trash2 size={17} /></button>
-                        <button onClick={logout} title="Sair" className="size-11 border border-red-200 bg-white text-red-500 rounded-lg flex items-center justify-center hover:bg-red-500 hover:text-white hover:border-red-500 transition-all active:scale-90"><LogOut size={17} /></button>
+                        <button onClick={() => setShowUninstallModal(true)} title="Desinstalar aplicativo" aria-label="Desinstalar aplicativo" className="size-11 border border-slate-200 bg-white text-slate-400 rounded-lg hidden sm:flex items-center justify-center hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all active:scale-90"><Trash2 size={17} /></button>
+                        <button
+                            onClick={handleLogout}
+                            title={confirmarSair ? 'Toque de novo para confirmar' : 'Sair'}
+                            aria-label={confirmarSair ? 'Confirmar saída: toque novamente' : 'Sair'}
+                            className={`size-11 border border-red-200 bg-white text-red-500 rounded-lg flex items-center justify-center hover:bg-red-500 hover:text-white hover:border-red-500 transition-all active:scale-90 ${confirmarSair ? 'ring-4 ring-red-200 animate-pulse bg-red-500 text-white border-red-500' : ''}`}
+                        >
+                            <LogOut size={17} />
+                        </button>
                     </div>
                 </div>
             </header>
@@ -1253,28 +1329,36 @@ export const UserDashboard: React.FC = () => {
                                         <p className="text-[10px] text-slate-400 font-bold">Seus depósitos e compras aparecerão aqui.</p>
                                     </div>
                                 ) : (
-                                walletTxs.map((tx: any) => (
-                                    <div key={tx.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center gap-3 flex-wrap">
-                                        <div className="flex items-center gap-3">
-                                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${tx.amount > 0 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-                                                {tx.amount > 0 ? <Plus size={18} /> : <ShoppingBag size={18} />}
-                                            </div>
-                                            <div>
-                                                <p className="font-semibold text-[13px] text-slate-900">{tx.type === 'deposit' ? 'Depósito' : 'Compra'}</p>
-                                                <p className="text-xs text-slate-400">{toDate(tx.createdAt)?.toLocaleString() || ''}</p>
-                                                {tx.status === 'pending' && tx.type === 'deposit' && (tx.proofUrl === 'PENDENTE_UPLOAD_LOCAL_CACHE' || !tx.proofUrl) && (
-                                                    <button
-                                                        onClick={() => { setResendTarget({ kind: 'wallet_transactions', docId: tx.id }); resendInputRef.current?.click(); }}
-                                                        className="mt-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-white rounded-lg text-[11px] font-semibold transition-all"
-                                                    >
-                                                        Reenviar Comprovante
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <p className={`font-bold ${tx.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>R$ {formatarMoeda(tx.amount)}</p>
+                                walletTxs.map((tx: any) => {
+                        const st = getWalletStatus(tx);
+                        const tipoTx = tx.type === 'deposit' ? 'Depósito' : tx.type === 'withdrawal' ? 'Retirada' : 'Compra';
+                        return (
+                            <div key={tx.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center gap-3 flex-wrap">
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${tx.amount > 0 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                                        {tx.amount > 0 ? <Plus size={18} /> : <ShoppingBag size={18} />}
                                     </div>
-                                ))
+                                    <div>
+                                        <p className="font-semibold text-[13px] text-slate-900 flex items-center gap-2 flex-wrap">
+                                            {tipoTx}
+                                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${st.cls}`}>{st.label}</span>
+                                        </p>
+                                        <p className="text-xs text-slate-400">{toDate(tx.createdAt)?.toLocaleString() || ''}</p>
+                                        {tx.description && <p className="text-[11px] text-slate-500 mt-0.5">{tx.description}</p>}
+                                        {tx.status === 'pending' && tx.type === 'deposit' && (tx.proofUrl === 'PENDENTE_UPLOAD_LOCAL_CACHE' || !tx.proofUrl) && (
+                                            <button
+                                                onClick={() => { setResendTarget({ kind: 'wallet_transactions', docId: tx.id }); resendInputRef.current?.click(); }}
+                                                className="mt-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-white rounded-lg text-[11px] font-semibold transition-all"
+                                            >
+                                                Reenviar Comprovante
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                                <p className={`font-bold ${tx.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>R$ {formatarMoeda(tx.amount)}</p>
+                            </div>
+                        );
+                    })
                                 )}
                             </div>
                         ) : (

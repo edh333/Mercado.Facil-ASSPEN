@@ -131,6 +131,9 @@ export function gerarCupomFechamento(dadosCaixa: any, config?: any): string {
   if (dadosCaixa.closedAt) {
     cupom += `Fechamento: ${dataCx(dadosCaixa.closedAt)}\n`;
   }
+  if (dadosCaixa.closedByName) {
+    cupom += `Fechado por: ${String(dadosCaixa.closedByName).slice(0, 36)}\n`;
+  }
   cupom += `${divisor}\n`;
 
   cupom += formatarLinhaDupla("Saldo Inicial:", `R$ ${Math.abs(Number(dadosCaixa.initialBalance)).toFixed(2)}`) + "\n";
@@ -180,7 +183,7 @@ export function imprimirCupom(conteudo: string): void {
 
   window.addEventListener('afterprint', limpar);
   setTimeout(limpar, 5000);
-  setTimeout(() => { window.print(); }, 350);
+  setTimeout(() => { window.print(); }, 150);
 }
 
 /**
@@ -599,7 +602,7 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
       cupom += formatarLinhaPontilhada("TROCO", `R$ ${Number(data.change).toFixed(2).replace('.', ',')}`, 48) + "\n";
     }
   } else {
-    const pagamento = data.paymentMethod === 'WALLET' ? 'CARTEIRA' : data.paymentMethod === 'PIX' ? 'PIX' : data.paymentMethod === 'FIADO' ? 'FIADO' : 'DINHEIRO';
+    const pagamento = data.paymentMethod === 'WALLET' ? 'CARTEIRA' : data.paymentMethod === 'PIX' ? 'PIX' : data.paymentMethod === 'FIADO' ? 'FIADO' : data.paymentMethod === 'CARD' ? (data.cardBrand ? `CARTAO (${data.cardBrand})` : 'CARTAO') : 'DINHEIRO';
     cupom += formatarLinhaDupla("PAGAMENTO:", pagamento, 48) + "\n";
     if (data.change !== undefined && data.change !== null && Number(data.change) > 0) {
       cupom += formatarLinhaPontilhada("TROCO", `R$ ${Number(data.change).toFixed(2).replace('.', ',')}`, 48) + "\n";
@@ -661,8 +664,22 @@ let conexaoQzCache: Promise<boolean> | null = null;
 let qzIndisponivelAte = 0;
 let pagehideInstalado = false;
 
-async function waitForQz(timeout = 1500): Promise<boolean> {
+// Cache NEGATIVO de sessão: se o QZ Tray falhou uma vez no navegador, as
+// próximas impressões da MESMA sessão pulam a espera de handshake/cabos flag
+// e caem direto no fallback — a 1ª demora não se repete em cada cupom.
+const QZ_SESSION_BLOCK = 'mf-qz-blocked-session';
+
+function qzBloqueadoSessao(): boolean {
+  try { return sessionStorage.getItem(QZ_SESSION_BLOCK) === '1'; } catch { return false; }
+}
+
+function bloquearQzSessao() {
+  try { sessionStorage.setItem(QZ_SESSION_BLOCK, '1'); } catch { /* noop */ }
+}
+
+async function waitForQz(timeout = 900): Promise<boolean> {
   const w = window as any;
+  if (qzBloqueadoSessao()) return false;
   if (!w.qz || !w.qz.websocket) return false;
   if (Date.now() < qzIndisponivelAte) return false;
   const inicio = Date.now();
@@ -681,6 +698,7 @@ async function waitForQz(timeout = 1500): Promise<boolean> {
 function conectarQz(): Promise<boolean> {
   const qz = (window as any).qz;
   if (!qz?.websocket) return Promise.resolve(false);
+  if (qzBloqueadoSessao()) return Promise.resolve(false);
   if (qz.websocket.isActive && qz.websocket.isActive()) return Promise.resolve(true);
   if (conexaoQzCache) return conexaoQzCache;
 
@@ -690,6 +708,7 @@ function conectarQz(): Promise<boolean> {
       .then(() => true)
       .catch(() => {
         qzIndisponivelAte = Date.now() + 10000;
+        bloquearQzSessao();
         conexaoQzCache = null;
         return false;
       }),
@@ -697,7 +716,7 @@ function conectarQz(): Promise<boolean> {
       setTimeout(() => {
         if (conexaoQzCache) conexaoQzCache = null;
         r(false);
-      }, 3000);
+      }, 2000);
     }),
   ]);
 
@@ -796,7 +815,7 @@ export function abrirJanelaImpressao(
     // atualize sozinha — sem precisar recarregar/atualizar a janela.
     localStorage.setItem('printTicket', String(Date.now() + Math.random()));
     const win = window.open(
-      '/print?print=true',
+      '/print.html',
       'janelaImpressao',
       'width=880,height=960,menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes'
     );
@@ -901,4 +920,72 @@ export function baixarCupomTxt(conteudo: string, prefixo = 'cupom'): void {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
+}
+
+/**
+ * Boletim diário de prestação de contas (fim do turno):
+ * vendas por forma de pagamento, caixa físico conferido, crédito e fiado do dia.
+ * Imprimível em bobina térmica e assinável pelo responsável.
+ */
+export function gerarBoletimDiario(dados: any, config?: any): string {
+  const divisor = "-".repeat(40);
+  const divisorDuplo = "=".repeat(40);
+
+  const inst = String(config?.institutionName || 'MERCADO FACIL PDV').slice(0, 40).toUpperCase();
+  const appName = String(config?.appName || '').slice(0, 40).toUpperCase();
+
+  let cupom = "";
+  cupom += `========================================\n`;
+  cupom += `${centrarTexto(inst, 40)}\n`;
+  if (appName) cupom += `${centrarTexto(appName, 40)}\n`;
+  cupom += `${centrarTexto('BOLETIM DIARIO', 40)}\n`;
+  cupom += `${centrarTexto(dados?.data || new Date().toLocaleDateString('pt-BR'), 40)}\n`;
+  cupom += `${divisorDuplo}\n\n`;
+
+  cupom += `${centrarTexto('VENDAS DO DIA', 40)}\n`;
+  const formas = Array.isArray(dados?.formas) ? dados.formas : [];
+  if (formas.length > 0) {
+    cupom += `${divisor}\n`;
+    formas.forEach((f: any) => {
+      cupom += formatarLinhaDupla(
+        `${f.metodo} (${Number(f.quantidade) || 0})`,
+        `R$ ${(Number(f.total) || 0).toFixed(2)}`
+      ) + "\n";
+    });
+    cupom += `${divisor}\n`;
+  }
+  cupom += formatarLinhaDupla("TOTAL DO DIA", `R$ ${(Number(dados?.totalDia) || 0).toFixed(2)}`) + "\n\n";
+
+  const caixas = Array.isArray(dados?.caixa) ? dados.caixa : [];
+  if (caixas.length > 0) {
+    cupom += `${centrarTexto('CAIXA FISICO', 40)}\n`;
+    cupom += `${divisor}\n`;
+    caixas.forEach((c: any) => {
+      if (c.operador) cupom += `Operador: ${String(c.operador).slice(0, 34)}\n`;
+      const dif = Number(c.diferenca) || 0;
+      cupom += formatarLinhaDupla("Esperado:", `R$ ${(Number(c.esperado) || 0).toFixed(2)}`) + "\n";
+      cupom += formatarLinhaDupla("Contado:", `R$ ${(Number(c.contado) || 0).toFixed(2)}`) + "\n";
+      if (dif === 0) {
+        cupom += `   >>> CAIXA CONFERIDO <<<   \n`;
+      } else if (dif < 0) {
+        cupom += formatarLinhaDupla("DIFERENCA (FALTA):", `R$ ${Math.abs(dif).toFixed(2)}`) + "\n";
+      } else {
+        cupom += formatarLinhaDupla("DIFERENCA (SOBRA):", `R$ ${Math.abs(dif).toFixed(2)}`) + "\n";
+      }
+      cupom += `${divisor}\n`;
+    });
+    cupom += "\n";
+  }
+
+  cupom += `${centrarTexto('OUTROS', 40)}\n`;
+  cupom += formatarLinhaDupla("Credito (Carteira):", `R$ ${(Number(dados?.carteiraTotal) || 0).toFixed(2)}`) + "\n";
+  cupom += formatarLinhaDupla("Vendas Fiado:", `R$ ${(Number(dados?.fiadoTotal) || 0).toFixed(2)}`) + "\n\n";
+
+  const emitidoPor = String(dados?.emitidoPor || "Administrador").slice(0, 34);
+  cupom += `Emitido por: ${emitidoPor}\n`;
+  cupom += `${divisor}\n`;
+  cupom += `Responsavel: _______________________\n`;
+  cupom += `${divisorDuplo}\n`;
+  cupom += `${adicionarFeed()}`;
+  return cupom;
 }

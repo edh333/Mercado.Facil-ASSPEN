@@ -3,7 +3,7 @@ import { db } from '../../firebase';
 import { collection, query, where, getCountFromServer } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { useApp } from '../../context/StoreContext';
-import { Activity, Users, ShoppingBag, AlertTriangle, Loader2, Gauge, Trash2, Download, ShieldCheck, X } from 'lucide-react';
+import { Activity, Users, ShoppingBag, AlertTriangle, Loader2, Gauge, Trash2, Download, ShieldCheck, X, Plus } from 'lucide-react';
 
 interface Capacidade {
   hoje: number | null;
@@ -16,7 +16,7 @@ interface Capacidade {
 const fmt = (v: number) => v.toLocaleString('pt-BR');
 
 export const AdminCapacityPanel: React.FC = () => {
-  const { users } = useApp();
+  const { users, ordersLimit, expensesLimit, productsLimit, usersLimit, suppliersLimit, inmatesLimit, aumentarCapacidade } = useApp();
   const [capacidade, setCapacidade] = useState<Capacidade>({ hoje: null, semana: null, mes: null, ano: null, total: null });
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState('');
@@ -27,6 +27,29 @@ export const AdminCapacityPanel: React.FC = () => {
   const [cleanupRunning, setCleanupRunning] = useState(false);
   const [cleanupResult, setCleanupResult] = useState<any>(null);
   const [cleanupErro, setCleanupErro] = useState('');
+
+  const [showCapacityModal, setShowCapacityModal] = useState(false);
+  const [capProdutos, setCapProdutos] = useState(500);
+  const [capMembros, setCapMembros] = useState(2000);
+  const [capHistorico, setCapHistorico] = useState(50);
+  const [capAplicado, setCapAplicado] = useState(false);
+
+  const opcoes = (atual: number, presets: number[]) => Array.from(new Set([...presets, atual])).sort((a, b) => a - b);
+
+  const abrirCapacidade = () => {
+    setCapProdutos(productsLimit);
+    setCapMembros(usersLimit);
+    setCapHistorico(Math.max(ordersLimit, expensesLimit));
+    setCapAplicado(false);
+    setShowCapacityModal(true);
+  };
+
+  const aplicarCapacidade = () => {
+    aumentarCapacidade({ products: capProdutos, users: capMembros, orders: capHistorico, expenses: capHistorico });
+    setShowCapacityModal(false);
+    setCapAplicado(true);
+    setTimeout(() => setCapAplicado(false), 4000);
+  };
 
   const contar = async () => {
     setLoading(true);
@@ -117,6 +140,13 @@ export const AdminCapacityPanel: React.FC = () => {
         <div className="flex items-center gap-2">
           {loading && <Loader2 size={20} className="animate-spin text-emerald-500" />}
           <button
+            onClick={abrirCapacidade}
+            disabled={loading}
+            className="px-4 py-2 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-wider flex items-center gap-2 hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-50"
+          >
+            <Plus size={14} /> Aumentar Capacidade
+          </button>
+          <button
             onClick={() => { setShowCleanupModal(true); setCleanupResult(null); setCleanupErro(''); }}
             disabled={loading}
             className="px-4 py-2 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-wider flex items-center gap-2 hover:bg-slate-700 active:scale-95 transition-all disabled:opacity-50"
@@ -129,6 +159,12 @@ export const AdminCapacityPanel: React.FC = () => {
       {erro && (
         <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 rounded-xl px-4 py-3 text-xs font-bold">
           <AlertTriangle size={16} /> {erro}
+        </div>
+      )}
+
+      {capAplicado && (
+        <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl px-4 py-3 text-xs font-bold animate-fadeIn">
+          <ShieldCheck size={16} /> Capacidade aumentada com sucesso! Os novos limites já estão ativos neste aparelho/navegador.
         </div>
       )}
 
@@ -318,6 +354,85 @@ export const AdminCapacityPanel: React.FC = () => {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal de aumento de capacidade */}
+      {showCapacityModal && (
+        <div className="fixed inset-0 z-[999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowCapacityModal(false)}>
+          <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl p-6 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center">
+              <h4 className="font-black text-sm uppercase tracking-wider text-slate-900 flex items-center gap-2">
+                <Plus size={18} className="text-emerald-600" /> Aumentar Capacidade do Sistema
+              </h4>
+              <button onClick={() => setShowCapacityModal(false)} className="w-7 h-7 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-[11px] font-bold text-slate-600 leading-relaxed space-y-2">
+              <p className="flex items-start gap-2"><Gauge size={14} className="text-emerald-600 shrink-0 mt-0.5" /> <span>Aumenta a capacidade de <b>cadastro</b> e o <b>histórico carregado na tela</b>. Os valores são mantidos automaticamente de um jeito seguro — os dados antigos continuam sendo arquivados com cópia de segurança, então o plano gratuito atende por anos.</span></p>
+            </div>
+
+            <div>
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-2 block">Produtos no catálogo</label>
+              <select
+                value={capProdutos}
+                onChange={e => setCapProdutos(Number(e.target.value))}
+                className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-slate-50 font-black text-sm outline-none focus:border-emerald-500"
+              >
+                {opcoes(productsLimit, [500, 1000, 2000, 5000]).map(v => <option key={v} value={v}>{v.toLocaleString('pt-BR')}</option>)}
+              </select>
+              <p className="text-[9px] text-slate-400 font-bold mt-1">Atual: {productsLimit.toLocaleString('pt-BR')}</p>
+            </div>
+
+            <div>
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-2 block">Membros (famílias) com login</label>
+              <select
+                value={capMembros}
+                onChange={e => setCapMembros(Number(e.target.value))}
+                className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-slate-50 font-black text-sm outline-none focus:border-emerald-500"
+              >
+                {opcoes(usersLimit, [2000, 5000, 10000]).map(v => <option key={v} value={v}>{v.toLocaleString('pt-BR')}</option>)}
+              </select>
+              <p className="text-[9px] text-slate-400 font-bold mt-1">Atual: {usersLimit.toLocaleString('pt-BR')}</p>
+              <p className="text-[9px] text-slate-400 font-bold">Uso atual estimado da cota diária de leituras do plano gratuito (50.000/dia): {pctLeituras}%.</p>
+            </div>
+
+            <div>
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-2 block">Histórico de vendas/despesas carregado nas telas</label>
+              <select
+                value={capHistorico}
+                onChange={e => setCapHistorico(Number(e.target.value))}
+                className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-slate-50 font-black text-sm outline-none focus:border-emerald-500"
+              >
+                {opcoes(Math.max(ordersLimit, expensesLimit), [50, 100, 200, 500, 1000]).map(v => <option key={v} value={v}>{v.toLocaleString('pt-BR')} últimos</option>)}
+              </select>
+              <p className="text-[9px] text-slate-400 font-bold mt-1">Atual (vendas/despesas): {ordersLimit.toLocaleString('pt-BR')} / {expensesLimit.toLocaleString('pt-BR')}</p>
+            </div>
+
+            <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+              <AlertTriangle size={16} className="text-blue-600 shrink-0 mt-0.5" />
+              <p className="text-[9px] text-blue-700 font-bold leading-relaxed">
+                O aumento vale para <b>este aparelho/navegador</b> (onde o botão for confirmado). Se houver outros computadores/PDVs, abra este painel neles e confirme a mesma escolha. Limites maiores sincronizam <b>mais registros na tela</b> — a limpeza automática mantém o sistema rápido mesmo na capacidade máxima.
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={() => setShowCapacityModal(false)}
+                className="flex-1 py-3.5 bg-slate-100 text-slate-600 rounded-xl font-black text-[11px] uppercase tracking-wider hover:bg-slate-200 active:scale-95 transition-all border border-slate-200"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={aplicarCapacidade}
+                className="flex-[1.5] py-3.5 bg-emerald-600 text-white rounded-xl font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-emerald-700 active:scale-95 transition-all"
+              >
+                <ShieldCheck size={16} /> Confirmar Aumento
+              </button>
+            </div>
           </div>
         </div>
       )}

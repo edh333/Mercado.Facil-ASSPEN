@@ -7,6 +7,7 @@ import { useApp } from '../../context/StoreContext';
 import { Order, OrderStatus } from '../../types';
 import { getLocalDateStr } from './adminUtils';
 import { toDate } from '../../utils/dateUtils';
+import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
 
 interface AdminOrdersTabProps {
   orders: Order[];
@@ -20,12 +21,13 @@ interface AdminOrdersTabProps {
   setPrintOrder: (order: Order) => void;
   setViewingReceipt: (data: any) => void;
   loadMoreOrders?: () => void;
+  ordersLimit?: number;
 }
 
 export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
   orders, searchTerm, setSearchTerm, viewMode, setViewMode,
   translateStatus, getStatusColor, setSelectedOrderDetails,
-  setPrintOrder, setViewingReceipt, loadMoreOrders
+  setPrintOrder, setViewingReceipt, loadMoreOrders, ordersLimit
 }) => {
   const [statusFilter, setStatusFilter] = React.useState<string>('ALL');
   const [dateFilter, setDateFilter] = React.useState<string>('ALL');
@@ -33,6 +35,13 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
   const [sortOrder, setSortOrder] = React.useState<'newest' | 'oldest'>('newest');
   const { colors } = useTheme();
   const { aprovarPedido, showNotification } = useApp();
+  const [confirmarAprovId, setConfirmarAprovId] = React.useState<string | null>(null);
+  const [aprovarId, setAprovarId] = React.useState<string | null>(null);
+  const [confirmarAprovErro, setConfirmarAprovErro] = React.useState('');
+
+  // Status de pedido ainda em fluxo de pagamento (pendente de aprovação).
+  // Usado tanto no filtro quanto nos botões — evita 'pago_pendente' sem ação.
+  const isPending = (status: string) => ['pendente', 'pending_payment', 'pending', 'pago_pendente'].includes(String(status || '').toLowerCase());
 
   // Aprovação direta pelo card: valida comprovante, pede confirmação e
   // finaliza a compra em um clique — sem reabrir a janela de detalhes.
@@ -43,12 +52,17 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
       showNotification('Pedido sem comprovante de pagamento. Abra em Detalhes para anexar antes de aprovar.', 'error');
       return;
     }
-    if (!window.confirm(`Aprovar e FINALIZAR o pedido #${(order.id || '').slice(0, 8).toUpperCase()} de ${order.userName || '—'}?\n\nO pagamento será aprovado e a compra concluída.`)) return;
+    if (aprovarId) return;
+    setAprovarId(order.id);
+    setConfirmarAprovErro('');
     try {
       await aprovarPedido(order.id, true);
       showNotification('Pedido aprovado e finalizado com sucesso!', 'success');
     } catch (e: any) {
-      showNotification(e?.message || 'Erro ao aprovar o pedido.', 'error');
+      setConfirmarAprovErro(e?.message || 'Erro ao aprovar o pedido.');
+    } finally {
+      setAprovarId(null);
+      setConfirmarAprovId(null);
     }
   };
 
@@ -56,7 +70,6 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
     const termoLower = (searchTerm || '').toLowerCase();
     const termoUpper = (searchTerm || '').toUpperCase();
     const norm = (s: string) => String(s || '').toLowerCase();
-    const isPending = (status: string) => ['pendente', 'pending_payment', 'pending', 'pago_pendente'].includes(norm(status));
     const isPaid = (status: string) => ['paid', 'delivered', 'preparing', 'out_for_delivery', 'approved', 'entregue', 'preparando'].includes(norm(status));
     const isCancelled = (status: string) => ['cancelled', 'cancelado', 'cancelada'].includes(norm(status));
     const isRefunded = (status: string) => ['refunded', 'devolvido', 'reembolsado'].includes(norm(status));
@@ -73,7 +86,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
 
       const matchesSearch = (o.userName || '').toLowerCase().includes(termoLower) ||
         (o.inmateName || '').toLowerCase().includes(termoLower) ||
-        (o.userCpf || '').includes(searchTerm || '') ||
+        (o.userCpf || '').replace(/\D/g, '').includes((searchTerm || '').replace(/\D/g, '')) ||
         (o.id || '').toUpperCase().includes(termoUpper);
 
       // Filter by status
@@ -314,14 +327,20 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                 </div>
               </div>
               {/* Botões de Aprovação/Rejeição para Pedidos Pendentes - Sempre visíveis no mobile */}
-              {order.status === 'Pendente' || order.status === 'pending_payment' || order.status === 'pending' ? (
+              {isPending(order.status) ? (
                 <div className="grid grid-cols-2 gap-3">
                   <button onClick={() => setSelectedOrderDetails(order)} className="py-3 min-h-[48px] bg-rose-500 text-white font-bold rounded-2xl text-[10px] uppercase tracking-widest shadow-lg hover:bg-rose-600 active:scale-95 transition-all flex items-center justify-center gap-2 touch-target">
                     <XCircle size={18}/> Rejeitar
                   </button>
-                  <button onClick={() => handleQuickApprove(order)} className="py-3 min-h-[48px] bg-emerald-600 text-white font-bold rounded-2xl text-[10px] uppercase tracking-widest shadow-lg hover:bg-emerald-700 active:scale-95 transition-all flex items-center justify-center gap-2 touch-target">
-                    <CheckCircle size={18}/> Aprovar e Finalizar
-                  </button>
+                  {aprovarId === order.id ? (
+                    <div className="py-3 min-h-[48px] bg-emerald-600/50 text-white/80 font-bold rounded-2xl text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 pointer-events-none">
+                      <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></span> Aprovando...
+                    </div>
+                  ) : (
+                    <button onClick={() => setConfirmarAprovId(order.id)} className="py-3 min-h-[48px] bg-emerald-600 text-white font-bold rounded-2xl text-[10px] uppercase tracking-widest shadow-lg hover:bg-emerald-700 active:scale-95 transition-all flex items-center justify-center gap-2 touch-target">
+                      <CheckCircle size={18}/> Aprovar e Finalizar
+                    </button>
+                  )}
                 </div>
               ) : null}
             </div>
@@ -329,7 +348,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
         ))}
       </div>
 
-      {loadMoreOrders && filteredOrders.length >= 50 && (
+      {loadMoreOrders && orders.length >= (ordersLimit || 50) && (
         <div className="flex justify-center mt-8 pb-10">
           <button
             onClick={loadMoreOrders}
@@ -339,6 +358,31 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
           </button>
         </div>
       )}
+
+      {confirmarAprovErro && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[1200] bg-rose-600 text-white px-6 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl animate-fadeIn">
+          {confirmarAprovErro}
+          <button onClick={() => setConfirmarAprovErro('')} className="ml-4 opacity-70 hover:opacity-100">✕</button>
+        </div>
+      )}
+
+      <ConfirmacaoDestrutiva
+        isOpen={confirmarAprovId !== null}
+        titulo="Aprovar e Finalizar Pedido"
+        descricao={(() => {
+          const alvo = (orders || []).find(o => o.id === confirmarAprovId);
+          return alvo
+            ? `O pagamento de R$ ${(Number(alvo.total) || 0).toFixed(2).replace('.', ',')} do pedido #${(alvo.id || '').slice(0, 8).toUpperCase()} de ${alvo.userName || '—'} será aprovado e a compra concluída nos registros.`
+            : 'O pagamento será aprovado e a compra concluída nos registros.';
+        })()}
+        palavraChave="APROVAR"
+        processando={aprovarId !== null}
+        onConfirm={() => {
+          const alvo = (orders || []).find(o => o.id === confirmarAprovId);
+          if (alvo) handleQuickApprove(alvo);
+        }}
+        onClose={() => { if (!aprovarId) setConfirmarAprovId(null); }}
+      />
     </div>
   );
 };

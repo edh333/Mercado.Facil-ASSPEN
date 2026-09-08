@@ -6,7 +6,7 @@ import {
     XCircle, KeyRound, Sparkles, ChevronDown, Store,
     ShieldCheck, Wallet, ShoppingBag
 } from 'lucide-react';
-import { validateCPF } from '../utils';
+import { validateCPF, formatCPF } from '../utils';
 import { User as UserType } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { OnlineStatusIndicator } from '../components/OnlineStatusIndicator';
@@ -350,13 +350,13 @@ const [recoveryName, setRecoveryName] = useState('');
                                     <PremiumInput icon={User} label="Nome Completo" value={regData?.name || ''} onChange={(e: any) => setRegData({ ...regData, name: e.target.value })} />
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <PremiumInput icon={Phone} label="Telefone" value={regData.phone} onChange={(e: any) => setRegData({ ...regData, phone: e.target.value })} />
-                                        <PremiumInput icon={UserCheck} label="Seu CPF" value={cpf} onChange={(e: any) => setCpf(e.target.value)} />
+                                        <PremiumInput icon={UserCheck} label="Seu CPF" value={cpf} onChange={(e: any) => setCpf(formatCPF(e.target.value))} inputMode="numeric" autoComplete="off" />
                                     </div>
                                     <div className="pt-4">
                                         <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-[0.18em] mb-4 text-center">Senha de Acesso</p>
                                         <div className="space-y-3">
-                                            <PremiumInput icon={Lock} label="Senha (mín. 6 caracteres)" value={password} onChange={(e: any) => setPassword(e.target.value)} type="password" />
-                                            <PremiumInput icon={CheckCircle} label="Confirmar Senha" value={registerConfirmPassword} onChange={(e: any) => setRegisterConfirmPassword(e.target.value)} type="password" />
+                                            <PremiumInput icon={Lock} label="Senha (mín. 6 caracteres)" value={password} onChange={(e: any) => setPassword(e.target.value)} type="password" autoComplete="new-password" />
+                                            <PremiumInput icon={CheckCircle} label="Confirmar Senha" value={registerConfirmPassword} onChange={(e: any) => setRegisterConfirmPassword(e.target.value)} type="password" autoComplete="new-password" />
                                         </div>
                                     </div>
                                     <div className="pt-4">
@@ -371,13 +371,13 @@ const [recoveryName, setRecoveryName] = useState('');
                                                 <option value="Outros">Outros</option>
                                             </SelectInput>
                                             <PremiumInput icon={Briefcase} label="Nome do Interno" value={regData.prisonerName} onChange={(e: any) => setRegData({ ...regData, prisonerName: e.target.value })} />
-                                            <PremiumInput icon={UserCheck} label="CPF do Interno" value={regData.prisonerCpf} onChange={(e: any) => setRegData({ ...regData, prisonerCpf: e.target.value })} />
+                                            <PremiumInput icon={UserCheck} label="CPF do Interno" value={regData.prisonerCpf} onChange={(e: any) => setRegData({ ...regData, prisonerCpf: formatCPF(e.target.value) })} inputMode="numeric" autoComplete="off" />
                                         </div>
                                     </div>
 
                                     <div
                                         onClick={() => fileInputRef.current?.click()}
-                                        className={`group border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all duration-300 relative overflow-hidden ${fileObject ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 bg-slate-50 hover:border-emerald-400 hover:bg-emerald-50/40'}`}
+                                        className={`group border border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all duration-300 relative overflow-hidden ${fileObject ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 bg-slate-50 hover:border-emerald-400 hover:bg-emerald-50/40'}`}
                                     >
                                         <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={e => e.target.files && setFileObject(e.target.files[0])} />
                                         {fileObject ? (
@@ -420,16 +420,16 @@ const [recoveryName, setRecoveryName] = useState('');
                                                 <KeyRound size={18} className="text-emerald-500 shrink-0" />
                                                 <p className="text-[11px] font-bold text-slate-500 leading-snug">Informe os dados para localizarmos sua senha de acesso.</p>
                                             </div>
-                                            <PremiumInput icon={UserCheck} label="Seu CPF" value={recoveryUserCpf} onChange={(e: any) => setRecoveryUserCpf(e.target.value)} />
-                                            <PremiumInput icon={Briefcase} label="CPF do Interno" value={recoveryPrisonerCpf} onChange={(e: any) => setRecoveryPrisonerCpf(e.target.value)} />
+                                            <PremiumInput icon={UserCheck} label="Seu CPF" value={recoveryUserCpf} onChange={(e: any) => setRecoveryUserCpf(formatCPF(e.target.value))} inputMode="numeric" autoComplete="off" />
+                                            <PremiumInput icon={Briefcase} label="CPF do Interno" value={recoveryPrisonerCpf} onChange={(e: any) => setRecoveryPrisonerCpf(formatCPF(e.target.value))} inputMode="numeric" autoComplete="off" />
                                             <PremiumInput icon={User} label="Nome Completo (como no cadastro)" value={recoveryName} onChange={(e: any) => setRecoveryName(e.target.value)} />
                                         </>
                                     ) : (
                                         <div className="space-y-4">
                                             <div className="pt-3 space-y-3">
                                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] text-center">Atualizar Credenciais</p>
-                                                <PremiumInput icon={Lock} label="Nova Senha" value={newPassword} onChange={(e: any) => setNewPassword(e.target.value)} type="password" />
-                                                <PremiumInput icon={CheckCircle} label="Confirmar Nova" value={confirmNewPassword} onChange={(e: any) => setConfirmNewPassword(e.target.value)} type="password" />
+                                                <PremiumInput icon={Lock} label="Nova Senha" value={newPassword} onChange={(e: any) => setNewPassword(e.target.value)} type="password" autoComplete="new-password" />
+                                                <PremiumInput icon={CheckCircle} label="Confirmar Nova" value={confirmNewPassword} onChange={(e: any) => setConfirmNewPassword(e.target.value)} type="password" autoComplete="new-password" />
                                             </div>
                                         </div>
                                     )}
@@ -448,8 +448,8 @@ const [recoveryName, setRecoveryName] = useState('');
                                             </div>
                                             <PremiumInput icon={User} label="Nome do Administrador" value={firstAdminForm.name} onChange={(e: any) => setFirstAdminForm({ ...firstAdminForm, name: e.target.value })} type="text" />
                                             <PremiumInput icon={UserCheck} label="E-mail" value={firstAdminForm.email} onChange={(e: any) => setFirstAdminForm({ ...firstAdminForm, email: e.target.value })} type="email" />
-                                            <PremiumInput icon={Lock} label="Senha (mín. 6)" value={firstAdminForm.password} onChange={(e: any) => setFirstAdminForm({ ...firstAdminForm, password: e.target.value })} type="password" />
-                                            <PremiumInput icon={CheckCircle} label="Confirmar Senha" value={firstAdminForm.confirm} onChange={(e: any) => setFirstAdminForm({ ...firstAdminForm, confirm: e.target.value })} type="password" />
+                                            <PremiumInput icon={Lock} label="Senha (mín. 6)" value={firstAdminForm.password} onChange={(e: any) => setFirstAdminForm({ ...firstAdminForm, password: e.target.value })} type="password" autoComplete="new-password" />
+                                            <PremiumInput icon={CheckCircle} label="Confirmar Senha" value={firstAdminForm.confirm} onChange={(e: any) => setFirstAdminForm({ ...firstAdminForm, confirm: e.target.value })} type="password" autoComplete="new-password" />
                                             <button
                                                 type="button"
                                                 onClick={() => setShowFirstAdminSetup(false)}
@@ -463,7 +463,7 @@ const [recoveryName, setRecoveryName] = useState('');
                                             {isAdmin ? (
                                                 <PremiumInput icon={User} label="Login" value={adminEmail} onChange={(e: any) => setAdminEmail(e.target.value)} type="email" />
                                             ) : (
-                                                <PremiumInput icon={UserCheck} label="Digite seu CPF" value={cpf} onChange={(e: any) => setCpf(e.target.value)} />
+                                                <PremiumInput icon={UserCheck} label="Digite seu CPF" value={cpf} onChange={(e: any) => setCpf(formatCPF(e.target.value))} inputMode="numeric" autoComplete="username" />
                                             )}
                                             <PremiumInput
                                                 icon={Lock}
@@ -471,6 +471,7 @@ const [recoveryName, setRecoveryName] = useState('');
                                                 value={password}
                                                 onChange={(e: any) => setPassword(e.target.value)}
                                                 type={showPassword ? "text" : "password"}
+                                                autoComplete={isAdmin ? "current-password" : "current-password"}
                                                 action={
                                                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="p-1.5 text-slate-400 hover:text-emerald-600 transition-colors cursor-pointer" aria-label="Mostrar senha">
                                                         {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -556,13 +557,13 @@ const [recoveryName, setRecoveryName] = useState('');
 };
 
 // Campo de texto premium — design limpo e moderno com label visível + acessibilidade
-const PremiumInput = ({ icon: Icon, label, value, onChange, type = "text", action, id, error, required = true }: any) => {
+const PremiumInput = ({ icon: Icon, label, value, onChange, type = "text", action, id, error, required = true, inputMode, autoComplete, maxLength }: any) => {
     const inputId = id || `input-${label.toLowerCase().replace(/\s+/g, '-')}`;
     const errorId = error ? `${inputId}-error` : undefined;
     return (
         <div>
             <label htmlFor={inputId} className="block text-xs font-semibold tracking-wide text-slate-500 mb-2 ml-1">{label}</label>
-            <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/70 px-3.5 transition-all focus-within:border-emerald-500 focus-within:bg-white dark:border-slate-700 dark:bg-slate-800/50 dark:focus-within:border-emerald-500 dark:focus-within:bg-slate-800">
+            <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/70 px-3.5 transition-all focus-within:border-slate-400 dark:border-slate-700 dark:bg-slate-800/50 dark:focus-within:border-slate-500">
                 <Icon size={17} className="text-slate-400 shrink-0 dark:text-slate-500" aria-hidden="true" />
                 <input
                     type={type}
@@ -572,6 +573,9 @@ const PremiumInput = ({ icon: Icon, label, value, onChange, type = "text", actio
                     value={value}
                     onChange={onChange}
                     required={required}
+                    inputMode={inputMode}
+                    autoComplete={autoComplete}
+                    maxLength={maxLength}
                     aria-invalid={!!error}
                     aria-describedby={errorId}
                 />
@@ -589,7 +593,7 @@ const SelectInput = ({ label, value, onChange, children, required = true, id, er
     return (
         <div>
             <label htmlFor={selectId} className="block text-xs font-semibold tracking-wide text-slate-500 mb-2 ml-1">{label}</label>
-            <div className="relative rounded-lg border border-slate-200 bg-slate-50/70 transition-all focus-within:border-emerald-500 focus-within:bg-white dark:border-slate-700 dark:bg-slate-800/50 dark:focus-within:border-emerald-500 dark:focus-within:bg-slate-800">
+            <div className="relative rounded-lg border border-slate-200 bg-slate-50/70 transition-all focus-within:border-slate-400 dark:border-slate-700 dark:bg-slate-800/50 dark:focus-within:border-slate-500">
                 <select
                     id={selectId}
                     className="w-full px-3.5 py-3 bg-transparent border-none outline-none text-sm font-semibold text-slate-900 appearance-none cursor-pointer tracking-wide"

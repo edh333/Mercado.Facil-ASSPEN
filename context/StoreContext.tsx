@@ -11,7 +11,7 @@ import { db, auth, storage } from '../firebase';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import bcrypt from 'bcryptjs';
+
 
 const functions = getFunctions();
 const fnBuscarLoginInfo = httpsCallable(functions, 'buscarLoginInfo');
@@ -669,7 +669,7 @@ interface StoreContextType {
     deleteUser: (userId: string) => void;
     processInvoiceImport: (data: InvoiceData, profitMargin: number) => Promise<void>;
     importXmlProduct: (file: File, margin: number) => Promise<void>;
-    previewXmlImport: (file: File) => Promise<{ name: string; cost: number; qty: number }[]>;
+    previewXmlImport: (file: File) => Promise<{ name: string; cost: number; qty: number; ean: string; brand: string }[]>;
     sanitizeCatalog: () => Promise<number>;
     updateAppConfig: (config: AppConfig) => void;
     updateSettings: (config: AppConfig) => void;
@@ -723,9 +723,12 @@ interface StoreContextType {
     refundOrder: (orderId: string, reason?: string) => Promise<void>;
     resetCredits: () => Promise<void>;
     mergeDuplicateProducts: () => Promise<void>;
-    adminDirectSale: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO', total: number, payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO'; amount: number }[], change?: number, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }) => Promise<Order | null>;
+    adminDirectSale: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO', total: number, payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO'; amount: number }[], change?: number, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string) => Promise<Order | null>;
     loadMoreOrders: () => void;
     loadMoreExpenses: () => void;
+    ordersLimit: number;
+    expensesLimit: number;
+    aumentarCapacidade: (novos: { users?: number; products?: number; orders?: number; expenses?: number; suppliers?: number; inmates?: number }) => void;
     usersLimit: number;
     cotaCritica: boolean;
     loadMoreUsers: () => void;
@@ -738,7 +741,7 @@ interface StoreContextType {
     expandUsersLimit: (limite: number) => void;
     importInmatesCsv: (file: File) => Promise<void>;
     addWalletCreditDirectly: (userId: string, amount: number, reason: string, senhaMestra?: string) => Promise<void>;
-    registrarVendaOffline: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO', total: number, payments?: { method: string; amount: number }[], change?: number, customerAccountId?: string) => Promise<Order | null>;
+    registrarVendaOffline: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO', total: number, payments?: { method: string; amount: number }[], change?: number, customerAccountId?: string, cardBrand?: string) => Promise<Order | null>;
     sincronizarVendasOffline: (incluirErros?: boolean) => Promise<{ ok: boolean; sincronizadas: number; comErro: number; total: number }>;
     vendasOfflinePendentes: number;
     vendasOfflineComErro: number;
@@ -858,15 +861,38 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     };
 
     // --- PAGINATION & LIMITS (Phase 2) ---
-    const [ordersLimit, setOrdersLimit] = useState(50);
-    const [expensesLimit, setExpensesLimit] = useState(50);
-    const [productsLimit, setProductsLimit] = useState(500);
+    // Configuráveis: o admin pode aumentar a capacidade pelo Painel de
+    // Capacidade (botão "Aumentar Capacidade"), e o aumento persiste no
+    // localStorage — sobrevive a reloads e reinícios sem mexer em código.
+    const CHAVE_CAPACIDADE = 'mf_capacidade_limites';
+    const limitesSalvos = (): { users: number; products: number; orders: number; expenses: number; suppliers: number; inmates: number } => {
+        const padrao = { users: 2000, products: 500, orders: 50, expenses: 50, suppliers: 100, inmates: 200 };
+        try {
+            const bruto = localStorage.getItem(CHAVE_CAPACIDADE);
+            if (!bruto) return padrao;
+            const p = JSON.parse(bruto);
+            return {
+                users: Math.max(Number(p.users) || 0, padrao.users),
+                products: Math.max(Number(p.products) || 0, padrao.products),
+                orders: Math.max(Number(p.orders) || 0, padrao.orders),
+                expenses: Math.max(Number(p.expenses) || 0, padrao.expenses),
+                suppliers: Math.max(Number(p.suppliers) || 0, padrao.suppliers),
+                inmates: Math.max(Number(p.inmates) || 0, padrao.inmates),
+            };
+        } catch {
+            return padrao;
+        }
+    };
+    const [capacidadeInicial] = useState(limitesSalvos);
+    const [ordersLimit, setOrdersLimit] = useState(capacidadeInicial.orders);
+    const [expensesLimit, setExpensesLimit] = useState(capacidadeInicial.expenses);
+    const [productsLimit, setProductsLimit] = useState(capacidadeInicial.products);
     // Escala: com 1.500+ usuários, o stream admin de users não pode ficar
     // preso em 500 (busca client-side não acharia o resto). Cresce sob demanda.
-    const [usersLimit, setUsersLimit] = useState(500);
+    const [usersLimit, setUsersLimit] = useState(capacidadeInicial.users);
     // Fornecedores e internos: paginação sob demanda (evita ler tudo de uma vez)
-    const [suppliersLimit, setSuppliersLimit] = useState(100);
-    const [inmatesLimit, setInmatesLimit] = useState(200);
+    const [suppliersLimit, setSuppliersLimit] = useState(capacidadeInicial.suppliers);
+    const [inmatesLimit, setInmatesLimit] = useState(capacidadeInicial.inmates);
 
     // ── Guarda de cota (Firebase Spark/uso): se uma leitura/escrita falhar por
     // cota excedida, o app avisa o admin (banner) em vez de quebrar em silêncio.
@@ -885,6 +911,32 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const loadMoreInmates = () => setInmatesLimit((prev: number) => prev + 200);
     const loadMoreUsers = () => setUsersLimit((prev: number) => prev + 500);
     const expandUsersLimit = (limite: number) => setUsersLimit((prev: number) => Math.max(prev, limite));
+
+    // Botão "Aumentar Capacidade" (Painel de Capacidade): sobe os limites de
+    // carga/sincronização do app e persiste no localStorage. Não reduz nunca.
+    const aumentarCapacidade = (novos: { users?: number; products?: number; orders?: number; expenses?: number; suppliers?: number; inmates?: number }) => {
+        const calculado = {
+            users: Math.max(usersLimit, novos.users ?? 0),
+            products: Math.max(productsLimit, novos.products ?? 0),
+            orders: Math.max(ordersLimit, novos.orders ?? 0),
+            expenses: Math.max(expensesLimit, novos.expenses ?? 0),
+            suppliers: Math.max(suppliersLimit, novos.suppliers ?? 0),
+            inmates: Math.max(inmatesLimit, novos.inmates ?? 0),
+        };
+        setUsersLimit(calculado.users);
+        setProductsLimit(calculado.products);
+        setOrdersLimit(calculado.orders);
+        setExpensesLimit(calculado.expenses);
+        setSuppliersLimit(calculado.suppliers);
+        setInmatesLimit(calculado.inmates);
+        try {
+            localStorage.setItem(CHAVE_CAPACIDADE, JSON.stringify(calculado));
+        } catch {
+            // storage cheio/indisponível: os limites valem só para a sessão atual
+        }
+        cotaCriticaRef.current = false;
+        setCotaCritica(false);
+    };
 
     const logoutTimerRef = useRef<any>(null);
     const unsubscribeRefs = useRef<(() => void)[]>([]);
@@ -1656,6 +1708,46 @@ return false;
             }
             const localProducts = allProducts.filter(p => (p as any).deleted !== true);
 
+            // Índices de duplicidade (catálogo pode ter milhares de itens):
+            // 1. EAN normalizado (sem zeros à esquerda) — o mesmo produto re-importado
+            //    é resolvido em O(1), sem varrer o catálogo inteiro item a item.
+            // 2. Nome canônico SEM unidade de venda no fim (UN/CX/KG...) — dedup barato.
+            // 3. Nome exato (sem normalização) — mantém a regra original.
+            // 4. Similaridade (Levenshtein) fica restrita a um BALDE de prefixo de 2 letras:
+            //    nomes com ≥ 0.9 de similaridade necessariamente compartilham o início,
+            //    então candidatos que começam diferente não precisam ser medidos.
+            const indiceEan = new Map<string, number>();
+            const indiceNome = new Map<string, number>();
+            const indiceUpper = new Map<string, number>();
+            const baldesPrefixo = new Map<string, number[]>();
+            localProducts.forEach((p, i) => {
+                const eanKey = String(p.ean || p.barcode || '').replace(/^0+/, '').trim();
+                if (eanKey && !indiceEan.has(eanKey)) indiceEan.set(eanKey, i);
+                const nomeKey = normSemUnidade(p.name || '');
+                if (nomeKey && !indiceNome.has(nomeKey)) indiceNome.set(nomeKey, i);
+                const upperKey = (p.name || '').trim().toUpperCase();
+                if (upperKey && !indiceUpper.has(upperKey)) indiceUpper.set(upperKey, i);
+                const pref = normalizeName(p.name || '').slice(0, 2);
+                if (pref) {
+                    if (!baldesPrefixo.has(pref)) baldesPrefixo.set(pref, []);
+                    baldesPrefixo.get(pref)!.push(i);
+                }
+            });
+            // Mantém os índices apontando para a versão fundida do slot após um merge.
+            const reindex = (idx: number, p: Product) => {
+                const e = String(p.ean || p.barcode || '').replace(/^0+/, '').trim();
+                if (e) indiceEan.set(e, idx);
+                const n = normSemUnidade(p.name || '');
+                if (n) indiceNome.set(n, idx);
+                const u = (p.name || '').trim().toUpperCase();
+                if (u) indiceUpper.set(u, idx);
+                const pr = normalizeName(p.name || '').slice(0, 2);
+                if (pr) {
+                    const b = baldesPrefixo.get(pr);
+                    if (b && !b.includes(idx)) b.push(idx);
+                }
+            };
+
             showNotification(`Iniciando processamento de ${totalInXml} itens do XML...`, 'info');
 
             // Commits em chunks de 400 (limite de 500 por batch)
@@ -1685,8 +1777,23 @@ return false;
                 const qty = qtyRaw > 999999 ? 1 : qtyRaw;
                 const price = cost + (cost * (margemSegura / 100));
 
-                // Busca exaustiva no cache local atualizado
-                let exIndex = localProducts.findIndex(p => ehDuplicado(p, item));
+                // Busca exaustiva no cache local atualizado, via índices O(1) primeiro
+                let exIndex = -1;
+                const eanItem = String(item.ean || item.barcode || '').replace(/^0+/, '').trim();
+                if (eanItem) exIndex = indiceEan.get(eanItem) ?? -1;
+                if (exIndex < 0) {
+                    const nItem = normSemUnidade(item.name);
+                    if (nItem) exIndex = indiceNome.get(nItem) ?? -1;
+                }
+                if (exIndex < 0) {
+                    exIndex = indiceUpper.get((item.name || '').trim().toUpperCase()) ?? -1;
+                }
+                if (exIndex < 0) {
+                    const pref = normalizeName(item.name).slice(0, 2);
+                    const candidatos = (pref && baldesPrefixo.get(pref)) || [];
+                    const achado = candidatos.find(i => ehDuplicado(localProducts[i], item));
+                    if (achado !== undefined) exIndex = achado;
+                }
 
                 if (exIndex > -1) {
                     const ex = localProducts[exIndex];
@@ -1706,6 +1813,7 @@ return false;
                     pendingBatch.update(doc(db, 'products', ex.id), updatedProduct);
                     pendingCount++;
                     localProducts[exIndex] = updatedProduct;
+                    reindex(exIndex, updatedProduct);
                     updatedCount++;
                 } else {
                     const id = crypto.randomUUID();
@@ -1750,7 +1858,27 @@ return false;
         }
     };
 
-    const importXmlProduct = async (file: File, margin: number) => { const text = await file.text(); const data = parseInvoiceXML(text); if (data) await processInvoiceImport(data, margin); else throw new Error("Erro no XML"); };
+    const importXmlProduct = async (file: File, margin: number) => {
+        const text = await file.text();
+        const data = parseInvoiceXML(text);
+        if (data) await processInvoiceImport(data, margin);
+        else {
+            // Erro rico: revela POR QUE o XML não pôde ser interpretado.
+            let detalhe = 'o arquivo não parece ser uma NF-e válida';
+            try {
+                const doc2 = new DOMParser().parseFromString(text, 'text/xml');
+                const perr = doc2.querySelector('parsererror');
+                if (perr && perr.textContent) {
+                    detalhe = perr.textContent.slice(0, 200);
+                } else if (!/NFe|NFeProc|nf-e|NFE/i.test(text.slice(0, 2000))) {
+                    detalhe = 'o XML não contém uma NF-e (nó <NFe> ou <NFeProc>)';
+                } else {
+                    detalhe = 'nenhum <det>/<prod> com nome válido foi encontrado na NFe';
+                }
+            } catch { /* ignora: mantém a mensagem padrão */ }
+            throw new Error(`Falha ao interpretar o XML — ${detalhe}.`);
+        }
+    };
 
     // Pré-visualização da NFe antes de importar: mostra custo unitário detectado
     // de cada item para o operador conferir e definir a margem com segurança.
@@ -1758,11 +1886,20 @@ return false;
         const text = await file.text();
         const data = parseInvoiceXML(text);
         if (!data) return [];
-        return data.items.map(i => ({
-            name: i.name,
-            cost: Number(i.costPrice) || 0,
-            qty: Number(i.quantity) || 0,
-        }));
+        // Aplica as MESMAS sanções da gravação (processInvoiceImport): custo
+        // acima de R$ 100k/un vira 0 e qtd acima de 999.999 vira 1 — o que o
+        // operador vê na prévia é exatamente o que será persistido.
+        return data.items.map(i => {
+            const custoRaw = Number(i.costPrice) || 0;
+            const qtdRaw = Number(i.quantity) || 0;
+            return {
+                name: i.name,
+                cost: custoRaw > 100000 ? 0 : custoRaw,
+                qty: qtdRaw > 999999 ? 1 : Math.max(0, qtdRaw),
+                ean: i.ean || i.barcode || '',
+                brand: i.brand || '',
+            };
+        });
     };
 
     // Varre o catálogo inteiro e zera preço/custo absurdos (> R$ 100.000/un),
@@ -2698,6 +2835,7 @@ return false;
         payments?: { method: string; amount: number }[],
         change?: number,
         customerAccountId?: string,
+        cardBrand?: string,
     ): Promise<Order | null> => {
         if (!currentUser || currentUser.role !== UserRole.ADMIN) {
             throw new Error('Acesso restrito a administradores.');
@@ -2714,6 +2852,7 @@ return false;
                 quantity: Number(i?.quantity) || 1,
             })),
             paymentMethod,
+            ...(paymentMethod === 'CARD' && cardBrand ? { cardBrand: String(cardBrand).toUpperCase() } : {}),
             payments: payments || undefined,
             change: change ?? undefined,
             customerAccountId: customerAccountId || undefined,
@@ -2736,6 +2875,7 @@ return false;
             createdAt: agora,
             date: agora,
             paymentMethod: venda.paymentMethod,
+            ...(venda.cardBrand ? { cardBrand: venda.cardBrand } : {}),
             payments: venda.payments,
             change: venda.change,
             offlinePending: true,
@@ -2969,7 +3109,7 @@ if (currentUser?.role !== UserRole.ADMIN && currentUser) {
             isSystemActive,
             
             updateOrderStatus, aprovarPedido, markOrderAsPrinted, deleteOrder, addProduct, updateProduct, deleteProduct, deleteExpense,
-            loadMoreOrders, loadMoreExpenses, loadMoreProducts, productsLimit, usersLimit, loadMoreUsers, expandUsersLimit, loadMoreSuppliers, loadMoreInmates, suppliersLimit, inmatesLimit, cotaCritica,
+            loadMoreOrders, loadMoreExpenses, loadMoreProducts, productsLimit, ordersLimit, expensesLimit, aumentarCapacidade, usersLimit, loadMoreUsers, expandUsersLimit, loadMoreSuppliers, loadMoreInmates, suppliersLimit, inmatesLimit, cotaCritica,
             approveUser, updateUserStatus, toggleUserCredit, deleteUser, suspendUser,
             addSupplier, removeSupplier, addExpense, addWithdrawal, toggleFinanceEntries,
             processInvoiceImport, importXmlProduct, previewXmlImport, sanitizeCatalog, updateAppConfig, updateSettings: updateAppConfig,
@@ -3020,7 +3160,7 @@ if (currentUser?.role !== UserRole.ADMIN && currentUser) {
                     setIsLoading(false);
                 }
             },
-            adminDirectSale: async (targetUserId, items, paymentMethod, total, payments: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO'; amount: number }[] | undefined, change, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }) => {
+            adminDirectSale: async (targetUserId, items, paymentMethod, total, payments: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO'; amount: number }[] | undefined, change, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string) => {
                 if (!currentUser || currentUser.role !== UserRole.ADMIN) {
                     throw new Error("Acesso restrito a administradores.");
                 }
@@ -3061,7 +3201,8 @@ if (currentUser?.role !== UserRole.ADMIN && currentUser) {
                         payments: payments || undefined,
                         change: change ?? undefined,
                         customerAccountId: customerAccountId || undefined,
-                        jointWallet: jointWallet || undefined
+                        jointWallet: jointWallet || undefined,
+                        cardBrand: paymentMethod === 'CARD' ? (cardBrand || '') : undefined
                     });
                     const data = res.data as any;
                     const createdOrder = cleanObject(data?.order || null);

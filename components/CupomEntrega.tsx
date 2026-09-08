@@ -181,6 +181,11 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
                         <td className="text-right font-black">R$ {formatarMoeda((item.priceAtPurchase || item.price || 0) * (item.quantity || 1))}</td>
                     </tr>
                 ))}
+                {itens.length === 0 && total > 0 && (
+                    <tr>
+                        <td colSpan={3} className="py-1 text-center font-black uppercase opacity-70">Itens não registrados (venda antiga)</td>
+                    </tr>
+                )}
             </tbody>
         </table>
       </div>
@@ -211,10 +216,16 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
                 </>
             ) : (
                 <>
-                    <div className="flex justify-between">
+<div className="flex justify-between">
                         <span>PAGAMENTO:</span>
-                        <span className="uppercase">{data.paymentMethod === 'WALLET' ? 'CARTEIRA' : data.paymentMethod === 'PIX' ? 'PIX' : data.paymentMethod === 'FIADO' ? 'FIADO' : 'DINHEIRO'}</span>
-                    </div>
+                        <span className="uppercase">
+                          {data.paymentMethod === 'WALLET' ? 'CARTEIRA'
+                            : data.paymentMethod === 'PIX' ? 'PIX'
+                            : data.paymentMethod === 'FIADO' ? 'FIADO'
+                            : data.paymentMethod === 'CARD' ? (data.cardBrand ? `CARTÃO (${data.cardBrand})` : 'CARTÃO')
+                            : 'DINHEIRO'}
+                        </span>
+                      </div>
                     {Number(data.change || 0) > 0 && (
                         <div className="flex justify-between">
                             <span>TROCO</span>

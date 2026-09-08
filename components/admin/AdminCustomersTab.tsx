@@ -13,19 +13,22 @@ import {
   deleteCustomerAccount,
   receiveCustomerPayment
 } from '../../utils/customerUtils';
-import { formatarMoeda } from '../../utils';
+import { formatarMoeda, formatCPF, formatPhone } from '../../utils';
 import { getActiveSession } from '../../utils/cashSession';
 import { useApp } from '../../context/StoreContext';
 import { gerarRelatorioInadimplentes, imprimirCupom } from '../../utils/printUtils';
+import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
 
 export function AdminCustomersTab() {
-  const { currentUser } = useApp();
+  const { currentUser, showNotification } = useApp();
   const [accounts, setAccounts] = useState<CustomerAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editData, setEditData] = useState<Partial<CustomerAccount> | null>(null);
   const [saving, setSaving] = useState(false);
+  const [contaParaExcluir, setContaParaExcluir] = useState<CustomerAccount | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const [filterType, setFilterType] = useState<'all' | 'debtors' | 'exhausted' | 'blocked'>('all');
 
@@ -65,11 +68,12 @@ export function AdminCustomersTab() {
   const filtered = useMemo(() => {
     let list = accounts;
     const term = search.toLowerCase().trim();
+    const termDigits = search.replace(/\D/g, '');
     if (term) {
       list = list.filter(a =>
         a.nome.toLowerCase().includes(term) ||
-        (a.cpf && a.cpf.includes(term)) ||
-        (a.telefone && a.telefone.includes(term))
+        (termDigits && a.cpf && a.cpf.replace(/\D/g, '').includes(termDigits)) ||
+        (termDigits && a.telefone && a.telefone.replace(/\D/g, '').includes(termDigits))
       );
     }
     if (filterType === 'debtors') return list.filter(a => (a.currentDebt || 0) > 0);
@@ -111,13 +115,19 @@ export function AdminCustomersTab() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Excluir esta conta permanentemente?')) return;
+  const handleDelete = async () => {
+    if (!contaParaExcluir) return;
+    setDeleting(true);
     try {
-      await deleteCustomerAccount(id);
+      await deleteCustomerAccount(contaParaExcluir.id);
       await loadAccounts();
+      setContaParaExcluir(null);
+      showNotification('Conta excluída.', 'success');
     } catch (e) {
       console.error('Erro ao excluir:', e);
+      showNotification('Erro ao excluir a conta: ' + (e instanceof Error ? e.message : 'tente novamente'), 'error');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -293,7 +303,7 @@ export function AdminCustomersTab() {
                       <Save size={16} />
                     </button>
                     <button
-                      onClick={() => handleDelete(c.id)}
+                      onClick={() => setContaParaExcluir(c)}
                       className="p-2.5 text-slate-500 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all active:scale-95"
                       title="Excluir"
                     >
@@ -335,8 +345,9 @@ export function AdminCustomersTab() {
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">CPF</label>
                   <input
                     type="text"
-                    value={editData.cpf || ''}
-                    onChange={e => setEditData({ ...editData, cpf: e.target.value })}
+                    inputMode="numeric"
+                    value={formatCPF(editData.cpf || '')}
+                    onChange={e => setEditData({ ...editData, cpf: formatCPF(e.target.value) })}
                     className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-900 font-semibold outline-none focus:border-emerald-500 transition-all"
                     placeholder="000.000.000-00"
                   />
@@ -345,8 +356,9 @@ export function AdminCustomersTab() {
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Telefone</label>
                   <input
                     type="text"
-                    value={editData.telefone || ''}
-                    onChange={e => setEditData({ ...editData, telefone: e.target.value })}
+                    inputMode="tel"
+                    value={formatPhone(editData.telefone || '')}
+                    onChange={e => setEditData({ ...editData, telefone: formatPhone(e.target.value) })}
                     className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-900 font-semibold outline-none focus:border-emerald-500 transition-all"
                     placeholder="(65) 99999-9999"
                   />
@@ -452,6 +464,15 @@ export function AdminCustomersTab() {
           </div>
         </div>
       )}
+      <ConfirmacaoDestrutiva
+        isOpen={contaParaExcluir !== null}
+        titulo="Excluir Conta"
+        descricao={`A conta de ${contaParaExcluir?.nome || 'este cliente'} (dívida ${formatarMoeda(contaParaExcluir?.currentDebt || 0)}) será excluída PERMANENTEMENTE. O histórico de caderneta será perdido.`}
+        palavraChave="EXCLUIR"
+        processando={deleting}
+        onConfirm={() => void handleDelete()}
+        onClose={() => { if (!deleting) setContaParaExcluir(null); }}
+      />
     </div>
   );
 }

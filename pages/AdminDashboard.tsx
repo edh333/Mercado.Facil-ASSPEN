@@ -131,6 +131,7 @@ export function AdminDashboard() {
     loadMoreExpenses,
     loadMoreProducts,
     productsLimit,
+    ordersLimit,
     usersLimit,
     loadMoreUsers,
     expandUsersLimit,
@@ -167,6 +168,7 @@ export function AdminDashboard() {
   const [viewingReceipt, setViewingReceipt] = useState<any>(null);
   const [printOrder, setPrintOrder] = useState<Order | null>(null);
   const [showProductModal, setShowProductModal] = useState(false);
+  const [showStockEditModal, setShowStockEditModal] = useState<Product | null>(null);
   const [showSupplierModal, setShowSupplierModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   
@@ -333,7 +335,9 @@ export function AdminDashboard() {
       'reports': 'reports',
       'customers': 'finance',
       'messages': 'users',
-      'stock_alerts': 'products'
+      'stock_alerts': 'products',
+      'bi': 'reports',
+      'settings': 'reports'
     };
     const needPerm = tabPermissions[tab];
     if (!needPerm || hasPermission(needPerm)) {
@@ -355,7 +359,7 @@ export function AdminDashboard() {
       if (key === '?') { setShowShortcutsModal(true); return; }
       const map: Record<string, () => void> = {
         F1: () => setActiveTab('home'),
-        F2: () => setShowSalesModal(true),
+        F2: () => { if (hasPermission('sales')) setShowSalesModal(true); else showNotification('Permissão negada para Venda Direta (PDV).', 'error'); },
         F3: () => goToTab('orders'),
         F4: () => goToTab('reports'),
         F5: () => goToTab('products'),
@@ -384,9 +388,10 @@ export function AdminDashboard() {
     change?: number,
     customerAccountId?: string,
     clientToken?: string,
-    jointWallet?: { secondUserId: string; secondWalletAmount: number }
+    jointWallet?: { secondUserId: string; secondWalletAmount: number },
+    cardBrand?: string
   ) => {
-    const res = await adminDirectSale(targetUserId, items, paymentMethod, total, payments, change, customerAccountId, clientToken, jointWallet);
+    const res = await adminDirectSale(targetUserId, items, paymentMethod, total, payments, change, customerAccountId, clientToken, jointWallet, cardBrand);
     if (!res) {
       throw new Error('Erro ao processar venda no caixa.');
     }
@@ -403,9 +408,10 @@ export function AdminDashboard() {
     total: number,
     payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO'; amount: number }[],
     change?: number,
-    customerAccountId?: string
+    customerAccountId?: string,
+    cardBrand?: string
   ) => {
-    const res = await registrarVendaOffline(targetUserId, items, paymentMethod, total, payments, change, customerAccountId);
+    const res = await registrarVendaOffline(targetUserId, items, paymentMethod, total, payments, change, customerAccountId, cardBrand);
     if (!res) {
       throw new Error('Não foi possível registrar a venda offline.');
     }
@@ -444,7 +450,10 @@ export function AdminDashboard() {
     if (!showWithdrawalModal) return;
     // Anti duplo clique: dois cliques rápidos = DOIS lançamentos de dinheiro.
     if (withdrawalProcessingRef.current) return;
-    const amount = parseFloat(withdrawalAmount);
+    const rawValor = String(withdrawalAmount).trim();
+    const amount = /,/.test(rawValor)
+      ? parseFloat(rawValor.replace(/\./g, '').replace(',', '.'))
+      : parseFloat(rawValor);
     if (isNaN(amount) || amount <= 0) {
       showNotification('Insira um valor válido.', 'error');
       return;
@@ -886,6 +895,7 @@ export function AdminDashboard() {
                   setPrintOrder={setPrintOrder}
                   setViewingReceipt={setViewingReceipt}
                   loadMoreOrders={loadMoreOrders}
+                  ordersLimit={ordersLimit}
                 />
               )}
 
@@ -899,6 +909,8 @@ export function AdminDashboard() {
                   setViewMode={setProductViewMode}
                   setShowProductModal={setShowProductModal}
                   setEditingProduct={setEditingProduct}
+                  showStockEditModal={showStockEditModal}
+                  setShowStockEditModal={setShowStockEditModal}
                   deleteProduct={deleteProduct}
                   xmlFile={xmlFile}
                   setXmlFile={setXmlFile}
@@ -944,6 +956,7 @@ export function AdminDashboard() {
                   operatorName={currentUser?.name || 'Administrador'}
                   primaryColor={settings?.primaryColor || '#10b981'}
                   settings={settings}
+                  orders={orders}
                 />
               )}
 
@@ -1302,6 +1315,12 @@ export function AdminDashboard() {
         addProduct={addProduct}
         updateProduct={updateProduct}
         products={products}
+
+        showStockEditModal={showStockEditModal}
+        setShowStockEditModal={setShowStockEditModal}
+        validateMasterPassword={validateMasterPassword}
+        currentUser={currentUser || undefined}
+        showNotification={showNotification}
 
         viewingReceipt={viewingReceipt}
         setViewingReceipt={setViewingReceipt}

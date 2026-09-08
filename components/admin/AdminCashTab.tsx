@@ -13,9 +13,9 @@ import { Timestamp } from 'firebase/firestore';
 import {
   LogIn, LogOut, Plus, Minus, Lock, Unlock, RefreshCw,
   Clock, DollarSign, TrendingUp, TrendingDown, AlertTriangle,
-  CheckCircle, ChevronDown, ChevronUp, Printer
+  CheckCircle, ChevronDown, ChevronUp, Printer, ClipboardList, Download, X
 } from 'lucide-react';
-import { gerarCupomFechamento, imprimirCupom } from '../../utils/printUtils';
+import { gerarCupomFechamento, imprimirCupom, gerarBoletimDiario, baixarCupomTxt } from '../../utils/printUtils';
 
 // ──────────────────────────────────────────────
 // Helpers
@@ -75,15 +75,19 @@ interface AdminCashTabProps {
   operatorName: string;
   primaryColor?: string;
   settings?: any;
+  orders?: any[];
 }
 
 type Modal = 'open' | 'supplement' | 'withdrawal' | 'close' | null;
+
+const DENOMINACOES = [100, 50, 20, 10, 5, 2, 1, 0.5, 0.25, 0.1, 0.05, 0.01];
 
 export const AdminCashTab: React.FC<AdminCashTabProps> = ({
   operatorId,
   operatorName,
   primaryColor = '#10b981',
   settings,
+  orders,
 }) => {
   const [session, setSession] = useState<CashSession | null>(null);
   const [history, setHistory] = useState<CashSession[]>([]);
@@ -98,6 +102,9 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
   const [expandHistory, setExpandHistory] = useState(false);
   const [closeResult, setCloseResult] = useState<{ diff: number; expected: number } | null>(null);
   const [closeSessionSnapshot, setCloseSessionSnapshot] = useState<any>(null);
+  const [denoms, setDenoms] = useState<Record<string, string>>({});
+  const [showBoletim, setShowBoletim] = useState(false);
+  const [boletim, setBoletim] = useState<any>(null);
 
   const showToast = (msg: string, type: 'success' | 'error') => {
     setToast({ msg, type });
@@ -127,14 +134,14 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
   const handleOpen = async () => {
     // Aceita 0 (gaveta vazia), mas rejeita vazio/NaN/negativo — o min="0"
     // do HTML não impede digitação de "-50".
-    const valor = Number(initialBalance);
+    const valor = Number(String(initialBalance).replace(',', '.'));
     if (initialBalance === '' || isNaN(valor) || !(valor >= 0)) {
       showToast('Informe um saldo inicial zero ou positivo.', 'error');
       return;
     }
     setActionLoading(true);
     try {
-      await openCashSession(operatorId, operatorName, Number(initialBalance));
+      await openCashSession(operatorId, operatorName, valor);
       showToast('Caixa aberto com sucesso!', 'success');
       setModal(null);
       setInitialBalance('');
@@ -148,9 +155,14 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
 
   const handleSupplement = async () => {
     if (!session || !amount || !reason) return;
+    const valor = Number(String(amount).replace(',', '.'));
+    if (isNaN(valor) || !(valor > 0)) {
+      showToast('Valor do suprimento deve ser maior que zero.', 'error');
+      return;
+    }
     setActionLoading(true);
     try {
-      await addSupplement(session.id, Number(amount), reason);
+      await addSupplement(session.id, valor, reason);
       showToast('Suprimento registrado!', 'success');
       setModal(null);
       setAmount(''); setReason('');
@@ -164,9 +176,14 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
 
   const handleWithdrawal = async () => {
     if (!session || !amount || !reason) return;
+    const valor = Number(String(amount).replace(',', '.'));
+    if (isNaN(valor) || !(valor > 0)) {
+      showToast('Valor da sangria deve ser maior que zero.', 'error');
+      return;
+    }
     setActionLoading(true);
     try {
-      await addWithdrawal(session.id, Number(amount), reason);
+      await addWithdrawal(session.id, valor, reason);
       showToast('Sangria registrada!', 'success');
       setModal(null);
       setAmount(''); setReason('');
@@ -188,11 +205,12 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
     }
     setActionLoading(true);
     try {
-      const result = await closeCashSession(session.id, Number(closedBalance));
+      const result = await closeCashSession(session.id, Number(closedBalance), operatorName);
       setCloseResult(result);
       setCloseSessionSnapshot({
         operatorId,
         operatorName,
+        closedByName: operatorName,
         openedAt: session.openedAt,
         closedAt: Timestamp.now(),
         initialBalance: session.initialBalance,
@@ -218,7 +236,60 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
     imprimirCupom(content);
   };
 
+  // ── Boletim do Dia (prestação de contas no fim do turno) ──
+  const handleBoletim = () => {
+    const agora = new Date();
+    const ini = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), 0, 0, 0, 0);
+    const fim = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), 23, 59, 59, 999);
+    const cancelado = ['cancelled', 'cancelado', 'estornado', 'refunded', 'devolvido', 'rejeitado'];
+    const vendasHoje = (orders || []).filter((o: any) => {
+      const d = new Date(o?.createdAt || o?.date);
+      return !isNaN(d.getTime()) && d >= ini && d <= fim && !cancelado.includes(String(o?.status || '').toLowerCase());
+    });
+    const mapa: Record<string, { quantidade: number; total: number }> = {};
+    vendasHoje.forEach((o: any) => {
+      const metodo = String(o?.paymentMethod || '').toUpperCase();
+      const rotulo = metodo === 'CASH' ? 'DINHEIRO' : metodo === 'WALLET' ? 'CARTEIRA' : metodo || 'OUTROS';
+      mapa[rotulo] = mapa[rotulo] || { quantidade: 0, total: 0 };
+      mapa[rotulo].quantidade += 1;
+      mapa[rotulo].total += Number(o?.total) || 0;
+    });
+    const formas = Object.entries(mapa).map(([metodo, v]) => ({ metodo, quantidade: v.quantidade, total: v.total }))
+      .sort((a, b) => b.total - a.total);
+    const totalDia = formas.reduce((s, f) => s + f.total, 0);
+    const soma = (metodo: string) => formas.filter((f) => f.metodo === metodo).reduce((s, f) => s + f.total, 0);
+    const hojeStr = agora.toDateString();
+    const caixa = (history || []).filter((s) => s.status === 'closed' && s.closedAt && s.closedAt.toDate().toDateString() === hojeStr).map((s) => ({
+      operador: s.operatorName || s.operatorId,
+      esperado: s.expectedBalance ?? s.currentBalance ?? 0,
+      contado: s.closedBalance ?? 0,
+      diferenca: s.cashDifference ?? s.balanceDiff ?? 0,
+    }));
+    setBoletim({
+      data: agora.toLocaleDateString('pt-BR'),
+      formas,
+      totalDia,
+      caixa,
+      carteiraTotal: soma('CARTEIRA'),
+      fiadoTotal: soma('FIADO'),
+      emitidoPor: operatorName,
+    });
+    setShowBoletim(true);
+  };
+
+  const handleBoletimPrint = () => {
+    if (!boletim) return;
+    imprimirCupom(gerarBoletimDiario(boletim, settings));
+  };
+
+  const handleBoletimDownload = () => {
+    if (!boletim) return;
+    baixarCupomTxt(gerarBoletimDiario(boletim, settings), 'boletim-diario');
+  };
+
   // ── Render ──
+
+  const contagemTotal = DENOMINACOES.reduce((s, d) => s + (Number(denoms[String(d)]) || 0) * d, 0);
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
@@ -242,9 +313,14 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
           <h2 className="text-2xl font-bold text-slate-900">Controle de Caixa</h2>
           <p className="text-slate-500 text-sm mt-1">Abertura, Suprimento, Sangria e Fechamento</p>
         </div>
-        <button onClick={reload} className="p-2 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-100 transition-all">
-          <RefreshCw size={18} />
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={handleBoletim} title="Boletim do Dia (prestação de contas)" className="p-2 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-all">
+            <ClipboardList size={18} />
+          </button>
+          <button onClick={reload} className="p-2 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-100 transition-all">
+            <RefreshCw size={18} />
+          </button>
+        </div>
       </div>
 
       {/* Close Audit Result Banner */}
@@ -359,6 +435,9 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
                   <div>
                     <p className="text-xs text-slate-500">{fmtTs(s.openedAt)} → {fmtTs(s.closedAt)}</p>
                     <p className="text-sm font-bold text-slate-800 mt-0.5">Inicial: {fmt(s.initialBalance)}</p>
+                    {s.status === 'closed' && s.closedByName && (
+                      <p className="text-[10px] text-slate-400 mt-0.5">Fechado por: {s.closedByName}</p>
+                    )}
                   </div>
                   <div className="text-right shrink-0">
                     <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${s.status === 'open' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
@@ -425,6 +504,24 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
                 <h3 className="text-lg font-bold text-slate-900 mb-1">Fechar Caixa</h3>
                 <p className="text-sm text-slate-500 mb-1">Valor esperado no caixa:</p>
                 <p className="text-2xl font-black text-slate-800 mb-4">{session ? fmt(session.currentBalance) : '—'}</p>
+                <div className="mb-4 max-h-44 overflow-y-auto rounded-xl border border-slate-200 p-2 bg-slate-50/60">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Conferência por cédulas/moedas</p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {DENOMINACOES.map((d) => (
+                      <label key={d} className="flex items-center gap-1 text-[11px] font-semibold text-slate-600 bg-white rounded-lg px-2 py-1 border border-slate-100">
+                        <span className="w-10 shrink-0 text-right">R$ {d}</span>
+                        <input type="number" min="0" step="1" placeholder="0" value={denoms[String(d)] || ''}
+                          onChange={(e) => setDenoms((prev) => ({ ...prev, [String(d)]: e.target.value }))}
+                          className="w-full bg-white border border-slate-200 rounded-md px-1 py-0.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-2">Total pela contagem: <strong className="text-slate-900">{fmt(contagemTotal)}</strong></p>
+                  <button type="button" onClick={() => setClosedBalance(contagemTotal.toFixed(2))}
+                    className="mt-1 w-full py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-black uppercase tracking-widest hover:bg-emerald-100 transition-all active:scale-95">
+                    Usar contagem
+                  </button>
+                </div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Valor Contado Fisicamente (R$)</label>
                 <input type="number" min="0" step="0.01" value={closedBalance}
                   onChange={e => setClosedBalance(e.target.value)}
@@ -450,6 +547,65 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
                 style={{ backgroundColor: modal === 'close' ? '#ef4444' : modal === 'withdrawal' ? '#ef4444' : primaryColor }}
               >
                 {actionLoading ? '...' : modal === 'open' ? 'Abrir Caixa' : modal === 'supplement' ? 'Registrar' : modal === 'withdrawal' ? 'Registrar Sangria' : 'Confirmar Fechamento'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════ BOLETIM DO DIA (Prestação de Contas) ══════════════ */}
+      {showBoletim && boletim && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-4 pb-4 sm:pb-0" onClick={() => setShowBoletim(false)}>
+          <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-bold text-slate-900">Boletim do Dia</h3>
+              <button onClick={() => setShowBoletim(false)} className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all" title="Fechar">
+                <X size={18} />
+              </button>
+            </div>
+            <p className="text-sm text-slate-500 mb-4">{boletim.data} — resumo de prestação de contas.</p>
+
+            <div className="space-y-1 max-h-60 overflow-y-auto mb-4">
+              {boletim.formas.length === 0 && (
+                <p className="text-xs text-slate-400 text-center py-4">Nenhuma venda registrada hoje.</p>
+              )}
+              {boletim.formas.map((f: any) => (
+                <div key={f.metodo} className="flex items-center justify-between text-sm border-b border-slate-100 py-1.5">
+                  <span className="font-bold text-slate-800 uppercase">{f.metodo} <span className="text-slate-400 font-semibold">({f.quantidade})</span></span>
+                  <span className="font-black text-slate-900">R$ {f.total.toFixed(2)}</span>
+                </div>
+              ))}
+              <div className="flex items-center justify-between text-sm py-2.5 bg-slate-900 text-white rounded-xl px-3">
+                <span className="font-black uppercase">Total do dia</span>
+                <span className="font-black">R$ {boletim.totalDia.toFixed(2)}</span>
+              </div>
+
+              {boletim.caixa.length > 0 && (
+                <div className="pt-2">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Caixa físico (hoje)</p>
+                  {boletim.caixa.map((c: any, i: number) => (
+                    <p key={i} className="text-[11px] text-slate-600">
+                      {c.operador}: esperado R$ {c.esperado.toFixed(2)} · conferido R$ {c.contado.toFixed(2)}
+                      {c.diferenca !== 0 ? ` · ${c.diferenca > 0 ? 'sobra' : 'falta'} R$ ${Math.abs(c.diferenca).toFixed(2)}` : ' · ok'}
+                    </p>
+                  ))}
+                </div>
+              )}
+
+              {(boletim.carteiraTotal > 0 || boletim.fiadoTotal > 0) && (
+                <div className="pt-2 text-[11px] text-slate-600">
+                  {boletim.carteiraTotal > 0 && <p>Carteira/Crédito: R$ {boletim.carteiraTotal.toFixed(2)}</p>}
+                  {boletim.fiadoTotal > 0 && <p>Fiado: R$ {boletim.fiadoTotal.toFixed(2)}</p>}
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              <button onClick={handleBoletimDownload} className="flex-1 py-2.5 rounded-2xl border border-slate-200 text-slate-600 font-semibold text-xs hover:bg-slate-50 transition-all flex items-center justify-center gap-1.5">
+                <Download size={14} /> TXT
+              </button>
+              <button onClick={handleBoletimPrint} className="flex-1 py-2.5 rounded-2xl text-white font-bold text-xs flex items-center justify-center gap-1.5 hover:brightness-110 transition-all active:scale-95" style={{ backgroundColor: primaryColor }}>
+                <Printer size={14} /> Imprimir
               </button>
             </div>
           </div>

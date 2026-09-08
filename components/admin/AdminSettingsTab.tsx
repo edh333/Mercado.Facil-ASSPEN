@@ -3,7 +3,7 @@ import {
   Settings, KeyRound, Database, HardDrive, Download, AlertTriangle,
   Trash2, RefreshCw, Smartphone, Palette, Shield, Lock, Save, DollarSign, Check,
   FileText, CreditCard, Building, Info, Printer, Wrench, Truck, ShoppingBag, Search, Loader2, Zap, Users,
-  History, RotateCcw, Upload, Archive, Power, CalendarClock, CloudUpload, CloudDownload, FileJson, Receipt, Pencil, Moon
+  History, RotateCcw, Upload, Archive, Power, CalendarClock, CloudUpload, CloudDownload, FileJson, Receipt, Pencil, Moon, X
 } from 'lucide-react';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { ThemeOption } from '../../types';
@@ -112,6 +112,7 @@ interface AdminSettingsTabProps {
 
 import { SystemHealthCard } from './SystemHealthCard';
 import { AppDownloadButton } from '../AppDownloadModal';
+import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
 
 export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
   isMaster, isAuthenticated, onAuthenticate,
@@ -124,12 +125,16 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
   const [activeSubTab, setActiveSubTab] = React.useState('general');
   const [newPixKey, setNewPixKey] = React.useState('');
   const [showAddAdmin, setShowAddAdmin] = React.useState(false);
+  const [confirmDeleteAdmin, setConfirmDeleteAdmin] = React.useState<string | null>(null);
+  const [renovarConfirming, setRenovarConfirming] = React.useState(false);
   const [editPermissionsFor, setEditPermissionsFor] = React.useState<string | null>(null);
   const [editPermissions, setEditPermissions] = React.useState<string[]>([]);
   const [adminForm, setAdminForm] = React.useState({
     name: '', email: '', password: '', cpf: '',
     permissions: MODULOS_PERMISSAO.map(m => m.key)
   });
+  const [adminFormError, setAdminFormError] = React.useState<string | null>(null);
+  const [creatingAdmin, setCreatingAdmin] = React.useState(false);
 
   // ── Controle do Sistema (modo manutenção) ──
   const {
@@ -141,6 +146,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
   } = useMaintenance(currentUserId ? { id: currentUserId, name: currentUserName || '' } as any : null);
   const [maintenanceMotivo, setMaintenanceMotivo] = React.useState('');
   const [maintenanceConfirming, setMaintenanceConfirming] = React.useState(false);
+  const [showScaleModal, setShowScaleModal] = React.useState(false);
 
   // ── Tema (dark/light/system) ──
   const { themeMode, setThemeMode } = useTheme();
@@ -267,6 +273,21 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
     }, 'restore');
   };
 
+  const handleRenovarSistema = async () => {
+    setRenovarConfirming(false);
+    try {
+      if ('caches' in window) {
+        const chaves = await caches.keys();
+        await Promise.all(chaves.map(k => caches.delete(k)));
+      }
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+      }
+    } catch { /* segue para reload mesmo se cache indisponível */ }
+    window.location.reload();
+  };
+
   const handleImportarRestauracao = async (file: File) => {
     const res = await importarPontoRestauracao(file);
     if (!res.ok) {
@@ -371,6 +392,29 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
       await handleChangeAdminPassword();
     } finally {
       setIsChangingPassword(false);
+    }
+  };
+
+  const handleCreateAdmin = async () => {
+    const name = adminForm.name.trim();
+    const email = adminForm.email.trim();
+    const password = adminForm.password;
+    if (!name || !email || !password) {
+      setAdminFormError('Preencha nome, email e senha para criar o administrador.');
+      return;
+    }
+    if (password.length < 6) {
+      setAdminFormError('A senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+    setAdminFormError(null);
+    setCreatingAdmin(true);
+    try {
+      await createAdminUser(adminForm);
+      setShowAddAdmin(false);
+      setAdminForm({ name: '', email: '', password: '', cpf: '', permissions: MODULOS_PERMISSAO.map(m => m.key) });
+    } finally {
+      setCreatingAdmin(false);
     }
   };
 
@@ -565,21 +609,20 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                   </div>
                   {showAddAdmin && (
                     <div className="mb-6 p-6 bg-slate-50 rounded-2xl space-y-4">
-                      <input className="w-full p-3 text-xs border bg-white rounded-xl font-black text-slate-900" placeholder="NOME" value={adminForm.name} onChange={e => setAdminForm({ ...adminForm, name: e.target.value.toUpperCase() })} />
-                      <input className="w-full p-3 text-xs border bg-white rounded-xl font-black text-slate-900" placeholder="EMAIL" value={adminForm.email} onChange={e => setAdminForm({ ...adminForm, email: e.target.value })} />
-                      <input className="w-full p-3 text-xs border bg-white rounded-xl font-black text-slate-900" placeholder="SENHA" type="password" value={adminForm.password} onChange={e => setAdminForm({ ...adminForm, password: e.target.value })} />
+                      <input className="w-full p-3 text-xs border bg-white rounded-xl font-black text-slate-900 uppercase" placeholder="NOME" value={adminForm.name} onChange={e => { setAdminForm({ ...adminForm, name: e.target.value.toUpperCase() }); setAdminFormError(null); }} />
+                      <input className="w-full p-3 text-xs border bg-white rounded-xl font-black text-slate-900" placeholder="EMAIL" type="email" value={adminForm.email} onChange={e => { setAdminForm({ ...adminForm, email: e.target.value }); setAdminFormError(null); }} />
+                      <input className="w-full p-3 text-xs border bg-white rounded-xl font-black text-slate-900" placeholder="SENHA" type="password" autoComplete="new-password" value={adminForm.password} onChange={e => { setAdminForm({ ...adminForm, password: e.target.value }); setAdminFormError(null); }} />
+                      <input className="w-full p-3 text-xs border bg-white rounded-xl font-black text-slate-900" placeholder="CPF (opcional)" inputMode="numeric" value={adminForm.cpf} onChange={e => { setAdminForm({ ...adminForm, cpf: e.target.value.replace(/\D/g, '').slice(0, 11) }); setAdminFormError(null); }} />
                       <PermToggles perms={adminForm.permissions} onChange={p => setAdminForm({ ...adminForm, permissions: p })} />
+                      {adminFormError && (
+                        <p className="text-[10px] font-black text-red-600 uppercase tracking-wide" role="alert">{adminFormError}</p>
+                      )}
                       <button
-                        onClick={() => {
-                          if (adminForm.name && adminForm.email && adminForm.password) {
-                            createAdminUser(adminForm);
-                            setShowAddAdmin(false);
-                            setAdminForm({ name: '', email: '', password: '', cpf: '', permissions: MODULOS_PERMISSAO.map(m => m.key) });
-                          }
-                        }}
-                        className="w-full bg-slate-900 text-white p-3 rounded-xl text-xs font-black uppercase"
+                        onClick={handleCreateAdmin}
+                        disabled={creatingAdmin}
+                        className="w-full bg-slate-900 text-white p-3 rounded-xl text-xs font-black uppercase disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       >
-                        CRIAR
+                        {creatingAdmin ? <><Loader2 size={14} className="animate-spin" /> Criando...</> : 'CRIAR'}
                       </button>
                     </div>
                   )}
@@ -619,7 +662,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                             >
                               <Pencil size={15} />
                             </button>
-                            <button onClick={() => { if (confirm('REMOVER?')) deleteUser(admin.id); }} className="text-red-500 p-2">
+                            <button onClick={() => setConfirmDeleteAdmin(admin.id)} className="text-red-500 p-2" title="Remover administrador">
                               <Trash2 size={16} />
                             </button>
                           </div>
@@ -672,6 +715,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                       value={newAdminPassword}
                       onChange={e => setNewAdminPassword(e.target.value)}
                       placeholder="••••••••"
+                      autoComplete="new-password"
                     />
                   </div>
                   <div>
@@ -686,6 +730,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                       value={confirmAdminPassword}
                       onChange={e => setConfirmAdminPassword(e.target.value)}
                       placeholder="••••••••"
+                      autoComplete="new-password"
                     />
                     {confirmAdminPassword && confirmAdminPassword.trim() !== newAdminPassword.trim() && (
                       <p className="text-[10px] text-red-500 font-black mt-1 uppercase">As senhas não coincidem</p>
@@ -722,6 +767,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                       value={secondaryPassword}
                       onChange={e => setSecondaryPassword(e.target.value)}
                       placeholder="••••••••"
+                      autoComplete="new-password"
                     />
                   </div>
                   <div>
@@ -736,6 +782,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                       value={confirmSecondaryPassword}
                       onChange={e => setConfirmSecondaryPassword(e.target.value)}
                       placeholder="••••••••"
+                      autoComplete="new-password"
                     />
                     {confirmSecondaryPassword && confirmSecondaryPassword.trim() !== secondaryPassword.trim() && (
                       <p className="text-[10px] text-red-500 font-black mt-1 uppercase">As senhas não coincidem</p>
@@ -777,10 +824,12 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                     />
                     <button
                       onClick={() => {
-                        if (newPixKey) {
-                          updateSettings({ ...settings, pixKeys: [...(settings.pixKeys || []), newPixKey] });
-                          setNewPixKey('');
-                        }
+                        const chave = String(newPixKey || '').trim();
+                        if (!chave) { showNotification?.('Informe uma chave PIX válida.', 'error'); return; }
+                        const existentes = settings?.pixKeys || [];
+                        if (existentes.includes(chave)) { showNotification?.('Esta chave PIX já está cadastrada.', 'error'); return; }
+                        updateSettings({ ...settings, pixKeys: [...existentes, chave] });
+                        setNewPixKey('');
                       }}
                       className="bg-emerald-600 text-white px-4 rounded-xl font-black text-xs"
                     >
@@ -1269,7 +1318,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                   <span className="text-xs font-bold text-slate-500">
                     {backupsNuvem[0].atualizadoEm ? toDate(backupsNuvem[0].atualizadoEm)?.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) || '' : ''}
                   </span>
-                  <span className="text-xs font-bold text-blue-600">{(backupsNuvem[0].tamanho / 1024 / 1024).toFixed(2)} MB</span>
+                  <span className="text-xs font-bold text-blue-600">{((backupsNuvem[0].tamanho || 0) / 1024 / 1024).toFixed(2)} MB</span>
                 </>
               ) : (
                 <span className="text-xs font-bold text-slate-400">Nenhum backup encontrado ainda (o primeiro diário será gerado às 03:15).</span>
@@ -1300,7 +1349,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                         <div className="min-w-0">
                           <p className="text-[11px] font-black text-slate-800 truncate">{b.nome.replace('backups/', '')}</p>
                           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                            {b.atualizadoEm ? toDate(b.atualizadoEm)?.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) || '' : ''} • {(b.tamanho / 1024 / 1024).toFixed(2)} MB
+                            {b.atualizadoEm ? toDate(b.atualizadoEm)?.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) || '' : ''} • {((b.tamanho || 0) / 1024 / 1024).toFixed(2)} MB
                           </p>
                         </div>
                       </div>
@@ -1489,23 +1538,26 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                   <div className="bg-white text-slate-900 p-3 rounded-xl"><Download size={24} /></div>
                   <span className="text-[10px] font-black uppercase">Arquivar e Limpar</span>
                 </button>
-                <button onClick={async () => {
-                  if (!window.confirm('Limpar caches locais e renovar o sistema? Nenhum dado é apagado — vendas, produtos e usuários ficam intactos. O app recarrega em seguida.')) return;
-                  try {
-                    if ('caches' in window) {
-                      const chaves = await caches.keys();
-                      await Promise.all(chaves.map(k => caches.delete(k)));
-                    }
-                    if ('serviceWorker' in navigator) {
-                      const regs = await navigator.serviceWorker.getRegistrations();
-                      await Promise.all(regs.map(r => r.unregister()));
-                    }
-                  } catch { /* segue para reload mesmo se cache indisponível */ }
-                  window.location.reload();
-                }} className="p-6 border-2 border-emerald-50 bg-emerald-50/50 rounded-2xl flex flex-col items-center gap-3 hover:bg-emerald-100 transition-all">
-                  <div className="bg-emerald-600 text-white p-3 rounded-xl"><RefreshCw size={24} /></div>
-                  <span className="text-[10px] font-black uppercase">Renovar Sistema</span>
-                </button>
+                {!renovarConfirming ? (
+                  <button onClick={() => setRenovarConfirming(true)} className="p-6 border-2 border-emerald-50 bg-emerald-50/50 rounded-2xl flex flex-col items-center gap-3 hover:bg-emerald-100 transition-all">
+                    <div className="bg-emerald-600 text-white p-3 rounded-xl"><RefreshCw size={24} /></div>
+                    <span className="text-[10px] font-black uppercase">Renovar Sistema</span>
+                  </button>
+                ) : (
+                  <div className="p-4 border-2 border-emerald-300 rounded-2xl bg-emerald-50/50 col-span-1 sm:col-span-2 flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-xs font-black text-emerald-900 flex items-center gap-2 min-w-[200px]">
+                      <RefreshCw size={16}/> Confirmar renovação? Nenhum dado é apagado — o app recarrega em seguida.
+                    </p>
+                    <div className="flex gap-2">
+                      <button onClick={handleRenovarSistema} className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95">
+                        Sim, renovar
+                      </button>
+                      <button onClick={() => setRenovarConfirming(false)} className="px-4 py-2.5 bg-white border-2 border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all">
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <button onClick={() => handleProtectedAction(resetStock)} className="p-6 border-2 border-orange-50 bg-orange-50/50 rounded-2xl flex flex-col items-center gap-3 hover:bg-orange-100">
                   <div className="bg-orange-600 text-white p-3 rounded-xl"><RefreshCw size={24} /></div>
                   <span className="text-[10px] font-black uppercase">Zerar Estoque</span>
@@ -1513,6 +1565,10 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                 <button onClick={() => handleProtectedAction(resetFinance)} className="p-6 border-2 border-red-50 bg-red-50/50 rounded-2xl flex flex-col items-center gap-3 hover:bg-red-100">
                   <div className="bg-red-600 text-white p-3 rounded-xl"><AlertTriangle size={24} /></div>
                   <span className="text-[10px] font-black uppercase">Zerar Financeiro</span>
+                </button>
+                <button onClick={() => setShowScaleModal(true)} className="p-6 border-2 border-blue-50 bg-blue-50/50 rounded-2xl flex flex-col items-center gap-3 hover:bg-blue-100">
+                  <div className="bg-blue-600 text-white p-3 rounded-xl"><Zap size={24} /></div>
+                  <span className="text-[10px] font-black uppercase">Escalar / Migrar</span>
                 </button>
               </div>
               {isMaster && (
@@ -1727,6 +1783,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
               value={restoreNuvemPassword}
               onChange={e => setRestoreNuvemPassword(e.target.value)}
               placeholder="••••••••"
+              autoComplete="off"
             />
 
             <label className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4 cursor-pointer mb-6">
@@ -1761,6 +1818,101 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
           </div>
         </div>
       )}
+      {showScaleModal && (
+       <div className="fixed inset-0 z-[9999] bg-black/70 flex items-center justify-center p-4">
+         <div className="bg-white rounded-3xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+           <div className="flex items-center justify-between mb-6 pb-4 border-b">
+             <h2 className="text-xl font-black text-slate-900">Escalar / Migrar Sistema</h2>
+             <button onClick={() => setShowScaleModal(false)} className="p-2 text-slate-400 hover:text-red-500">
+               <X size={24} />
+             </button>
+           </div>
+
+           <div className="space-y-6">
+             <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6">
+               <h3 className="font-black text-slate-900 mb-2 flex items-center gap-2">
+                 <Zap size={20} className="text-blue-600" /> Escala Atual (Plano Spark)
+               </h3>
+               <div className="grid grid-cols-2 gap-4 text-sm">
+                 <div className="bg-white p-3 rounded-xl">
+                   <p className="text-slate-500 font-bold">Leituras/dia</p>
+                   <p className="font-black text-slate-900">~3.600 / 50.000 (7%)</p>
+                 </div>
+                 <div className="bg-white p-3 rounded-xl">
+                   <p className="text-slate-500 font-bold">Escritas/dia</p>
+                   <p className="font-black text-slate-900">~500 / 20.000 (2.5%)</p>
+                 </div>
+                 <div className="bg-white p-3 rounded-xl">
+                   <p className="text-slate-500 font-bold">Functions/mês</p>
+                   <p className="font-black text-slate-900">~15.000 / 125.000 (12%)</p>
+                 </div>
+                 <div className="bg-white p-3 rounded-xl">
+                   <p className="text-slate-500 font-bold">Storage (R2)</p>
+                   <p className="font-black text-slate-900">~2-3 GB / 10 GB (25%)</p>
+                 </div>
+               </div>
+             </div>
+
+             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6">
+               <h3 className="font-black text-slate-900 mb-4 flex items-center gap-2">
+                 <AlertTriangle size={20} className="text-amber-600" /> Próximos Passos para Escalar
+               </h3>
+               <div className="space-y-3 text-sm">
+                 <div className="bg-white p-4 rounded-xl border-l-4 border-blue-500">
+                   <p className="font-black text-slate-900">1. Atingir 80% da cota de leituras (40k/dia)</p>
+                   <p className="text-slate-600">→ Ativar plano Blaze (pay-as-you-go) no Firebase Console</p>
+                 </div>
+                 <div className="bg-white p-4 rounded-xl border-l-4 border-green-500">
+                   <p className="font-black text-slate-900">2. Storage R2 {'>'} 8 GB</p>
+                   <p className="text-slate-600">→ Habilitar TTL 60 dias no Cloudflare Workers (grátis)</p>
+                 </div>
+                 <div className="bg-white p-4 rounded-xl border-l-4 border-purple-500">
+                   <p className="font-black text-slate-900">3. 5.000+ usuários</p>
+                   <p className="text-slate-600">→ Implementar busca server-side + virtualização listas</p>
+                 </div>
+                 <div className="bg-white p-4 rounded-xl border-l-4 border-orange-500">
+                   <p className="font-black text-slate-900">4. 10.000+ usuários</p>
+                   <p className="text-slate-600">→ Split StoreContext + sharding orders por mês</p>
+                 </div>
+               </div>
+             </div>
+
+             <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6">
+               <h3 className="font-black text-slate-900 mb-4">Migração para Blaze (Quando Necessário)</h3>
+               <ol className="space-y-2 text-sm text-slate-600 list-decimal list-inside">
+                 <li>Acesse <a href="https://console.firebase.google.com" target="_blank" className="text-blue-600 underline">Firebase Console</a> → Projeto "mercado-facil-mt"</li>
+                 <li>Menu lateral → <b>Faturamento</b> → <b>Atualizar plano</b> → Selecione <b>Blaze</b></li>
+                 <li>Adicione cartão de crédito válido</li>
+                 <li>Configure alertas de orçamento (ex: alerta em $5, $10, $20)</li>
+                 <li>O sistema continua funcionando igual — apenas paga pelo uso excedente</li>
+               </ol>
+             </div>
+
+             <div className="flex gap-4 pt-4">
+               <button
+                 onClick={() => setShowScaleModal(false)}
+                 className="flex-1 py-3 bg-slate-100 text-slate-700 rounded-xl font-black uppercase hover:bg-slate-200"
+               >
+                 Entendi, Fechar
+               </button>
+             </div>
+</div>
+          </div>
+</div>
+      )}
+
+      {/* CONFIRMAÇÃO: REMOVER ADMINISTRADOR */}
+      <ConfirmacaoDestrutiva
+        isOpen={confirmDeleteAdmin !== null}
+        titulo="Remover Administrador"
+        descricao="Este administrador perderá o acesso ao painel imediatamente. As vendas e o histórico dele NÃO são apagados. Para readmitir, crie o usuário novamente."
+        palavraChave="REMOVER"
+        onConfirm={() => {
+          if (confirmDeleteAdmin) deleteUser(confirmDeleteAdmin);
+          setConfirmDeleteAdmin(null);
+        }}
+        onClose={() => setConfirmDeleteAdmin(null)}
+      />
     </div>
   );
 };

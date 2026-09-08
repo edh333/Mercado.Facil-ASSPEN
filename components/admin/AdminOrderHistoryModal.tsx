@@ -1,7 +1,7 @@
 import React from 'react';
 import { UserRound, ShoppingBag } from 'lucide-react';
 import { Order } from '../../types';
-import { formatarMoeda } from '../../utils';
+import { formatarMoeda, formatCPF } from '../../utils';
 import { toDate } from '../../utils/dateUtils';
 import { ModalShell } from '../ui/ModalShell';
 
@@ -60,7 +60,7 @@ export const AdminOrderHistoryModal: React.FC<AdminOrderHistoryModalProps> = ({ 
     <ModalShell
       open={open}
       title="Histórico de Compras"
-      subtitle={name ? `${name} • ${cpf}` : cpf}
+      subtitle={name ? `${name} • ${formatCPF(cpf)}` : formatCPF(cpf)}
       icon={<UserRound size={18} />}
       onClose={onClose}
       size="md"

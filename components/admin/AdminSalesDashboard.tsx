@@ -1,9 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, PieChart, Pie, Cell, Legend
-} from 'recharts';
-import {
   TrendingUp, DollarSign, Receipt, ShoppingBag, Calendar, Download,
   ArrowUpRight, ArrowDownRight, Package, CreditCard, Wallet, Banknote,
   PieChart as PieChartIcon, RefreshCcw, Sparkles
@@ -13,6 +9,7 @@ import { mascararCpf } from '../../utils';
 import { toDate } from '../../utils/dateUtils';
 import { getLocalDateStr } from './adminUtils';
 import { ChartMount } from '../ui/ChartMount';
+import { useRecharts, RechartsSkeleton } from '../../utils/rechartsLoader';
 import { db } from '../../firebase';
 import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
 
@@ -65,6 +62,10 @@ export const AdminSalesDashboard: React.FC<AdminSalesDashboardProps> = ({ orders
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [topLimit, setTopLimit] = useState(5);
+
+  // recharts é carregado sob demanda (só quem abre o dash admin baixa ~395 kB).
+  const RC = useRecharts();
+  const { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } = (RC || {}) as any;
 
   const range = useMemo(() => getRange(periodo, customStart, customEnd), [periodo, customStart, customEnd]);
 
@@ -205,6 +206,10 @@ export const AdminSalesDashboard: React.FC<AdminSalesDashboardProps> = ({ orders
     });
   }, [vendasPeriodo, topLimit]);
 
+  // Dias com venda efetiva + aviso quando período longo excede a tabela (60 linhas).
+  const diasComVenda = porDia.filter(d => d.count > 0);
+  const diasTruncados = diasComVenda.length > 60;
+
   const exportCsv = () => {
     if (onExportCsv) {
       onExportCsv(getLocalDateStr(range.start), getLocalDateStr(range.end));
@@ -322,8 +327,10 @@ export const AdminSalesDashboard: React.FC<AdminSalesDashboardProps> = ({ orders
             <TrendingUp size={20} className="text-emerald-500" />
             <h3 className="font-black text-sm text-slate-700 uppercase tracking-wider">Faturamento por Dia</h3>
           </div>
-          {porDia.length === 0 || vendasPeriodo.length === 0 ? (
-            <div className="h-72 flex items-center justify-center text-slate-400 font-bold text-sm">Nenhum dado no período</div>
+          {porDia.length === 0 || vendasPeriodo.length === 0 || !RC ? (
+            <div className="h-72 flex items-center justify-center">
+              {!RC ? <RechartsSkeleton minHeight={288} label="Carregando gráfico..." /> : <span className="text-slate-400 font-bold text-sm">Nenhum dado no período</span>}
+            </div>
           ) : (
             <ChartMount minHeight={300}>
               <ResponsiveContainer width="100%" height={300}>
@@ -353,8 +360,10 @@ export const AdminSalesDashboard: React.FC<AdminSalesDashboardProps> = ({ orders
             <PieChartIcon size={20} className="text-emerald-500" />
             <h3 className="font-black text-sm text-slate-700 uppercase tracking-wider">Formas de Pagamento</h3>
           </div>
-          {porPagamento.length === 0 ? (
-            <div className="h-72 flex items-center justify-center text-slate-400 font-bold text-sm">Nenhum dado no período</div>
+          {porPagamento.length === 0 || !RC ? (
+            <div className="h-72 flex items-center justify-center">
+              {!RC ? <RechartsSkeleton minHeight={240} label="Carregando gráfico..." /> : <span className="text-slate-400 font-bold text-sm">Nenhum dado no período</span>}
+            </div>
           ) : (
             <div className="flex flex-col items-center">
               <ChartMount minHeight={240}>
@@ -441,11 +450,11 @@ export const AdminSalesDashboard: React.FC<AdminSalesDashboardProps> = ({ orders
                 </tr>
               </thead>
               <tbody>
-                {porDia.filter(d => d.count > 0).length === 0 ? (
+                {diasComVenda.length === 0 ? (
                   <tr><td colSpan={5} className="py-10 text-center text-slate-400 font-bold">Nenhuma venda no período</td></tr>
                 ) : (() => {
                   let acum = 0;
-                  return porDia.filter(d => d.count > 0).slice(0, 60).map((row, i) => {
+                  return diasComVenda.slice(0, 60).map((row, i) => {
                     acum += row.total;
                     return (
                       <tr key={i} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
@@ -461,6 +470,11 @@ export const AdminSalesDashboard: React.FC<AdminSalesDashboardProps> = ({ orders
               </tbody>
             </table>
           </div>
+          {diasTruncados && (
+            <p className="mt-3 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+              Exibindo os 60 primeiros dias com vendas — total: {diasComVenda.length} dia(s) no período.
+            </p>
+          )}
         </div>
       </div>
     </div>

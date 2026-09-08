@@ -12,6 +12,7 @@ export interface VendaOffline {
   paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO';
   payments?: { method: string; amount: number }[];
   change?: number;
+  cardBrand?: string;
   customerAccountId?: string;
   total: number;
   status: 'pending' | 'error';

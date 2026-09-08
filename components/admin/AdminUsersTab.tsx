@@ -7,6 +7,7 @@ import {
 import { formatarMoeda, isAdminRole } from '../../utils';
 import { getLocalDateStr } from './adminUtils';
 import { User, Order } from '../../types';
+import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
 
 interface AdminUsersTabProps {
   users: User[];
@@ -47,6 +48,26 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
   }, [userSearch, usersLimit]);
   const [showBulkActions, setShowBulkActions] = React.useState(false);
   const [openDropdown, setOpenDropdown] = React.useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = React.useState<null | {
+    tipo: 'suspender' | 'excluir' | 'bulkSuspender';
+    userId?: string;
+    nome?: string;
+    saldo?: number;
+    bulkCount?: number;
+  }>(null);
+
+  const executarConfirmacao = () => {
+    if (!confirmAction) return;
+    const { tipo, userId, bulkCount } = confirmAction;
+    if (tipo === 'suspender' && userId) suspendUser(userId, true);
+    else if (tipo === 'excluir' && userId) deleteUser(userId);
+    else if (tipo === 'bulkSuspender') {
+      for (const uid of selectedUsers) suspendUser(uid, true);
+      setSelectedUsers(new Set());
+      setShowBulkActions(false);
+    }
+    setConfirmAction(null);
+  };
 
   const filteredUsers = React.useMemo(() => {
     const termo = (userSearch || '').toLowerCase();
@@ -82,9 +103,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
     setSelectedUsers(new Set()); setShowBulkActions(false);
   };
   const handleBulkSuspend = async () => {
-    if (!confirm(`Bloquear ${selectedUsers.size} usuários?`)) return;
-    for (const userId of selectedUsers) await suspendUser(userId, true);
-    setSelectedUsers(new Set()); setShowBulkActions(false);
+    setConfirmAction({ tipo: 'bulkSuspender', bulkCount: selectedUsers.size });
   };
   const handleBulkCredit = async () => {
     for (const userId of selectedUsers) await toggleUserCredit(userId, true);
@@ -274,7 +293,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                         {/* Suspender / Reativar */}
                         {u.status !== 'suspended' ? (
                           <button
-                            onClick={() => { if(confirm(`Bloquear acesso de ${u.name}?`)) suspendUser(u.id, true); }}
+                            onClick={() => setConfirmAction({ tipo: 'suspender', userId: u.id, nome: u.name })}
                             className="p-2.5 bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white rounded-xl border border-amber-200 shadow-sm active:scale-95 transition-all"
                             title="Suspender Acesso"
                           >
@@ -301,13 +320,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                         )}
                         {/* Soft Delete */}
                         <button
-                          onClick={() => {
-                          const saldo = Number(u?.walletBalance || 0);
-                          const aviso = saldo > 0
-                            ? `EXCLUIR ${u.name}? Ele(a) tem R$ ${saldo.toFixed(2).replace('.', ',')} de crédito em carteira — o saldo ficará retido (não é possível sacar após a exclusão).`
-                            : `EXCLUIR ${u.name}? O histórico será preservado.`;
-                          if (confirm(aviso)) deleteUser(u.id);
-                        }}
+                          onClick={() => setConfirmAction({ tipo: 'excluir', userId: u.id, nome: u.name, saldo: Number(u?.walletBalance || 0) })}
                           className="p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all active:scale-95"
                           title="Excluir (Soft Delete)"
                         >
@@ -452,13 +465,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                         Desbloquear
                       </button>
                     )}
-                    <button onClick={() => {
-                      const saldo = Number(u?.walletBalance || 0);
-                      const aviso = saldo > 0
-                        ? `EXCLUIR ${u?.name || 'este usuário'}? Ele(a) tem R$ ${saldo.toFixed(2).replace('.', ',')} de crédito em carteira — o saldo ficará retido (não é possível sacar após a exclusão).`
-                        : `EXCLUIR ${u?.name || 'este usuário'}? O histórico será preservado.`;
-                      if (confirm(aviso)) deleteUser(u?.id);
-                    }} className="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all active:scale-95">
+                    <button onClick={() => setConfirmAction({ tipo: 'excluir', userId: u?.id, nome: u?.name, saldo: Number(u?.walletBalance || 0) })} className="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all active:scale-95">
                       <Trash2 size={20}/>
                     </button>
                   </div>
@@ -468,6 +475,22 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
           </div>
         </>
       )}
+      <ConfirmacaoDestrutiva
+        isOpen={confirmAction !== null}
+        titulo={confirmAction?.tipo === 'excluir' ? 'Excluir Usuário' : 'Bloquear Acesso'}
+        descricao={
+          confirmAction?.tipo === 'excluir'
+            ? (confirmAction.saldo && confirmAction.saldo > 0
+                ? `EXCLUIR ${confirmAction.nome || 'este usuário'}? Ele(a) tem R$ ${confirmAction.saldo.toFixed(2).replace('.', ',')} de crédito em carteira — o saldo ficará retido (não é possível sacar após a exclusão).`
+                : `EXCLUIR ${confirmAction.nome || 'este usuário'}? O histórico será preservado.`)
+            : confirmAction?.tipo === 'bulkSuspender'
+                ? `Bloquear o acesso de ${confirmAction.bulkCount} usuário(s)? A ação pode ser revertida depois (Desbloquear).`
+                : `Bloquear o acesso de ${confirmAction?.nome || 'este usuário'}? A ação pode ser revertida depois (Desbloquear).`
+        }
+        palavraChave={confirmAction?.tipo === 'excluir' ? 'EXCLUIR' : 'BLOQUEAR'}
+        onConfirm={executarConfirmacao}
+        onClose={() => setConfirmAction(null)}
+      />
     </div>
   );
 };

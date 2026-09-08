@@ -3,8 +3,8 @@ import { db } from '../../firebase';
 import { collection, query, where, getDocs, orderBy, Timestamp } from 'firebase/firestore';
 import { Order } from '../../types';
 import { toDate } from '../../utils/dateUtils';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { ChartMount } from '../ui/ChartMount';
+import { useRecharts } from '../../utils/rechartsLoader';
 import { TrendingUp, CreditCard, DollarSign, AlertTriangle, BarChart3, PieChart as PieChartIcon, Loader2 } from 'lucide-react';
 import { AdminCapacityPanel } from './AdminCapacityPanel';
 
@@ -28,6 +28,7 @@ export const AdminDashboardCharts: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [allOrders, setAllOrders] = useState<Order[]>([]);
   const [discrepanciesTotal, setDiscrepanciesTotal] = useState(0);
+  const RC = useRecharts();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -72,6 +73,9 @@ export const AdminDashboardCharts: React.FC = () => {
     fetchData();
   }, []);
 
+  const cancelados = ['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'reembolsado'];
+  const ehCancelado = (o: any) => cancelados.includes(String(o.status || '').toLowerCase());
+
   const dailySales: DailySales[] = useMemo(() => {
     const map = new Map<string, { total: number; count: number }>();
     const today = new Date();
@@ -82,6 +86,7 @@ export const AdminDashboardCharts: React.FC = () => {
       map.set(key, { total: 0, count: 0 });
     }
     allOrders.forEach(o => {
+      if (ehCancelado(o)) return;
       const raw = o.createdAt || o.date;
       if (!raw) return;
       const d = toDate(raw);
@@ -106,6 +111,7 @@ export const AdminDashboardCharts: React.FC = () => {
       MIXED: 'Misto',
     };
     allOrders.forEach(o => {
+      if (ehCancelado(o)) return;
       const payments = (o as any).payments;
       if (Array.isArray(payments) && payments.length > 0) {
         payments.forEach((p: { method: string; amount: number }) => {
@@ -134,11 +140,11 @@ export const AdminDashboardCharts: React.FC = () => {
     const cancelados = ['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'reembolsado'];
     return allOrders.filter(o => !cancelados.includes(String(o.status || '').toLowerCase())).reduce((a, o) => a + (Number(o.total) || 0), 0);
   }, [allOrders]);
-  const totalOrders = allOrders.length;
+  const totalOrders = allOrders.filter(o => !ehCancelado(o)).length;
   const avgTicket = totalOrders > 0 ? totalRevenue / totalOrders : 0;
   const topPayment = paymentBreakdown.length > 0 ? paymentBreakdown[0] : null;
 
-  if (loading) {
+  if (loading || !RC) {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
@@ -148,6 +154,8 @@ export const AdminDashboardCharts: React.FC = () => {
       </div>
     );
   }
+
+  const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } = RC;
 
   return (
     <div className="space-y-6 animate-fadeIn pb-20">
