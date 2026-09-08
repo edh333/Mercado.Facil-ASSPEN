@@ -742,7 +742,7 @@ interface StoreContextType {
     importInmatesCsv: (file: File) => Promise<void>;
     addWalletCreditDirectly: (userId: string, amount: number, reason: string, senhaMestra?: string) => Promise<void>;
     registrarVendaOffline: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO', total: number, payments?: { method: string; amount: number }[], change?: number, customerAccountId?: string, cardBrand?: string) => Promise<Order | null>;
-    sincronizarVendasOffline: (incluirErros?: boolean) => Promise<{ ok: boolean; sincronizadas: number; comErro: number; total: number }>;
+    sincronizarVendasOffline: (incluirErros?: boolean) => Promise<{ ok: boolean; sincronizadas: number; comErro: number; total: number; offline?: boolean }>;
     vendasOfflinePendentes: number;
     vendasOfflineComErro: number;
 
@@ -2882,32 +2882,61 @@ return false;
         } as unknown as Order;
     }, [currentUser, users]);
 
-    const sincronizarVendasOffline = useCallback(async (incluirErros = false): Promise<{ ok: boolean; sincronizadas: number; comErro: number; total: number }> => {
+    const sincronizandoOfflineRef = useRef(false);
+    const sincronizarVendasOffline = useCallback(async (incluirErros = false): Promise<{ ok: boolean; sincronizadas: number; comErro: number; total: number; offline?: boolean; }> => {
+        // Guard de conectividade: sem internet NÃO marca a fila como erro —
+        // apenas informa o chamador (banner mostra "você está offline").
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+            return { ok: false, offline: true, sincronizadas: 0, comErro: 0, total: listarVendasOffline().length };
+        }
+        // Anti-reentrância: auto-sync ('online') + retry manual no banner nunca
+        // rodam em paralelo (evita remoção dupla e erro falso em venda sincronizada).
+        if (sincronizandoOfflineRef.current) {
+            return { ok: true, sincronizadas: 0, comErro: 0, total: listarVendasOffline().length };
+        }
+
         const fila = listarVendasOffline();
         const pendentes = incluirErros ? fila : fila.filter((v) => v.status === 'pending');
         if (!pendentes.length) return { ok: true, sincronizadas: 0, comErro: fila.filter((v) => v.status === 'error').length, total: fila.length };
 
+        sincronizandoOfflineRef.current = true;
         let sincronizadas = 0;
         let comErro = 0;
-        for (const v of pendentes) {
-            try {
-                const res = await fnProcessarVendaAdmin({
-                    targetUserId: v.targetUserId,
-                    items: v.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
-                    clientToken: v.id,
-                    paymentMethod: v.paymentMethod,
-                    total: v.total,
-                    payments: v.payments || undefined,
-                    change: v.change ?? undefined,
-                    customerAccountId: v.customerAccountId || undefined,
-                });
-                if (!(res.data as any)?.order) throw new Error('Servidor não confirmou a venda.');
-                removerVendaOffline(v.id);
-                sincronizadas += 1;
-            } catch (e: any) {
-                marcarErroVendaOffline(v.id, e?.message || 'Falha ao sincronizar');
-                comErro += 1;
+        try {
+            for (const v of pendentes) {
+                try {
+                    const res = await fnProcessarVendaAdmin({
+                        targetUserId: v.targetUserId,
+                        items: v.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+                        clientToken: v.id,
+                        paymentMethod: v.paymentMethod,
+                        total: v.total,
+                        payments: v.payments || undefined,
+                        change: v.change ?? undefined,
+                        customerAccountId: v.customerAccountId || undefined,
+                        cardBrand: v.paymentMethod === 'CARD' ? (v.cardBrand || undefined) : undefined,
+                    });
+                    const pedido = (res.data as any)?.order;
+                    if (!pedido) throw new Error('Servidor não confirmou a venda.');
+                    // Deriva de preço offline→sync: o servidor cobra o preço ATUAL.
+                    // Quando o total final difere do registrado, a conferência no painel
+                    // (app/admin) avisa o operador a ajustar antes do repasse ao familiar.
+                    const totalServidor = Number(pedido?.total) || 0;
+                    const totalRegistrado = Number(v.total) || 0;
+                    if (Math.abs(totalServidor - totalRegistrado) > 0.009) {
+                        marcarErroVendaOffline(v.id, `Preço ajustado no servidor: R$ ${totalServidor.toFixed(2)} (registrado R$ ${totalRegistrado.toFixed(2)}). Reveja antes de repassar.`);
+                        comErro += 1;
+                        continue;
+                    }
+                    removerVendaOffline(v.id);
+                    sincronizadas += 1;
+                } catch (e: any) {
+                    marcarErroVendaOffline(v.id, e?.message || 'Falha ao sincronizar');
+                    comErro += 1;
+                }
             }
+        } finally {
+            sincronizandoOfflineRef.current = false;
         }
         setVendasOffline(listarVendasOffline());
         return { ok: true, sincronizadas, comErro, total: listarVendasOffline().length };

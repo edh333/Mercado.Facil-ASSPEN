@@ -20,7 +20,9 @@ export const OfflineSalesBanner: React.FC = () => {
     setResultado(null);
     try {
       const r = await sincronizarVendasOffline(true);
-      if (r.sincronizadas > 0) {
+      if (r.offline) {
+        setResultado('Você está offline — a sincronização será automática quando a internet voltar.');
+      } else if (r.sincronizadas > 0) {
         setResultado(`${r.sincronizadas} venda(s) sincronizada(s).`);
       } else if (r.comErro > 0) {
         setResultado('Nenhuma venda sincronizada — verifique os erros abaixo.');

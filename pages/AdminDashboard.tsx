@@ -434,13 +434,11 @@ export function AdminDashboard() {
   };
 
   const handleDeletePreRegisteredInmate = async (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir este interno pré-cadastrado?')) {
-      try {
-        await deletePreRegisteredInmate(id);
-        showNotification('Interno removido do pré-cadastro.', 'success');
-      } catch (error: any) {
-        showNotification('Erro ao excluir: ' + error.message, 'error');
-      }
+    try {
+      await deletePreRegisteredInmate(id);
+      showNotification('Interno removido do pré-cadastro.', 'success');
+    } catch (error: any) {
+      showNotification('Erro ao excluir: ' + error.message, 'error');
     }
   };
 
