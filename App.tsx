@@ -101,7 +101,11 @@ const MainApp: React.FC = () => {
   }
 
   if (currentUser.role !== UserRole.ADMIN || modoUsuario) {
-    return <UserDashboard />;
+    return (
+      <ErrorBoundary>
+        <UserDashboard />
+      </ErrorBoundary>
+    );
   }
 
   // Modo manutenção: só afeta ADMINS. Quem desativou (ou o master) continua

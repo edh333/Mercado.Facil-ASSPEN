@@ -1751,7 +1751,7 @@ if (changeValue > pCash + 0.009) {
               {closeResult.diff === 0 ? 'Caixa conferido e correto!' : closeResult.diff > 0 ? `Sobra de R$ ${closeResult.diff.toFixed(2)}` : `Falta de R$ ${Math.abs(closeResult.diff).toFixed(2)}`}
             </p>
           </div>
-          <button onClick={() => setCloseResult(null)} className="text-slate-400 hover:text-slate-700 cursor-pointer">
+          <button onClick={() => setCloseResult(null)} aria-label="Fechar resultado" className="text-slate-400 hover:text-slate-700 cursor-pointer">
             <X size={18} />
           </button>
         </div>

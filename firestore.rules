@@ -1,6 +1,14 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // ⚡ RECOMENDAÇÃO DE PERFORMANCE (não altera comportamento):
+    // Atualmente isAdmin() faz 4x get() por avaliação (role admin/ADMIN/master/MASTER).
+    // Para eliminar leituras extras e evitar TOCTOU nas rules, migre para Custom Claims:
+    //   1. No backend (Cloud Function onCreate de user): setCustomUserClaims(uid, { admin: true })
+    //   2. Substitua isAdmin() por: request.auth.token.admin == true
+    //   3. Benefício: 0 leituras extras, avaliação instantânea, sem race conditions.
+    // Esta mudança requer deploy de backend (functions/) + rules sincronizado.
+    //
     // ── Funções utilitárias ──
     function isAuthenticated() {
       return request.auth != null;

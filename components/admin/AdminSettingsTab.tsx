@@ -1836,9 +1836,9 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
          <div className="bg-white rounded-3xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
            <div className="flex items-center justify-between mb-6 pb-4 border-b">
              <h2 className="text-xl font-black text-slate-900">Escalar / Migrar Sistema</h2>
-             <button onClick={() => setShowScaleModal(false)} className="p-2 text-slate-400 hover:text-red-500">
-               <X size={24} />
-             </button>
+<button onClick={() => setShowScaleModal(false)} aria-label="Fechar modal" className="p-2 text-slate-400 hover:text-red-500">
+                <X size={24} />
+              </button>
            </div>
 
            <div className="space-y-6">

@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#0f172a" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -94,13 +94,26 @@
       color: inherit !important;
     }
 
-    /* Remove any outline on focused autofilled inputs */
-    input:focus {
-      outline: none !important;
-      -webkit-appearance: none !important;
-    }
+    /* Remove outline APENAS para interação por mouse (focus-visible mantém para teclado).
+     Autofill usa box-shadow transparente para evitar contorno fantasma. */
+  input:focus {
+    outline: none;
+  }
+  input:focus-visible {
+    outline: 2px solid #10b981;
+    outline-offset: 2px;
+  }
+  input:-webkit-autofill:focus,
+  input:-moz-autofill:focus {
+    outline: none;
+  }
+  input:-webkit-autofill:focus-visible,
+  input:-moz-autofill:focus-visible {
+    outline: 2px solid #10b981;
+    outline-offset: 2px;
+  }
 
-    /* Force transparent background on all form inputs within login/register forms */
+  /* Force transparent background on all form inputs within login/register forms */
     form.login-form input,
     form.register-form input,
     form.forgot-form input {

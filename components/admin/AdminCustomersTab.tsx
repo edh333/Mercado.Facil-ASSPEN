@@ -325,7 +325,7 @@ export function AdminCustomersTab() {
               <h3 className="font-black text-slate-900 uppercase tracking-tight text-sm">
                 {editData.id ? 'Editar Cliente' : 'Novo Cliente'}
               </h3>
-              <button onClick={() => { setShowModal(false); setEditData(null); }} className="p-2 hover:bg-slate-100 rounded-xl transition-all">
+              <button onClick={() => { setShowModal(false); setEditData(null); }} aria-label="Fechar modal" className="p-2 hover:bg-slate-100 rounded-xl transition-all">
                 <X size={20} />
               </button>
             </div>

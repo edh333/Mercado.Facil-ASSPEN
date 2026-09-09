@@ -495,9 +495,9 @@ return (
                         )}
                     </div>
                     <div className="flex gap-2">
-                      <button onClick={() => { setEditingProduct(product); setShowProductModal(true); }} className="p-3 bg-[var(--bg-main)] text-[var(--text-muted)] hover:text-emerald-500 rounded-2xl border border-[var(--border-color)] shadow-sm active:scale-95 transition-all"><Edit size={18}/></button>
-                      <button onClick={() => { setShowStockEditModal(product); }} className="p-3 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-2xl border border-blue-200 shadow-sm active:scale-95 transition-all" title="Editar Estoque"><PackageIcon size={18}/></button>
-                      <button onClick={() => setProdutoParaExcluir(product)} className="p-3 bg-red-500/5 text-red-500 hover:bg-red-600 hover:text-white rounded-2xl border border-red-500/20 shadow-sm active:scale-95 transition-all"><Trash2 size={18}/></button>
+                      <button onClick={() => { setEditingProduct(product); setShowProductModal(true); }} aria-label="Editar produto" className="p-3 bg-[var(--bg-main)] text-[var(--text-muted)] hover:text-emerald-500 rounded-2xl border border-[var(--border-color)] shadow-sm active:scale-95 transition-all"><Edit size={18}/></button>
+                      <button onClick={() => { setShowStockEditModal(product); }} aria-label="Editar estoque" className="p-3 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-2xl border border-blue-200 shadow-sm active:scale-95 transition-all"><PackageIcon size={18}/></button>
+                      <button onClick={() => setProdutoParaExcluir(product)} aria-label="Excluir produto" className="p-3 bg-red-500/5 text-red-500 hover:bg-red-600 hover:text-white rounded-2xl border border-red-500/20 shadow-sm active:scale-95 transition-all"><Trash2 size={18}/></button>
                     </div>
                 </div>
              </div>
