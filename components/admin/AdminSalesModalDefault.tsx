@@ -177,6 +177,8 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
   // Reset fiado + PIX + Venda em Dupla state when payment modal closes
   useEffect(() => {
     if (!modalPagamento) {
+      fiadoVinculoAtivo.current = null;
+      fiadoDesvinculadoRef.current = false;
       setSelectedCustomerAccount(null);
       setCustomerAccountSearch('');
       setConfirmandoFiado(false);
@@ -210,6 +212,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
   const clienteInputRef = useRef<HTMLInputElement>(null);
   const clienteSearchRef = useRef<HTMLDivElement>(null);
   const produtoInputRef = useRef<HTMLInputElement>(null);
+  const fiadoSearchRef = useRef<HTMLInputElement>(null);
 
   const checkCashSession = async () => {
     if (!currentUser?.id) return;
@@ -250,6 +253,8 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
       setRefundResult(null);
       setRefundSelected(null);
       setRefundReason('');
+      fiadoVinculoAtivo.current = null;
+      fiadoDesvinculadoRef.current = false;
       checkCashSession();
       getCustomerAccounts().then(setCustomerAccounts).catch(console.error);
       setTimeout(() => clienteInputRef.current?.focus(), 100);
@@ -322,6 +327,10 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
           setConfirmandoDescartarId(null);
         } else if (produtoPrecoDinamico) {
           setProdutoPrecoDinamico(null);
+        } else if (confirmandoFiado) {
+          setConfirmandoFiado(false);
+          setSenhaFiado('');
+          setSenhaFiadoErro('');
         } else if (modalPagamento) {
           setPixConfirmado(false);
           setModalPagamento(false);
@@ -347,7 +356,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
 
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [isOpen, modalPagamento, ultimoPedido, mostrarListaClientes, clienteSelecionado, carrinho.length, showProductModal, onClose, ultimaVenda, showSalesPanel, showRefundModal, showSuspendedList, confirmacaoLimpar, confirmandoDesfazer, confirmandoDescartarId, produtoPrecoDinamico]);
+  }, [isOpen, modalPagamento, ultimoPedido, mostrarListaClientes, clienteSelecionado, carrinho.length, showProductModal, onClose, ultimaVenda, showSalesPanel, showRefundModal, showSuspendedList, confirmacaoLimpar, confirmandoDesfazer, confirmandoDescartarId, produtoPrecoDinamico, confirmandoFiado]);
 
   const corPrincipal = settings?.pdvColor || '#10b981'; // Default to Emerald if not set
 
@@ -427,13 +436,38 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
     return null;
   }, [cliente, customerAccounts]);
 
-  // Pré-seleciona automaticamente a conta de fiado do consumidor escolhido.
+  // Vínculo automático da venda fiada com o cliente JÁ escolhido no PDV.
+  // Vincula UMA vez por venda; NÃO interfere quando o operador digita na busca
+  // para escolher outra conta ou pede "Trocar"; re-vincula se o cliente mudar.
+  const fiadoVinculoAtivo = useRef<{ userId: string; accountId: string } | null>(null);
+  const fiadoDesvinculadoRef = useRef(false);
+
+  // Cliente do PDV mudou → descarta vínculo/conta de fiado anterior (nunca
+  // registrar fiado no cliente ERRADO, mesmo com conta pré-selecionada).
   useEffect(() => {
-    if (formaPagamento === 'FIADO' && contaFiadoDoCliente && !selectedCustomerAccount) {
-      setSelectedCustomerAccount(contaFiadoDoCliente);
-      setCustomerAccountSearch(contaFiadoDoCliente.nome);
+    if (fiadoVinculoAtivo.current && fiadoVinculoAtivo.current.userId !== clienteSelecionado) {
+      fiadoVinculoAtivo.current = null;
+      fiadoDesvinculadoRef.current = false;
+      setSelectedCustomerAccount(null);
+      setCustomerAccountSearch('');
     }
-  }, [formaPagamento, contaFiadoDoCliente, selectedCustomerAccount]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clienteSelecionado]);
+
+  useEffect(() => {
+    if (formaPagamento !== 'FIADO' || !contaFiadoDoCliente) return;
+    // Operador já escolheu uma conta (manual ou vínculo anterior) — respeita.
+    if (selectedCustomerAccount) return;
+    // Operador digitando na busca para trocar de conta — respeita a pesquisa.
+    if (customerAccountSearch.trim() !== '') return;
+    // Operador clicou "Trocar" — permanece em modo manual nesta venda.
+    if (fiadoDesvinculadoRef.current) return;
+    setSelectedCustomerAccount(contaFiadoDoCliente);
+    setCustomerAccountSearch(contaFiadoDoCliente.nome);
+    fiadoVinculoAtivo.current = { userId: clienteSelecionado, accountId: contaFiadoDoCliente.id };
+    fiadoDesvinculadoRef.current = false;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formaPagamento, contaFiadoDoCliente, clienteSelecionado, selectedCustomerAccount, customerAccountSearch]);
 
   // Ao escolher uma conta de fiado manualmente, vincula o consumidor (usuário)
   // correspondente — venda e débito fiado ficam na MESMA pessoa.
@@ -904,6 +938,8 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
     setSelectedCustomerAccount(null);
     setCustomerAccountSearch('');
     setConfirmandoFiado(false);
+    fiadoVinculoAtivo.current = null;
+    fiadoDesvinculadoRef.current = false;
     setProdutoPrecoDinamico(null);
     setShowProductModal(false);
     setProductModalSearch('');
@@ -939,6 +975,13 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
       showNotification('A Venda em Dupla exige conexão com a internet (as duas carteiras são debitadas atomicamente no servidor). Conecte-se para finalizar.', 'error');
       return;
     }
+    // BUGFIX: parte em créditos do pagamento misto também é débito de carteira
+    // (server-authoritative) — OFFLINE só PIX/DINHEIRO/FIADO/CARTÃO podem
+    // ficar na fila. Evita "venda registrada, recusada depois na sincronização".
+    if (formaPagamento === 'MIXED' && parseMoeda(valorMisto.WALLET) > 0 && !navigator.onLine) {
+      showNotification('A parte em créditos internos (WALLET) do pagamento misto exige conexão com a internet (o saldo é debitado no servidor). Conecte-se para finalizar.', 'error');
+      return;
+    }
     setProcessando(true);
     const targetId = clienteSelecionado || 'balcao_anonimo';
     let paymentsArray: {method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO', amount: number}[] | undefined = undefined;
@@ -961,6 +1004,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
 
       if (formaPagamento === 'FIADO') {
         if (!clienteSelecionado) throw new Error('Selecione um cliente para venda fiada.');
+        if (clienteEhConsumidor) throw new Error('Venda fiada exige cliente cadastrado — escolha o cliente no início da venda (não o Consumidor Final).');
         if (!selectedCustomerAccount) throw new Error('Selecione um cliente de fiado.');
         const novaDivida = (selectedCustomerAccount.currentDebt || 0) + totalCarrinho;
         if ((novaDivida || 0) > (selectedCustomerAccount.creditLimit || 0)) {
@@ -994,6 +1038,18 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
         if (pPix > 0) paymentsArray.push({ method: 'PIX', amount: pPix });
         if (pWallet > 0) paymentsArray.push({ method: 'WALLET', amount: pWallet });
         if (pCash > 0) paymentsArray.push({ method: 'CASH', amount: pCash });
+
+        if (pWallet > 0) {
+          if (clienteEhConsumidor) throw new Error('Venda para consumidor final não pode usar créditos internos (WALLET).');
+          const saldoCarteira = Math.max(0, cliente?.walletBalance || 0);
+          const limiteSemanalDisponivel = Math.max(0, (settings?.weeklyWalletLimit || 300) - ((cliente as any)?.weeklySpent || 0));
+          if (pWallet > saldoCarteira + 0.009) {
+            throw new Error(`Saldo insuficiente na carteira para a parte em créditos. Disponível: R$ ${formatarMoeda(saldoCarteira)}.`);
+          }
+          if (pWallet > limiteSemanalDisponivel + 0.009) {
+            throw new Error(`Limite semanal de créditos excedido para a parte em créditos. Disponível: R$ ${formatarMoeda(limiteSemanalDisponivel)}.`);
+          }
+        }
 
         const totalRecebido = pPix + pWallet + pCash;
         if (totalRecebido < totalCarrinho - 0.009) {
@@ -1185,6 +1241,10 @@ if (changeValue > pCash + 0.009) {
   };
   const saldoClientePdv = Math.max(0, cliente?.walletBalance || 0);
   const faltaCarteira = Math.max(0, totalCarrinho - saldoClientePdv);
+  // Conta de fiado atualmente vinculada automaticamente ao cliente do PDV
+  const fiadoVinculado = !!fiadoVinculoAtivo.current
+    && fiadoVinculoAtivo.current.userId === clienteSelecionado
+    && fiadoVinculoAtivo.current.accountId === selectedCustomerAccount?.id;
   const jointAtivo = formaPagamento === 'WALLET' && isJointWalletMode && jointAdminAuthorized;
   const segundaParcela = parseMoeda(secondWalletAmountInput);
   const limiteSemanalSegundo = Math.max(0, (settings?.weeklyWalletLimit || 300) - ((secondUserObj as any)?.weeklySpent || 0));
@@ -1212,6 +1272,13 @@ if (changeValue > pCash + 0.009) {
   const falhaCashSessao = precisaCashPdv && !caixaAbertoPdv;
   const falhaMistoValor = formaPagamento === 'MIXED' && somaMisto < totalCarrinho - 0.009;
   const falhaMistoExcedente = formaPagamento === 'MIXED' && somaMisto > totalCarrinho + 0.009 && pCashMisto <= 0;
+  // Parte em créditos do MIXED: valida saldo e limite semanal ANTES do servidor
+  // (venda fica travada no botão, sem esperar rejeição no backend).
+  const saldoCarteiraPdv = Math.max(0, cliente?.walletBalance || 0);
+  const limiteSemanalPdv = Math.max(0, (settings?.weeklyWalletLimit || 300) - ((cliente as any)?.weeklySpent || 0));
+  const falhaMistoWalletConsumidor = formaPagamento === 'MIXED' && pWalletMisto > 0 && clienteEhConsumidor;
+  const falhaMistoWallet = formaPagamento === 'MIXED' && pWalletMisto > 0 && !clienteEhConsumidor
+    && (pWalletMisto > saldoCarteiraPdv + 0.009 || pWalletMisto > limiteSemanalPdv + 0.009);
 
   const totalPeriodo = salesOrders.reduce((s, o) => s + (Number(o.total) || 0), 0);
   const formatarHora = (dateStr: string) => {
@@ -2226,18 +2293,47 @@ if (changeValue > pCash + 0.009) {
                 )}
                 {formaPagamento === 'FIADO' && (
                   <motion.div initial={{opacity:0}} animate={{opacity:1}} className="space-y-4">
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] ml-2">Cliente para Fiado</p>
-                    <div className="relative">
-                      <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <input
-                        type="text"
-                        placeholder="Buscar cliente cadastrado..."
-                        value={customerAccountSearch}
-                        onChange={e => { setCustomerAccountSearch(e.target.value); setSelectedCustomerAccount(null); }}
-                        className="w-full pl-10 pr-4 py-4 rounded-[1.5rem] bg-slate-50 border border-slate-200 text-slate-900 font-semibold text-sm outline-none focus:border-emerald-500 transition-all"
-                      />
+                    <div className="flex items-center justify-between gap-2 ml-2">
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Cliente para Fiado</p>
+                      {fiadoVinculado && (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-xl text-[9px] font-black uppercase tracking-widest">
+                          <CheckCircle size={12} /> Vinculado ao cliente do PDV
+                        </span>
+                      )}
                     </div>
-                    {customerAccountSearch && !selectedCustomerAccount && (
+
+                    {formaPagamento === 'FIADO' && clienteEhConsumidor && (
+                      <div className="bg-red-50 border-2 border-red-200 rounded-[2rem] p-6 text-center">
+                        <AlertTriangle size={26} className="text-red-500 mx-auto mb-3" />
+                        <p className="text-[11px] font-black text-red-600 uppercase tracking-[0.25em] mb-1">Selecione um cliente cadastrado</p>
+                        <p className="text-[11px] font-bold text-slate-600">Venda fiada exige cliente cadastrado — escolha o cliente no início da venda (não o Consumidor Final).</p>
+                      </div>
+                    )}
+
+                    {!clienteEhConsumidor && clienteSelecionado && !selectedCustomerAccount && customerAccountSearch.trim() === '' && !contaFiadoDoCliente && (
+                      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-2 animate-fadeIn">
+                        <AlertTriangle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+                        <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wide leading-relaxed">
+                          Nenhuma conta de fiado encontrada para <b>{limparTexto((cliente?.name || cliente?.inmateName || 'o cliente selecionado'), 24)}</b>.
+                          Cadastre em <b>Clientes → Contas de Fiado</b> ou escolha abaixo.
+                        </p>
+                      </div>
+                    )}
+
+                    {!clienteEhConsumidor && (
+                      <div className="relative">
+                        <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          ref={fiadoSearchRef}
+                          type="text"
+                          placeholder="Buscar cliente cadastrado..."
+                          value={customerAccountSearch}
+                          onChange={e => { setCustomerAccountSearch(e.target.value); setSelectedCustomerAccount(null); }}
+                          className="w-full pl-10 pr-4 py-4 rounded-[1.5rem] bg-slate-50 border border-slate-200 text-slate-900 font-semibold text-sm outline-none focus:border-emerald-500 transition-all"
+                        />
+                      </div>
+                    )}
+                    {!clienteEhConsumidor && customerAccountSearch && !selectedCustomerAccount && (
                       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm max-h-48 overflow-y-auto custom-scrollbar">
                         {filteredCustomerAccounts.length === 0 ? (
                           <p className="p-4 text-center text-slate-400 text-xs font-semibold">Nenhum cliente encontrado</p>
@@ -2266,16 +2362,25 @@ if (changeValue > pCash + 0.009) {
                         })}
                       </div>
                     )}
-                    {selectedCustomerAccount && (
+                    {!clienteEhConsumidor && selectedCustomerAccount && (
                       <div className="bg-slate-50 rounded-2xl border border-slate-200 p-5 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-black text-slate-900 text-sm">{selectedCustomerAccount.nome}</p>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-black text-slate-900 text-sm truncate">{selectedCustomerAccount.nome}</p>
                             <p className="text-[10px] text-slate-500">{selectedCustomerAccount.telefone || '—'}</p>
                           </div>
-                          <span className={`text-[9px] font-black px-3 py-1.5 rounded-lg uppercase tracking-wider ${(selectedCustomerAccount.currentDebt || 0) >= (selectedCustomerAccount.creditLimit || 0) ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                            {(selectedCustomerAccount.creditLimit || 0) > 0 ? `R$ ${formatarMoeda((selectedCustomerAccount.creditLimit || 0) - (selectedCustomerAccount.currentDebt || 0))} disponível` : 'Sem limite'}
-                          </span>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className={`text-[9px] font-black px-3 py-1.5 rounded-lg uppercase tracking-wider ${(selectedCustomerAccount.currentDebt || 0) >= (selectedCustomerAccount.creditLimit || 0) ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                              {(selectedCustomerAccount.creditLimit || 0) > 0 ? `R$ ${formatarMoeda((selectedCustomerAccount.creditLimit || 0) - (selectedCustomerAccount.currentDebt || 0))} disponível` : 'Sem limite'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => { fiadoDesvinculadoRef.current = true; fiadoVinculoAtivo.current = null; setSelectedCustomerAccount(null); setCustomerAccountSearch(''); setTimeout(() => fiadoSearchRef.current?.focus(), 50); }}
+                              className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-[9px] uppercase tracking-wider transition-all active:scale-95 flex items-center gap-1"
+                            >
+                              <X size={11} /> Trocar
+                            </button>
+                          </div>
                         </div>
                         <div className="flex justify-between text-xs">
                           <span className="font-semibold text-slate-500">Limite: R$ {formatarMoeda(selectedCustomerAccount.creditLimit)}</span>
@@ -2306,17 +2411,17 @@ if (changeValue > pCash + 0.009) {
                   <div className="w-full py-6 rounded-[2rem] bg-red-50 border-2 border-red-200 flex items-center justify-center">
                     <span className="font-black text-red-600 uppercase tracking-[0.3em] text-xs leading-none">Sem saldo no momento</span>
                   </div>
-                ) : formaPagamento === 'FIADO' && (!selectedCustomerAccount || ((selectedCustomerAccount.currentDebt || 0) + totalCarrinho > (selectedCustomerAccount.creditLimit || 0))) ? (
+                ) : formaPagamento === 'FIADO' && (clienteEhConsumidor || !selectedCustomerAccount || ((selectedCustomerAccount.currentDebt || 0) + totalCarrinho > (selectedCustomerAccount.creditLimit || 0))) ? (
                   <div className="w-full py-6 rounded-[2rem] bg-red-50 border-2 border-red-200 flex items-center justify-center px-4">
                     <span className="font-black text-red-600 uppercase tracking-[0.3em] text-xs leading-none text-center">
-                      {!selectedCustomerAccount ? 'Selecione um cliente' : 'Sem saldo no momento'}
+                      {clienteEhConsumidor ? 'Exige cliente cadastrado' : !selectedCustomerAccount ? 'Selecione um cliente' : 'Sem saldo no momento'}
                     </span>
                   </div>
                 ) : (
                   <div className="flex-1 flex flex-col gap-2">
                     <button
                       onClick={finalizarVenda}
-                      disabled={processando || pixPendente || falhaCashValor || falhaCashSessao || falhaMistoValor || falhaMistoExcedente || (formaPagamento === 'CARD' && !cardConfirmado) || (formaPagamento === 'WALLET' && !jointValido && (((cliente as any)?.walletBalance || 0) < totalCarrinho || ((settings?.weeklyWalletLimit || 300) - ((cliente as any)?.weeklySpent || 0)) < totalCarrinho))}
+                      disabled={processando || pixPendente || falhaCashValor || falhaCashSessao || falhaMistoValor || falhaMistoExcedente || falhaMistoWalletConsumidor || falhaMistoWallet || (formaPagamento === 'CARD' && !cardConfirmado) || (formaPagamento === 'WALLET' && !jointValido && (((cliente as any)?.walletBalance || 0) < totalCarrinho || ((settings?.weeklyWalletLimit || 300) - ((cliente as any)?.weeklySpent || 0)) < totalCarrinho))}
                       className="w-full py-6 rounded-[2rem] font-black text-base uppercase tracking-[0.4em] text-white shadow-[0_20px_40px_rgba(0,0,0,0.3)] hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-4"
                       style={{ backgroundColor: corPrincipal }}
                     >
@@ -2329,10 +2434,22 @@ if (changeValue > pCash + 0.009) {
                             : (formaPagamento === 'CARD' && !cardConfirmado) ? 'AGUARDANDO CONFIRMAÇÃO CARTÃO'
                             : (formaPagamento === 'WALLET' && jointValido) ? 'FINALIZAR EM DUPLA'
                             : (formaPagamento === 'WALLET' && (cliente?.walletBalance || 0) < totalCarrinho) ? 'SALDO INSUFICIENTE'
+                            : (formaPagamento === 'MIXED' && falhaMistoWalletConsumidor) ? 'CONSUMO EXIGE CLIENTE'
+                            : (formaPagamento === 'MIXED' && falhaMistoWallet) ? 'CRÉDITOS INDISPONÍVEIS'
                             : 'FINALIZAR VENDA'}
                         </>
                       )}
                     </button>
+                    {(formaPagamento === 'MIXED' && falhaMistoWalletConsumidor) && (
+                      <p className="text-center text-[9px] font-black uppercase tracking-widest text-red-600">
+                        Venda para consumidor final não pode usar créditos internos (WALLET)
+                      </p>
+                    )}
+                    {(formaPagamento === 'MIXED' && falhaMistoWallet) && (
+                      <p className="text-center text-[9px] font-black uppercase tracking-widest text-amber-600">
+                        Parte em créditos acima do saldo ({formatarMoeda(saldoCarteiraPdv)}) ou do limite semanal disponível ({formatarMoeda(limiteSemanalPdv)})
+                      </p>
+                    )}
                     {(formaPagamento === 'WALLET' && jointAtivo) && (
                       <p className={`text-center text-[9px] font-black uppercase tracking-widest ${jointValido ? 'text-emerald-600' : 'text-amber-600'}`}>
                         {jointValido

@@ -663,19 +663,19 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                             )}
                         </div>
 
-                      <div className="flex flex-col gap-3 pt-2">
+                      <div className="flex gap-3 pt-2">
+                          <button
+                            onClick={() => { setShowWithdrawalModal(null); setWithdrawalPassword(''); }}
+                            className="flex-1 py-5 bg-slate-100 text-slate-600 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all touch-target active:scale-[0.98]"
+                          >
+                            Cancelar
+                          </button>
                           <button
                             onClick={handleWithdrawal}
                             disabled={!withdrawalAmount || (parseFloat(String(withdrawalAmount).replace(',', '.')) || 0) <= 0 || withdrawalPassword.trim().length < 8}
-                            className={`w-full py-5 font-black rounded-2xl shadow-lg flex items-center justify-center gap-3 uppercase text-[11px] tracking-widest transition-all active:scale-[0.98] touch-target ${showWithdrawalModal.isDeposit ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:brightness-110' : showWithdrawalModal.isRefund ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:brightness-110' : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:brightness-110'} disabled:opacity-40 disabled:cursor-not-allowed`}
+                            className={`flex-1 py-5 font-black rounded-2xl shadow-lg flex items-center justify-center gap-3 uppercase text-[11px] tracking-widest transition-all active:scale-[0.98] touch-target ${showWithdrawalModal.isDeposit ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:brightness-110' : showWithdrawalModal.isRefund ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:brightness-110' : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:brightness-110'} disabled:opacity-40 disabled:cursor-not-allowed`}
                           >
                             <Check size={20}/> Confirmar Operação
-                          </button>
-                          <button
-                            onClick={() => { setShowWithdrawalModal(null); setWithdrawalPassword(''); }}
-                            className="w-full py-4 bg-slate-100 text-slate-600 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all touch-target active:scale-[0.98]"
-                          >
-                            Cancelar
                           </button>
                       </div>
                   </div>
@@ -711,11 +711,17 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                                 autoFocus
                             ></textarea>
                         </div>
-                      <div className="flex flex-col gap-3 pt-2">
+                      <div className="flex gap-3 pt-2">
+                          <button
+                            onClick={() => setShowRefundModal(null)}
+                            className="flex-1 py-5 bg-slate-100 text-slate-600 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all touch-target active:scale-[0.98]"
+                          >
+                            Cancelar
+                          </button>
                           <button
                             onClick={handleRefundOrder}
                             disabled={isProcessingRefund || !refundReason.trim()}
-                            className={`w-full py-5 font-black rounded-2xl shadow-lg flex items-center justify-center gap-3 uppercase text-[11px] tracking-widest transition-all active:scale-[0.98] touch-target ${!refundReason.trim() ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:brightness-110'} disabled:opacity-40`}
+                            className={`flex-1 py-5 font-black rounded-2xl shadow-lg flex items-center justify-center gap-3 uppercase text-[11px] tracking-widest transition-all active:scale-[0.98] touch-target ${!refundReason.trim() ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:brightness-110'} disabled:opacity-40`}
                           >
                             {isProcessingRefund ? (
                                 <>
@@ -727,12 +733,6 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                                     <Check size={20}/> Confirmar Estorno
                                 </>
                             )}
-                          </button>
-                          <button
-                            onClick={() => setShowRefundModal(null)}
-                            className="w-full py-4 bg-slate-100 text-slate-600 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all touch-target active:scale-[0.98]"
-                          >
-                            Cancelar
                           </button>
                       </div>
                   </div>
@@ -749,7 +749,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                     </div>
 
                     <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Autorização</h2>
-                    <p className="text-xs font-semibold text-slate-500 mt-1">Confirme sua senha para acessar as Configurações</p>
+                    <p className="text-xs font-semibold text-slate-500 mt-1">Digite a senha para liberar esta operação</p>
 
                     <div className="relative mt-6 mb-7 group/input">
                         <div className="absolute left-3.5 top-1/2 -translate-y-1/2 z-20 text-slate-400 transition-colors group-focus-within/input:text-emerald-600 pointer-events-none">
@@ -773,7 +773,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                             {isAuthLoading ? <><Loader2 size={16} className="animate-spin" /> Validando...</> : 'Confirmar Acesso'}
                             {!isAuthLoading && <Check size={16} />}
                         </button>
-                        <button type="button" disabled={isAuthLoading} onClick={() => setShowAuthModal(false)} className="w-full py-2.5 text-slate-400 font-bold hover:text-slate-700 uppercase text-[10px] tracking-widest transition-all touch-target">Cancelar</button>
+                        <button type="button" disabled={isAuthLoading} onClick={() => setShowAuthModal(false)} className="w-full py-3 bg-slate-100 border border-slate-200 text-slate-600 font-black hover:bg-slate-200 uppercase text-[10px] tracking-widest rounded-xl transition-all touch-target active:scale-[0.98] disabled:opacity-60">Cancelar</button>
                     </div>
                 </div>
             </form>

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
@@ -56,10 +56,58 @@ export const ModalShell: React.FC<ModalShellProps> = ({
   // Portal no <body>: modais renderizados DENTRO de containers com stacking
   // context próprio (ex.: sidebar com z-50) ficavam presos atrás do conteúdo —
   // mesmo com z-index 9999. Portar para o body resolve o modal "apareceu atrás".
+  const innerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { onClose(); return; }
+      if (e.key === 'Tab' && innerRef.current) {
+        // Focus trap leve: o Tab navega em loop dentro do modal,
+        // impedindo que o foco "saia" para o restante da página.
+        const focusables = Array.from(
+          innerRef.current.querySelectorAll<HTMLElement>(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+          )
+        );
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        const active = document.activeElement;
+        const inside = innerRef.current.contains(active);
+        if (e.shiftKey && (!inside || active === first)) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && (!inside || active === last)) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  // Portal no <body>: modais renderizados DENTRO de containers com stacking
+  // context próprio (ex.: sidebar com z-50) ficavam presos atrás do conteúdo —
+  // mesmo com z-index 9999. Portar para o body resolve o modal "apareceu atrás".
   return createPortal((
     <div className="modal-container">
       <div className="modal-overlay" onClick={() => closeOnBackdrop && onClose()}></div>
-      <div className={`modal-content modal-shell-fixed relative w-full ${SIZE_CLASS[size]} bg-white overflow-hidden flex flex-col max-h-[90vh] rounded-2xl shadow-2xl animate-scaleIn`}>
+      <div
+        ref={innerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        tabIndex={-1}
+        className={`modal-content modal-shell-fixed relative w-full ${SIZE_CLASS[size]} bg-white overflow-hidden flex flex-col max-h-[90vh] rounded-2xl shadow-2xl animate-scaleIn outline-none`}
+      >
         {/* TOP ACCENT BAR — identidade esmeralda do sistema (antes: arco-íris fora da marca) */}
         <div className="h-1.5 shrink-0 bg-gradient-to-r from-emerald-500 to-emerald-600"></div>
 
@@ -79,7 +127,8 @@ export const ModalShell: React.FC<ModalShellProps> = ({
             {actions}
             <button
               onClick={onClose}
-              aria-label="Fechar janela"
+              aria-label={'Fechar ' + title}
+              title={'Fechar ' + title}
               className="p-3 rounded-xl bg-white/10 hover:bg-red-500 text-white transition-all active:scale-90"
             >
               <X size={20} />

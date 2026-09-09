@@ -236,10 +236,7 @@ export const UserDashboard: React.FC = () => {
                     searchInputRef.current?.focus();
                     showNotification('Venda cancelada!', 'success');
                 } else {
-                    if (cartRef.current.length > 0 && !window.confirm('Deseja cancelar a venda e limpar o carrinho?')) return;
-                    setCart([]);
-                    setStage('cart');
-                    showNotification('Venda cancelada!', 'success');
+                    cancelSale();
                 }
             }
             if (e.key === 'F8') {

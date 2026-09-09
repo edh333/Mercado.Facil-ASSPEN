@@ -3039,9 +3039,14 @@ return false;
             // Initialize config doc if needed (separate from listener to avoid write loop)
             initConfig();
 
-            // Sync Secure Time
-            getNetworkTime().then(t => setServerTime(t)).catch(() => {});
-            timer = setInterval(() => getNetworkTime().then(t => setServerTime(t)).catch(() => {}), 1000 * 60 * 10); // Update every 10m
+            // Sync Secure Time: o admin usa a hora do servidor para validar
+            // licença/expiração. Familiares não consomem serverTime (checado) —
+            // pular a chamada evita um cold start de Cloud Function + ida à rede
+            // em CADA abertura do app pelo lado do usuário (navegador, PWA, EXE).
+            if (currentUser?.role === UserRole.ADMIN) {
+                getNetworkTime().then(t => setServerTime(t)).catch(() => {});
+                timer = setInterval(() => getNetworkTime().then(t => setServerTime(t)).catch(() => {}), 1000 * 60 * 10); // Update every 10m
+            }
 
             // Safety timeout
             safetyTimeout = setTimeout(() => setIsLoading(false), 8000);

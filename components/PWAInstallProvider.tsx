@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
+import { ModalShell } from './ui/ModalShell';
 
 export type SystemRole = 'admin' | 'manager' | 'operator' | 'user';
 
@@ -44,6 +45,7 @@ export const PWAInstallProvider: React.FC<{ children: ReactNode }> = ({ children
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [novaVersao, setNovaVersao] = useState(false);
+  const [iosDestino, setIosDestino] = useState<string | null>(null);
 
   const isIOS = useMemo(() => {
     const ua = navigator.userAgent;
@@ -101,13 +103,7 @@ export const PWAInstallProvider: React.FC<{ children: ReactNode }> = ({ children
   const install = useCallback(async (role?: SystemRole) => {
     if (isIOS) {
       const destino = role === 'admin' ? 'o Painel Gerencial (Admin)' : 'o Aplicativo do Mercado Fácil';
-      alert(
-        'Para instalar ' + destino + ':\n\n' +
-        '1. Toque no botão Compartilhar (ícone ⬆️ em um quadrado) no Safari\n' +
-        '2. Escolha "Adicionar à Tela de Início"\n' +
-        '3. Toque em "Adicionar"\n\n' +
-        'O aplicativo aparecerá na tela inicial do seu iPhone/iPad.'
-      );
+      setIosDestino(destino);
       return;
     }
     if (!deferredPrompt) return;
@@ -147,6 +143,35 @@ export const PWAInstallProvider: React.FC<{ children: ReactNode }> = ({ children
           </button>
         </div>
       )}
+
+      <ModalShell open={!!iosDestino} onClose={() => setIosDestino(null)} title="Instalar no iPhone/iPad" icon={<span className="text-lg">📲</span>} size="sm">
+        <div className="p-8 space-y-5">
+          <p className="text-sm font-bold text-slate-600 leading-relaxed">
+            Para instalar <span className="font-black text-slate-900">{iosDestino}</span>, siga os passos:
+          </p>
+          <ol className="space-y-3">
+            {[
+              'No Safari, toque no botão Compartilhar (ícone de uma seta saindo de um quadrado).',
+              'Escolha a opção "Adicionar à Tela de Início".',
+              'Toque em "Adicionar" no canto superior direito.'
+            ].map((passo, i) => (
+              <li key={i} className="flex items-start gap-3">
+                <span className="w-7 h-7 shrink-0 rounded-full bg-emerald-100 text-emerald-700 font-black text-xs flex items-center justify-center mt-0.5">{i + 1}</span>
+                <span className="text-xs font-bold text-slate-700 leading-relaxed">{passo}</span>
+              </li>
+            ))}
+          </ol>
+          <p className="text-[11px] font-bold text-slate-400 leading-relaxed">
+            O aplicativo aparecerá na tela inicial, funcionando mesmo offline.
+          </p>
+          <button
+            onClick={() => setIosDestino(null)}
+            className="w-full py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:brightness-110 text-white font-black rounded-2xl shadow-lg shadow-emerald-500/25 uppercase text-[11px] tracking-widest flex items-center justify-center gap-2 transition-all active:scale-[0.98] touch-target"
+          >
+            Entendi
+          </button>
+        </div>
+      </ModalShell>
     </PWAInstallContext.Provider>
   );
 };

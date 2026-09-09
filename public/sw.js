@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mercado-facil-v14';
+const CACHE_NAME = 'mercado-facil-v15';
 const CORE_ASSETS = [
   '/',
   '/index.html',
@@ -48,6 +48,26 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
+
+  // Fontes Google (Inter): cache-first mesmo cross-origin — o app instalado
+  // não repete o download a cada abertura e funciona offline. Respostas
+  // opacas (cross-origin) são guardadas sem inspeção e devolvidas direto.
+  if (/^https:\/\/fonts\.(googleapis|gstatic)\.com$/.test(url.origin)) {
+    event.respondWith(
+      caches.match(event.request).then((cached) =>
+        cached ||
+        fetch(event.request).then((response) => {
+          if (response && response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone).catch(() => {}));
+          }
+          return response;
+        }).catch(() => cached || Response.error())
+      )
+    );
+    return;
+  }
+
   if (url.origin !== self.location.origin) return;
 
   // Navegação: sempre rede primeiro; cache apenas como fallback offline.

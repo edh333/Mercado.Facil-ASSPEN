@@ -31,7 +31,20 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <!-- Inter assíncrono: o CSS do Google Fonts NÃO bloqueia mais o primeiro
+       paint (render usa fonte do sistema e troca ao carregar — display=swap).
+       Primeira abertura em aparelhos fracos pinta a interface antes. -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" media="print" onload="this.media='all';this.onload=null;">
+  <noscript>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap">
+  </noscript>
+
+  <!-- Preconnect aos endpoints Firebase: a conexão TCP/TLS abre EM PARALELO ao
+       download do JS — auth e dados chegam mais cedo na primeira abertura. -->
+  <link rel="preconnect" href="https://firestore.googleapis.com">
+  <link rel="preconnect" href="https://identitytoolkit.googleapis.com">
+  <link rel="preconnect" href="https://securetoken.googleapis.com">
+  <link rel="preconnect" href="https://firebasestorage.googleapis.com">
 
   <!-- QZ Tray SDK - impressão direta na impressora fiscal/bobina (via QZ Tray local).
        EMBUTIDO LOCALMENTE (public/qz-tray.js, v2.2.6): a URL antiga

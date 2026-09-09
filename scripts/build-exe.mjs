@@ -38,7 +38,11 @@ const rodar = (cmd, argsList) => {
 };
 
 console.log('[build-exe] Gerando bundle web em dist/ (para o Electron)...');
-rodar(process.platform === 'win32' ? 'npx.cmd' : 'npx', ['vite', 'build', '--outDir', 'dist']);
+// base='./' é obrigatório no Electron: o app carrega dist/index.html pelo
+// protocolo file:// (win.loadFile). Com o padrão '/', o /assets/index-*.js
+// resolveria para file:///C:/assets/... (raiz do disco) e a janela abre em
+// BRANCO. Caminhos relativos fazem os chunks e o CSS carregarem do asar.
+rodar(process.platform === 'win32' ? 'npx.cmd' : 'npx', ['vite', 'build', '--outDir', 'dist', '--base=./']);
 
 const modos = soUsuario ? ['user'] : soAdmin ? ['admin'] : ['user', 'admin'];
 

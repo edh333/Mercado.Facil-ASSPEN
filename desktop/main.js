@@ -86,8 +86,15 @@ function createWindow() {
   if (isDev) {
     win.loadURL(`http://localhost:5177/?mode=${APP_MODE}`);
   } else {
+    // SE O BUNDLE LOCAL FALHAR por qualquer motivo (arquivo ausente, antivírus,
+    // extração portátil incompleta), NUNCA deixa a janela em branco: cai para a
+    // versão hospedada, que tem as mesmas funções e o software continua usável.
     win.loadFile(path.join(__dirname, '../dist/index.html'), {
       query: { mode: APP_MODE }
+    }).catch(() => {
+      if (!win.isDestroyed()) {
+        win.loadURL(`${WEB_URL}/?mode=${APP_MODE}`).catch(() => { /* último recurso: janela em branco mesmo assim */ });
+      }
     });
   }
 

@@ -12,6 +12,7 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ src, alt, onClose
   const [imgError, setImgError] = React.useState(false);
   const [isPdf, setIsPdf] = React.useState(false);
   const [isFullscreen, setIsFullscreen] = React.useState(false);
+  const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     setIsPdf(src.toLowerCase().includes('.pdf') || src.toLowerCase().includes('pdf'));
@@ -24,7 +25,7 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ src, alt, onClose
       if (win) {
         setTimeout(() => { try { win.print(); } catch { /* noop */ } }, 1000);
       } else {
-        alert('Popup bloqueado. Permita popups para imprimir PDFs.');
+        setErrorMsg('Popup bloqueado. Permita popups para imprimir PDFs.');
       }
       return;
     }
@@ -38,7 +39,7 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ src, alt, onClose
     document.body.appendChild(iframe);
     const doc = iframe.contentDocument || iframe.contentWindow?.document;
     if (!doc) {
-      alert('Não foi possível abrir a impressão.');
+      setErrorMsg('Não foi possível abrir a impressão.');
       iframe.remove();
       return;
     }
@@ -61,7 +62,7 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ src, alt, onClose
         iframe.contentWindow?.focus();
         iframe.contentWindow?.print();
       } catch (e) {
-        alert('Falha ao imprimir. Use "Abrir em nova aba" e imprima pelo navegador.');
+        setErrorMsg('Falha ao imprimir. Use "Abrir em nova aba" e imprima pelo navegador.');
       } finally {
         setTimeout(() => iframe.remove(), 1000);
       }
@@ -100,7 +101,7 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ src, alt, onClose
 
   const handleOpenNewTab = () => {
     const win = window.open(src, '_blank');
-    if (!win) alert('Popup bloqueado. Permita popups.');
+    if (!win) setErrorMsg('Popup bloqueado. Permita popups.');
   };
 
   const handleRetry = () => {
@@ -121,6 +122,15 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ src, alt, onClose
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 mb-4 bg-black/50 rounded-2xl p-2 backdrop-blur-sm flex-wrap justify-center">
+          {errorMsg && (
+            <div className="w-full flex items-center justify-center gap-2 px-3 py-2 mb-1 bg-red-500/20 border border-red-400/40 rounded-xl text-xs font-bold text-red-200">
+              <AlertTriangle size={14} className="shrink-0" />
+              <span>{errorMsg}</span>
+              <button onClick={() => setErrorMsg(null)} className="ml-auto text-red-200/70 hover:text-white shrink-0" aria-label="Dispensar aviso">
+                <X size={14} />
+              </button>
+            </div>
+          )}
           <button
             onClick={() => setZoom(z => Math.max(0.5, z - 0.25))}
             className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-xl flex items-center justify-center text-white transition-all active:scale-90"

@@ -126,6 +126,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
   const [newPixKey, setNewPixKey] = React.useState('');
   const [showAddAdmin, setShowAddAdmin] = React.useState(false);
   const [confirmDeleteAdmin, setConfirmDeleteAdmin] = React.useState<string | null>(null);
+  const [confirmDestructive, setConfirmDestructive] = React.useState<{ titulo: string; descricao: string; palavraChave: string; action: () => void } | null>(null);
   const [renovarConfirming, setRenovarConfirming] = React.useState(false);
   const [editPermissionsFor, setEditPermissionsFor] = React.useState<string | null>(null);
   const [editPermissions, setEditPermissions] = React.useState<string[]>([]);
@@ -609,10 +610,22 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                   </div>
                   {showAddAdmin && (
                     <div className="mb-6 p-6 bg-slate-50 rounded-2xl space-y-4">
-                      <input className="w-full p-3 text-xs border bg-white rounded-xl font-black text-slate-900 uppercase" placeholder="NOME" value={adminForm.name} onChange={e => { setAdminForm({ ...adminForm, name: e.target.value.toUpperCase() }); setAdminFormError(null); }} />
-                      <input className="w-full p-3 text-xs border bg-white rounded-xl font-black text-slate-900" placeholder="EMAIL" type="email" value={adminForm.email} onChange={e => { setAdminForm({ ...adminForm, email: e.target.value }); setAdminFormError(null); }} />
-                      <input className="w-full p-3 text-xs border bg-white rounded-xl font-black text-slate-900" placeholder="SENHA" type="password" autoComplete="new-password" value={adminForm.password} onChange={e => { setAdminForm({ ...adminForm, password: e.target.value }); setAdminFormError(null); }} />
-                      <input className="w-full p-3 text-xs border bg-white rounded-xl font-black text-slate-900" placeholder="CPF (opcional)" inputMode="numeric" value={adminForm.cpf} onChange={e => { setAdminForm({ ...adminForm, cpf: e.target.value.replace(/\D/g, '').slice(0, 11) }); setAdminFormError(null); }} />
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Nome completo</label>
+                        <input className="w-full p-3 text-xs border bg-white rounded-xl font-black text-slate-900 uppercase" placeholder="NOME" value={adminForm.name} onChange={e => { setAdminForm({ ...adminForm, name: e.target.value.toUpperCase() }); setAdminFormError(null); }} />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">E-mail de acesso</label>
+                        <input className="w-full p-3 text-xs border bg-white rounded-xl font-black text-slate-900" placeholder="EMAIL" type="email" value={adminForm.email} onChange={e => { setAdminForm({ ...adminForm, email: e.target.value }); setAdminFormError(null); }} />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Senha</label>
+                        <input className="w-full p-3 text-xs border bg-white rounded-xl font-black text-slate-900" placeholder="SENHA" type="password" autoComplete="new-password" value={adminForm.password} onChange={e => { setAdminForm({ ...adminForm, password: e.target.value }); setAdminFormError(null); }} />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">CPF (opcional)</label>
+                        <input className="w-full p-3 text-xs border bg-white rounded-xl font-black text-slate-900" placeholder="CPF (opcional)" inputMode="numeric" value={adminForm.cpf} onChange={e => { setAdminForm({ ...adminForm, cpf: e.target.value.replace(/\D/g, '').slice(0, 11) }); setAdminFormError(null); }} />
+                      </div>
                       <PermToggles perms={adminForm.permissions} onChange={p => setAdminForm({ ...adminForm, permissions: p })} />
                       {adminFormError && (
                         <p className="text-[10px] font-black text-red-600 uppercase tracking-wide" role="alert">{adminFormError}</p>
@@ -1558,11 +1571,11 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                     </div>
                   </div>
                 )}
-                <button onClick={() => handleProtectedAction(resetStock)} className="p-6 border-2 border-orange-50 bg-orange-50/50 rounded-2xl flex flex-col items-center gap-3 hover:bg-orange-100">
+                <button onClick={() => setConfirmDestructive({ titulo: 'Zerar Estoque', descricao: 'TODOS os produtos terão o estoque zerado. Esta ação é irreversível.', palavraChave: 'ZERAR', action: resetStock })} className="p-6 border-2 border-orange-50 bg-orange-50/50 rounded-2xl flex flex-col items-center gap-3 hover:bg-orange-100">
                   <div className="bg-orange-600 text-white p-3 rounded-xl"><RefreshCw size={24} /></div>
                   <span className="text-[10px] font-black uppercase">Zerar Estoque</span>
                 </button>
-                <button onClick={() => handleProtectedAction(resetFinance)} className="p-6 border-2 border-red-50 bg-red-50/50 rounded-2xl flex flex-col items-center gap-3 hover:bg-red-100">
+                <button onClick={() => setConfirmDestructive({ titulo: 'Zerar Financeiro', descricao: 'TODOS os registros financeiros serão apagados permanentemente: vendas, despesas, saldos e extratos.', palavraChave: 'ZERAR', action: resetFinance })} className="p-6 border-2 border-red-50 bg-red-50/50 rounded-2xl flex flex-col items-center gap-3 hover:bg-red-100">
                   <div className="bg-red-600 text-white p-3 rounded-xl"><AlertTriangle size={24} /></div>
                   <span className="text-[10px] font-black uppercase">Zerar Financeiro</span>
                 </button>
@@ -1573,7 +1586,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
               </div>
               {isMaster && (
                 <button
-                  onClick={() => handleProtectedAction(() => resetSystem(true))}
+                  onClick={() => setConfirmDestructive({ titulo: 'Reinicialização Total', descricao: 'TODO o sistema será apagado e começará do zero: produtos, financeiro, usuários, estoque e configurações. Faça um backup antes. Esta ação é irreversível.', palavraChave: 'REINICIAR', action: () => resetSystem(true) })}
                   className="w-full p-4 bg-red-600 text-white rounded-2xl font-black uppercase text-sm hover:bg-red-700 mt-4 flex items-center justify-center gap-2"
                 >
                   <AlertTriangle size={18} /> REINICIALIZAÇÃO TOTAL DO SISTEMA
@@ -1912,6 +1925,19 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
           setConfirmDeleteAdmin(null);
         }}
         onClose={() => setConfirmDeleteAdmin(null)}
+      />
+
+      {/* CONFIRMAÇÃO: REINICIALIZAÇÕES IRREVERSÍVEIS */}
+      <ConfirmacaoDestrutiva
+        isOpen={confirmDestructive !== null}
+        titulo={confirmDestructive?.titulo || ''}
+        descricao={confirmDestructive?.descricao || ''}
+        palavraChave={confirmDestructive?.palavraChave || 'ZERAR'}
+        onConfirm={() => {
+          if (confirmDestructive) handleProtectedAction(confirmDestructive.action);
+          setConfirmDestructive(null);
+        }}
+        onClose={() => setConfirmDestructive(null)}
       />
     </div>
   );

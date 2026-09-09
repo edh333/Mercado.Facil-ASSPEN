@@ -3,6 +3,7 @@ import { Clock, CreditCard, Loader2, FileText, Package, ChevronUp, ChevronDown, 
 import { Order } from '../../types';
 import { formatarMoeda } from '../../utils';
 import { toDate } from '../../utils/dateUtils';
+import { ConfirmacaoDestrutiva } from '../admin/ConfirmacaoDestrutiva';
 
 interface UserOrdersTabProps {
   settings: any;
@@ -26,6 +27,7 @@ export const UserOrdersTab: React.FC<UserOrdersTabProps> = ({
   cancelOrder
 }) => {
   const [searchOrder, setSearchOrder] = useState('');
+  const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
 
   const filteredOrders = (myOrders || []).filter(order => {
     const search = (searchOrder || '').toLowerCase();
@@ -192,11 +194,7 @@ export const UserOrdersTab: React.FC<UserOrdersTabProps> = ({
                                {/* BOTÃO CANCELAR */}
                                {['pending', 'paid', 'pago', 'prepar'].some(s => (order.status || '').toLowerCase().includes(s)) && cancelOrder && (
                                    <button
-                                       onClick={() => {
-                                           if (window.confirm('Tem certeza que deseja cancelar este pedido?')) {
-                                               cancelOrder(order.id);
-                                           }
-                                       }}
+                                       onClick={() => setConfirmCancelId(order.id)}
                                        className="py-3 px-4 bg-red-900/30 text-red-400 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-red-800 hover:bg-red-800/50 transition-colors"
                                    >
                                        Cancelar
@@ -231,6 +229,15 @@ export const UserOrdersTab: React.FC<UserOrdersTabProps> = ({
               )}
           </div>
       )}
+
+      <ConfirmacaoDestrutiva
+        isOpen={confirmCancelId !== null}
+        titulo="Cancelar Pedido"
+        descricao="O pedido será cancelado e não poderá ser restaurado. Confirme para continuar."
+        palavraChave="CANCELAR"
+        onConfirm={() => { if (confirmCancelId && cancelOrder) cancelOrder(confirmCancelId); setConfirmCancelId(null); }}
+        onClose={() => setConfirmCancelId(null)}
+      />
     </div>
   );
 };

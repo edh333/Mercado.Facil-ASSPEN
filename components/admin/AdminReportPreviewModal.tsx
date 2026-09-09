@@ -23,6 +23,16 @@ const esc = (v: any): string => String(v ?? '')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 
+// Formata moeda pt-BR com separador de milhar e vírgula decimal nos DOCUMENTOS
+// impressos (o antigo .toFixed(2) corrompia valores acima de R$ 1.000 e
+// divergia do padrão pt-BR usado nas telas e no printUtils).
+const fmtBr = (v: any): string => (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+
+// Nome da instituição configurada (Settings) — cabeçalhos/rodapés profissionais
+// usam o nome real, não a tagline de marketing do app.
+const nomeInstituicao = (settings: any): string =>
+    settings?.institutionName || settings?.appName || 'MERCADO FÁCIL';
+
 const buildDailyClosing = (orders: any[], expenses: any[], transactions: any[], startDateStr: string, endDateStr: string) => {
     const statusReceita = ehReceita; // Fonte ÚNICA de verdade (adminUtils) — mesmo conceito dos cards/financeiro
     const inPeriod = (ts?: string | number) => {
@@ -680,15 +690,19 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
         const totalSaldo = lista.reduce((a, b) => a + b.saldo, 0);
         const totalGasto = lista.reduce((a, b) => a + b.gastoSemanal, 0);
         const ativos = lista.filter(x => x.status === 'active').length;
+        const pendentes = lista.filter(x => x.status === 'pending').length;
+        const suspensos = lista.filter(x => x.status === 'suspended').length;
+        const inst = nomeInstituicao(settings);
         const hoje = new Date().toLocaleDateString('pt-BR');
+        const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
         const linha = lista.map((x, i) => `
             <tr>
                 <td style="text-align:center;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;">${String(i + 1).padStart(2, '0')}</td>
                 <td style="padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;font-weight:700;text-transform:uppercase;">${esc(x.name)}</td>
                 <td style="text-align:center;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;">${esc(x.cpf)}</td>
                 <td style="text-align:center;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:11px;">${x.status === 'active' ? 'Ativo' : x.status === 'pending' ? 'Pendente' : 'Suspenso'}</td>
-                <td style="text-align:right;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;font-weight:700;">R$ ${x.saldo.toFixed(2)}</td>
-                <td style="text-align:right;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;">R$ ${x.gastoSemanal.toFixed(2)}</td>
+                <td style="text-align:right;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;font-weight:700;">R$ ${fmtBr(x.saldo)}</td>
+                <td style="text-align:right;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;">R$ ${fmtBr(x.gastoSemanal)}</td>
             </tr>`).join('');
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;
@@ -711,6 +725,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
     table { width:100%; border-collapse:collapse; }
     thead th { background:#0f172a; color:#fff; padding:10px; font-size:10px; text-transform:uppercase; letter-spacing:1px; text-align:left; }
     tfoot td { padding:10px; font-weight:800; font-size:12px; background:#f8fafc; border-top:2px solid #0f172a; }
+    .criterio { margin-top:14px; padding:10px 14px; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:10px; font-size:10px; color:#047857; text-transform:uppercase; letter-spacing:1px; font-weight:700; }
     .rodape { margin-top:22px; text-align:center; font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:1px; }
     .assinatura { margin-top:48px; display:flex; justify-content:space-between; }
     .assinatura div { width:40%; border-top:1px solid #64748b; padding-top:8px; font-size:10px; text-transform:uppercase; text-align:center; color:#475569; }
@@ -721,18 +736,18 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
     <div class="cabecalho">
         <div>
             <h1>Relatório de Créditos dos Usuários</h1>
-            <p>Mercado Fácil — Gestão Penitenciária de Alta Performance</p>
+            <p>${inst} — Gestão de saldos dos familiares</p>
         </div>
         <div class="meta">
-            <p>Emitido em: <b>${hoje}</b></p>
-            <p>${lista.length} familiares cadastrados</p>
+            <p>Emitido em: <b>${hoje} às ${hora}</b></p>
+            <p>${lista.length} familiar(es) na listagem</p>
         </div>
     </div>
     <div class="cards">
-        <div class="card"><p class="titulo">Saldo Total Disponível</p><p class="valor">R$ ${totalSaldo.toFixed(2)}</p></div>
+        <div class="card"><p class="titulo">Saldo Total Disponível</p><p class="valor">R$ ${fmtBr(totalSaldo)}</p></div>
         <div class="card"><p class="titulo">Familiares Ativos</p><p class="valor">${ativos}</p></div>
-        <div class="card"><p class="titulo">Gasto Semanal Acumulado</p><p class="valor">R$ ${totalGasto.toFixed(2)}</p></div>
-        <div class="card"><p class="titulo">Saldo Médio</p><p class="valor">R$ ${lista.length ? (totalSaldo / lista.length).toFixed(2) : '0.00'}</p></div>
+        <div class="card"><p class="titulo">Gasto Semanal Acumulado</p><p class="valor">R$ ${fmtBr(totalGasto)}</p></div>
+        <div class="card"><p class="titulo">Saldo Médio</p><p class="valor">R$ ${lista.length ? fmtBr(totalSaldo / lista.length) : '0,00'}</p></div>
     </div>
     <table>
         <thead>
@@ -740,14 +755,15 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
         </thead>
         <tbody>${linha}</tbody>
         <tfoot>
-            <tr><td colspan="4" style="text-align:right;">TOTAL</td><td style="text-align:right;">R$ ${totalSaldo.toFixed(2)}</td><td style="text-align:right;">R$ ${totalGasto.toFixed(2)}</td></tr>
+            <tr><td colspan="4" style="text-align:right;">TOTAL — ${lista.length} FAMILIARES</td><td style="text-align:right;">R$ ${fmtBr(totalSaldo)}</td><td style="text-align:right;">R$ ${fmtBr(totalGasto)}</td></tr>
         </tfoot>
     </table>
+    <div class="criterio">Critério da listagem: todos os familiares cadastrados${pendentes > 0 ? ` · ${pendentes} pendente(s)` : ''}${suspensos > 0 ? ` · ${suspensos} suspenso(s)` : ''}</div>
     <div class="assinatura">
         <div>Emitido por: ${(settings as any)?.adminName || 'Administração'}</div>
         <div>Assinatura / Carimbo</div>
     </div>
-    <p class="rodape">Documento gerado pelo sistema Mercado Fácil — uso interno</p>
+    <p class="rodape">Documento emitido pelo sistema ${inst} — não é comprovante fiscal</p>
 </body>
 </html>`;
         printWindow.document.write(html);
@@ -830,9 +846,10 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
     const printDailyClosing = () => {
         const dc = report.dailyClosing;
         if (!dc) return;
-        const fmt = (v: number) => `R$ ${v.toFixed(2)}`;
+        const fmt = (v: number) => `R$ ${fmtBr(v)}`;
+        const inst = nomeInstituicao(settings);
         const hoje = new Date().toLocaleDateString('pt-BR');
-        const linhas = dc.paymentRows.map((r: any) => `<tr><td>${r.label}</td><td style="text-align:right;">${fmt(r.amount)}</td></tr>`).join('');
+        const linhas = dc.paymentRows.map((r: any) => `<tr><td>${esc(r.label)}</td><td style="text-align:right;">${fmt(r.amount)}</td></tr>`).join('');
         const html = `<html><head><title>${report.title}</title><style>
             body{font-family:'Segoe UI',Arial,sans-serif;padding:40px;color:#0f172a}
             h1{font-size:22px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
@@ -851,7 +868,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
             @media print{@page{size:A4;margin:15mm 12mm}body{background:white!important;padding:20px!important}}
         </style></head><body>
             <h1>${report.title}</h1>
-            <p class="sub">Período: ${report.period} · Emitido em: ${hoje} · ${dc.salesCount} venda(s) no período</p>
+            <p class="sub">Período: ${report.period} · Emitido em: ${hoje} · ${dc.salesCount} venda(s) no período · ${inst}</p>
             <div class="cards">
                 <div class="card"><p class="titulo">Vendas</p><p class="valor">${fmt(dc.totalSales)}</p></div>
                 <div class="card"><p class="titulo">Despesas</p><p class="valor">${fmt(dc.totalExpenses)}</p></div>
@@ -864,7 +881,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                 <tfoot><tr><td>TOTAL DE VENDAS</td><td style="text-align:right;">${fmt(dc.totalSales)}</td></tr></tfoot>
             </table>
             <div class="assinatura"><div>Emitido por: ${(settings as any)?.adminName || 'Administração'}</div><div>Assinatura / Carimbo</div></div>
-            <p class="rodape">Documento gerado pelo sistema Mercado Fácil — conferência de caixa</p>
+            <p class="rodape">Documento emitido pelo sistema ${inst} — conferência de caixa</p>
         </body></html>`;
         const printWindow = window.open('', '_blank');
         if (printWindow) {
