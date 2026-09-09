@@ -100,6 +100,7 @@ function createWindow() {
 
   // Remove menu padrão para parecer app nativo
   win.setMenuBarVisibility(false);
+  return win;
 }
 
 app.whenReady().then(() => {
@@ -128,6 +129,14 @@ ipcMain.handle('save-file', async (_event, { filePath, data }) => {
 // padrão (ou na `deviceName` informada) via webContents.print({ silent: true }).
 // O front só precisa abrir quando NÃO estiver no Electron (navegador).
 ipcMain.handle('print-html-silent', async (_event, { html, deviceName }) => {
+  // Validação: o renderer pode ser comprometido num XSS — nunca confiar que
+  // venha string/limite. HTML de cupom costuma ter <100 KB.
+  if (typeof html !== 'string' || html.length === 0 || html.length > 200000) {
+    return { ok: false, error: 'html inválido para impressão' };
+  }
+  if (deviceName !== undefined && typeof deviceName !== 'string') {
+    return { ok: false, error: 'deviceName inválido' };
+  }
   const win = new BrowserWindow({
     show: false,
     webPreferences: { sandbox: true, nodeIntegration: false, contextIsolation: true }
@@ -168,17 +177,28 @@ ipcMain.handle('select-folder', async () => {
 });
 
 ipcMain.handle('create-shortcut', async () => {
-  const { execSync } = require('child_process');
+  const { execFileSync } = require('child_process');
   const desktopPath = path.join(require('os').homedir(), 'Desktop');
-  const iconPath = path.join(process.execPath, '..', 'resources', 'app.asar.unpacked', 'public', 'logo.png');
+  // BUGFIX: process.execPath é o CAMINHO DO EXECUTÁVEL (arquivo), não a pasta.
+  // path.join('C:\\app\\app.exe', '..', ...) gerava C:\app\app.exe\..\...
+  // (inválido). O correto é path.dirname(process.execPath).
+  const exeDir = path.dirname(process.execPath);
+  const iconPath = path.join(exeDir, 'resources', 'app.asar.unpacked', 'public', 'logo.png');
+  const shortcutPath = path.join(desktopPath, `${APP_TITLE}.lnk`);
   const psScript = `
     $WS = New-Object -ComObject WScript.Shell;
-    $SC = $WS.CreateShortcut("${desktopPath.replace(/\\/g, '\\\\')}\\\\${APP_TITLE}.lnk");
-    $SC.TargetPath = "${process.execPath.replace(/\\/g, '\\\\')}";
-    $SC.IconLocation = "${iconPath.replace(/\\/g, '\\\\')}";
+    $SC = $WS.CreateShortcut($args[0]);
+    $SC.TargetPath = $args[1];
+    $SC.IconLocation = $args[2];
     $SC.Save();
   `;
-  execSync(`powershell -NoProfile -ExecutionPolicy Bypass -Command "${psScript.replace(/"/g, '\\"')}"`, { timeout: 10000 });
+  // execFileSync SEM shell: nenhum caractere (aspas, $(), crases) do caminho
+  // é interpretado por um shell — impossível injeção de comando.
+  execFileSync(
+    'powershell.exe',
+    ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', psScript, shortcutPath, process.execPath, iconPath],
+    { timeout: 10000 }
+  );
   return desktopPath;
 });
 

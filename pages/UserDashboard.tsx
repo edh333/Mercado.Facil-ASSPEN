@@ -125,9 +125,17 @@ export const UserDashboard: React.FC = () => {
     }, [cart]);
 
     useEffect(() => {
-        const hClear = () => setCart([]);
-        const hNew = () => { setCart([]); setStage('cart'); };
-        const hOpen = () => { setIsCheckoutModalOpen(true); setStage('cart'); };
+        // Guarda: eventos que alteram o carrinho (clear/new) só fazem sentido
+        // no modo PDV do admin e NUNCA com o foco num campo de digitação.
+        const digitandoEmCampo = () => {
+            const el = document.activeElement as HTMLElement | null;
+            if (!el) return false;
+            const tag = el.tagName;
+            return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+        };
+        const hClear = () => { if (isAdmin && !digitandoEmCampo()) setCart([]); };
+        const hNew = () => { if (isAdmin && !digitandoEmCampo()) { setCart([]); setStage('cart'); } };
+        const hOpen = () => { if (isAdmin && !digitandoEmCampo()) { setIsCheckoutModalOpen(true); setStage('cart'); } };
         window.addEventListener('opencode:clear-cart', hClear);
         window.addEventListener('opencode:new-sale', hNew);
         window.addEventListener('opencode:open-cart', hOpen);
@@ -216,7 +224,18 @@ export const UserDashboard: React.FC = () => {
         }
 
         // === KEYBOARD ===
+        // Guarda de foco: atalhos NÃO devem disparar enquanto o operador digita
+        // num campo (busca de produto/cliente, senha, etc.) — F7 (cancelar) não
+        // pode limpar a venda por acidente no meio de uma digitação.
+        const digitandoEmCampo = () => {
+            const el = document.activeElement as HTMLElement | null;
+            if (!el) return false;
+            const tag = el.tagName;
+            return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+        };
+
         const handleKeyDown = (e: KeyboardEvent) => {
+            if (digitandoEmCampo() && e.key !== 'Escape') return;
             if (e.key === 'F2') {
                 e.preventDefault();
                 searchInputRef.current?.focus();
@@ -539,7 +558,7 @@ export const UserDashboard: React.FC = () => {
 
         if (isWalletPayment && (currentUser?.walletBalance || 0) < cartTotal) {
             submittingRef.current = false;
-            showNotification("Saldo insuficiente. Envie credito primeiro.", "error");
+            showNotification("Saldo insuficiente. Envie crédito primeiro.", "error");
             return;
         }
 
@@ -1233,7 +1252,7 @@ export const UserDashboard: React.FC = () => {
                                             {depositAmount > 0 && (
                                                 <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 flex flex-col items-center">
                                                     {pixPayload ? (
-                                                        <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(pixPayload)}`} className="w-36 h-36 object-contain" alt="QR PIX" />
+                                                        <QRCodeSVG value={pixPayload} size={144} className="w-36 h-36 bg-white p-2 rounded-lg" />
                                                     ) : (
                                                         <div className="w-36 h-36 flex items-center justify-center text-center p-2 bg-slate-900 rounded-lg border border-red-500/40">
                                                             <p className="text-[10px] font-bold text-red-400 uppercase">PIX indisponível. Fale com a administração.</p>
@@ -1691,7 +1710,7 @@ export const UserDashboard: React.FC = () => {
                                 {depositAmount > 0 && (
                                     <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 flex flex-col items-center">
                                         {pixPayload ? (
-                                            <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(pixPayload)}`} className="w-36 h-36 object-contain" alt="QR PIX" />
+                                            <QRCodeSVG value={pixPayload} size={144} className="w-36 h-36 bg-white p-2 rounded-lg" />
                                         ) : (
                                             <div className="w-36 h-36 flex items-center justify-center text-center p-2 bg-slate-900 rounded-lg border border-red-500/40">
                                                 <p className="text-[10px] font-bold text-red-400 uppercase">PIX indisponível. Fale com a administração.</p>

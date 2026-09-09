@@ -77,12 +77,16 @@ export const PWAInstallProvider: React.FC<{ children: ReactNode }> = ({ children
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
+      // Compatibilidade: Landing.tsx ainda lê o global __deferredPrompt
+      // (definido antes por um <script> inline removido da CSP).
+      (window as any).__deferredPrompt = e;
     };
     window.addEventListener('beforeinstallprompt', handler);
 
     const installedHandler = () => {
       setIsInstalled(true);
       setDeferredPrompt(null);
+      (window as any).__deferredPrompt = null;
     };
     window.addEventListener('appinstalled', installedHandler);
 

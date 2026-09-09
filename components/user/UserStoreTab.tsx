@@ -99,7 +99,7 @@ export const UserStoreTab: React.FC<UserStoreTabProps> = ({
           ) : viewMode === 'grid' ? (
               <div className="grid grid-cols-2 gap-4">
                   {(filteredProducts || []).map(p => {
-                      const isOutOfStock = p.stock <= 0;
+                      const isOutOfStock = (p.stock ?? 0) <= 0;
                       return (
                           <motion.div
                               layout
@@ -206,7 +206,7 @@ export const UserStoreTab: React.FC<UserStoreTabProps> = ({
           ) : (
               <div className="space-y-3">
                   {(filteredProducts || []).map(p => {
-                      const isOutOfStock = p.stock <= 0;
+                      const isOutOfStock = (p.stock ?? 0) <= 0;
                       return (
                           <motion.div
                               layout

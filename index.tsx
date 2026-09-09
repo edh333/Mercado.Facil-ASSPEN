@@ -20,10 +20,10 @@ iniciarSentry();
 // velho. Assim, QUALQUER PC que ficou preso numa versão antiga se conserta
 // sozinho na primeira abertura do dia — incluindo máquinas que já tiveram
 // o flag antigo gravado permanentemente.
-// ⚠ MANTER EM SINCRONIA com CACHE_NAME em public/sw.js (hoje: v15).
+// ⚠ MANTER EM SINCRONIA com CACHE_NAME em public/sw.js (hoje: v16).
 // Antes estava 'v11' aqui e 'v12' lá → a limpeza diária apagava o cache
 // atual do próprio sistema, forçando re-download completo toda sessão.
-const SW_CACHE_ATUAL = 'mercado-facil-v15';
+const SW_CACHE_ATUAL = 'mercado-facil-v16';
 const SW_CLEANUP_FLAG = 'mercado-facil-sw-cleanup-v11';
 
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator && !sessionStorage.getItem(SW_CLEANUP_FLAG)) {

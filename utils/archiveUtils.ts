@@ -4,9 +4,10 @@ import {
   query,
   where,
   limit,
+  orderBy,
   getDocs,
   writeBatch,
-  addDoc,
+  doc,
   Timestamp
 } from "firebase/firestore";
 
@@ -75,9 +76,13 @@ export async function executarArquivamentoLocal(): Promise<number> {
 
   for (const colecao of COLLECTIONS_TO_ARCHIVE) {
     try {
+      // orderBy(dateField) garante que SEMPRE arquaiamos os MAIS ANTIGOS
+      // primeiro — antes, sem ordenação, a seleção dos "primeiros 50" era
+      // arbitrária e podia deixar documentos velhos para trás por semanas.
       const q = query(
         collection(db, colecao.name),
         where(colecao.dateField, "<=", dataLimiteISO),
+        orderBy(colecao.dateField, "asc"),
         limit(BATCH_SIZE)
       );
 
@@ -87,26 +92,35 @@ export async function executarArquivamentoLocal(): Promise<number> {
         continue;
       }
 
+      // Batch ÚNICO e atômico: cada documento é COPIADO para historico_geral
+      // (com id gerado) e DELETADO na MESMA operação. Antes, addDoc era feito
+      // doc a doc e só depois batch.delete — se o addDoc falhasse no meio,
+      // alguns docs eram arquivados 2x (duplicata) ou nenhum; se o batch
+      // falhasse depois dos addDoc, ficava lixo no arquivo sem delete.
+      // Agora: OU tudo arquiva+deleta, OU nada acontece.
       const batch = writeBatch(db);
+      let count = 0;
 
       for (const docSnap of snapshot.docs) {
         const dadosOriginais = docSnap.data();
 
-        // 1. Archive to historico_geral BEFORE deleting
-        await addDoc(collection(db, "historico_geral"), {
+        // Id determinístico para evitar duplicatas se rodar 2x no mesmo dia
+        const novoRef = doc(collection(db, "historico_geral"));
+        batch.set(novoRef, {
           origem: colecao.name,
           idOriginal: docSnap.id,
+          dataOriginal: docSnap.data().createdAt || docSnap.data().date || null,
           ...dadosOriginais,
           arquivadoEm: new Date().toISOString(),
         });
 
-        // 2. Stage deletion
         batch.delete(docSnap.ref);
-        totalProcessado++;
+        count++;
       }
 
-      // 3. Execute the batch delete
       await batch.commit();
+      totalProcessado += count;
+      console.info(`[Arquivamento 45d] ${colecao.name}: ${count} doc(s) arquivados (atômico).`);
 
     } catch (erro) {
       console.error(`[Arquivamento 45d] erro em '${colecao.name}':`, erro);

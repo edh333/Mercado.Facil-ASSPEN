@@ -81,8 +81,12 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
     const thisMonth = getLocalDateStr(new Date(Date.now() - 30 * 86400000));
 
     return (orders || []).filter(o => {
-      const orderDate = o.createdAt || o.date || '';
-      const orderDateStr = orderDate.split('T')[0];
+      // Normalização SEGURA: createdAt pode vir como string ISO, Timestamp
+      // Firestore ou Date (dados legados). `.split('T')[0]` explodiria num
+      // Timestamp — usamos toDate()+getLocalDateStr() (fuso Brasil) para
+      // comparar com os filtros 'today/yesterday/week/month' no MESMO formato.
+      const orderDate = toDate(o.createdAt || o.date);
+      const orderDateStr = orderDate ? getLocalDateStr(orderDate) : '';
 
       const matchesSearch = (o.userName || '').toLowerCase().includes(termoLower) ||
         (o.inmateName || '').toLowerCase().includes(termoLower) ||

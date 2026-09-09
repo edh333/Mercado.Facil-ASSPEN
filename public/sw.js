@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mercado-facil-v15';
+const CACHE_NAME = 'mercado-facil-v16';
 const CORE_ASSETS = [
   '/',
   '/index.html',
@@ -13,11 +13,18 @@ const CORE_ASSETS = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(CORE_ASSETS).catch(() => {
-        console.warn('[SW] Alguns assets não puderam ser cacheados');
-      });
-    }).catch(() => {
-      console.warn('[SW] Falha ao abrir cache no install');
+      // Pré-cache por asset (não addAll atômico): um arquivo com 404 temporário
+      // não derruba a instalação inteira. Assets com hash Vite são imutáveis;
+      // os demais são revalidados no fetch.
+      return Promise.allSettled(
+        CORE_ASSETS.map((asset) =>
+          cache.add(asset).catch((err) => {
+            console.warn('[SW] Falha ao cachear', asset, err);
+          })
+        )
+      );
+    }).catch((err) => {
+      console.warn('[SW] Falha ao abrir cache no install:', err);
     })
   );
   self.skipWaiting();
@@ -36,7 +43,7 @@ self.addEventListener('activate', (event) => {
 });
 
 function isAssetRequest(request) {
-  return /\.(js|css|png|jpg|jpeg|webp|svg|woff2?)$/i.test(new URL(request.url).pathname);
+  return /\.(js|css|png|jpg|jpeg|webp|svg|woff2?|json)$/i.test(new URL(request.url).pathname);
 }
 
 function isHtml(response) {

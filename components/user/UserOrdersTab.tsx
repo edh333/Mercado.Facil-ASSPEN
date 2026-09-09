@@ -172,7 +172,7 @@ export const UserOrdersTab: React.FC<UserOrdersTabProps> = ({
                                                   </div>
                                                   <div className="flex gap-3 items-center">
                                                       <span className="font-black bg-slate-700 px-2 py-0.5 rounded text-[10px] text-slate-300">x{item.quantity}</span>
-                                                      <span className="font-black text-white">R$ {formatarMoeda(item.priceAtPurchase * item.quantity)}</span>
+                                                      <span className="font-black text-white">R$ {formatarMoeda((Number(item.priceAtPurchase) || 0) * (Number(item.quantity) || 0))}</span>
                                                   </div>
                                               </div>
                                           </div>

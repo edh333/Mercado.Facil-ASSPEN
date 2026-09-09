@@ -1047,7 +1047,8 @@ logoutTimerRef.current = setTimeout(() => {
             const now = new Date();
             const day = now.getDay();
             const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-            const monday = new Date(now.setDate(diff));
+            const monday = new Date(now);
+            monday.setDate(diff);
             monday.setHours(0, 0, 0, 0);
             const mondayStr = monday.toISOString().split('T')[0];
 
@@ -1968,7 +1969,7 @@ return false;
     const generateActivationKey = async (days: number): Promise<string> => {
         const hex = (Math.random().toString(16).slice(2, 6) + Math.random().toString(16).slice(2, 6) + Math.random().toString(16).slice(2, 6) + Math.random().toString(16).slice(2, 6)).toUpperCase();
         const token = hex.match(/.{1,4}/g)?.join('-') || hex;
-        const clean = token.replace(/-/g, '').toLowerCase();
+        const clean = token.replace(/-/g, '').toUpperCase();
         try {
             await setDoc(doc(db, 'system_licenses', clean), {
                 status: 'active',

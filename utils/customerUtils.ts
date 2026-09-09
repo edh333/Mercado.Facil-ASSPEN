@@ -6,6 +6,8 @@ import {
   deleteDoc,
   doc,
   getDocs,
+  getDoc,
+  writeBatch,
   arrayUnion,
   increment,
   Timestamp,
@@ -85,15 +87,21 @@ export async function receiveCustomerPayment(customerId: string, amount: number,
 
   try {
     const customerRef = doc(db, COLLECTION, customerId);
-    const snap = await getDocs(query(collection(db, COLLECTION)));
-    const conta = snap.docs.find(d => d.id === customerId)?.data();
+    // getDoc (antes: getDocs de TODA a coleção para achar 1 doc — N+1)
+    const customerSnap = await getDoc(customerRef);
+    if (!customerSnap.exists()) throw new Error("Conta de fiado não encontrada.");
+    const conta = customerSnap.data();
     const dividaAtual = Math.round(Number(conta?.currentDebt || 0) * 100) / 100;
     if (dividaAtual <= 0) throw new Error("Este cliente não possui débito em aberto.");
     if (valor > dividaAtual) throw new Error(`O pagamento (R$ ${valor.toFixed(2)}) supera a dívida (R$ ${dividaAtual.toFixed(2)}). Abata no máximo o valor devido.`);
 
     const novoDebito = Math.round((dividaAtual - valor) * 100) / 100;
 
-    await updateDoc(customerRef, {
+    // writeBatch: débito do cliente E caixa da sessão na MESMA transação —
+    // antes eram dois updateDoc separados (se o 2º falhasse, a dívida abaixava
+    // mas o caixa não recebia: discrepância financeira).
+    const batch = writeBatch(db);
+    batch.update(customerRef, {
       currentDebt: novoDebito,
       transactions: arrayUnion({
         type: "payment",
@@ -104,7 +112,7 @@ export async function receiveCustomerPayment(customerId: string, amount: number,
 
     if (sessionId) {
       const sessionRef = doc(db, "cash_sessions", sessionId);
-      await updateDoc(sessionRef, {
+      batch.update(sessionRef, {
         currentBalance: increment(valor),
         supplements: arrayUnion({
           amount: valor,
@@ -113,6 +121,8 @@ export async function receiveCustomerPayment(customerId: string, amount: number,
         })
       });
     }
+
+    await batch.commit();
     return { ok: true, dividaAnterior: dividaAtual, novoDebito };
   } catch (e: any) {
     console.error("[receiveCustomerPayment]", e.message);

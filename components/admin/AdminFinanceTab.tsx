@@ -866,7 +866,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
         isOpen={confirmacao === 'CREDITOS'}
         titulo="Zerar Créditos dos Familiares"
         descricao="Isso zera o SALDO DA CARTEIRA de TODOS os usuários de uma vez. Famíliares ficarão sem créditos para compras. Esta ação NÃO pode ser desfeita."
-        palavraChave="ZERAR CREDITOS"
+        palavraChave="ZERAR CRÉDITOS"
         onConfirm={() => { setConfirmacao(null); resetCredits(); }}
         onClose={() => setConfirmacao(null)}
       />

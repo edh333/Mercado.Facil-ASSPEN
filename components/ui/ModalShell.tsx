@@ -38,33 +38,16 @@ export const ModalShell: React.FC<ModalShellProps> = ({
   bodyClassName = '',
   headerColor = 'from-[#0f172a] via-[#1e293b] to-[#0f172a]',
 }) => {
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      document.body.style.overflow = '';
-    };
-  }, [open, onClose]);
-
-  if (!open) return null;
-
-  // Portal no <body>: modais renderizados DENTRO de containers com stacking
-  // context próprio (ex.: sidebar com z-50) ficavam presos atrás do conteúdo —
-  // mesmo com z-index 9999. Portar para o body resolve o modal "apareceu atrás".
+  // Refs e hooks SEMPRE antes de qualquer return condicional
   const innerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
+
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { onClose(); return; }
+      // Focus trap: Tab navega em loop dentro do modal
       if (e.key === 'Tab' && innerRef.current) {
-        // Focus trap leve: o Tab navega em loop dentro do modal,
-        // impedindo que o foco "saia" para o restante da página.
         const focusables = Array.from(
           innerRef.current.querySelectorAll<HTMLElement>(
             'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
@@ -84,6 +67,7 @@ export const ModalShell: React.FC<ModalShellProps> = ({
         }
       }
     };
+
     window.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
     return () => {
@@ -92,6 +76,7 @@ export const ModalShell: React.FC<ModalShellProps> = ({
     };
   }, [open, onClose]);
 
+  // Early return SOMENTE depois de todos os hooks
   if (!open) return null;
 
   // Portal no <body>: modais renderizados DENTRO de containers com stacking
@@ -108,7 +93,7 @@ export const ModalShell: React.FC<ModalShellProps> = ({
         tabIndex={-1}
         className={`modal-content modal-shell-fixed relative w-full ${SIZE_CLASS[size]} bg-white overflow-hidden flex flex-col max-h-[90vh] rounded-2xl shadow-2xl animate-scaleIn outline-none`}
       >
-        {/* TOP ACCENT BAR — identidade esmeralda do sistema (antes: arco-íris fora da marca) */}
+        {/* TOP ACCENT BAR — identidade esmeralda do sistema */}
         <div className="h-1.5 shrink-0 bg-gradient-to-r from-emerald-500 to-emerald-600"></div>
 
         <div className={`px-6 py-4 shrink-0 flex items-center justify-between gap-4 bg-gradient-to-r ${headerColor} text-white`}>
