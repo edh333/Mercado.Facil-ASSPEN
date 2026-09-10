@@ -35,6 +35,29 @@ const FullScreenLoader: React.FC = () => (
   </div>
 );
 
+// Usuário com cadastro ainda não aprovado (status 'pending'): não deve
+// navegar pelo app, mas também não pode ficar preso num loop de login.
+const PendingScreen: React.FC<{ onLogout: () => void }> = ({ onLogout }) => (
+  <div className="min-h-screen flex items-center justify-center p-6" style={{ backgroundColor: '#f8fafc' }}>
+    <div className="w-full max-w-sm text-center bg-white rounded-3xl border border-slate-200 p-10 shadow-sm">
+      <div className="w-14 h-14 rounded-2xl bg-amber-100 mx-auto mb-5 flex items-center justify-center">
+        <Loader2 size={24} className="text-amber-500 animate-spin" />
+      </div>
+      <h1 className="text-lg font-black tracking-tight text-slate-900">CADASTRO EM ANÁLISE</h1>
+      <p className="text-sm text-slate-500 mt-3 leading-relaxed">
+        Seu cadastro foi enviado e aguarda aprovação da administração.
+        Quando liberado, você já poderá acessar o aplicativo normalmente.
+      </p>
+      <button
+        onClick={onLogout}
+        className="mt-8 w-full py-3.5 rounded-2xl bg-slate-900 text-white font-black text-[11px] uppercase tracking-widest hover:bg-slate-700 transition-all active:scale-95"
+      >
+        Sair
+      </button>
+    </div>
+  </div>
+);
+
 const MainApp: React.FC = () => {
   const { currentUser, authLoading, logout } = useApp();
 
@@ -101,9 +124,10 @@ const MainApp: React.FC = () => {
   }
 
   if (currentUser.role !== UserRole.ADMIN || modoUsuario) {
+    const pendente = currentUser.status === 'pending' || currentUser.approved === false;
     return (
       <ErrorBoundary>
-        <UserDashboard />
+        {pendente ? <PendingScreen onLogout={logout} /> : <UserDashboard />}
       </ErrorBoundary>
     );
   }

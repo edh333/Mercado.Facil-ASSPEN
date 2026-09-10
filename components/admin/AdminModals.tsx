@@ -607,9 +607,21 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                     </label>
                     <div className="grid grid-cols-3 gap-3">
                         {[
-                          { value: 'both' as const, label: 'Ambos', desc: 'Usuário + PDV Admin', icon: Globe, color: 'bg-emerald-500' },
-                          { value: 'user' as const, label: 'Só Usuário', desc: 'App Familiares', icon: Store, color: 'bg-blue-500' },
-                          { value: 'admin' as const, label: 'Só PDV Admin', desc: 'Painel Gerencial', icon: ShoppingCart, color: 'bg-purple-500' }
+                          {
+                            value: 'both' as const, label: 'Ambos', desc: 'Usuário + PDV Admin', icon: Globe,
+                            active: 'border-emerald-500 bg-emerald-500/10 shadow-[0_0_0_2px_rgba(16,185,129,0.35)]',
+                            activeIcon: 'text-emerald-500', activeDesc: 'text-emerald-500/80'
+                          },
+                          {
+                            value: 'user' as const, label: 'Só Usuário', desc: 'App Familiares', icon: Store,
+                            active: 'border-blue-500 bg-blue-500/10 shadow-[0_0_0_2px_rgba(59,130,246,0.35)]',
+                            activeIcon: 'text-blue-500', activeDesc: 'text-blue-500/80'
+                          },
+                          {
+                            value: 'admin' as const, label: 'Só PDV Admin', desc: 'Painel Gerencial', icon: ShoppingCart,
+                            active: 'border-purple-500 bg-purple-500/10 shadow-[0_0_0_2px_rgba(168,85,247,0.35)]',
+                            activeIcon: 'text-purple-500', activeDesc: 'text-purple-500/80'
+                          }
                         ].map(opt => (
                           <button
                             key={opt.value}
@@ -617,20 +629,20 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                             onClick={() => setProductForm(prev => ({ ...prev, salesChannel: opt.value }))}
                             className={`relative p-4 rounded-2xl border-2 text-center transition-all active:scale-[0.98] ${
                               productForm.salesChannel === opt.value
-                                ? `border-[${opt.color}] bg-[${opt.color}]/10 shadow-[0_0_0_2px_${opt.color}]`
+                                ? opt.active
                                 : 'border-[var(--border-color)] bg-[var(--bg-card)] hover:border-emerald-500/50'
                             }`}
                           >
-                            <opt.icon size={20} className={`mx-auto mb-2 ${productForm.salesChannel === opt.value ? `text-[${opt.color}]` : 'text-[var(--text-muted)]'}`} />
-                            <p className={`font-black text-xs uppercase tracking-widest ${productForm.salesChannel === opt.value ? `text-[${opt.color}]` : 'text-[var(--text-main)]'}`}>
+                            <opt.icon size={20} className={`mx-auto mb-2 ${productForm.salesChannel === opt.value ? opt.activeIcon : 'text-[var(--text-muted)]'}`} />
+                            <p className={`font-black text-xs uppercase tracking-widest ${productForm.salesChannel === opt.value ? opt.activeIcon : 'text-[var(--text-main)]'}`}>
                               {opt.label}
                             </p>
-                            <p className={`text-[9px] mt-0.5 ${productForm.salesChannel === opt.value ? `text-[${opt.color}]/80` : 'text-[var(--text-muted)]'}`}>
+                            <p className={`text-[9px] mt-0.5 ${productForm.salesChannel === opt.value ? opt.activeDesc : 'text-[var(--text-muted)]'}`}>
                               {opt.desc}
                             </p>
                           </button>
                         ))}
-                    </div>
+                      </div>
                 </div>
             </form>
         </ModalShell>

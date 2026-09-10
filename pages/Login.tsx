@@ -146,7 +146,7 @@ const [recoveryName, setRecoveryName] = useState('');
                     name: (regData?.name || '').toUpperCase(),
                     password: password,
                     phone: regData.phone,
-                    role: 'FAMILIAR',
+                    role: 'FAMILY',
                     approved: false,
                     unitId: regData.unitId,
                     prisonerName: regData.prisonerName.toUpperCase(),

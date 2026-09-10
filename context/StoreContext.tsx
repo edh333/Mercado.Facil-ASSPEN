@@ -35,6 +35,7 @@ const fnEstornarVenda = httpsCallable(functions, 'estornarVenda');
 const fnValidarSenhaMestra = httpsCallable(functions, 'validarSenhaMestra');
 const fnDefinirSenhaMestra = httpsCallable(functions, 'definirSenhaMestra');
 const fnResetarSistemaTotal = httpsCallable(functions, 'resetarSistemaTotal');
+const fnZerarCarteiras = httpsCallable(functions, 'zerarCarteiras');
 const fnListarBackups = httpsCallable(functions, 'listarBackups');
 const fnBaixarBackup = httpsCallable(functions, 'baixarBackup');
 
@@ -1056,26 +1057,11 @@ logoutTimerRef.current = setTimeout(() => {
             const lastReset = settingsSnap.exists() ? settingsSnap.data()?.lastWeeklyReset : '';
 
             if (lastReset !== mondayStr) {
-                console.log('[WeeklyReset] Iniciando reset semanal...');
-                // Pagina além do limite de 500: com mais de 500 usuários tendo
-                // gasto na semana, os seguintes ficavam com o limite da semana
-                // anterior travados por mais uma semana (silencioso).
-                let lastDoc: import('firebase/firestore').QueryDocumentSnapshot | null = null;
-                while (true) {
-                    const qUsers = lastDoc
-                        ? query(collection(db, 'users'), where('weeklySpent', '>', 0), startAfter(lastDoc), limit(500))
-                        : query(collection(db, 'users'), where('weeklySpent', '>', 0), limit(500));
-                    const userSnaps = await getDocs(qUsers);
-                    if (userSnaps.empty) break;
-                    const batch = writeBatch(db);
-                    userSnaps.docs.forEach(d => batch.update(d.ref, { weeklySpent: 0 }));
-                    await batch.commit();
-                    if (userSnaps.docs.length < 500) break;
-                    lastDoc = userSnaps.docs[userSnaps.docs.length - 1];
-                }
-
-                await setDoc(doc(db, 'settings', 'maintenance'), { lastWeeklyReset: mondayStr }, { merge: true });
-                console.log('[WeeklyReset] Reset concluído.');
+                // O reset real é server-side (rotina agendada executarResetSemanal).
+                // Antes, este backstop tentava escrever weeklySpent pelo cliente —
+                // as regras bloqueiam esse campo por design e o write falhava no
+                // console a cada login de admin. Só reporta a defasagem agora.
+                console.warn('[WeeklyReset] Servidor ainda não executou o reset desta semana. (lastWeeklyReset=' + lastReset + ')');
             }
         } catch (e) {
             console.error('[WeeklyReset Error]', e);
@@ -1969,9 +1955,10 @@ return false;
     const generateActivationKey = async (days: number): Promise<string> => {
         const hex = (Math.random().toString(16).slice(2, 6) + Math.random().toString(16).slice(2, 6) + Math.random().toString(16).slice(2, 6) + Math.random().toString(16).slice(2, 6)).toUpperCase();
         const token = hex.match(/.{1,4}/g)?.join('-') || hex;
-        const clean = token.replace(/-/g, '').toUpperCase();
         try {
-            await setDoc(doc(db, 'system_licenses', clean), {
+            // Doc ID = token com hífens, idêntico ao que activateSystem() busca
+            // (antes era gravado sem hífens e a ativação nunca encontrava a chave).
+            await setDoc(doc(db, 'system_licenses', token), {
                 status: 'active',
                 expiresAt: new Date(Date.now() + days * 86400000).toISOString(),
                 createdAt: new Date().toISOString(),
@@ -2315,38 +2302,13 @@ return false;
     const resetCredits = async () => {
         if (!currentUser || currentUser.role !== UserRole.ADMIN) return;
         try {
-            const snapshot = await getDocs(collection(db, 'users'));
-            const antes = snapshot.docs.map(d => ({ id: d.id, nome: d.data().name || '', saldo: Number(d.data().walletBalance || 0) })).filter(u => u.saldo > 0);
-            const agora = new Date().toISOString();
-            for (let i = 0; i < snapshot.docs.length; i += 500) {
-                const batch = writeBatch(db);
-                const chunk = snapshot.docs.slice(i, i + 500);
-                chunk.forEach(d => {
-                    const saldo = Number(d.data().walletBalance || 0);
-                    if (saldo > 0) {
-                        // Trilha no extrato: cada carteira zerada vira uma correção visível,
-                        // mantendo o extrato coerente com o saldo (antes sumia sem registro).
-                        const txRef = doc(collection(db, 'wallet_transactions'));
-                        batch.set(txRef, {
-                            userId: d.id,
-                            amount: -saldo,
-                            type: 'correction',
-                            status: 'approved',
-                            description: 'Zeragem de créditos (reset manual)',
-                            createdAt: agora,
-                            proofUrl: '',
-                            payerName: currentUser.name || '',
-                            payerId: currentUser.id,
-                        });
-                    }
-                    batch.update(d.ref, { walletBalance: 0 });
-                });
-                await batch.commit();
-            }
-            await registrarAuditClient('ZERAR_CREDITOS', { usuariosComSaldo: antes }, { status: 'ok' });
-            showNotification("Todos os créditos foram zerados.", "success");
+            // Server-side (admin SDK): as regras bloqueiam edição de walletBalance
+            // no cliente por design — antes, esta tela falhava silenciosamente.
+            const res = await fnZerarCarteiras({});
+            const total = Number((res as any).data?.totalZeradas || 0);
+            showNotification(total > 0 ? `${total} carteira(s) zerada(s).` : "Nenhum crédito para zerar.", "success");
         } catch (e: any) {
-            showNotification("Erro ao zerar créditos: " + e.message, "error");
+            showNotification("Erro ao zerar créditos: " + (e?.message || e), "error");
         }
     };
 
@@ -2780,6 +2742,11 @@ return false;
                 return;
             }
             try {
+                // Refresh do ID token a cada login/reativação de sessão: sem isso,
+                // claims (ex.: papel de admin) só valeriam após a expiração do token
+                // antigo (~1h), deixando regras híbridas lentas e suspensões com atraso.
+                try { await fbUser.getIdToken(true); } catch (e) { /* noop */ }
+
                 // Busca direta no Firestore pelo authUid (regras permitem get próprio doc)
                 const userQuery = query(collection(db, 'users'), where('authUid', '==', fbUser.uid), limit(1));
                 const snap = await getDocs(userQuery);

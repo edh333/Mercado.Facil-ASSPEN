@@ -1022,6 +1022,61 @@ exports.creditarSaldo = onCall(async (request) => {
   return { ok: true, novoSaldo: novoSaldoFinal };
 });
 
+/**
+ * Admin — zera o saldo de TODAS as carteiras de usuários (ex.: fim de mês).
+ * Server-side via admin SDK: as regras bloqueiam edição de walletBalance no
+ * cliente por design; antes, a tela "Zerar Créditos" falhava silenciosamente.
+ * Gera uma transação 'correction' por carteira para manter o extrato coerente.
+ */
+exports.zerarCarteiras = onCall(async (request) => {
+  const caller = await exigirAdmin(request);
+  verificarRateLimit("zerarCarteiras:" + caller.id, 3);
+  logger.info(`[zerarCarteiras] operador=${caller.id}`);
+
+  const antes = [];
+  const agora = new Date().toISOString();
+  let lastDoc = null;
+
+  while (true) {
+    let q = db.collection("users").where("walletBalance", ">", 0)
+      .orderBy("walletBalance").limit(300);
+    if (lastDoc) q = q.startAfter(lastDoc);
+    const snap = await q.get();
+    if (snap.empty) break;
+
+    const batch = db.batch();
+    let noChunk = 0;
+    snap.docs.forEach((d) => {
+      const saldo = arredondar(Number(d.data().walletBalance || 0));
+      if (saldo <= 0) return;
+      antes.push({ id: d.id, nome: d.data().name || "", saldo });
+      batch.update(d.ref, { walletBalance: 0 });
+      registrarTransacaoCarteira(batch, db.collection("wallet_transactions").doc(), {
+        userId: d.id,
+        amount: -saldo,
+        type: "correction",
+        status: "approved",
+        description: "Zeragem de créditos (reset manual)",
+        createdAt: agora,
+        proofUrl: "",
+        payerName: caller.name || "Administrador",
+        payerId: caller.id,
+      });
+      noChunk++;
+    });
+    if (noChunk === 0) break;
+    await batch.commit();
+    if (snap.docs.length < 300) break;
+    lastDoc = snap.docs[snap.docs.length - 1];
+  }
+
+  await registrarAudit(caller.id, "ZERAR_CREDITOS", { usuariosComSaldo: antes }, {
+    totalZeradas: antes.length,
+  });
+
+  return { ok: true, totalZeradas: antes.length };
+});
+
 /** Admin PRINCIPAL — retirada de saldo (débito) de qualquer usuário.
  *  O dinheiro SAI da gaveta: exige senha mestra (bcrypt + rate limit),
  *  mesmo nível de segurança do aporte de crédito (creditarSaldo). */
@@ -2733,17 +2788,29 @@ exports.backupAutomaticoDiario = onSchedule({
   memory: "1GiB",
 }, async () => {
   const inicio = Date.now();
-  const nome = `backups/diario-${Date.now()}.json`;
-  const r = await gerarBackupCompleto(nome, "diario", "sistema");
-  await limparBackupsAntigos(30, 3);
-  await db.collection("settings").doc("maintenance").set({
-    lastBackup: new Date().toISOString(),
-    lastBackupFile: r.arquivo,
-    lastBackupDocs: r.totalDocs,
-    lastBackupBytes: r.bytes,
-    lastBackupDurationMs: Date.now() - inicio,
-    lastBackupStatus: "ok",
-  }, { merge: true });
+  try {
+    const nome = `backups/diario-${Date.now()}.json`;
+    const r = await gerarBackupCompleto(nome, "diario", "sistema");
+    await limparBackupsAntigos(30, 3);
+    await db.collection("settings").doc("maintenance").set({
+      lastBackup: new Date().toISOString(),
+      lastBackupFile: r.arquivo,
+      lastBackupDocs: r.totalDocs,
+      lastBackupBytes: r.bytes,
+      lastBackupDurationMs: Date.now() - inicio,
+      lastBackupStatus: "ok",
+    }, { merge: true });
+  } catch (e) {
+    // Registra a falha no maintenance (não re-throw: evita alertas falsos no
+    // Cloud Scheduler para a mesma causa que a função seguinte já tenta corrigir).
+    console.error("[backupAutomaticoDiario] falha:", e);
+    await db.collection("settings").doc("maintenance").set({
+      lastBackup: new Date().toISOString(),
+      lastBackupStatus: "error",
+      lastBackupError: String((e && e.message) || e).slice(0, 500),
+      lastBackupDurationMs: Date.now() - inicio,
+    }, { merge: true }).catch(() => {});
+  }
 });
 
 /** Admin — dispara um backup manual imediatamente. */
