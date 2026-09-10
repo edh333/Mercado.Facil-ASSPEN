@@ -2,15 +2,10 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
-    // Imagens de produtos â€” qualquer usuÃ¡rio autenticado pode ler;
-    // escrita apenas por administradores (role 'admin' no Firestore).
+    // Imagens de produtos — qualquer usuário autenticado pode ler;
+    // escrita apenas por administradores (Custom Claims: admin == true).
     function isAdmin() {
-      return request.auth != null &&
-        firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
-        (firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-         firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'ADMIN' ||
-         firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'master' ||
-         firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'MASTER');
+      return request.auth != null && request.auth.token.admin == true;
     }
 
     function isOwner(uid) {

@@ -1,5 +1,6 @@
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { logger } = require("firebase-functions");
 const admin = require("firebase-admin");
 const bcrypt = require("bcryptjs");
@@ -148,6 +149,52 @@ async function exigirAdminPermissao(context, permissao) {
     "Seu acesso a esta função foi restringido pelo administrador principal."
   );
 }
+
+// ──────────────────────────────────────────────
+// CUSTOM CLAIMS (migração da regra isAdmin nas rules)
+// ──────────────────────────────────────────────
+// As regras do Firestore/Storage leem request.auth.token.admin (0 leituras).
+// A FONTE DA VERDADE é o doc users: este trigger mantém o claim em sincronia
+// a cada escrita (criação, suspensão, promoção, exclusão). Ver:
+//   docs: firestore.rules → isAdmin()
+//
+// Regra de linha de comando:
+//   ehAdmin = role admin/master AND status ativo/ausente (mesmo critério do
+//   exigirAdmin das functions). Suspender/desativar um admin REVOGA o claim,
+//   derrubando o acesso dele a dados protegidos imediatamente.
+async function sincronizarClaimsUsuario(uid, usuario) {
+  if (!uid) return;
+  const role = String((usuario && usuario.role) || "user").toLowerCase();
+  const statusAtivo = !usuario || !usuario.status || String(usuario.status).toLowerCase() === "active";
+  const ehAdmin = ["admin", "master"].includes(role) && statusAtivo;
+  try {
+    await admin.auth().setCustomUserClaims(uid, { admin: ehAdmin });
+  } catch (e) {
+    logger.warn("[Claims] Falha ao definir claims de " + uid + ":", e.message);
+  }
+}
+
+/** Firestore trigger: usuários/{userId} → sincroniza claims (cria/altera/deleta). */
+exports.sincronizarClaimsNoDoc = onDocumentWritten("users/{userId}", async (event) => {
+  const uid = event.params.userId;
+  const antes = event.data.before.exists ? event.data.before.data() : null;
+  const depois = event.data.after.exists ? event.data.after.data() : null;
+  if (!depois && !antes) return;
+
+  const roleAntes = String((antes && antes.role) || "").toLowerCase();
+  const roleDepois = String((depois && depois.role) || "").toLowerCase();
+  const statusDepois = depois && depois.status;
+  const statusAntes = antes && antes.status;
+
+  // Só reescreve quando ROLE ou STATUS mudam (evita churn em edições comuns:
+  // saldo, email, telefone, permissões...). Exclusão (depois null) → revoga.
+  const mudouRole = roleAntes !== roleDepois;
+  const mudouStatus = String(statusAntes || "") !== String(statusDepois || "");
+  if (!mudouRole && !mudouStatus) {
+    if (antes && depois) return;
+  }
+  await sincronizarClaimsUsuario(uid, depois);
+});
 
 /**
  * Verifica a SENHA SECUNDÁRIA/MESTRA informada para operações sensíveis
@@ -592,6 +639,10 @@ exports.criarPrimeiroAdmin = onCall(async (request) => {
     if (authUser) await admin.auth().deleteUser(authUser.uid).catch(() => {});
     throw e;
   }
+  // Claim explícito: garante que o ID token emitido no login imediato (que
+  // acontece logo após esta chamada) já carregue admin:true — sem depender
+  // da latência do trigger.
+  await sincronizarClaimsUsuario(authUser.uid, { role: "admin", status: "active" });
   return { ok: true, userId: authUser.uid };
 });
 
@@ -632,6 +683,7 @@ exports.criarAdmin = onCall(async (request) => {
   });
   await salvarHashLegado(authUser.uid, hash);
   await registrarAudit(caller.id, "CRIAR_ADMIN", null, { usuarioId: authUser.uid, nome, email, cpf: cpf || null, permissao });
+  await sincronizarClaimsUsuario(authUser.uid, { role: "admin", status: "active" });
   return { ok: true, userId: authUser.uid };
 });
 
@@ -669,6 +721,34 @@ exports.atualizarPermissoesAdmin = onCall(async (request) => {
     para: permissaoFinal,
   });
   return { ok: true, permissions: permissaoFinal };
+});
+
+/**
+ * Admin PRINCIPAL — sincroniza claims de TODOS os usuários a partir do doc
+ * users (fonte da verdade). Rodar UMA vez na migração, ANTES de publicar as
+ * novas regras. Após rodar, todo admin existente deve fazer login de novo
+ * (o ID token em cache não carrega o claim até renovar).
+ */
+exports.sincronizarClaimsAdmin = onCall({ timeoutSeconds: 240 }, async (request) => {
+  const caller = await exigirAdminPrincipal(request);
+  let total = 0;
+  let admins = 0;
+  let cursor = null;
+  do {
+    let q = db.collection("users").orderBy("__name__").limit(500);
+    if (cursor) q = q.startAfter(cursor);
+    const snap = await q.get();
+    if (snap.empty) break;
+    for (const d of snap.docs) {
+      await sincronizarClaimsUsuario(d.id, d.data());
+      total++;
+      if (["admin", "master"].includes(String(d.data().role || "").toLowerCase())) admins++;
+    }
+    cursor = snap.docs[snap.docs.length - 1];
+  } while (cursor);
+  await registrarAudit(caller.id, "SINCRONIZAR_CLAIMS_ADMIN", null, { total, admins });
+  logger.info("[Claims] Backfill concluído por " + caller.id + ": " + total + " usuário(s), " + admins + " admin(s).");
+  return { ok: true, total, admins };
 });
 
 /** Autenticado — altera a própria senha. */

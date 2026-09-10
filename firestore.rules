@@ -1,13 +1,22 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // ⚡ RECOMENDAÇÃO DE PERFORMANCE (não altera comportamento):
-    // Atualmente isAdmin() faz 4x get() por avaliação (role admin/ADMIN/master/MASTER).
-    // Para eliminar leituras extras e evitar TOCTOU nas rules, migre para Custom Claims:
-    //   1. No backend (Cloud Function onCreate de user): setCustomUserClaims(uid, { admin: true })
-    //   2. Substitua isAdmin() por: request.auth.token.admin == true
-    //   3. Benefício: 0 leituras extras, avaliação instantânea, sem race conditions.
-    // Esta mudança requer deploy de backend (functions/) + rules sincronizado.
+    // ──────────────────────────────────────────────────────────────
+    // CUSTOM CLAIMS (request.auth.token.admin)
+    //
+    // Migração concluída (functions/sincronizarClaimsNoDoc + backfill).
+    // isAdmin() NÃO faz mais leituras ao Firestore. Fonte da verdade:
+    // o doc users/{uid} — atualizado por triggers (DB) e Functions.
+    //
+    // Deploy (em ordem — NUNCA inverter):
+    //   1. Deploy functions/  (trigger + sincronizarClaimsAdmin)
+    //   2. Rodar sincronizarClaimsAdmin UMA vez (backfill)
+    //   3. Todos os admins relogam (token cacheado não tem o claim)
+    //   4. Deploy rules (THIS FILE) + storage.rules
+    //
+    // Rollback (se necessário):
+    //   Reverter este arquivo ao commit anterior (isAdmin via get/exists).
+    //   Reverta storage.rules simultaneamente.
     //
     // ── Funções utilitárias ──
     function isAuthenticated() {
@@ -15,12 +24,7 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isAuthenticated() &&
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN' ||
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'master' ||
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'MASTER');
+      return isAuthenticated() && request.auth.token.admin == true;
     }
 
     // O usuário é dono de um registro quando: id == UID autenticado,
@@ -134,6 +138,7 @@ service cloud.firestore {
       // Controle de manutenção (sistema desativado para outros admins):
       // leitura para qualquer autenticado (admins bloqueados precisam ver o motivo),
       // escrita SOMENTE admin, com campos e tipos forçados. Exclusão proibida.
+      // NOTA: a Cloud Function backupAutomaticoDiario usa admin SDK e ignora estas rules.
       allow read: if isAuthenticated();
       allow create, update: if isAdmin()
         && request.resource.data.keys().hasOnly([
@@ -146,6 +151,16 @@ service cloud.firestore {
         && (!('desativadoPorNome' in request.resource.data) || request.resource.data.desativadoPorNome is string)
         && (!('desativadoEm' in request.resource.data) || request.resource.data.desativadoEm is string)
         && (!('lastWeeklyReset' in request.resource.data) || request.resource.data.lastWeeklyReset is string);
+      allow delete: if false;
+    }
+    match /settings/checklist {
+      // Checklist de manutenção (Centro de Manutenção).
+      // Qualquer autenticado pode ler (todos os admins enxergam o mesmo estado);
+      // admin pode escrever apenas o campo realizacoes (map de itemId → {realizadaEm, por}).
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin()
+        && request.resource.data.keys().hasOnly(['realizacoes'])
+        && request.resource.data.realizacoes is map;
       allow delete: if false;
     }
 
