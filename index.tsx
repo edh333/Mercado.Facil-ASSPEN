@@ -23,7 +23,7 @@ iniciarSentry();
 // ⚠ MANTER EM SINCRONIA com CACHE_NAME em public/sw.js (hoje: v17).
 // Antes estava 'v11' aqui e 'v12' lá → a limpeza diária apagava o cache
 // atual do próprio sistema, forçando re-download completo toda sessão.
-const SW_CACHE_ATUAL = 'mercado-facil-v17';
+const SW_CACHE_ATUAL = 'mercado-facil-v18';
 const SW_CLEANUP_FLAG = 'mercado-facil-sw-cleanup-v11';
 
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator && !sessionStorage.getItem(SW_CLEANUP_FLAG)) {

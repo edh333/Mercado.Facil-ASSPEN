@@ -17,6 +17,7 @@ import { Menu, X, Banknote, Trash2, BarChart3, FileText, AlertTriangle, ArrowUpR
 // Import all modular subcomponents
 import { AdminSidebar } from '../components/admin/AdminSidebar';
 import { AdminHomeTab } from '../components/admin/AdminHomeTab';
+import { AdminMaintenanceTab } from '../components/admin/AdminMaintenanceTab';
 import { AdminShortcutsModal } from '../components/admin/AdminShortcutsModal';
 import { AdminOrdersTab } from '../components/admin/AdminOrdersTab';
 import { AdminProductsTab } from '../components/admin/AdminProductsTab';
@@ -290,11 +291,11 @@ export function AdminDashboard() {
   useEffect(() => {
     if (roleLoading) return;
     if (userRole === 'operator' && !isMaster) {
-      if (['bi', 'customers', 'settings'].includes(activeTab)) {
+      if (['bi', 'customers', 'settings', 'maintenance'].includes(activeTab)) {
         setActiveTab('home');
       }
     } else if (userRole === 'manager' && !isMaster) {
-      if (['cash', 'inmates', 'users', 'messages', 'finance', 'wallet', 'customers', 'reports', 'bi', 'settings'].includes(activeTab)) {
+      if (['cash', 'inmates', 'users', 'messages', 'finance', 'wallet', 'customers', 'reports', 'bi', 'settings', 'maintenance'].includes(activeTab)) {
         setActiveTab('home');
       }
     }
@@ -850,6 +851,7 @@ export function AdminDashboard() {
                 {activeTab === 'stock_alerts' && 'Alertas de Reposição'}
                 {activeTab === 'customers' && 'Conta de Clientes (Fiado / Crédito)'}
                 {activeTab === 'settings' && 'Parâmetros Administrativos'}
+                {activeTab === 'maintenance' && 'Centro de Manutenção'}
               </h2>
               <p className="text-xs text-slate-500">
                 {(settings as any)?.institutionName || 'Mercado Fácil ASSPEN'} • Sistema de Gestão Penitenciária
@@ -1131,6 +1133,18 @@ export function AdminDashboard() {
                     setEditingProduct(product);
                     setShowProductModal(true);
                   }}
+                />
+              )}
+
+              {activeTab === 'maintenance' && (isMaster || userRole === 'admin') && (
+                <AdminMaintenanceTab
+                  products={products}
+                  orders={orders}
+                  walletTx={walletTx}
+                  users={users}
+                  cotaCritica={cotaCritica}
+                  currentUser={currentUser}
+                  onNavigate={goToTab}
                 />
               )}
 

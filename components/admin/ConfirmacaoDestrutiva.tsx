@@ -8,6 +8,10 @@ interface ConfirmacaoDestrutivaProps {
     descricao: string;
     /** Palavra que precisa ser digitada para habilitar o botão (padrão: ZERAR) */
     palavraChave?: string;
+    /** Modo SEM digitação: confirmação em 2 toques (modal → Confirmar). Usado em
+     *  fluxos de aprovação de alto volume (pedidos, créditos) onde o operador
+     *  já conferiu o comprovante na tela. NUNCA usar em exclusão/zeramento. */
+    semDigitar?: boolean;
     onConfirm: () => void;
     onClose: () => void;
     processando?: boolean;
@@ -20,10 +24,10 @@ interface ConfirmacaoDestrutivaProps {
  * palavra-chave — impossível acionar num deslize de clique.
  */
 export const ConfirmacaoDestrutiva: React.FC<ConfirmacaoDestrutivaProps> = ({
-    isOpen, titulo, descricao, palavraChave = 'ZERAR', onConfirm, onClose, processando = false
+    isOpen, titulo, descricao, palavraChave = 'ZERAR', semDigitar = false, onConfirm, onClose, processando = false
 }) => {
     const [texto, setTexto] = useState('');
-    const valido = texto.trim().toUpperCase() === palavraChave.toUpperCase();
+    const valido = semDigitar ? !processando : texto.trim().toUpperCase() === palavraChave.toUpperCase();
 
     useEffect(() => {
         if (isOpen) setTexto('');
@@ -56,12 +60,22 @@ export const ConfirmacaoDestrutiva: React.FC<ConfirmacaoDestrutivaProps> = ({
 
                         <p className="text-xs font-bold text-slate-500 leading-relaxed">{descricao}</p>
 
+                        {semDigitar ? (
+                            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-3">
+                                <AlertTriangle size={18} className="text-amber-600 shrink-0" />
+                                <span className="text-[10px] font-black uppercase tracking-widest text-amber-700">
+                                    Esta ação é irreversível. Confira os dados antes de confirmar.
+                                </span>
+                            </div>
+                        ) : (
                         <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center gap-3">
                             <span className="text-[9px] font-black uppercase tracking-widest text-red-600 shrink-0">Digite</span>
                             <span className="px-3 py-1 rounded-lg bg-white border-2 border-dashed border-red-300 text-red-700 font-black text-sm tracking-[0.3em] tnum select-all">{palavraChave}</span>
                             <span className="text-[9px] font-black uppercase tracking-widest text-red-600">para liberar</span>
                         </div>
+                        )}
 
+                        {!semDigitar && (
                         <input
                             type="text"
                             autoFocus
@@ -72,6 +86,7 @@ export const ConfirmacaoDestrutiva: React.FC<ConfirmacaoDestrutivaProps> = ({
                             placeholder="••••••"
                             className="w-full bg-slate-50 border-2 border-slate-200 focus:border-red-500 p-4 rounded-2xl font-black text-center text-lg uppercase tracking-[0.3em] outline-none transition-colors disabled:opacity-50"
                         />
+                        )}
 
                         <div className="flex gap-2 pt-1">
                             <button type="button" onClick={onClose} disabled={processando}

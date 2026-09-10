@@ -479,7 +479,8 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
         descricao={confirmAction === 'reject'
           ? 'O valor não será creditado na conta do interno. Impacta o saldo do familiar pagador.'
           : `O saldo de R$ ${formatarMoeda(transaction.amount)} será creditado imediatamente na conta do interno ${transaction.inmateName || '—'}.`}
-        palavraChave={confirmAction === 'reject' ? 'RECUSAR' : 'CONFIRMAR'}
+        palavraChave={confirmAction === 'reject' ? 'RECUSAR' : undefined}
+        semDigitar={confirmAction === 'approve'}
         processando={confirmAction === 'reject' ? isRejecting : isApproving}
         onConfirm={() => { if (confirmAction === 'reject') handleReject(); else handleApprove(); }}
         onClose={() => { if (!isApproving && !isRejecting) setConfirmAction(null); }}

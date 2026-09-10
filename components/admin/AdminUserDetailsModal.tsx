@@ -477,7 +477,8 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
             ? `Bloquear o acesso de ${user.name || 'este usuário'}? A ação pode ser revertida depois (Reativar).`
             : `EXCLUIR ${user.name || 'este usuário'}? O histórico será preservado (soft delete).`
         }
-        palavraChave={confirmAcao?.tipo === 'aprovar' ? 'APROVAR' : confirmAcao?.tipo === 'suspender' ? 'BLOQUEAR' : 'EXCLUIR'}
+        palavraChave={confirmAcao?.tipo === 'aprovar' ? undefined : confirmAcao?.tipo === 'suspender' ? 'BLOQUEAR' : 'EXCLUIR'}
+        semDigitar={confirmAcao?.tipo === 'aprovar'}
         onConfirm={() => {
           if (confirmAcao?.tipo === 'aprovar') { approveUser(user.id); showNotification('Cadastro aprovado!', 'success'); onClose(); }
           else if (confirmAcao?.tipo === 'suspender') suspendUser(user.id, true);

@@ -378,8 +378,8 @@ button {
 
 .input-premium:focus {
   outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15);
+  border-color: #475569;
+  box-shadow: 0 0 0 4px rgba(100, 116, 139, 0.15);
   background: #ffffff;
 }
 
@@ -399,7 +399,7 @@ button {
 
 .dark .input-premium:focus {
   background: rgba(255, 255, 255, 0.1);
-  border-color: var(--primary-color);
+  border-color: #94a3b8;
 }
 
 /* Input with Icon */
@@ -414,8 +414,8 @@ button {
 }
 
 .input-with-icon:focus-within {
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15);
+  border-color: #475569;
+  box-shadow: 0 0 0 4px rgba(100, 116, 139, 0.15);
   background: #ffffff;
 }
 
@@ -450,6 +450,7 @@ button {
 
 .dark .input-with-icon:focus-within {
   background: rgba(255, 255, 255, 0.1);
+  border-color: #94a3b8;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -1170,6 +1171,32 @@ textarea:focus:not(:focus-visible) {
   outline: none;
 }
 
+/* ═══ NEUTRALIZAÇÃO GLOBAL DOS "CONTORNOS FANTASMA" ═══
+   Em PWA e telão de caixa (mouse E toque), campos de texto casam
+   :focus-visible em QUALQUER interação — até em simples toques. Por isso
+   qualquer input que usava foco VERDE Tailwind (focus:border-emerald-*,
+   focus:ring-emerald-*, focus:border-green-*) desenhava uma "aura" verde ao
+   ser tocado, reclamada em TODAS as janelas (login já estava corrigido).
+   Aqui neutralizamos esses utilities para slate NEUTRO (mesmo padrão do
+   login). Estados de erro (focus:ring-red-*, border-red-*) NÃO são afetados,
+   e o anel cinza de teclado (:focus-visible acima) continua intacto. */
+[class*="focus:border-emerald"]:focus,
+[class*="focus:border-green"]:focus {
+  border-color: #64748b !important;
+}
+[class*="focus:ring-emerald"]:focus,
+[class*="focus:ring-green"]:focus {
+  box-shadow: 0 0 0 3px rgba(71, 85, 105, 0.25) !important;
+}
+.dark [class*="focus:border-emerald"]:focus,
+.dark [class*="focus:border-green"]:focus {
+  border-color: #94a3b8 !important;
+}
+.dark [class*="focus:ring-emerald"]:focus,
+.dark [class*="focus:ring-green"]:focus {
+  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.35) !important;
+}
+
 /* Firefox: scrollbars discretas equivalentes ao WebKit já definido */
 * {
   scrollbar-width: thin;
@@ -1427,7 +1454,7 @@ body {
 }
 .dark .input-premium:focus {
   background: rgba(255, 255, 255, 0.1);
-  border-color: var(--primary-color);
+  border-color: #94a3b8;
 }
 .dark .input-premium::placeholder {
   color: #71717a;
@@ -1439,6 +1466,7 @@ body {
 }
 .dark .input-with-icon:focus-within {
   background: rgba(255, 255, 255, 0.1);
+  border-color: #94a3b8;
 }
 .dark .input-with-icon .input-icon {
   color: #a1a1aa;

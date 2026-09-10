@@ -3,7 +3,7 @@ import { NavItem } from './AdminCommon';
 import {
   Users, Package, ShoppingCart, DollarSign, LogOut, Settings,
   BarChart3, Home, Shield, CreditCard, Landmark, Activity, AlertTriangle,
-  BookOpen, MessageSquare, Sun, Moon, Monitor
+  BookOpen, MessageSquare, Sun, Moon, Monitor, Wrench
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { SystemRole } from '../PWAInstallProvider';
@@ -105,6 +105,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
                 {hasPermission('reports') && <NavItem icon={BarChart3} label="Relatórios" active={activeTab === 'reports'} onClick={() => setActiveTab('reports')} />}
                 {hasPermission('reports') && (isMaster || userRole === 'admin') && <NavItem icon={Activity} label="Dashboard BI" active={activeTab === 'bi'} onClick={() => setActiveTab('bi')} />}
+                {(isMaster || userRole === 'admin') && <NavItem icon={Wrench} label="Manutenção" active={activeTab === 'maintenance'} onClick={() => setActiveTab('maintenance')} />}
                 {(isMaster || userRole === 'admin') && <NavItem icon={Settings} label="Configurações" active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />}
               </>
             )}

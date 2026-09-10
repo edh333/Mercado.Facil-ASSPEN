@@ -379,7 +379,8 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
             ? `O pagamento de R$ ${(Number(alvo.total) || 0).toFixed(2).replace('.', ',')} do pedido #${(alvo.id || '').slice(0, 8).toUpperCase()} de ${alvo.userName || '—'} será aprovado e a compra concluída nos registros.`
             : 'O pagamento será aprovado e a compra concluída nos registros.';
         })()}
-        palavraChave="APROVAR"
+        palavraChave={undefined}
+        semDigitar
         processando={aprovarId !== null}
         onConfirm={() => {
           const alvo = (orders || []).find(o => o.id === confirmarAprovId);
