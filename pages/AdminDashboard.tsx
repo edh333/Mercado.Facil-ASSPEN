@@ -36,6 +36,7 @@ import { AdminReportPreviewModal } from '../components/admin/AdminReportPreviewM
 import { AdminCashTab } from '../components/admin/AdminCashTab';
 import { AdminDashboardCharts } from '../components/admin/AdminDashboardCharts';
 import { AdminStockAlertsTab } from '../components/admin/AdminStockAlertsTab';
+import { MaintenanceCenter } from '../components/admin/MaintenanceCenter';
 import { AdminMessagesTab } from '../components/admin/AdminMessagesTab';
 import { AdminCustomersTab } from '../components/admin/AdminCustomersTab';
 import { AdminModals } from '../components/admin/AdminModals';
@@ -810,6 +811,20 @@ export function AdminDashboard() {
           <OfflineSalesBanner />
         </div>
 
+        {/* Manutenção: faixa compacta com avisos automáticos + checklist (admin-only) */}
+        <div className="px-6 pt-4">
+          <MaintenanceCenter
+            variant="banner"
+            products={products}
+            orders={orders}
+            walletTx={walletTx}
+            users={users}
+            cotaCritica={cotaCritica}
+            currentUser={currentUser}
+            onNavigate={goToTab}
+          />
+        </div>
+
         {/* Dynamic Header */}
         <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 px-4 sm:px-6 py-3 flex items-center justify-between backdrop-blur transition-all duration-300">
           <div className="flex items-center gap-3">
@@ -860,24 +875,36 @@ export function AdminDashboard() {
               transition={{ duration: 0.25, ease: "easeOut" }}
               className="h-full w-full"
             >
-              {activeTab === 'home' && (
-                <AdminHomeTab
-                  stats={stats}
-                  chartData={chartData}
-                  isMaster={isMaster}
-                  setActiveTab={setActiveTab}
-                  setShowProductModal={setShowProductModal}
-                  setOrderStatusFilter={setOrderStatusFilter}
-                  filterType="day"
-                  orders={orders}
-                  products={products}
-                  walletTx={walletTx}
-                  approveWalletTransaction={approveWalletTransaction}
-                  rejectWalletTransaction={rejectWalletTransaction}
-                  onSelectTransaction={setSelectedWalletTx}
-                  onOpenSales={() => setShowSalesModal(true)}
-                  onOpenShortcuts={() => setShowShortcutsModal(true)}
-                />
+{activeTab === 'home' && (
+                <>
+                  <MaintenanceCenter
+                    variant="full"
+                    products={products}
+                    orders={orders}
+                    walletTx={walletTx}
+                    users={users}
+                    cotaCritica={cotaCritica}
+                    currentUser={currentUser}
+                    onNavigate={goToTab}
+                  />
+                  <AdminHomeTab
+                    stats={stats}
+                    chartData={chartData}
+                    isMaster={isMaster}
+                    setActiveTab={setActiveTab}
+                    setShowProductModal={setShowProductModal}
+                    setOrderStatusFilter={setOrderStatusFilter}
+                    filterType="day"
+                    orders={orders}
+                    products={products}
+                    walletTx={walletTx}
+                    approveWalletTransaction={approveWalletTransaction}
+                    rejectWalletTransaction={rejectWalletTransaction}
+                    onSelectTransaction={setSelectedWalletTx}
+                    onOpenSales={() => setShowSalesModal(true)}
+                    onOpenShortcuts={() => setShowShortcutsModal(true)}
+                  />
+                </>
               )}
 
               {activeTab === 'orders' && hasPermission('orders') && (
