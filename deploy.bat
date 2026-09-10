@@ -26,18 +26,26 @@ if not exist "node_modules\" (
     echo        Instalando pacotes (npm install^)...
     call npm install || goto :fail
 )
+if not exist "functions\node_modules\" (
+    echo        Instalando dependencias das Cloud Functions (npm install em functions^)...
+    call npm --prefix functions install || goto :fail
+)
 
 echo [2/5] Checagem de tipos (tsc^)...
 call npm run lint || goto :fail
 
 echo [3/5] Testes...
 call npm test || goto :fail
+call npm --prefix functions test || goto :fail
+
+echo [3.5/5] Sintaxe das Cloud Functions (node -c^)...
+call node -c "functions\index.js" || goto :fail
 
 echo [4/5] Build de producao...
 call npm run build || goto :fail
 
-echo [5/5] Publicando no Firebase (hosting + firestore + storage + functions^)...
-call firebase deploy --only "hosting,firestore,storage,functions" || goto :fail
+echo [5/5] Publicando no Firebase (hosting + firestore + storage[main] + functions^)...
+call firebase deploy --only "hosting,firestore,storage:main,functions" || goto :fail
 
 echo.
 echo ============================================================

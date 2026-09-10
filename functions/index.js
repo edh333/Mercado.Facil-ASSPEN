@@ -283,6 +283,14 @@ const RATE_LIMIT_JANELA_MS = 60 * 1000;
 
 function verificarRateLimit(chave, maxChamadasPorJanela, janelaMs = RATE_LIMIT_JANELA_MS) {
   const agora = Date.now();
+  // Poda oportunista: quando o mapa cresce, remove entradas velhas (2x a
+  // janela de todas as chaves). Mantém a memória estável em operação contínua
+  // de longa duração (anos), sem custo relevante nas chamadas normais.
+  if (rateLimitMap.size > 5000) {
+    for (const [k, r] of rateLimitMap) {
+      if (agora - r.t0 > janelaMs * 2) rateLimitMap.delete(k);
+    }
+  }
   const rec = rateLimitMap.get(chave);
   if (!rec || agora - rec.t0 > janelaMs) {
     rateLimitMap.set(chave, { t0: agora, n: 1 });
