@@ -1156,9 +1156,11 @@ body {
 /* ═══ FOCO VISÍVEL PROFISSIONAL (navegação por teclado F1-F12 do PDV)
    Só aparece via teclado (focus-visible), nunca polui o clique do mouse.
    Anel suave (ring) no padrão shadcn: borda dupla (nítida + glow) em vez do
-   outline chapado, para integrar com o acabamento moderno das janelas. */
+   outline chapado, para integrar com o acabamento moderno das janelas.
+   NOTA: cor NEUTRA (slate) em vez de verde — o verde criava "contornos
+   fantasma" ao focar inputs/botões, reclamado pelos usuários finais. */
 :focus-visible {
-  outline: 2px solid var(--primary-color);
+  outline: 2px solid #475569;
   outline-offset: 2px;
 }
 button:focus:not(:focus-visible),
