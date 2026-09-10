@@ -2,7 +2,7 @@ import React, { Fragment } from 'react';
 import { createPortal } from 'react-dom';
 import {
   X, Check, Upload, ImageIcon, Barcode,
-  MinusCircle, RefreshCw, Loader2, Lock, Package, Key, PlusCircle, Printer, KeyRound, ShieldCheck, Edit, Shield, AlertTriangle, Save
+  MinusCircle, RefreshCw, Loader2, Lock, Package, Key, PlusCircle, Printer, KeyRound, ShieldCheck, Edit, Shield, AlertTriangle, Save, Globe, Store, ShoppingCart
 } from 'lucide-react';
 import { Product, Expense, Order } from '../../types';
 import { compressImageFile, fileToBase64, normalizeName } from '../../utils';
@@ -186,7 +186,8 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
     available: true,
     dynamicPrice: false,
     imageUrl: '',
-    category: 'Geral'
+    category: 'Geral',
+    salesChannel: 'both' as 'both' | 'user' | 'admin'
   });
 
   React.useEffect(() => {
@@ -207,7 +208,8 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
         available: editingProduct.available !== false,
         dynamicPrice: !!editingProduct.dynamicPrice,
         imageUrl: editingProduct.imageUrl || '',
-        category: editingProduct.category || 'Geral'
+        category: editingProduct.category || 'Geral',
+        salesChannel: editingProduct.salesChannel || 'both'
       });
     } else if (showProductModal && !editingProduct) {
       priceTouchedRef.current = false;
@@ -223,7 +225,8 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
         available: true,
         dynamicPrice: false,
         imageUrl: '',
-        category: 'Geral'
+        category: 'Geral',
+        salesChannel: 'both'
       });
     }
   }, [showProductModal, editingProduct]);
@@ -272,6 +275,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
         imageUrl: productForm.imageUrl,
         available: productForm.available,
         dynamicPrice: productForm.dynamicPrice,
+        salesChannel: productForm.salesChannel,
         supplierId: editingProduct?.supplierId || '',
         description: editingProduct?.description || '',
         weight: editingProduct?.weight || 'UN',
@@ -580,21 +584,54 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                     />
                </div>
 
-               {/* TOGGLES */}
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                   <ToggleSwitch
-                       label="Produto Ativo"
-                       sublabel="Visível para vendas"
-                       checked={productForm.available !== false}
-                       onChange={e => setProductForm({...productForm, available: e.target.checked})}
-                   />
-                   <ToggleSwitch
-                       label="Preço Dinâmico"
-                       sublabel="Definir valor na hora"
-                       checked={!!productForm.dynamicPrice}
-                       onChange={e => setProductForm({...productForm, dynamicPrice: e.target.checked})}
-                   />
-               </div>
+{/* TOGGLES */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <ToggleSwitch
+                        label="Produto Ativo"
+                        sublabel="Visível para vendas"
+                        checked={productForm.available !== false}
+                        onChange={e => setProductForm({...productForm, available: e.target.checked})}
+                    />
+                    <ToggleSwitch
+                        label="Preço Dinâmico"
+                        sublabel="Definir valor na hora"
+                        checked={!!productForm.dynamicPrice}
+                        onChange={e => setProductForm({...productForm, dynamicPrice: e.target.checked})}
+                    />
+                </div>
+
+                {/* CANAL DE VENDAS */}
+                <div className="space-y-3">
+                    <label className="text-slate-600 font-black text-[10px] uppercase tracking-widest mb-3 block">
+                        Canal de Venda <span className="font-normal text-slate-400 text-[9px]">(onde o produto pode ser vendido)</span>
+                    </label>
+                    <div className="grid grid-cols-3 gap-3">
+                        {[
+                          { value: 'both' as const, label: 'Ambos', desc: 'Usuário + PDV Admin', icon: Globe, color: 'bg-emerald-500' },
+                          { value: 'user' as const, label: 'Só Usuário', desc: 'App Familiares', icon: Store, color: 'bg-blue-500' },
+                          { value: 'admin' as const, label: 'Só PDV Admin', desc: 'Painel Gerencial', icon: ShoppingCart, color: 'bg-purple-500' }
+                        ].map(opt => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setProductForm(prev => ({ ...prev, salesChannel: opt.value }))}
+                            className={`relative p-4 rounded-2xl border-2 text-center transition-all active:scale-[0.98] ${
+                              productForm.salesChannel === opt.value
+                                ? `border-[${opt.color}] bg-[${opt.color}]/10 shadow-[0_0_0_2px_${opt.color}]`
+                                : 'border-[var(--border-color)] bg-[var(--bg-card)] hover:border-emerald-500/50'
+                            }`}
+                          >
+                            <opt.icon size={20} className={`mx-auto mb-2 ${productForm.salesChannel === opt.value ? `text-[${opt.color}]` : 'text-[var(--text-muted)]'}`} />
+                            <p className={`font-black text-xs uppercase tracking-widest ${productForm.salesChannel === opt.value ? `text-[${opt.color}]` : 'text-[var(--text-main)]'}`}>
+                              {opt.label}
+                            </p>
+                            <p className={`text-[9px] mt-0.5 ${productForm.salesChannel === opt.value ? `text-[${opt.color}]/80` : 'text-[var(--text-muted)]'}`}>
+                              {opt.desc}
+                            </p>
+                          </button>
+                        ))}
+                    </div>
+                </div>
             </form>
         </ModalShell>
       )}

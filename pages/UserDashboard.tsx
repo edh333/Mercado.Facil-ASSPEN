@@ -308,6 +308,8 @@ export const UserDashboard: React.FC = () => {
         const termo = (searchTerm || '').toLowerCase().trim();
         const base = safeProducts.filter(p => {
             if (p.available === false) return false;
+            // Canal de vendas: usuário só vê produtos 'both' ou 'user'
+            if (p.salesChannel && p.salesChannel !== 'both' && p.salesChannel !== 'user') return false;
             if (catFilter !== 'ALL' && (p.category || '').trim() !== catFilter) return false;
             if (!termo) return true;
             const alvo = `${p.name || ''} ${p.brand || ''} ${p.category || ''} ${p.description || ''}`.toLowerCase();
@@ -326,7 +328,7 @@ export const UserDashboard: React.FC = () => {
     }, [safeProducts, searchTerm, catFilter, sortOpt]);
 
     const categorias = useMemo(() =>
-        Array.from(new Set(safeProducts.filter(p => p.available !== false).map(p => (p.category || '').trim()).filter(Boolean)))
+        Array.from(new Set(safeProducts.filter(p => p.available !== false && (!p.salesChannel || p.salesChannel === 'both' || p.salesChannel === 'user')).map(p => (p.category || '').trim()).filter(Boolean)))
             .sort((a, b) => a.localeCompare(b, 'pt-BR')),
     [safeProducts]);
 

@@ -43,6 +43,8 @@ export interface Message {
   fromAdmin: boolean;
 }
 
+export type SalesChannel = 'both' | 'user' | 'admin';
+
 export interface Product {
   brand?: string;
   barcode?: string;
@@ -65,6 +67,7 @@ export interface Product {
   minStock?: number;
   lastSoldAt?: string;
   supplier?: string;
+  salesChannel?: SalesChannel;
 }
 
 export interface CartItem extends Product {

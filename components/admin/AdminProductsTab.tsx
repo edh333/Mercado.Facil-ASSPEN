@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  Package, Search, Grid, List, Plus, Upload, Trash2, Edit, ImageIcon, Printer, AlertTriangle, Check, RefreshCw, Download, Package as PackageIcon
+  Package, Search, Grid, List, Plus, Upload, Trash2, Edit, ImageIcon, Printer, AlertTriangle, Check, RefreshCw, Download, Package as PackageIcon, Globe, Store, ShoppingCart
 } from 'lucide-react';
 import { formatarMoeda, normalizeName } from '../../utils';
 import { toDate } from '../../utils/dateUtils';
@@ -41,6 +41,7 @@ export const AdminProductsTab: React.FC<AdminProductsTabProps> = ({
 }) => {
   const [categoryFilter, setCategoryFilter] = React.useState('ALL');
   const [supplierFilter, setSupplierFilter] = React.useState('ALL');
+  const [channelFilter, setChannelFilter] = React.useState<'ALL' | 'both' | 'user' | 'admin'>('ALL');
   const [confirmarEstoque, setConfirmarEstoque] = React.useState(false);
   const [xmlPreview, setXmlPreview] = React.useState<{ name: string; cost: number; qty: number; ean: string; brand: string }[]>([]);
   const [xmlPreviewLoading, setXmlPreviewLoading] = React.useState(false);
@@ -91,11 +92,15 @@ export const AdminProductsTab: React.FC<AdminProductsTabProps> = ({
   }, [products]);
 
   const stats = React.useMemo(() => {
+    const prods = products || [];
     return {
-      total: (products || []).length,
-      available: (products || []).filter(p => p.available !== false).length,
-      stockOut: (products || []).filter(p => (p.stock ?? 0) <= 0).length,
-      lowStock: (products || []).filter(p => (p.stock ?? 0) > 0 && (p.stock ?? 0) <= 5).length
+      total: prods.length,
+      available: prods.filter(p => p.available !== false).length,
+      stockOut: prods.filter(p => (p.stock ?? 0) <= 0).length,
+      lowStock: prods.filter(p => (p.stock ?? 0) > 0 && (p.stock ?? 0) <= 5).length,
+      channelUser: prods.filter(p => p.salesChannel === 'user').length,
+      channelAdmin: prods.filter(p => p.salesChannel === 'admin').length,
+      channelBoth: prods.filter(p => !p.salesChannel || p.salesChannel === 'both').length
     };
   }, [products]);
 
@@ -109,9 +114,10 @@ export const AdminProductsTab: React.FC<AdminProductsTabProps> = ({
         (p.ean || '').toLowerCase().includes(termo);
       const matchCategory = categoryFilter === 'ALL' || p.category === categoryFilter;
       const matchSupplier = supplierFilter === 'ALL' || (p.supplierId || p.supplier) === supplierFilter;
-      return matchSearch && matchCategory && matchSupplier;
+      const matchChannel = channelFilter === 'ALL' || p.salesChannel === channelFilter || (!p.salesChannel && channelFilter === 'both');
+      return matchSearch && matchCategory && matchSupplier && matchChannel;
     }).sort((a,b) => (a.name || '').localeCompare(b.name || ''));
-  }, [products, searchTerm, categoryFilter, supplierFilter]);
+  }, [products, searchTerm, categoryFilter, supplierFilter, channelFilter]);
 
   const printProductList = () => {
     const items = (products || [])
@@ -210,9 +216,13 @@ return (
               <p className="text-[10px] font-black uppercase text-slate-700 tracking-widest mb-1">Disponíveis</p>
               <p className="text-2xl font-black text-emerald-600 tracking-tighter">{stats.available}</p>
           </div>
-          <div className="bg-[var(--bg-card)] p-5 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-red-500">
-              <p className="text-[10px] font-black uppercase text-slate-700 tracking-widest mb-1">Esgotados</p>
-              <p className="text-2xl font-black text-red-600 tracking-tighter">{stats.stockOut}</p>
+          <div className="bg-[var(--bg-card)] p-5 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-blue-500">
+              <p className="text-[10px] font-black uppercase text-slate-700 tracking-widest mb-1 flex items-center gap-2"><Store size={14}/> Só Usuário</p>
+              <p className="text-2xl font-black text-blue-600 tracking-tighter">{stats.channelUser}</p>
+          </div>
+          <div className="bg-[var(--bg-card)] p-5 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-purple-500">
+              <p className="text-[10px] font-black uppercase text-slate-700 tracking-widest mb-1 flex items-center gap-2"><ShoppingCart size={14}/> Só PDV Admin</p>
+              <p className="text-2xl font-black text-purple-600 tracking-tighter">{stats.channelAdmin}</p>
           </div>
           <div className="bg-[var(--bg-card)] p-5 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-amber-500">
               <p className="text-[10px] font-black uppercase text-slate-700 tracking-widest mb-1 flex items-center gap-2">
@@ -221,6 +231,17 @@ return (
               <p className="text-2xl font-black text-amber-700 tracking-tighter">{stats.lowStock}</p>
               <p className="text-[10px] font-black text-slate-800 mt-1 uppercase">Produtos precisam reposição</p>
           </div>
+      </div>
+      {/* Canal de Vendas - 2ª linha */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-[var(--bg-card)] p-4 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-emerald-500">
+          <p className="text-[10px] font-black uppercase text-slate-700 tracking-widest mb-1 flex items-center gap-2"><Globe size={14}/> Ambos (Usuário + PDV)</p>
+          <p className="text-2xl font-black text-emerald-600 tracking-tighter">{stats.channelBoth}</p>
+        </div>
+        <div className="bg-[var(--bg-card)] p-4 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-red-500">
+          <p className="text-[10px] font-black uppercase text-slate-700 tracking-widest mb-1 flex items-center gap-2">Esgotados</p>
+          <p className="text-2xl font-black text-red-600 tracking-tighter">{stats.stockOut}</p>
+        </div>
       </div>
 
       {/* Main Header & Search */}
@@ -269,6 +290,18 @@ return (
             {(suppliers || []).map(s => (
               <option key={s.id} value={s.id || s.name}>{s.name}</option>
             ))}
+          </select>
+
+          {/* Canal de Vendas Filter */}
+          <select
+            value={channelFilter}
+            onChange={e => setChannelFilter(e.target.value as 'ALL' | 'both' | 'user' | 'admin')}
+            className="px-4 py-2.5 rounded-xl border-2 border-[var(--border-color)] font-black text-[10px] uppercase tracking-widest bg-[var(--bg-card)] text-[var(--text-main)] font-semibold focus:border-emerald-500 outline-none"
+          >
+            <option value="ALL">Todos Canais</option>
+            <option value="both">Ambos (Usuário + PDV)</option>
+            <option value="user">Só Usuário</option>
+            <option value="admin">Só PDV Admin</option>
           </select>
 
           <button onClick={() => { setEditingProduct(null); setShowProductModal(true); }} className="bg-emerald-500 text-white px-6 py-2 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl flex items-center justify-center gap-2 hover:opacity-90 transition-all active:scale-95"><Plus size={18}/> Novo Produto</button>
