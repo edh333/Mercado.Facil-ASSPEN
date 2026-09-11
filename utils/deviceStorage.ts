@@ -1,3 +1,5 @@
+import { listPendingUploads } from '../services/localStorageService';
+
 // Marcações de cache do Service Worker (mesmo contrato do index.tsx)
 export const SW_CACHE_ATUAL = 'mercado-facil-v18';
 
@@ -71,7 +73,6 @@ export const medirArmazenamento = async (): Promise<MetricaArmazenamento> => {
   } catch { /* indisponível */ }
   let uploads = 0;
   try {
-    const { listPendingUploads } = await import('../services/localStorageService');
     uploads = (await listPendingUploads()).length;
   } catch { /* banco inexistente */ }
 

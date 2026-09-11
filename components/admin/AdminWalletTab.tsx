@@ -151,7 +151,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
     const totalDebt = withDebt.reduce((s, a) => s + (Number(a.currentDebt) || 0), 0);
     const hoje = new Date().toLocaleDateString('pt-BR');
     const esc = (v: any) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const fmt = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+    const fmt = formatarMoeda;
 
     const creditRows = withCredits.map((u, i) => `<tr><td style="text-align:center;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;">${String(i + 1).padStart(2, '0')}</td><td style="padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;font-weight:700;text-transform:uppercase;">${esc(u.name)}</td><td style="text-align:center;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;">${esc(u.cpf || 'N/A')}</td><td style="text-align:right;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;font-weight:700;color:#059669;">R$ ${fmt(Number(u.walletBalance) || 0)}</td><td style="text-align:center;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:11px;">${u.status === 'active' ? 'Ativo' : u.status || '—'}</td></tr>`).join('');
 

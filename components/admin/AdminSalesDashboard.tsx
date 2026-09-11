@@ -12,6 +12,7 @@ import { ChartMount } from '../ui/ChartMount';
 import { useRecharts, RechartsSkeleton } from '../../utils/rechartsLoader';
 import { db } from '../../firebase';
 import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
+import { formatBRL } from '../../utils/money';
 
 interface AdminSalesDashboardProps {
   orders: Order[];
@@ -21,7 +22,8 @@ interface AdminSalesDashboardProps {
 
 type Periodo = 'today' | 'yesterday' | '7d' | '30d' | 'month' | 'custom';
 
-const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const fmt = formatBRL;
+
 const fmtNum = (v: number) => v.toLocaleString('pt-BR');
 
 const CANCELADOS = ['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'rejeitado'];

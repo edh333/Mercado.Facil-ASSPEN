@@ -2,7 +2,8 @@ import React, { useMemo } from 'react';
 import { X, Printer, FileText, TrendingUp, TrendingDown, Package, Users, Download, Calendar, BarChart3, PieChart, Activity, FileSpreadsheet, Landmark, Wallet } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { User } from '../../types';
-import { isAdminRole } from '../../utils';
+import { isAdminRole, formatarMoeda } from '../../utils';
+import { formatBRL } from '../../utils/money';
 import { toDate } from '../../utils/dateUtils';
 import { getLocalDateStr, ehReceita } from './adminUtils';
 import { buildMonthlyDre, buildSalesCsv, buildStockAbc, buildDailySales, buildSalesByCategory, buildLowStock, buildProductsCatalog, buildExtratoIndividual } from '../../context/StoreContext';
@@ -26,7 +27,7 @@ const esc = (v: any): string => String(v ?? '')
 // Formata moeda pt-BR com separador de milhar e vírgula decimal nos DOCUMENTOS
 // impressos (o antigo .toFixed(2) corrompia valores acima de R$ 1.000 e
 // divergia do padrão pt-BR usado nas telas e no printUtils).
-const fmtBr = (v: any): string => (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+const fmtBr = (v: any): string => formatarMoeda(Number(v));
 
 // Nome da instituição configurada (Settings) — cabeçalhos/rodapés profissionais
 // usam o nome real, não a tagline de marketing do app.
@@ -775,7 +776,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
         const dc = report.dailyClosing;
         if (!dc) return null;
         const maxAmount = Math.max(...dc.paymentRows.map((r: any) => r.amount), 0.01);
-        const fmt = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+        const fmt = formatBRL;
         return (
             <div className="space-y-6 animate-fadeIn">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -940,7 +941,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
     const renderVendasDiarias = () => {
         const ds = report.dailySales || report.collective;
         if (!ds) return null;
-        const fmt = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+        const fmt = formatBRL;
         return (
             <div className="space-y-6 animate-fadeIn">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -982,7 +983,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
     const renderSalesByCategory = () => {
         const c = report.salesByCategory;
         if (!c) return null;
-        const fmt = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+        const fmt = formatBRL;
         return (
             <div className="space-y-6 animate-fadeIn">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1019,7 +1020,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
     const renderLowStock = () => {
         const ls = report.lowStock;
         if (!ls) return null;
-        const fmt = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+        const fmt = formatBRL;
         return (
             <div className="space-y-6 animate-fadeIn">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1056,7 +1057,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
     const renderProductsCatalog = () => {
         const pc = report.productsCatalog;
         if (!pc) return null;
-        const fmt = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+        const fmt = formatBRL;
         return (
             <div className="space-y-6 animate-fadeIn">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1099,7 +1100,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                 <p>Selecione o familiar no campo de busca para gerar o extrato.</p>
             </div>
         );
-        const fmt = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+        const fmt = formatBRL;
         return (
             <div className="space-y-6 animate-fadeIn">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

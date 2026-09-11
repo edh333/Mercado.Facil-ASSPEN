@@ -16,13 +16,13 @@ import {
   CheckCircle, ChevronDown, ChevronUp, Printer, ClipboardList, Download, X
 } from 'lucide-react';
 import { gerarCupomFechamento, imprimirCupom, gerarBoletimDiario, baixarCupomTxt } from '../../utils/printUtils';
+import { formatBRL } from '../../utils/money';
 
 // ──────────────────────────────────────────────
 // Helpers
 // ──────────────────────────────────────────────
 
-const fmt = (v: number) =>
-  v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const fmt = formatBRL;
 
 const fmtTs = (ts: Timestamp | null) => {
   if (!ts) return '—';

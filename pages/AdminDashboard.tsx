@@ -950,7 +950,6 @@ export function AdminDashboard() {
                     // para garantir que o catálogo mostre tudo, não apenas os primeiros 500.
                     try {
                       const { getDocs, query: fsQuery, collection, orderBy, where } = await import('firebase/firestore');
-                      const { db } = await import('../firebase');
                       const snap = await getDocs(fsQuery(collection(db, 'products'), orderBy('name', 'asc')));
                       const allProducts = snap.docs.map(d => ({ ...d.data(), id: d.id } as Product))
                         .filter(p => (p as any).deleted !== true);

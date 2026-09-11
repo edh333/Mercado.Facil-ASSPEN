@@ -125,7 +125,7 @@ export const AdminProductsTab: React.FC<AdminProductsTabProps> = ({
       .sort((a, b) => (a.category || '').localeCompare(b.category || '') || (a.name || '').localeCompare(b.name || ''));
     if (items.length === 0) return;
     const esc = (v: any) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const fmt = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+    const fmt = formatarMoeda;
     const hoje = new Date().toLocaleDateString('pt-BR');
     const grouped = items.reduce((acc, p) => {
       const cat = p.category || 'Diversos';

@@ -7,8 +7,10 @@ import { ChartMount } from '../ui/ChartMount';
 import { useRecharts } from '../../utils/rechartsLoader';
 import { TrendingUp, CreditCard, DollarSign, AlertTriangle, BarChart3, PieChart as PieChartIcon, Loader2, RefreshCw } from 'lucide-react';
 import { AdminCapacityPanel } from './AdminCapacityPanel';
+import { formatBRL } from '../../utils/money';
 
-const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const fmt = formatBRL;
+
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4'];
 
