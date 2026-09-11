@@ -12,7 +12,8 @@ import {
   increment,
   Timestamp,
   query,
-  orderBy
+  orderBy,
+  limit
 } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { CustomerAccount } from "../types";
@@ -21,7 +22,9 @@ const COLLECTION = "customer_accounts";
 
 export async function getCustomerAccounts(): Promise<CustomerAccount[]> {
   try {
-    const q = query(collection(db, COLLECTION), orderBy("nome", "asc"));
+    // Limit fixo: contas de fiado crescem com o tempo; 500 é mais que suficiente
+    // para busca/operação e evita baixar a coleção inteira a cada abertura.
+    const q = query(collection(db, COLLECTION), orderBy("nome", "asc"), limit(500));
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ id: d.id, ...d.data() } as CustomerAccount));
   } catch (e: any) {

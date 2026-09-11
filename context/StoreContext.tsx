@@ -2952,6 +2952,8 @@ return false;
         let unsubSystemMsg: Unsubscribe | null = null;
         let timer: any = null;
         let safetyTimeout: any = null;
+        let lidarVisibilidadeHora: (() => void) | null = null;
+        let ultimaSyncHora = 0;
 
         const onErr = (label: string) => (err: Error) => {
             console.warn(`[Firebase:${label}]`, err.message);
@@ -3012,8 +3014,24 @@ return false;
             // pular a chamada evita um cold start de Cloud Function + ida à rede
             // em CADA abertura do app pelo lado do usuário (navegador, PWA, EXE).
             if (currentUser?.role === UserRole.ADMIN) {
-                getNetworkTime().then(t => setServerTime(t)).catch(() => {});
-                timer = setInterval(() => getNetworkTime().then(t => setServerTime(t)).catch(() => {}), 1000 * 60 * 10); // Update every 10m
+                // Sync de hora confiável SEM desperdício: em vez de chamar a Cloud
+                // Function a cada 10 min incondicionalmente (~144 calls/dia com o
+                // app aberto o dia inteiro), o poll agora é barato (2 min) e o
+                // guard decide: só chama com aba VISÍVEL, online, e no máximo uma
+                // vez a cada 10 min. Ao voltar para a aba (visibilitychange), a
+                // hora é revalidada na hora — a licença/expiração nunca fica velha.
+                const atualizarHora = () => {
+                    if (document.hidden || typeof navigator !== 'undefined' && !navigator.onLine) return;
+                    const agora = Date.now();
+                    if (agora - ultimaSyncHora < 10 * 60 * 1000) return;
+                    ultimaSyncHora = agora;
+                    getNetworkTime().then(t => setServerTime(t)).catch(() => {});
+                };
+                lidarVisibilidadeHora = () => { if (!document.hidden) atualizarHora(); };
+                document.addEventListener('visibilitychange', lidarVisibilidadeHora);
+                window.addEventListener('online', lidarVisibilidadeHora);
+                atualizarHora();
+                timer = setInterval(atualizarHora, 1000 * 60 * 2);
             }
 
             // Safety timeout
@@ -3086,6 +3104,10 @@ if (currentUser?.role !== UserRole.ADMIN && currentUser) {
         return () => {
             clearInterval(timer);
             clearTimeout(safetyTimeout);
+            if (lidarVisibilidadeHora) {
+                document.removeEventListener('visibilitychange', lidarVisibilidadeHora);
+                window.removeEventListener('online', lidarVisibilidadeHora);
+            }
             if (unsubUsers) unsubUsers();
             if (unsubOrders) unsubOrders();
             if (unsubProducts) unsubProducts();
@@ -3122,8 +3144,21 @@ if (currentUser?.role !== UserRole.ADMIN && currentUser) {
             mergeDuplicateProducts: async () => {
                 setIsLoading(true);
                 try {
-                    const snapshot = await getDocs(query(collection(db, 'products')));
-                    const todos = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Product)).filter(p => (p as any).deleted !== true);
+                    // Busca paginada (mesmo padrão da sanitização do catálogo):
+                    // nunca lê a coleção inteira de uma vez, mesmo com milhares de itens.
+                    const todosBrutos: Product[] = [];
+                    let ultimo: any = null;
+                    for (;;) {
+                        const q = ultimo
+                            ? query(collection(db, 'products'), orderBy('name', 'asc'), startAfter(ultimo), limit(1000))
+                            : query(collection(db, 'products'), orderBy('name', 'asc'), limit(1000));
+                        const snap = await getDocs(q);
+                        if (snap.empty) break;
+                        snap.docs.forEach(d => todosBrutos.push({ ...d.data(), id: d.id } as Product));
+                        if (snap.size < 1000) break;
+                        ultimo = snap.docs[snap.docs.length - 1];
+                    }
+                    const todos = todosBrutos.filter(p => (p as any).deleted !== true);
                     const groups: Record<string, Product[]> = {};
                     todos.forEach(p => {
                         let key = p.ean ? String(p.ean).replace(/^0+/, '').trim() : '';

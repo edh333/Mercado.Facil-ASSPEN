@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '../../firebase';
-import { collection, query, where, getDocs, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, limit, Timestamp } from 'firebase/firestore';
 import { Order } from '../../types';
 import { toDate } from '../../utils/dateUtils';
 import { ChartMount } from '../ui/ChartMount';
 import { useRecharts } from '../../utils/rechartsLoader';
-import { TrendingUp, CreditCard, DollarSign, AlertTriangle, BarChart3, PieChart as PieChartIcon, Loader2 } from 'lucide-react';
+import { TrendingUp, CreditCard, DollarSign, AlertTriangle, BarChart3, PieChart as PieChartIcon, Loader2, RefreshCw } from 'lucide-react';
 import { AdminCapacityPanel } from './AdminCapacityPanel';
 
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -24,14 +24,30 @@ interface DailySales {
   count: number;
 }
 
+// Cache em nível de módulo: alternar abas remonta o componente, mas o dado
+// bruto (últimos 30 dias) não precisa ser baixado de novo a cada montagem.
+// TTL de 5 min evita leituras repetidas de centenas de docs e deixa a troca
+// de aba instantânea; o botão "Atualizar" força re-busca sob demanda.
+const BI_CACHE_TTL_MS = 5 * 60 * 1000;
+let biCache: { data: { allOrders: Order[]; discrepanciesTotal: number }; fetchedAt: number } | null = null;
+
 export const AdminDashboardCharts: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [allOrders, setAllOrders] = useState<Order[]>([]);
   const [discrepanciesTotal, setDiscrepanciesTotal] = useState(0);
+  const [forceRefresh, setForceRefresh] = useState(0);
+  const [lastUpdate, setLastUpdate] = useState<number>(biCache?.fetchedAt || 0);
   const RC = useRecharts();
 
   useEffect(() => {
     const fetchData = async () => {
+      if (biCache && Date.now() - biCache.fetchedAt < BI_CACHE_TTL_MS) {
+        setAllOrders(biCache.data.allOrders);
+        setDiscrepanciesTotal(biCache.data.discrepanciesTotal);
+        setLastUpdate(biCache.fetchedAt);
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       try {
         const thirtyDaysAgo = new Date();
@@ -41,7 +57,8 @@ export const AdminDashboardCharts: React.FC = () => {
         const [activeOrdersSnap, archivedSnapshot, discrepanciesSnap] = await Promise.all([
           getDocs(query(collection(db, 'orders'), where('createdAt', '>=', cutoff), orderBy('createdAt', 'desc'))),
           getDocs(query(collection(db, 'historico_geral'), where('origem', '==', 'orders'), where('arquivadoEm', '>=', cutoff), orderBy('arquivadoEm', 'desc'))),
-          getDocs(query(collection(db, 'cash_sessions'), where('hasDiscrepancy', '==', true))),
+          // Quebras acumulam para sempre; as 500 mais recentes bastam para o alerta.
+          getDocs(query(collection(db, 'cash_sessions'), where('hasDiscrepancy', '==', true), limit(500))),
         ]);
 
         const activeOrders = activeOrdersSnap.docs.map(d => ({ id: d.id, ...d.data() } as Order));
@@ -55,15 +72,17 @@ export const AdminDashboardCharts: React.FC = () => {
           return d >= thirtyDaysAgo;
         });
 
-        setAllOrders(combined);
-
         let discTotal = 0;
         discrepanciesSnap.docs.forEach(d => {
           const data = d.data();
           const diff = data.cashDifference ?? data.balanceDiff ?? 0;
           if (diff < 0) discTotal += Math.abs(diff);
         });
+
+        biCache = { data: { allOrders: combined, discrepanciesTotal: discTotal }, fetchedAt: Date.now() };
+        setAllOrders(combined);
         setDiscrepanciesTotal(discTotal);
+        setLastUpdate(Date.now());
       } catch (e) {
         console.error('Erro ao carregar dados do BI:', e);
       } finally {
@@ -71,7 +90,7 @@ export const AdminDashboardCharts: React.FC = () => {
       }
     };
     fetchData();
-  }, []);
+  }, [forceRefresh]);
 
   const cancelados = ['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'reembolsado'];
   const ehCancelado = (o: any) => cancelados.includes(String(o.status || '').toLowerCase());
@@ -168,6 +187,17 @@ export const AdminDashboardCharts: React.FC = () => {
           <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Dashboard de BI</h2>
           <p className="text-sm text-slate-500 font-semibold">Inteligência de vendas · últimos 30 dias</p>
         </div>
+        <button
+          onClick={() => setForceRefresh(f => f + 1)}
+          disabled={loading}
+          className="ml-auto flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold hover:bg-emerald-100 disabled:opacity-50 transition-colors"
+        >
+          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+          Atualizar
+        </button>
+        {lastUpdate > 0 && (
+          <span className="text-[10px] font-bold text-slate-400">atualizado {new Date(lastUpdate).toLocaleTimeString('pt-BR')}</span>
+        )}
       </div>
 
       {/* Painel de Capacidade de Atendimento */}
