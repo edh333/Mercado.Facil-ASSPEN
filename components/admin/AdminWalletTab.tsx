@@ -34,11 +34,12 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
   const [quickDateFilter, setQuickDateFilter] = React.useState<'ALL' | 'TODAY' | 'WEEK' | 'MONTH'>('ALL');
   const [fiadoAccounts, setFiadoAccounts] = React.useState<any[]>([]);
   const [fiadoLoading, setFiadoLoading] = React.useState(false);
+  const [saldosAtualizadoEm, setSaldosAtualizadoEm] = React.useState<Date | null>(null);
 
   React.useEffect(() => {
     if (activeSubTab !== 'SALDOS' || fiadoAccounts.length > 0) return;
     setFiadoLoading(true);
-    getCustomerAccounts().then(setFiadoAccounts).catch(console.error).finally(() => setFiadoLoading(false));
+    getCustomerAccounts().then(data => { setFiadoAccounts(data); setSaldosAtualizadoEm(new Date()); }).catch(console.error).finally(() => setFiadoLoading(false));
   }, [activeSubTab, fiadoAccounts.length]);
 
   const applyQuickDate = (filter: 'ALL' | 'TODAY' | 'WEEK' | 'MONTH') => {
@@ -269,7 +270,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
         <div className="flex bg-slate-100 rounded-2xl p-1.5 w-full md:w-auto border border-slate-200">
           <button onClick={() => setActiveSubTab('ALL')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-[1.25rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'ALL' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Todos</button>
           <button onClick={() => setActiveSubTab('DEPOSITS')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-[1.25rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'DEPOSITS' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Depósitos</button>
-          <button onClick={() => setActiveSubTab('WITHDRAWALS')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-[1.25rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'WITHDRAWALS' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Débitos</button>
+          <button onClick={() => setActiveSubTab('WITHDRAWALS')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-[1.25rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'WITHDRAWALS' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Saídas e Compras</button>
           <button onClick={() => setActiveSubTab('SALDOS')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-[1.25rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'SALDOS' ? 'bg-indigo-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Saldos</button>
         </div>
         <button onClick={exportWalletToCSV} className="px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 bg-slate-100 text-slate-700 hover:bg-slate-200 hover:scale-105 active:scale-95 border border-slate-200">
@@ -295,8 +296,8 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
             <div className="flex bg-slate-100 rounded-2xl p-1.5 border border-slate-200 flex-1 overflow-hidden">
               <button onClick={() => applyQuickDate('ALL')} className={`flex-1 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'ALL' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>Todas</button>
               <button onClick={() => applyQuickDate('TODAY')} className={`flex-1 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'TODAY' ? 'bg-emerald-100 text-emerald-700' : 'text-emerald-600/70 hover:text-emerald-600'}`}>Hoje</button>
-              <button onClick={() => applyQuickDate('WEEK')} className={`flex-1 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'WEEK' ? 'bg-blue-100 text-blue-700' : 'text-blue-600/70 hover:text-blue-600'}`}>Sem</button>
-              <button onClick={() => applyQuickDate('MONTH')} className={`flex-1 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'MONTH' ? 'bg-indigo-100 text-indigo-700' : 'text-indigo-600/70 hover:text-indigo-600'}`}>Mês</button>
+              <button onClick={() => applyQuickDate('WEEK')} className={`flex-1 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'WEEK' ? 'bg-blue-100 text-blue-700' : 'text-blue-600/70 hover:text-blue-600'}`}>Semana</button>
+              <button onClick={() => applyQuickDate('MONTH')} className={`flex-1 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'MONTH' ? 'bg-indigo-100 text-indigo-700' : 'text-indigo-600/70 hover:text-indigo-600'}`}>30 Dias</button>
             </div>
             <input type="date" className="w-36 px-4 py-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-2xl text-[11px] font-black uppercase text-slate-900 outline-none" value={financeFilters?.start || ''} onChange={e => { setFinanceFilters({...financeFilters, start: e.target.value}); setQuickDateFilter('ALL'); }} />
             <input type="date" className="w-36 px-4 py-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-2xl text-[11px] font-black uppercase text-slate-900 outline-none" value={financeFilters?.end || ''} onChange={e => { setFinanceFilters({...financeFilters, end: e.target.value}); setQuickDateFilter('ALL'); }} />
@@ -316,6 +317,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                 <h2 className="text-xl font-bold text-slate-900 tracking-tight">Saldos e Créditos</h2>
                 <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mt-1">
                   Quem tem crédito na carteira e quem deve no fiado — visão consolidada
+                  {saldosAtualizadoEm && <span className="text-emerald-600 ml-2">· Atualizado {saldosAtualizadoEm.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>}
                 </p>
               </div>
             </div>

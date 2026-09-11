@@ -1,6 +1,6 @@
 import React from 'react';
 import { formatarMoeda } from '../../utils';
-import { Shield, Plus, Trash2, Search, UserCheck, FileUp, LayoutGrid, Smartphone, Loader2 } from 'lucide-react';
+import { Shield, Plus, Trash2, Search, UserCheck, FileUp, LayoutGrid, Smartphone, Loader2, Printer } from 'lucide-react';
 import { useApp } from '../../context/StoreContext';
 import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
 
@@ -57,6 +57,75 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
     setInmateParaExcluir(inmate);
   };
 
+  // Imprime a lista completa de internos com saldo acumulado e familiares.
+  const printInmateList = () => {
+    const items = [...consolidatedData].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    if (items.length === 0) return;
+    const esc = (v: any) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const hoje = new Date().toLocaleDateString('pt-BR');
+    const totalGlobal = consolidatedData.reduce((s, i) => s + i.totalBalance, 0);
+    const rows = items.map(i => `<tr>
+        <td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;font-weight:800;text-transform:uppercase;">${esc(i.name)}<div style="font-size:10px;color:#64748b;font-weight:700;letter-spacing:1px;">CPF ${esc(i.cpf || '—')}</div></td>
+        <td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;font-size:11px;color:#334155;">${(i.linkedUsers || []).map((u: any) => esc(u.name)).join('<br/>') || '—'}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;text-align:center;font-size:12px;font-weight:800;">${(i.linkedUsers || []).length}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;text-align:right;font-size:12px;font-weight:800;color:${Number(i.totalBalance) > 0 ? '#059669' : '#0f172a'};">R$ ${formatarMoeda(i.totalBalance)}</td>
+      </tr>`).join('');
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<title>Lista de Internos</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif; color:#0f172a; padding:32px; background:#fff; }
+    .cabecalho { border-bottom:3px solid #0f766e; padding-bottom:14px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:flex-end; }
+    .cabecalho h1 { font-size:18px; text-transform:uppercase; letter-spacing:1px; color:#0f766e; }
+    .cabecalho p { font-size:11px; color:#64748b; margin-top:3px; }
+    .meta { text-align:right; font-size:11px; color:#64748b; }
+    .cards { display:flex; gap:12px; margin-bottom:18px; }
+    .card { flex:1; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:12px 14px; }
+    .card .titulo { font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:1.5px; color:#94a3b8; margin-bottom:3px; }
+    .card .valor { font-size:16px; font-weight:800; }
+    table { width:100%; border-collapse:collapse; }
+    thead th { background:#0f172a; color:#fff; padding:9px; font-size:10px; text-transform:uppercase; letter-spacing:1px; text-align:left; }
+    .rodape { margin-top:16px; text-align:center; font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:1px; }
+    @media print { @page { size: A4; margin: 14mm 12mm; } body { padding:14px; } }
+</style>
+</head>
+<body>
+    <div class="cabecalho">
+        <div>
+            <h1>Lista de Internos</h1>
+            <p>Mercado Fácil — relacao de internos com familiares vinculados</p>
+        </div>
+        <div class="meta">
+            <p>Emitido em: <b>${hoje}</b></p>
+            <p>${items.length} internos</p>
+        </div>
+    </div>
+    <div class="cards">
+        <div class="card"><p class="titulo">Internos</p><p class="valor">${items.length}</p></div>
+        <div class="card"><p class="titulo">Com Família</p><p class="valor">${items.filter(i => (i.linkedUsers || []).length > 0).length}</p></div>
+        <div class="card"><p class="titulo">Saldo Acumulado Global</p><p class="valor" style="color:#059669">R$ ${formatarMoeda(totalGlobal)}</p></div>
+    </div>
+    <table>
+        <thead><tr><th>Interno</th><th>Familiares</th><th style="text-align:center;">Qtd.</th><th style="text-align:right;">Saldo Acumulado</th></tr></thead>
+        <tbody>${rows}</tbody>
+    </table>
+    <div style="margin-top:34px;display:flex;justify-content:space-between;">
+        <div style="width:40%;border-top:1px solid #64748b;padding-top:8px;font-size:10px;text-transform:uppercase;text-align:center;color:#475569;">Responsável / Carimbo</div>
+    </div>
+    <p class="rodape">Documento gerado pelo sistema Mercado Fácil</p>
+</body>
+</html>`;
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(html);
+      printWindow.document.close();
+      printWindow.print();
+    }
+  };
+
   return (
     <div className="animate-slideUp space-y-8 pb-20">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm">
@@ -74,6 +143,13 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
             <div className="text-[10px] font-black uppercase text-sky-500 border-2 border-sky-500/20 px-4 py-2 rounded-xl bg-sky-500/5 shadow-sm" title="Internos que já possuem ao menos um familiar com conta cadastrada">
                 {withFamily}/{totalInmates} com família ({totalInmates ? Math.round((withFamily / totalInmates) * 100) : 0}%)
             </div>
+            <button
+                onClick={printInmateList}
+                title="Imprimir lista completa de internos com saldos"
+                className="text-[10px] font-black uppercase border-2 border-[var(--border-color)] px-4 py-2 rounded-xl bg-[var(--bg-card)] text-[var(--text-main)] hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-all flex items-center gap-2"
+            >
+                <Printer size={14}/> Imprimir
+            </button>
             <button
                 onClick={() => setViewMode(viewMode === 'table' ? 'cards' : 'table')}
                 className="text-[10px] font-black uppercase border-2 border-[var(--border-color)] px-4 py-2 rounded-xl bg-[var(--bg-card)] text-[var(--text-main)] hover:bg-[var(--bg-main)] transition-all flex items-center gap-2"

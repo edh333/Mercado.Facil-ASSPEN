@@ -489,13 +489,13 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Valor (R$)</label>
                 <input type="number" min="0.01" step="0.01" value={amount}
                   onChange={e => setAmount(e.target.value)}
-                  placeholder="0.00"
-                  className="w-full border border-slate-300 rounded-xl px-4 py-3 text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 mb-3" />
+                  placeholder="0,00"
+                  className="w-full border border-slate-300 rounded-xl px-4 py-3 text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 mb-3" />
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Motivo</label>
                 <input type="text" value={reason}
                   onChange={e => setReason(e.target.value)}
                   placeholder="Ex: Troco inicial, Retirada p/ cofre..."
-                  className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 mb-4" />
+                  className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 mb-4" />
               </>
             )}
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  ShoppingCart, Search, Grid, List, Clock, Printer, FileText, DollarSign, ArrowRight, UserCheck, ShieldCheck, Download, XCircle, CheckCircle
+  ShoppingCart, Search, Grid, List, Clock, Printer, FileText, DollarSign, ArrowRight, UserCheck, ShieldCheck, Download, XCircle, CheckCircle, CalendarDays
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useApp } from '../../context/StoreContext';
@@ -38,6 +38,16 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
   const [confirmarAprovId, setConfirmarAprovId] = React.useState<string | null>(null);
   const [aprovarId, setAprovarId] = React.useState<string | null>(null);
   const [confirmarAprovErro, setConfirmarAprovErro] = React.useState('');
+  const [agruparPorDia, setAgruparPorDia] = React.useState(false);
+
+  // Contagens por situação no acervo atual — para badges nos filtros.
+  const contagens = React.useMemo(() => {
+    const pend = (orders || []).filter(o => isPending(o.status)).length;
+    const conc = (orders || []).filter(o => ['paid', 'delivered', 'preparing', 'out_for_delivery', 'approved', 'entregue', 'preparando'].includes(String(o.status || '').toLowerCase())).length;
+    const canc = (orders || []).filter(o => ['cancelled', 'cancelado', 'cancelada'].includes(String(o.status || '').toLowerCase())).length;
+    const dev = (orders || []).filter(o => ['refunded', 'devolvido', 'reembolsado'].includes(String(o.status || '').toLowerCase())).length;
+    return { pend, conc, canc, dev };
+  }, [orders]);
 
   // Status de pedido ainda em fluxo de pagamento (pendente de aprovação).
   // Usado tanto no filtro quanto nos botões — evita 'pago_pendente' sem ação.
@@ -116,6 +126,23 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
     });
   }, [orders, searchTerm, statusFilter, dateFilter, specificDate, sortOrder]);
 
+  // Agrupamento por dia (fuso Brasil) com subtotal por dia.
+  const gruposPorDia = React.useMemo(() => {
+    const map: Record<string, { items: Order[]; total: number }> = {};
+    (filteredOrders || []).forEach(o => {
+      const d = toDate(o.createdAt || o.date);
+      const key = d ? getLocalDateStr(d) : 'sem-data';
+      if (!map[key]) map[key] = { items: [], total: 0 };
+      if (!['cancelled', 'cancelado', 'cancelada', 'refunded', 'devolvido', 'reembolsado'].includes(String(o.status || '').toLowerCase())) {
+        map[key].total += Number(o.total) || 0;
+      }
+      map[key].items.push(o);
+    });
+    return Object.keys(map)
+      .sort((a, b) => b.localeCompare(a))
+      .map(key => ({ key, items: map[key].items, total: map[key].total }));
+  }, [filteredOrders]);
+
   // Resumo do recorte atual: total de pedidos e soma em R$ — responde
   // "quanto vendi no dia X?" sem exportar CSV.
   const resumoFiltro = React.useMemo(() => {
@@ -166,9 +193,10 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
             {/* Status Filter Toggle */}
             <div className="flex bg-[var(--bg-main)] rounded-2xl p-1.5 border border-[var(--border-color)] w-full md:w-auto overflow-x-auto custom-scrollbar gap-1">
                 <button onClick={() => setStatusFilter('ALL')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${statusFilter === 'ALL' ? 'bg-[var(--text-main)] text-[var(--bg-card)] shadow-lg' : 'text-[var(--text-muted)] hover:bg-slate-100'}`}>Tudo</button>
-                <button onClick={() => setStatusFilter('PENDING')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${statusFilter === 'PENDING' ? 'bg-amber-500 text-white shadow-lg ring-2 ring-amber-300' : 'text-amber-600 hover:bg-amber-100'}`}>Pendentes</button>
-                <button onClick={() => setStatusFilter('PAID')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${statusFilter === 'PAID' ? 'bg-emerald-600 text-white shadow-lg' : 'text-emerald-600 hover:bg-emerald-100'}`}>Concluidos</button>
-                <button onClick={() => setStatusFilter('REFUNDED')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${statusFilter === 'REFUNDED' ? 'bg-indigo-600 text-white shadow-lg' : 'text-indigo-600 hover:bg-indigo-100'}`}>Devolvidos</button>
+                <button onClick={() => setStatusFilter('PENDING')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 flex items-center gap-2 ${statusFilter === 'PENDING' ? 'bg-amber-500 text-white shadow-lg ring-2 ring-amber-300' : 'text-amber-600 hover:bg-amber-100'}`}>Pendentes {contagens.pend > 0 && <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${statusFilter === 'PENDING' ? 'bg-white/20' : 'bg-amber-500/15'}`}>{contagens.pend}</span>}</button>
+                <button onClick={() => setStatusFilter('PAID')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 flex items-center gap-2 ${statusFilter === 'PAID' ? 'bg-emerald-600 text-white shadow-lg' : 'text-emerald-600 hover:bg-emerald-100'}`}>Concluidos {contagens.conc > 0 && <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${statusFilter === 'PAID' ? 'bg-white/20' : 'bg-emerald-500/15'}`}>{contagens.conc}</span>}</button>
+                <button onClick={() => setStatusFilter('CANCELLED')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 flex items-center gap-2 ${statusFilter === 'CANCELLED' ? 'bg-rose-600 text-white shadow-lg' : 'text-rose-600 hover:bg-rose-100'}`}>Cancelados {contagens.canc > 0 && <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${statusFilter === 'CANCELLED' ? 'bg-white/20' : 'bg-rose-500/15'}`}>{contagens.canc}</span>}</button>
+                <button onClick={() => setStatusFilter('REFUNDED')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 flex items-center gap-2 ${statusFilter === 'REFUNDED' ? 'bg-indigo-600 text-white shadow-lg' : 'text-indigo-600 hover:bg-indigo-100'}`}>Devolvidos {contagens.dev > 0 && <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${statusFilter === 'REFUNDED' ? 'bg-white/20' : 'bg-indigo-500/15'}`}>{contagens.dev}</span>}</button>
             </div>
 
             {/* Date Filter */}
@@ -199,9 +227,18 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
 
             {/* View Mode Toggle */}
             <div className="hidden sm:flex bg-[var(--bg-main)] rounded-xl p-1 border border-[var(--border-color)]">
-                <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-[var(--bg-card)] text-[var(--text-main)] shadow-sm border border-[var(--border-color)]' : 'text-[var(--text-muted)] hover:bg-slate-100'}`}><Grid size={20}/></button>
-                <button onClick={() => setViewMode('list')} className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-[var(--bg-card)] text-[var(--text-main)] shadow-sm border border-[var(--border-color)]' : 'text-[var(--text-muted)] hover:bg-slate-100'}`}><List size={20}/></button>
+                <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg transition-all ${viewMode === 'grid' && !agruparPorDia ? 'bg-[var(--bg-card)] text-[var(--text-main)] shadow-sm border border-[var(--border-color)]' : 'text-[var(--text-muted)] hover:bg-slate-100'}`}><Grid size={20}/></button>
+                <button onClick={() => setViewMode('list')} className={`p-2 rounded-lg transition-all ${viewMode === 'list' && !agruparPorDia ? 'bg-[var(--bg-card)] text-[var(--text-main)] shadow-sm border border-[var(--border-color)]' : 'text-[var(--text-muted)] hover:bg-slate-100'}`}><List size={20}/></button>
             </div>
+
+            {/* Agrupar por Dia */}
+            <button
+                onClick={() => setAgruparPorDia(s => !s)}
+                title="Agrupar pedidos por dia (listagem compacta)"
+                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${agruparPorDia ? 'bg-blue-600 text-white shadow-lg' : 'bg-[var(--bg-main)] text-[var(--text-muted)] border border-[var(--border-color)] hover:bg-slate-100'}`}
+            >
+                <CalendarDays size={14}/> Por Dia
+            </button>
 
             {/* Export Button */}
             <button
@@ -220,6 +257,11 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
         <span className="text-lg font-black text-emerald-600 tracking-tighter">
           R$ {resumoFiltro.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
         </span>
+        {agruparPorDia && gruposPorDia.length > 0 && (
+          <span className="text-lg font-black text-blue-600 tracking-tighter">
+            {gruposPorDia.length} dia(s)
+          </span>
+        )}
         {dateFilter === 'DAY' && specificDate && (
           <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-xl">
             Vendas do dia {new Date(specificDate + 'T12:00:00').toLocaleDateString('pt-BR')}
@@ -241,6 +283,65 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
       </div>
 
       {/* Orders Grid/List */}
+      {agruparPorDia ? (
+        <div className="space-y-8">
+          {gruposPorDia.length === 0 ? (
+            <div className="col-span-full py-20 text-center opacity-70">
+              <ShoppingCart size={80} className="mx-auto mb-4"/>
+              <p className="font-black uppercase tracking-[0.4em]">Nenhum pedido encontrado</p>
+            </div>
+          ) : gruposPorDia.map(grupo => (
+            <div key={grupo.key} className="bg-[var(--bg-card)] rounded-[3rem] border-2 border-[var(--border-color)] shadow-sm overflow-hidden">
+              <div className="px-7 py-5 flex flex-wrap items-center justify-between gap-3 bg-[var(--bg-main)] border-b-2 border-[var(--border-color)]">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-2xl bg-blue-600/10 text-blue-600 border border-blue-500/30">
+                    <CalendarDays size={20}/>
+                  </div>
+                  <div>
+                    <p className="text-xs font-black text-blue-700 uppercase tracking-widest">
+                      {grupo.key === 'sem-data' ? 'Sem data registrada' : new Date(grupo.key + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                    </p>
+                    <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wide">{grupo.items.length} pedido(s)</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest mb-0.5">Total do dia</p>
+                  <p className="text-xl font-black text-emerald-600 tracking-tighter">R$ {grupo.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                </div>
+              </div>
+              <div className="divide-y divide-[var(--border-color)]">
+                {grupo.items.map(order => (
+                  <div key={order.id} className="px-7 py-4 flex flex-wrap items-center justify-between gap-3 hover:bg-[var(--bg-main)] transition-colors">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border ${getStatusColor(order.status)}`}>
+                          {translateStatus(order.status)}
+                        </span>
+                        <span className="text-[10px] font-black text-[var(--text-muted)] font-mono">#{String(order.id || 'sem-id').slice(-8).toUpperCase()}</span>
+                        <span className="text-[11px] font-black text-[var(--text-main)] uppercase tracking-tight truncate">{order.userName || 'Não identificado'}</span>
+                        {order.inmateName && <span className="text-[10px] font-bold text-slate-500 uppercase truncate"><ShieldCheck size={11} className="inline mr-1"/>{order.inmateName}</span>}
+                      </div>
+                      <div className="flex items-center gap-3 mt-1.5">
+                        <span className="text-[10px] font-bold text-[var(--text-muted)]">
+                          <Clock size={11} className="inline mr-1"/> {order.date ? toDate(order.date)?.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) || '—' : '—'}
+                        </span>
+                        <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase">CPF: {order.userCpf || '—'}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <p className="text-base font-black text-[var(--text-main)] tracking-tighter">R$ {(Number(order.total) || 0).toFixed(2).replace('.', ',')}</p>
+                      <button onClick={() => setViewingReceipt({ data: order, type: 'ORDER' })} className="p-3 min-h-[40px] min-w-[40px] bg-[var(--bg-main)] text-[var(--text-muted)] hover:text-emerald-600 hover:bg-emerald-50 rounded-xl border border-[var(--border-color)] shadow-sm active:scale-95 transition-all flex items-center justify-center" title="Ver Recibo Digital"><FileText size={16}/></button>
+                      <button onClick={() => setSelectedOrderDetails(order)} className="px-4 py-2.5 min-h-[40px] bg-emerald-500 text-white font-black rounded-xl text-[10px] uppercase tracking-widest shadow hover:bg-emerald-600 active:scale-95 transition-all flex items-center gap-2 touch-target">
+                        Detalhes <ArrowRight size={14}/>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
       <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'bg-[var(--bg-card)] rounded-[3rem] border-2 border-[var(--border-color)] shadow-sm overflow-hidden'}>
         {filteredOrders.length === 0 ? (
           <div className="col-span-full py-20 text-center opacity-70">
@@ -351,6 +452,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
           </div>
         ))}
       </div>
+      )}
 
       {loadMoreOrders && orders.length >= (ordersLimit || 50) && (
         <div className="flex justify-center mt-8 pb-10">

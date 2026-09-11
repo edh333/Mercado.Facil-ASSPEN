@@ -48,6 +48,7 @@ export const AdminProductsTab: React.FC<AdminProductsTabProps> = ({
   const [produtoParaExcluir, setProdutoParaExcluir] = React.useState<Product | null>(null);
   const [confirmarSanitizar, setConfirmarSanitizar] = React.useState(false);
   const [mesclando, setMesclando] = React.useState(false);
+  const [modoListaSimples, setModoListaSimples] = React.useState(false);
 
   // Ao selecionar um XML, lê a NFe e mostra o CUSTO de cada item.
   // O preço de venda é calculado AO VIVO com a margem digitada:
@@ -204,6 +205,84 @@ export const AdminProductsTab: React.FC<AdminProductsTabProps> = ({
     }
   };
 
+  const agrupadosSimples = React.useMemo(() => {
+    const map: Record<string, Product[]> = {};
+    (filteredProducts || []).forEach(p => {
+      const cat = p.category || 'Diversos';
+      if (!map[cat]) map[cat] = [];
+      map[cat].push(p);
+    });
+    return map;
+  }, [filteredProducts]);
+
+  const precoEfetivo = (p: Product) => {
+    const promo = Number((p as any).promoPrice);
+    return Number.isFinite(promo) && promo > 0 && promo < Number(p.price) ? promo : Number(p.price || 0);
+  };
+
+  const printSimpleList = () => {
+    const items = (filteredProducts || []).filter(p => p.available !== false);
+    if (items.length === 0) return;
+    const esc = (v: any) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const fmt = formatarMoeda;
+    const hoje = new Date().toLocaleDateString('pt-BR');
+    const grouped: Record<string, Product[]> = {};
+    items.forEach(p => {
+      const cat = p.category || 'Diversos';
+      if (!grouped[cat]) grouped[cat] = [];
+      grouped[cat].push(p);
+    });
+    const cats = Object.keys(grouped).sort();
+    const totalValor = items.reduce((s, p) => s + precoEfetivo(p), 0);
+    const rows = cats.map(cat => {
+      const prods = grouped[cat].map(p => `<tr><td style="padding:6px 8px;border-bottom:1px solid #e2e8f0;font-size:12px;font-weight:700;text-transform:uppercase;">${esc(p.name)}</td><td style="padding:6px 8px;border-bottom:1px solid #e2e8f0;text-align:right;font-size:12px;font-weight:700;">R$ ${fmt(precoEfetivo(p))}</td></tr>`).join('');
+      return `<tr><td colspan="2" style="padding:8px 8px 4px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#64748b;background:#f8fafc;border-bottom:1px solid #0f172a;">${esc(cat)} (${grouped[cat].length})</td></tr>${prods}`;
+    }).join('');
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<title>Lista Simplificada de Produtos</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif; color:#0f172a; padding:32px; background:#fff; }
+    .cabecalho { border-bottom:3px solid #059669; padding-bottom:14px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:flex-end; }
+    .cabecalho h1 { font-size:18px; text-transform:uppercase; letter-spacing:1px; color:#059669; }
+    .cabecalho p { font-size:11px; color:#64748b; margin-top:3px; }
+    .meta { text-align:right; font-size:11px; color:#64748b; }
+    table { width:100%; border-collapse:collapse; }
+    th { background:#0f172a; color:#fff; padding:8px; font-size:10px; text-transform:uppercase; letter-spacing:1px; text-align:left; }
+    th.pl { text-align:right; }
+    .rodape { margin-top:18px; text-align:center; font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:1px; }
+    @media print { @page { size: A4; margin: 14mm 12mm; } body { padding:14px; } }
+</style>
+</head>
+<body>
+    <div class="cabecalho">
+        <div>
+            <h1>Lista Simplificada de Produtos</h1>
+            <p>Mercado Fácil — nomes e valores</p>
+        </div>
+        <div class="meta">
+            <p>Emitido em: <b>${hoje}</b></p>
+            <p>${items.length} produtos · Valor total R$ ${fmt(totalValor)}</p>
+        </div>
+    </div>
+    <table>
+        <thead><tr><th>Produto</th><th class="pl">Preço</th></tr></thead>
+        <tbody>${rows}</tbody>
+    </table>
+    <p class="rodape">Documento gerado pelo sistema Mercado Fácil — lista de preços</p>
+</body>
+</html>`;
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(html);
+      printWindow.document.close();
+      printWindow.print();
+    }
+  };
+
 return (
     <div className="space-y-6 animate-slideUp pb-20">
       {/* Stats Board */}
@@ -251,8 +330,15 @@ return (
             <Package size={24} className="text-emerald-500"/> Catálogo de Produtos
           </h2>
           <div className="hidden sm:flex bg-[var(--bg-main)] rounded-xl p-1 border border-[var(--border-color)]">
-            <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-main)] shadow-sm' : 'text-[var(--text-muted)] hover:bg-[var(--bg-main)]'}`}><Grid size={18}/></button>
-            <button onClick={() => setViewMode('list')} className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-main)] shadow-sm' : 'text-[var(--text-muted)] hover:bg-[var(--bg-main)]'}`}><List size={18}/></button>
+            <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg transition-all ${viewMode === 'grid' && !modoListaSimples ? 'bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-main)] shadow-sm' : 'text-[var(--text-muted)] hover:bg-[var(--bg-main)]'}`}><Grid size={18}/></button>
+            <button onClick={() => setViewMode('list')} className={`p-2 rounded-lg transition-all ${viewMode === 'list' && !modoListaSimples ? 'bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-main)] shadow-sm' : 'text-[var(--text-muted)] hover:bg-[var(--bg-main)]'}`}><List size={18}/></button>
+            <button
+              onClick={() => setModoListaSimples(s => !s)}
+              title="Lista simplificada (nomes e valores)"
+              className={`p-2 px-3 rounded-lg transition-all flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest ${modoListaSimples ? 'bg-emerald-500 text-white shadow-sm' : 'text-[var(--text-muted)] hover:bg-[var(--bg-main)]'}`}
+            >
+              <Printer size={14}/> Lista
+            </button>
           </div>
         </div>
         <div className="flex flex-wrap gap-2 w-full md:w-auto">
@@ -368,7 +454,7 @@ return (
                     </thead>
                     <tbody>
                       {xmlPreview.slice(0, 100).map((it, i) => {
-                        const existente = ehExistente(it);
+const existente = ehExistente(it);
                         return (
                         <tr key={i} className="border-b border-[var(--border-color)]/50 last:border-0">
                           <td className="py-1.5 pr-2 font-bold text-[var(--text-main)] truncate max-w-[220px]">{it.name}</td>
@@ -445,7 +531,60 @@ return (
         onClose={() => setProdutoParaExcluir(null)}
       />
 
-      {/* Grid / List of Products */}
+      {/* View: Lista Simples / Grid / List */}
+      {modoListaSimples ? (
+        <div className="bg-[var(--bg-card)] rounded-[2.5rem] border border-[var(--border-color)] shadow-sm overflow-hidden">
+          <div className="px-6 py-4 flex items-center justify-between gap-3 border-b border-[var(--border-color)]">
+            <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-main)]">
+              Lista Simplificada — {filteredProducts.length} itens
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={printSimpleList}
+                className="px-4 py-2 rounded-xl bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 font-black text-[10px] uppercase tracking-widest hover:bg-emerald-500 hover:text-white transition-all active:scale-95 flex items-center gap-1.5"
+              >
+                <Printer size={14}/> Imprimir
+              </button>
+            </div>
+          </div>
+          {filteredProducts.length === 0 ? (
+            <div className="py-20 text-center opacity-70">
+              <Package size={64} className="mx-auto mb-4"/>
+              <p className="font-black uppercase tracking-[0.3em]">Nenhum produto em catálogo</p>
+            </div>
+          ) : (
+            <div className="max-h-[70vh] overflow-y-auto custom-scrollbar">
+              {Object.keys(agrupadosSimples).sort().map(cat => (
+                <div key={cat}>
+                  <p className="px-6 py-2.5 bg-[var(--bg-main)] border-b border-[var(--border-color)] text-[10px] font-black uppercase tracking-widest text-emerald-700 flex items-center justify-between">
+                    <span>{cat} <span className="text-slate-400">({agrupadosSimples[cat].length})</span></span>
+                  </p>
+                  {agrupadosSimples[cat].map(p => {
+                    const preco = precoEfetivo(p);
+                    return (
+                      <div key={p.id} className="px-6 py-3 flex items-center justify-between gap-3 border-b border-[var(--border-color)] last:border-0 hover:bg-[var(--bg-main)] transition-colors">
+                        <p className={`text-sm font-black uppercase tracking-tight truncate ${p.available === false ? 'line-through opacity-40' : 'text-[var(--text-main)]'}`}>{p.name || 'Produto'}</p>
+                        <p className="text-sm font-black text-[var(--text-main)] tracking-tighter shrink-0">
+                          <span className="text-[10px] opacity-70 mr-0.5">R$</span>
+                          {preco > 0 ? formatarMoeda(preco) : '—'}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="px-6 py-3 border-t border-[var(--border-color)] flex items-center justify-between gap-3 bg-[var(--bg-main)]">
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+              Exibindo itens do filtro ativo
+            </p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+              Valor total calculado pela soma dos preços
+            </p>
+          </div>
+        </div>
+      ) : (
       <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6' : 'bg-[var(--bg-card)] rounded-[2.5rem] border border-[var(--border-color)] shadow-sm overflow-hidden'}>
         {filteredProducts.length === 0 ? (
           <div className="col-span-full py-20 text-center opacity-70">
@@ -537,6 +676,7 @@ return (
           </div>
         ))}
       </div>
+      )}
 
       {loadMoreProducts && productsLimit && filteredProducts.length >= productsLimit && (
         <div className="flex justify-center mt-12 pb-10">

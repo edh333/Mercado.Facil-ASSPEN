@@ -23,6 +23,7 @@ import {
   ShieldCheck,
   CalendarClock,
   Settings2,
+  X,
 } from 'lucide-react';
 
 const fnExecutarBackupAgora = httpsCallable(getFunctions(), 'executarBackupAgora');
@@ -81,6 +82,14 @@ export const MaintenanceCenter: React.FC<Props> = ({
   const [estadoChecklist, setEstadoChecklist] = useState<Record<string, any> | undefined>(undefined);
   const [backupando, setBackupando] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  // Dispensa do banner por sessão: salva a contagem de pendências do momento.
+  // O banner só volta quando surgirem MAIS pendências que na hora da dispensa.
+  const [bannerDispensadoEm, setBannerDispensadoEm] = useState<number | null>(() => {
+    try {
+      const v = sessionStorage.getItem('mf-maintenance-banner-dispensado-contagem');
+      return v === null ? null : Number(v);
+    } catch { return null; }
+  });
 
   useEffect(() => {
     const unsub = onSnapshot(
@@ -178,6 +187,12 @@ export const MaintenanceCenter: React.FC<Props> = ({
   if (variant === 'banner') {
     const ativos = alerts.filter((a) => a.nivel === 'critical' || a.nivel === 'warning');
     if (ativos.length === 0 && pendenciasChecklist === 0) return null;
+    const pendenciaAtual = ativos.length + pendenciasChecklist;
+    if (bannerDispensadoEm !== null && pendenciaAtual <= bannerDispensadoEm) return null;
+    const dispensarBanner = () => {
+      try { sessionStorage.setItem('mf-maintenance-banner-dispensado-contagem', String(pendenciaAtual)); } catch { /* noop */ }
+      setBannerDispensadoEm(pendenciaAtual);
+    };
     const temCritico = criticos > 0;
     return (
       <motion.div
@@ -208,6 +223,14 @@ export const MaintenanceCenter: React.FC<Props> = ({
             className="shrink-0 px-4 py-2 bg-white text-red-900 rounded-xl font-black text-[10px] uppercase tracking-wider flex items-center gap-2 hover:bg-red-50 active:scale-95 transition-all"
           >
             <ShieldCheck size={14} /> Ver centro
+          </button>
+          <button
+            onClick={dispensarBanner}
+            title="Dispensar aviso nesta sessão"
+            aria-label="Dispensar aviso"
+            className="shrink-0 w-8 h-8 rounded-lg border border-white/20 text-white/70 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all active:scale-90"
+          >
+            <X size={16} />
           </button>
         </div>
       </motion.div>

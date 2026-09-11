@@ -96,24 +96,39 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
     imprimirRelatorioCreditoA4(creditList as any, creditTitle, settings, subtitulo);
   };
 
-  const reportOptions = [
-    { id: 'GENERAL', name: 'Resumo Geral', desc: 'Visão panorâmica do sistema e saúde financeira.', icon: <BarChart3 className="text-blue-500" size={24}/> },
-    { id: 'FINANCIAL', name: 'Fluxo de Caixa', desc: 'Detalhamento de todas as entradas e saídas.', icon: <TrendingUp className="text-emerald-500" size={24}/> },
-    { id: 'ACCOUNTABILITY', name: 'Prestação de Contas', desc: 'Relatório para auditoria e associados.', icon: <ClipboardList className="text-purple-500" size={24}/> },
-    { id: 'PRODUCTS_ALL', name: 'Catálogo de Produtos', desc: 'Lista completa de itens, preços e estoque.', icon: <Package className="text-blue-400" size={24}/> },
-    { id: 'USERS_CREDITS', name: 'Usuários e Saldos', desc: 'Relatório de familiares e créditos em conta.', icon: <Users className="text-indigo-600" size={24}/> },
-    { id: 'CREDITS_ALL', name: 'Todos os Créditos', desc: 'Listagem completa com filtro por com/sem crédito, individual e em lote.', icon: <Wallet className="text-emerald-500" size={24}/> },
-    { id: 'CREDITS_POSITIVE', name: 'Créditos Ativos (com Saldo)', desc: 'Familiares com crédito em conta > R$ 0, consulta individual e em lote.', icon: <Wallet className="text-emerald-500" size={24}/> },
-    { id: 'CREDITS_ZERO', name: 'Créditos Zerados (sem Saldo)', desc: 'Familiares sem crédito em conta, consulta individual e em lote.', icon: <Coins className="text-slate-500" size={24}/> },
-    { id: 'INDIVIDUAL', name: 'Extrato Individual', desc: 'Movimentações completas de um familiar.', icon: <Users className="text-orange-500" size={24}/> },
-    { id: 'COLLECTIVE_PURCHASES', name: 'Compras Coletivas', desc: 'Consolidado de vendas por período.', icon: <CreditCard className="text-emerald-400" size={24}/> },
-    { id: 'STOCK_LOW', name: 'Reposição / Inventário', desc: 'Itens abaixo da margem de segurança.', icon: <Package className="text-red-500" size={24}/> },
-    { id: 'SALES_BY_CATEGORY', name: 'Vendas por Grupo', desc: 'Desempenho de categorias de produtos.', icon: <RefreshCcw className="text-indigo-500" size={24}/> },
-    { id: 'DRE_MONTHLY', name: 'Fechamento Mensal (DRE)', desc: 'DRE simplificado: receita, custo das mercadorias e lucro líquido real.', icon: <Landmark className="text-teal-600" size={24}/> },
-    { id: 'SALES_CSV', name: 'Movimentação de Vendas', desc: 'CSV/Excel p/ contador: data, cupom, CPF, pagamento, imposto e valor.', icon: <FileSpreadsheet className="text-green-600" size={24}/> },
-    { id: 'STOCK_ABC', name: 'Curva ABC de Estoque', desc: 'Giro dos produtos e valor do inventário parado p/ balanço patrimonial.', icon: <PieChart className="text-amber-600" size={24}/> },
-    { id: 'DAILY_CLOSING', name: 'Fechamento do Dia', desc: 'Conferência de caixa diária: vendas por forma de pagamento, despesas e resultado.', icon: <Calculator className="text-cyan-600" size={24}/> },
-    { id: 'VENDAS_DIARIAS', name: 'Vendas Diárias (Detalhado)', desc: 'Evolução dia a dia: nº de vendas, itens vendidos, faturamento e ticket médio.', icon: <Landmark className="text-emerald-500" size={24}/> },
+  const reportGroups = [
+    {
+      titulo: 'Gestão Financeira',
+      options: [
+        { id: 'GENERAL', name: 'Resumo Geral', desc: 'Visão panorâmica do sistema e saúde financeira.', icon: <BarChart3 className="text-blue-500" size={24}/> },
+        { id: 'FINANCIAL', name: 'Fluxo de Caixa', desc: 'Detalhamento de todas as entradas e saídas.', icon: <TrendingUp className="text-emerald-500" size={24}/> },
+        { id: 'ACCOUNTABILITY', name: 'Prestação de Contas', desc: 'Relatório para auditoria e associados.', icon: <ClipboardList className="text-purple-500" size={24}/> },
+        { id: 'COLLECTIVE_PURCHASES', name: 'Compras Coletivas', desc: 'Consolidado de vendas por período.', icon: <CreditCard className="text-emerald-400" size={24}/> },
+        { id: 'DRE_MONTHLY', name: 'Fechamento Mensal (DRE)', desc: 'DRE simplificado: receita, custo das mercadorias e lucro líquido real.', icon: <Landmark className="text-teal-600" size={24}/> },
+        { id: 'DAILY_CLOSING', name: 'Fechamento do Dia', desc: 'Conferência de caixa diária: vendas por forma de pagamento, despesas e resultado.', icon: <Calculator className="text-cyan-600" size={24}/> },
+        { id: 'VENDAS_DIARIAS', name: 'Vendas Diárias (Detalhado)', desc: 'Evolução dia a dia: nº de vendas, itens vendidos, faturamento e ticket médio.', icon: <Landmark className="text-emerald-500" size={24}/> },
+      ]
+    },
+    {
+      titulo: 'Créditos e Extratos',
+      options: [
+        { id: 'USERS_CREDITS', name: 'Usuários e Saldos', desc: 'Relatório de familiares e créditos em conta.', icon: <Users className="text-indigo-600" size={24}/> },
+        { id: 'CREDITS_ALL', name: 'Todos os Créditos', desc: 'Listagem completa com filtro por com/sem crédito, individual e em lote.', icon: <Wallet className="text-emerald-500" size={24}/> },
+        { id: 'CREDITS_POSITIVE', name: 'Créditos Ativos (com Saldo)', desc: 'Familiares com crédito em conta > R$ 0, consulta individual e em lote.', icon: <Wallet className="text-emerald-500" size={24}/> },
+        { id: 'CREDITS_ZERO', name: 'Créditos Zerados (sem Saldo)', desc: 'Familiares sem crédito em conta, consulta individual e em lote.', icon: <Coins className="text-slate-500" size={24}/> },
+        { id: 'INDIVIDUAL', name: 'Extrato Individual', desc: 'Movimentações completas de um familiar.', icon: <Users className="text-orange-500" size={24}/> },
+      ]
+    },
+    {
+      titulo: 'Produtos e Estoque',
+      options: [
+        { id: 'PRODUCTS_ALL', name: 'Catálogo de Produtos', desc: 'Lista completa de itens, preços e estoque.', icon: <Package className="text-blue-400" size={24}/> },
+        { id: 'STOCK_LOW', name: 'Reposição / Inventário', desc: 'Itens abaixo da margem de segurança.', icon: <Package className="text-red-500" size={24}/> },
+        { id: 'SALES_BY_CATEGORY', name: 'Vendas por Grupo', desc: 'Desempenho de categorias de produtos.', icon: <RefreshCcw className="text-indigo-500" size={24}/> },
+        { id: 'STOCK_ABC', name: 'Curva ABC de Estoque', desc: 'Giro dos produtos e valor do inventário parado p/ balanço patrimonial.', icon: <PieChart className="text-amber-600" size={24}/> },
+        { id: 'SALES_CSV', name: 'Movimentação de Vendas', desc: 'CSV/Excel p/ contador: data, cupom, CPF, pagamento, imposto e valor.', icon: <FileSpreadsheet className="text-green-600" size={24}/> },
+      ]
+    }
   ];
 
   return (
@@ -130,23 +145,33 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-7 space-y-6">
                 <p className="text-[var(--text-main)] font-black text-[10px] uppercase tracking-widest ml-2">1. Selecione o Tipo de Relatório</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {reportOptions.map(opt => (
-                        <button
-                            key={opt.id}
-                            onClick={() => setReportConfig({...reportConfig, type: opt.id})}
-                            className={`p-5 rounded-[2rem] border-2 transition-all text-left flex items-start gap-4 group ${reportConfig.type === opt.id ? 'bg-emerald-600 border-emerald-600 shadow-xl' : 'bg-[var(--bg-card)] border-[var(--border-color)] hover:border-emerald-500'}`}
-                        >
-                            <div className={`p-3 rounded-2xl ${reportConfig.type === opt.id ? 'bg-[var(--bg-card)]/20' : 'bg-[var(--bg-main)]'}`}>
-                                {opt.icon}
-                            </div>
-                            <div className="min-w-0">
-                                <p className={`font-black text-xs uppercase tracking-tight mb-1 truncate ${reportConfig.type === opt.id ? 'text-white' : 'text-[var(--text-main)]'}`}>{opt?.name || 'Relatório'}</p>
-                                <p className={`text-[9px] font-medium leading-snug line-clamp-2 ${reportConfig.type === opt.id ? 'text-white/60' : 'text-[var(--text-muted)]'}`}>{opt.desc}</p>
-                            </div>
-                        </button>
-                    ))}
-                </div>
+                {reportGroups.map(grupo => (
+                  <div key={grupo.titulo} className="space-y-3">
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500/60"/>
+                      <p className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-700 dark:text-emerald-500">{grupo.titulo}</p>
+                      <span className="flex-1 h-px bg-[var(--border-color)]"/>
+                      <span className="text-[9px] font-black text-[var(--text-muted)]">{grupo.options.length}</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {grupo.options.map(opt => (
+                            <button
+                                key={opt.id}
+                                onClick={() => setReportConfig({...reportConfig, type: opt.id})}
+                                className={`p-5 rounded-[2rem] border-2 transition-all text-left flex items-start gap-4 group ${reportConfig.type === opt.id ? 'bg-emerald-600 border-emerald-600 shadow-xl' : 'bg-[var(--bg-card)] border-[var(--border-color)] hover:border-emerald-500'}`}
+                            >
+                                <div className={`p-3 rounded-2xl ${reportConfig.type === opt.id ? 'bg-[var(--bg-card)]/20' : 'bg-[var(--bg-main)]'}`}>
+                                    {opt.icon}
+                                </div>
+                                <div className="min-w-0">
+                                    <p className={`font-black text-xs uppercase tracking-tight mb-1 truncate ${reportConfig.type === opt.id ? 'text-white' : 'text-[var(--text-main)]'}`}>{opt?.name || 'Relatório'}</p>
+                                    <p className={`text-[9px] font-medium leading-snug line-clamp-2 ${reportConfig.type === opt.id ? 'text-white/60' : 'text-[var(--text-muted)]'}`}>{opt.desc}</p>
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                  </div>
+                ))}
             </div>
 
             <div className="lg:col-span-5 space-y-6">
@@ -190,7 +215,7 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
                             </div>
                         )}
 
-                        {reportConfig.type !== 'STOCK_LOW' && reportConfig.type !== 'CREDITS_ALL' && reportConfig.type !== 'CREDITS_POSITIVE' && reportConfig.type !== 'CREDITS_ZERO' && (
+                        {reportConfig.type !== 'STOCK_LOW' && reportConfig.type !== 'CREDITS_ALL' && reportConfig.type !== 'CREDITS_POSITIVE' && reportConfig.type !== 'CREDITS_ZERO' && reportConfig.type !== 'INDIVIDUAL' && (
                             <div>
                                 <label className="text-[var(--text-main)] font-black text-[10px] uppercase tracking-widest mb-2 block ml-1">Período de Análise</label>
                                 <div className="flex flex-wrap gap-2 mb-4">

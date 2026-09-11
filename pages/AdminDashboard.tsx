@@ -879,16 +879,6 @@ export function AdminDashboard() {
             >
 {activeTab === 'home' && (
                 <>
-                  <MaintenanceCenter
-                    variant="full"
-                    products={products}
-                    orders={orders}
-                    walletTx={walletTx}
-                    users={users}
-                    cotaCritica={cotaCritica}
-                    currentUser={currentUser}
-                    onNavigate={goToTab}
-                  />
                   <AdminHomeTab
                     stats={stats}
                     chartData={chartData}

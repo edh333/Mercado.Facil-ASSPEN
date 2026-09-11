@@ -392,6 +392,16 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
         </div>
       )}
 
+      {/* Aviso para admins não-master: os consolidados existem mas ficam ocultos */}
+      {!isMaster && (
+        <div className="bg-[var(--bg-main)] border-2 border-dashed border-[var(--border-color)] rounded-3xl px-6 py-4 flex items-center gap-3">
+          <Landmark size={18} className="text-[var(--text-muted)] shrink-0"/>
+          <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] leading-relaxed">
+            Visão financeira consolidada (saldo, entradas, saídas e gráfico) disponível apenas para o administrador master.
+          </p>
+        </div>
+      )}
+
       {/* Simple Visual Chart - Daily Breakdown */}
       {isMaster && (
         <div className="bg-[var(--bg-card)] p-6 rounded-[2.5rem] border border-[var(--border-color)] shadow-lg">
@@ -531,8 +541,14 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
             <div className="flex-1 space-y-2 w-full">
                 <label className="text-[var(--text-main)] font-black text-[10px] uppercase tracking-[0.2em] ml-2">Período de Análise</label>
                 <div className="flex gap-3">
-                    <input type="date" className="flex-1 p-4 bg-[var(--bg-card)] border-2 border-[var(--border-color)] focus:border-emerald-500 rounded-2xl text-sm font-bold text-[var(--text-main)] outline-none" value={financeFilters.start} onChange={e => setFinanceFilters({...financeFilters, start: e.target.value})} />
-                    <input type="date" className="flex-1 p-4 bg-[var(--bg-card)] border-2 border-[var(--border-color)] focus:border-emerald-500 rounded-2xl text-sm font-bold text-[var(--text-main)] outline-none" value={financeFilters.end} onChange={e => setFinanceFilters({...financeFilters, end: e.target.value})} />
+                    <div className="flex-1 space-y-1">
+                        <label className="block text-[9px] font-bold uppercase tracking-widest text-[var(--text-muted)] ml-1">De</label>
+                        <input type="date" className="w-full p-4 bg-[var(--bg-card)] border-2 border-[var(--border-color)] focus:border-emerald-500 rounded-2xl text-sm font-bold text-[var(--text-main)] outline-none" value={financeFilters.start} onChange={e => setFinanceFilters({...financeFilters, start: e.target.value})} />
+                    </div>
+                    <div className="flex-1 space-y-1">
+                        <label className="block text-[9px] font-bold uppercase tracking-widest text-[var(--text-muted)] ml-1">Até</label>
+                        <input type="date" className="w-full p-4 bg-[var(--bg-card)] border-2 border-[var(--border-color)] focus:border-emerald-500 rounded-2xl text-sm font-bold text-[var(--text-main)] outline-none" value={financeFilters.end} onChange={e => setFinanceFilters({...financeFilters, end: e.target.value})} />
+                    </div>
                 </div>
             </div>
             <div className="flex-[2] space-y-2 w-full">

@@ -141,6 +141,83 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
     status === 'suspended' ? 'bg-red-100 text-red-600 border-red-200' :
     'bg-amber-100 text-amber-700 border-amber-200';
 
+  // Lista de Presença: cada familiar com CPF, interno vinculado e saldo,
+  // com coluna de assinatura para impressão física.
+  const printPresenceList = () => {
+    const items = (users || []).filter(u => !isAdminRole(u.role))
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    if (items.length === 0) return;
+    const esc = (v: any) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const hoje = new Date().toLocaleDateString('pt-BR');
+    const totalizado = items.reduce((s, u) => s + Number(u.walletBalance || 0), 0);
+    const rows = items.map((u, idx) => {
+      const saldo = Number(u.walletBalance || 0);
+      const st = u.status === 'active' ? 'Ativo' : u.status === 'suspended' ? 'Bloqueado' : 'Pendente';
+      return `<tr>
+        <td style="padding:7px 8px;border-bottom:1px solid #e2e8f0;text-align:center;font-size:11px;font-weight:700;color:#94a3b8;">${idx + 1}</td>
+        <td style="padding:7px 8px;border-bottom:1px solid #e2e8f0;font-size:11px;font-weight:800;text-transform:uppercase;">${esc(u.name)}<div style="font-size:9px;color:#64748b;font-weight:700;letter-spacing:1px;">CPF ${esc(u.cpf || '—')}</div></td>
+        <td style="padding:7px 8px;border-bottom:1px solid #e2e8f0;font-size:11px;font-weight:700;text-transform:uppercase;">${esc(u.inmateName || 'GERAL / CDP')}</td>
+        <td style="padding:7px 8px;border-bottom:1px solid #e2e8f0;text-align:right;font-size:11px;font-weight:800;color:${saldo > 0 ? '#059669' : '#0f172a'};">R$ ${formatarMoeda(saldo)}</td>
+        <td style="padding:7px 8px;border-bottom:1px solid #e2e8f0;text-align:center;font-size:9px;font-weight:800;text-transform:uppercase;color:${st === 'Ativo' ? '#059669' : st === 'Bloqueado' ? '#dc2626' : '#d97706'};">${st}</td>
+        <td style="padding:7px 8px;border-bottom:1px solid #e2e8f0;"></td>
+      </tr>`;
+    }).join('');
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<title>Lista de Presenca - Familiares</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif; color:#0f172a; padding:32px; background:#fff; }
+    .cabecalho { border-bottom:3px solid #0f766e; padding-bottom:14px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:flex-end; }
+    .cabecalho h1 { font-size:18px; text-transform:uppercase; letter-spacing:1px; color:#0f766e; }
+    .cabecalho p { font-size:11px; color:#64748b; margin-top:3px; }
+    .meta { text-align:right; font-size:11px; color:#64748b; }
+    .cards { display:flex; gap:12px; margin-bottom:18px; }
+    .card { flex:1; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:12px 14px; }
+    .card .titulo { font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:1.5px; color:#94a3b8; margin-bottom:3px; }
+    .card .valor { font-size:16px; font-weight:800; }
+    table { width:100%; border-collapse:collapse; }
+    thead th { background:#0f172a; color:#fff; padding:9px; font-size:10px; text-transform:uppercase; letter-spacing:1px; text-align:left; }
+    .rodape { margin-top:16px; text-align:center; font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:1px; }
+    @media print { @page { size: A4; margin: 14mm 12mm; } body { padding:14px; } }
+</style>
+</head>
+<body>
+    <div class="cabecalho">
+        <div>
+            <h1>Lista de Presenca — Familiares</h1>
+            <p>Mercado Fácil — saldos de credito e vinculacao</p>
+        </div>
+        <div class="meta">
+            <p>Emitido em: <b>${hoje}</b></p>
+            <p>${items.length} familiares</p>
+        </div>
+    </div>
+    <div class="cards">
+        <div class="card"><p class="titulo">Familiares</p><p class="valor">${items.length}</p></div>
+        <div class="card"><p class="titulo">Com Saldo</p><p class="valor">${items.filter(u => Number(u.walletBalance || 0) > 0).length}</p></div>
+        <div class="card"><p class="titulo">Saldo Total</p><p class="valor" style="color:#059669">R$ ${formatarMoeda(totalizado)}</p></div>
+    </div>
+    <table>
+        <thead><tr><th style="text-align:center;width:40px;">Nº</th><th>Familiar</th><th>Interno Vinculado</th><th style="text-align:right;">Saldo</th><th style="text-align:center;">Status</th><th style="width:140px;">Assinatura</th></tr></thead>
+        <tbody>${rows}</tbody>
+    </table>
+    <div style="margin-top:34px;display:flex;justify-content:space-between;">
+        <div style="width:40%;border-top:1px solid #64748b;padding-top:8px;font-size:10px;text-transform:uppercase;text-align:center;color:#475569;">Responsável / Carimbo</div>
+    </div>
+    <p class="rodape">Documento gerado pelo sistema Mercado Fácil</p>
+</body>
+</html>`;
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(html);
+      printWindow.document.close();
+      printWindow.print();
+    }
+  };
+
   return (
     <div className="animate-slideUp space-y-6 pb-20">
 
@@ -195,6 +272,9 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
             </button>
             <button onClick={() => setShowBulkActions(!showBulkActions)} className={`px-6 py-4 rounded-[2.5rem] border-2 transition-all flex items-center justify-center gap-3 font-black text-[10px] uppercase tracking-widest shadow-sm ${showBulkActions ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
               <CheckSquare size={18}/> {showBulkActions ? 'Cancelar' : 'Selecionar'}
+            </button>
+            <button onClick={printPresenceList} title="Gerar Lista de Presença com saldos para impressão" className="px-6 py-4 rounded-[2.5rem] border-2 border-teal-600/30 bg-teal-50 text-teal-700 hover:bg-teal-600 hover:text-white hover:border-teal-600 transition-all flex items-center justify-center gap-3 font-black text-[10px] uppercase tracking-widest shadow-sm">
+              <FileText size={18}/> Lista de Presença
             </button>
           </>
         )}
