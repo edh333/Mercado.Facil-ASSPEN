@@ -338,11 +338,11 @@ export const MaintenanceCenter: React.FC<Props> = ({
                           <p className={'text-[9px] font-black uppercase tracking-wider mt-1 ' + (c.emDia ? 'text-emerald-500' : 'text-amber-500')}>
                             {c.emDia
                               ? c.diasAtraso !== null && c.diasAtraso <= c.item.intervaloDias
-                                ? c.diasAtraso === 0 ? 'OK — feito hoje' + (c.por ? ' (' + c.por + ')' : '') : 'OK — feito ha ' + pluralDias(c.diasAtraso) + (c.por ? ' (' + c.por + ')' : '')
+                                ? c.diasAtraso === 0 ? 'OK — feito hoje' + (c.por ? ' (' + c.por + ')' : '') : 'OK — feito há ' + pluralDias(c.diasAtraso) + (c.por ? ' (' + c.por + ')' : '')
                                 : 'Nunca realizado'
                               : c.diasAtraso === null
                                 ? 'Nunca realizado'
-                                : 'Pendente ha ' + pluralDias(c.diasAtraso) + ' (limite ' + pluralDias(c.item.intervaloDias) + ')'}
+                                : 'Pendente há ' + pluralDias(c.diasAtraso) + ' (limite ' + pluralDias(c.item.intervaloDias) + ')'}
                           </p>
                         </div>
                       </div>

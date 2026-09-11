@@ -194,7 +194,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
             <div className="flex bg-[var(--bg-main)] rounded-2xl p-1.5 border border-[var(--border-color)] w-full md:w-auto overflow-x-auto custom-scrollbar gap-1">
                 <button onClick={() => setStatusFilter('ALL')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${statusFilter === 'ALL' ? 'bg-[var(--text-main)] text-[var(--bg-card)] shadow-lg' : 'text-[var(--text-muted)] hover:bg-slate-100'}`}>Tudo</button>
                 <button onClick={() => setStatusFilter('PENDING')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 flex items-center gap-2 ${statusFilter === 'PENDING' ? 'bg-amber-500 text-white shadow-lg ring-2 ring-amber-300' : 'text-amber-600 hover:bg-amber-100'}`}>Pendentes {contagens.pend > 0 && <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${statusFilter === 'PENDING' ? 'bg-white/20' : 'bg-amber-500/15'}`}>{contagens.pend}</span>}</button>
-                <button onClick={() => setStatusFilter('PAID')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 flex items-center gap-2 ${statusFilter === 'PAID' ? 'bg-emerald-600 text-white shadow-lg' : 'text-emerald-600 hover:bg-emerald-100'}`}>Concluidos {contagens.conc > 0 && <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${statusFilter === 'PAID' ? 'bg-white/20' : 'bg-emerald-500/15'}`}>{contagens.conc}</span>}</button>
+                <button onClick={() => setStatusFilter('PAID')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 flex items-center gap-2 ${statusFilter === 'PAID' ? 'bg-emerald-600 text-white shadow-lg' : 'text-emerald-600 hover:bg-emerald-100'}`}>Concluídos {contagens.conc > 0 && <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${statusFilter === 'PAID' ? 'bg-white/20' : 'bg-emerald-500/15'}`}>{contagens.conc}</span>}</button>
                 <button onClick={() => setStatusFilter('CANCELLED')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 flex items-center gap-2 ${statusFilter === 'CANCELLED' ? 'bg-rose-600 text-white shadow-lg' : 'text-rose-600 hover:bg-rose-100'}`}>Cancelados {contagens.canc > 0 && <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${statusFilter === 'CANCELLED' ? 'bg-white/20' : 'bg-rose-500/15'}`}>{contagens.canc}</span>}</button>
                 <button onClick={() => setStatusFilter('REFUNDED')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 flex items-center gap-2 ${statusFilter === 'REFUNDED' ? 'bg-indigo-600 text-white shadow-lg' : 'text-indigo-600 hover:bg-indigo-100'}`}>Devolvidos {contagens.dev > 0 && <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${statusFilter === 'REFUNDED' ? 'bg-white/20' : 'bg-indigo-500/15'}`}>{contagens.dev}</span>}</button>
             </div>
@@ -276,7 +276,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
         </div>
         <input
           className="w-full pl-24 pr-8 py-6 bg-[var(--bg-card)] border-2 border-[var(--border-color)] focus:border-emerald-500 rounded-[3rem] text-sm font-black text-[var(--text-main)] outline-none transition-all placeholder:text-[var(--text-muted)] placeholder:font-medium uppercase tracking-[0.2em] shadow-inner"
-          placeholder="PESQUISAR POR NOME, CPF OU CODIGO DO PEDIDO..."
+          placeholder="PESQUISAR POR NOME, CPF OU CÓDIGO DO PEDIDO..."
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
         />
@@ -369,7 +369,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                       <UserCheck size={24}/>
                   </div>
                   <div className="min-w-0">
-                      <p className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest mb-1">Familiar Responsavel</p>
+                      <p className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest mb-1">Familiar Responsável</p>
                       <h4 className="text-[15px] font-black text-[var(--text-main)] uppercase tracking-tight truncate">{order?.userName || 'Não identificado'}</h4>
                       <p className="text-[10px] font-mono text-[var(--text-muted)] font-bold">CPF: {order?.userCpf || '—'}</p>
                   </div>

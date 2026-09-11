@@ -43,7 +43,7 @@ export const AdminMaintenanceTab: React.FC<Props> = ({
       await fnExecutarBackupAgora({});
       setFeedback({ msg: 'Backup manual gerado no servidor com sucesso.', ok: true });
     } catch (e: any) {
-      setFeedback({ msg: 'Falha ao gerar backup: ' + (e?.message || 'funcoes fora do ar?'), ok: false });
+      setFeedback({ msg: 'Falha ao gerar backup: ' + (e?.message || 'funções fora do ar?'), ok: false });
     } finally {
       setBackupando(false);
     }
@@ -55,7 +55,7 @@ export const AdminMaintenanceTab: React.FC<Props> = ({
     setFeedback(null);
     try {
       await clearOldData();
-      setFeedback({ msg: 'Remocao de dados antigos concluida. Pode levar alguns minutos para refletir nos contadores.', ok: true });
+      setFeedback({ msg: 'Remoção de dados antigos concluída. Pode levar alguns minutos para refletir nos contadores.', ok: true });
     } catch (e: any) {
       setFeedback({ msg: 'Falha ao limpar dados antigos: ' + (e?.message || 'tente novamente.'), ok: false });
     } finally {
@@ -69,10 +69,10 @@ export const AdminMaintenanceTab: React.FC<Props> = ({
     setFeedback(null);
     try {
       await resetCredits();
-      setFeedback({ msg: 'Carteiras de todos os usuarios zeradas (salvo e registrado em auditoria).', ok: true });
+      setFeedback({ msg: 'Carteiras de todos os usuários zeradas (salvo e registrado em auditoria).', ok: true });
       setConfirmZerar(false);
     } catch (e: any) {
-      setFeedback({ msg: 'Falha ao zerar creditos: ' + (e?.message || 'tente novamente.'), ok: false });
+      setFeedback({ msg: 'Falha ao zerar créditos: ' + (e?.message || 'tente novamente.'), ok: false });
     } finally {
       setZerando(false);
     }

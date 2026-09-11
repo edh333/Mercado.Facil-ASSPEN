@@ -181,11 +181,11 @@ export const UserOrdersTab: React.FC<UserOrdersTabProps> = ({
                               )}
                           </div>
 
-                          <div className="flex gap-2">
+                          <div className="flex flex-wrap gap-2">
                               {canViewCupom(order.status) && (
                                   <button
                                       onClick={() => setViewingOrderCupom(order)}
-                                      className="flex-1 py-3 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl hover:bg-black transition-all transform active:scale-95"
+                                      className="flex-1 min-w-[140px] py-3 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl hover:bg-black transition-all transform active:scale-95"
                                   >
                                       <Printer size={18} /> VISUALIZAR CUPOM
                                   </button>

@@ -24,14 +24,15 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isAdmin() {
+function isAdmin() {
       return isAuthenticated() && (
         request.auth.token.admin == true ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'active' &&
          (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN' ||
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'master' ||
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'MASTER'))
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN' ||
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'master' ||
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'MASTER'))
       );
     }
 
@@ -91,7 +92,7 @@ service cloud.firestore {
       allow update: if isAdmin() || (
         userMatch(resource.data.userId)
         && resource.data.status.matches('(?i)^pending$')
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paymentProofUrl'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paymentProofUrl', 'proofHash', 'proofSize', 'proofMime'])
       );
       allow delete: if isAdmin();
     }
@@ -112,7 +113,7 @@ service cloud.firestore {
       allow update: if isAdmin() || (
         userMatch(resource.data.userId)
         && resource.data.status.matches('(?i)^pending$')
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['proofUrl'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['proofUrl', 'proofHash', 'proofSize', 'proofMime'])
       );
       allow delete: if isAdmin();
     }

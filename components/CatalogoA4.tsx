@@ -138,7 +138,7 @@ export const CatalogoA4: React.FC<CatalogoA4Props> = ({ products, config, showUn
           <div className="text-center py-24 text-slate-300 font-black uppercase tracking-[0.2em] border-4 border-dashed border-slate-100 rounded-[3rem]">
             Nenhum produto disponível para escolha.
             <p className="text-[10px] font-normal text-slate-400 mt-2">
-              Verifique se há produtos com estoque &gt; 0 e &gt; marcados como disponíveis.
+              Verifique se há produtos com estoque &gt; 0 e marcados como disponíveis.
             </p>
           </div>
         )}

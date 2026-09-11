@@ -621,20 +621,25 @@ export function AdminDashboard() {
   const handleRejectOrder = async () => {
     if (!selectedOrderDetails) return;
     if (!rejectReason.trim()) return showNotification('É obrigatório informar o motivo.', 'error');
+    setIsRejecting(true);
     try {
-      await updateOrderStatus(selectedOrderDetails.id, OrderStatus.CANCELLED);
+      // ESTORNO NO SERVIDOR (restaura estoque atomicamente) — necessário porque
+      // pedidos PIX debitam estoque na criação. Usar updateOrderStatus p/ cancelar
+      // SEM restaurar estoque vaza inventário.
+      await refundOrder(selectedOrderDetails.id, `REPROVADO: ${rejectReason}`);
       await sendSystemMessage({
         title: `Pedido #${selectedOrderDetails.id.slice(0, 6)} Reprovado`,
         content: `Seu pedido foi reprovado pela administração. Motivo: ${rejectReason}`,
         targetUserId: selectedOrderDetails.userId,
         type: 'error'
       });
-      showNotification('Pedido reprovado e usuário notificado.', 'success');
       setRejectReason('');
       setIsRejecting(false);
       setTimeout(() => setSelectedOrderDetails(null), 1200);
     } catch (e: any) {
       showNotification('Erro ao reprovar pedido: ' + e.message, 'error');
+    } finally {
+      setIsRejecting(false);
     }
   };
 

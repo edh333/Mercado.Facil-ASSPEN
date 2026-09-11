@@ -78,7 +78,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
 
   // ── RESUMO DO DIA — VENDAS POR FORMA DE PAGAMENTO (HOJE) ───────────
   const todayPayments = React.useMemo(() => {
-    const label: Record<string, string> = { PIX: 'Pix', CASH: 'Dinheiro', CARD: 'Cartão', WALLET: 'Carteira', FIADO: 'Fiado', MIXED: 'Misto' };
+    const label: Record<string, string> = { PIX: 'PIX', CASH: 'Dinheiro', CARD: 'Cartão', WALLET: 'Carteira', FIADO: 'Fiado', MIXED: 'Misto' };
     // Receita = mesma definição dos cards e do Financeiro (ehReceita).
     // Antes contava pedidos PENDENTES como dinheiro que já entrou.
     const validStatus = (s?: string) => ehReceita(s);

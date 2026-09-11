@@ -12,7 +12,8 @@ import {
   increment,
   Timestamp,
   orderBy,
-  limit
+  limit,
+  runTransaction
 } from "firebase/firestore";
 
 // ──────────────────────────────────────────────
@@ -141,27 +142,45 @@ export async function addSupplement(
 
 /**
  * Removes cash from the till (e.g., safe drop, expense payment).
+ * ATÔMICO: antes de debitar, confere o saldo vivo da sessão — uma sangria
+ * maior que o disponível NÃO pode deixar a gaveta negativa (torped o
+ * fechamento/auditoria de quebra de caixa).
  */
 export async function addWithdrawal(
   sessionId: string,
   amount: number,
   reason: string
 ): Promise<void> {
+  const valor = Number(amount);
+  if (!(valor > 0)) {
+    throw new Error("Valor de sangria deve ser maior que zero.");
+  }
   try {
-    if (!(Number(amount) > 0)) {
-      throw new Error("Valor de sangria deve ser maior que zero.");
-    }
-    const sessionRef = doc(db, "cash_sessions", sessionId);
-    await updateDoc(sessionRef, {
-      currentBalance: increment(-Number(amount)),
-      withdrawals: arrayUnion({
-        amount: Number(amount),
-        reason,
-        timestamp: Timestamp.now(),
-      }),
+    await runTransaction(db, async (t) => {
+      const sessionRef = doc(db, "cash_sessions", sessionId);
+      const snap = await t.get(sessionRef);
+      if (!snap.exists()) {
+        throw new Error("Sessão de caixa não encontrada.");
+      }
+      const data = snap.data() as CashSession;
+      const saldoAtual = Number(data.currentBalance || 0);
+      if (!(saldoAtual >= valor)) {
+        throw new Error(
+          `Saldo em caixa insuficiente para sangria de R$ ${valor.toFixed(2).replace('.', ',')} — disponível: R$ ${saldoAtual.toFixed(2).replace('.', ',')}.`
+        );
+      }
+      t.update(sessionRef, {
+        currentBalance: increment(-valor),
+        withdrawals: arrayUnion({
+          amount: valor,
+          reason,
+          timestamp: Timestamp.now(),
+        }),
+      });
     });
   } catch (e: any) {
     console.error("[addWithdrawal]", e.message);
+    if (typeof e?.message === "string" && e.message.includes("insuficiente para sangria")) throw e;
     throw new Error("Erro ao registrar sangria.");
   }
 }

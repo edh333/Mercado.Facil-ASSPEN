@@ -153,7 +153,7 @@ export const DeviceStorageManager: React.FC = () => {
       <ConfirmacaoDestrutiva
         isOpen={confirmTotal}
         titulo="Limpar TODOS os dados locais"
-        descricao="Serao apagados deste aparelho: sessao (voce sera desconectado), carrinho, preferencias, caches, comprovantes pendentes e bancos locais. Nenhum dado do servidor e afetado — produtos, vendas, depositos e usuarios ficam intactos no sistema central. O aplicativo sera recarregado para reentrar."
+        descricao="Serão apagados deste aparelho: sessão (você será desconectado), carrinho, preferências, caches, comprovantes pendentes e bancos locais. Nenhum dado do servidor é afetado — produtos, vendas, depósitos e usuários ficam intactos no sistema central. O aplicativo será recarregado para reentrar."
         palavraChave="LIMPAR TUDO"
         processando={limpezaTotal}
         onConfirm={handleLimparTotal}

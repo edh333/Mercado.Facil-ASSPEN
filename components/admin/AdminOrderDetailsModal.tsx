@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   ShoppingCart, X, MessageSquareX, Send, Users, FileText, Printer,
-  RefreshCw, XCircle, CheckCircle, Box, Truck, CreditCard, MapPin, Loader2, ExternalLink
+  RefreshCw, XCircle, CheckCircle, Box, Truck, CreditCard, MapPin, Loader2, ExternalLink, Shield, ShieldCheck, AlertTriangle, Copy
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { Order, OrderStatus } from '../../types';
@@ -440,6 +440,46 @@ export const AdminOrderDetailsModal: React.FC<AdminOrderDetailsModalProps> = ({
                   )}
                 </div>
               </div>
+
+              {order.paymentMethod !== 'WALLET' && (order.proofHash || order.proofSize || order.proofMime) && (
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2.5">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                    <Shield size={14}/> Integridade do Comprovante
+                  </p>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[9px] font-black text-slate-400 uppercase shrink-0">Assinatura SHA-256</span>
+                    {order.proofHash ? (
+                      <span className="text-[9px] font-mono font-black text-emerald-600 flex items-center gap-1 break-all text-right">
+                        <ShieldCheck size={12} className="shrink-0"/> {order.proofHash.slice(0, 18)}…
+                      </span>
+                    ) : (
+                      <span className="text-[9px] font-black text-amber-600 uppercase flex items-center gap-1 shrink-0">
+                        <AlertTriangle size={12}/> Sem assinatura
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[9px] font-black text-slate-400 uppercase shrink-0">Tamanho</span>
+                    <span className={`text-[10px] font-black ${order.proofSize != null && order.proofSize > 0 && order.proofSize < 3 * 1024 ? 'text-red-600' : 'text-slate-700'}`}>
+                      {order.proofSize
+                        ? (order.proofSize < 1024 ? `${order.proofSize} B` : (order.proofSize < 1024 * 1024 ? `${(order.proofSize / 1024).toFixed(1)} KB` : `${(order.proofSize / (1024 * 1024)).toFixed(2)} MB`))
+                        : '—'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[9px] font-black text-slate-400 uppercase shrink-0">Tipo</span>
+                    <span className="text-[10px] font-black text-slate-700 uppercase">{order.proofMime || 'imagem'}</span>
+                  </div>
+                  {order.proofHash && (
+                    <button
+                      onClick={() => { try { navigator.clipboard?.writeText(order.proofHash || ''); } catch { /* ignore */ } }}
+                      className="w-full py-2 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-slate-700 active:scale-95 transition-all flex items-center justify-center gap-2"
+                    >
+                      <Copy size={12}/> Copiar Hash Completo
+                    </button>
+                  )}
+                </div>
+              )}
 
               {/* Action Buttons */}
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">

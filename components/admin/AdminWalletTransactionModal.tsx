@@ -1,5 +1,5 @@
 import React from 'react';
-import { Printer, CheckCircle, XCircle, User, UserCheck, DollarSign, ImageIcon, ArrowRight, Activity, FileText, Loader2, ExternalLink, AlertTriangle, Download } from 'lucide-react';
+import { Printer, CheckCircle, XCircle, User, UserCheck, DollarSign, ImageIcon, ArrowRight, Activity, FileText, Loader2, ExternalLink, AlertTriangle, Download, Shield, ShieldCheck, Copy, Ban } from 'lucide-react';
 import { WalletTransaction } from '../../types';
 import { formatarMoeda } from '../../utils';
 import { ModalShell } from '../ui/ModalShell';
@@ -255,6 +255,72 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
     }
   };
 
+  const formatarBytes = (b?: number) => {
+    if (!b || b <= 0) return '—';
+    if (b < 1024) return `${b} B`;
+    if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
+    return `${(b / (1024 * 1024)).toFixed(2)} MB`;
+  };
+
+  const IntegridadeComprovante: React.FC<{ tx: WalletTransaction; url: string }> = ({ tx, url }) => {
+    const temHash = Boolean(tx.proofHash && /^[0-9a-f]{64}$/i.test(tx.proofHash));
+    const suspeitoTamanho = tx.proofSize != null && tx.proofSize > 0 && tx.proofSize < 3 * 1024;
+    const mimeExibicao = tx.proofMime || (url.toLowerCase().includes('.pdf') ? 'application/pdf' : 'imagem');
+    const duplicado = tx.status === 'rejected' && /duplicado|ja utilizado|já utilizado/i.test(tx.rejectReason || '');
+    return (
+      <div className="space-y-3">
+        {duplicado && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-2xl">
+            <p className="text-[10px] font-black text-red-600 uppercase tracking-widest flex items-center gap-2">
+              <Ban size={14}/> Comprovante Reutilizado
+            </p>
+            <p className="text-[10px] text-red-500 font-bold mt-1 leading-snug">{tx.rejectReason}</p>
+            {tx.rejectedAt && (
+              <p className="text-[9px] text-red-400 font-black uppercase tracking-widest mt-1.5">
+                {new Date(tx.rejectedAt).toLocaleString('pt-BR')}
+              </p>
+            )}
+          </div>
+        )}
+        <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2.5">
+          <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+            <Shield size={14}/> Integridade do Comprovante
+          </p>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[9px] font-black text-slate-400 uppercase shrink-0">Assinatura SHA-256</span>
+            {temHash ? (
+              <span className="text-[9px] font-mono font-black text-emerald-600 flex items-center gap-1 break-all text-right">
+                <ShieldCheck size={12} className="shrink-0"/> {(tx.proofHash || '').slice(0, 18)}…
+              </span>
+            ) : (
+              <span className="text-[9px] font-black text-amber-600 uppercase flex items-center gap-1 shrink-0">
+                <AlertTriangle size={12}/> Sem assinatura
+              </span>
+            )}
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[9px] font-black text-slate-400 uppercase shrink-0">Tamanho</span>
+            <span className={`text-[10px] font-black ${suspeitoTamanho ? 'text-red-600' : 'text-slate-700'}`}>
+              {tx.proofSize ? formatarBytes(tx.proofSize) + (suspeitoTamanho ? ' — abaixo do mínimo' : '') : '—'}
+            </span>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[9px] font-black text-slate-400 uppercase shrink-0">Tipo</span>
+            <span className="text-[10px] font-black text-slate-700 uppercase">{mimeExibicao}</span>
+          </div>
+          {temHash && (
+            <button
+              onClick={() => { try { navigator.clipboard?.writeText(tx.proofHash || ''); } catch { /* ignore */ } }}
+              className="w-full py-2 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-slate-700 active:scale-95 transition-all flex items-center justify-center gap-2"
+            >
+              <Copy size={12}/> Copiar Hash Completo
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   if (showNotaPromissoria) {
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + 30);
@@ -455,6 +521,7 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
                     A auditoria visual é obrigatória antes da validação
                 </p>
               )}
+              <IntegridadeComprovante tx={transaction} url={proofSrc} />
               {!proofSrc ? (
                 <button
                   onClick={() => fileInputRef.current?.click()}

@@ -225,7 +225,7 @@ export const AdminDashboardCharts: React.FC = () => {
         />
         <MetricCard
           icon={<CreditCard size={22} />}
-          label="Meio + Usado"
+          label="Meio + Utilizado"
           value={topPayment ? `${topPayment.method} (${fmt(topPayment.amount)})` : '—'}
           color="text-purple-600"
           bgColor="bg-purple-50"

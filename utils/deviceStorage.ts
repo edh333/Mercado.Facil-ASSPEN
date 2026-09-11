@@ -1,7 +1,7 @@
 import { listPendingUploads } from '../services/localStorageService';
 
 // Marcações de cache do Service Worker (mesmo contrato do index.tsx)
-export const SW_CACHE_ATUAL = 'mercado-facil-v18';
+export const SW_CACHE_ATUAL = 'mercado-facil-v21';
 
 export interface MetricaArmazenamento {
   usadoBytes: number | null;

@@ -135,6 +135,9 @@ export interface Order {
   date: string; // Alias for createdAt
   deliveryDate?: string;
   paymentProofUrl?: string;
+  proofHash?: string;
+  proofSize?: number;
+  proofMime?: string;
   inmateLocation?: InmateLocation;
   deliveryLocation?: InmateLocation; // Alias
   printCount?: number;
@@ -274,6 +277,14 @@ export interface WalletTransaction {
   inmateCpf: string;
   amount: number;
   proofUrl: string;
+  proofHash?: string;
+  proofSize?: number;
+  proofMime?: string;
+  rejectReason?: string;
+  rejectedBy?: string;
+  rejectedAt?: string;
+  approvedBy?: string;
+  approvedAt?: string;
   inmateName?: string;
   prisonerCpf?: string;
   status: 'pending' | 'approved' | 'rejected';

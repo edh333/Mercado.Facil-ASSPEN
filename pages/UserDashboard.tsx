@@ -500,7 +500,7 @@ export const UserDashboard: React.FC = () => {
             const mudou = proximo.length !== prev.length || proximo.some((it, i) => it !== prev[i]);
             return mudou ? proximo : prev;
         });
-        if (removidos.length) showNotification(`${removidos.length} item(ns) saiu(sam) do catálogo e foi(ram) removido(s) do carrinho.`, 'error');
+        if (removidos.length) showNotification(`${removidos.length} ${removidos.length === 1 ? 'item saiu' : 'itens saíram'} do catálogo e ${removidos.length === 1 ? 'foi removido' : 'foram removidos'} do carrinho.`, 'error');
     }, [safeProducts]);
 
     const toggleOrderDetails = (orderId: string) => {
@@ -628,7 +628,7 @@ export const UserDashboard: React.FC = () => {
             showNotification(isWalletPayment ? 'Pedido finalizado com sucesso pelo saldo!' : 'Pedido enviado com sucesso para análise!', 'success');
  
          } catch (e: any) {
-            showNotification("Erro ao enviar pedido: " + (e.message || "Falha na conexao"), "error");
+            showNotification("Erro ao enviar pedido: " + (e.message || "Falha na conexão"), "error");
         } finally {
             submittingRef.current = false;
             setIsSubmitting(false);
@@ -646,7 +646,7 @@ export const UserDashboard: React.FC = () => {
             return;
         }
         if (depositAmount <= 0) {
-            showNotification("Informe o valor do deposito.", "error");
+            showNotification("Informe o valor do depósito.", "error");
             return;
         }
         if (depositAmount > 100000) {
@@ -1307,7 +1307,7 @@ export const UserDashboard: React.FC = () => {
                                                     </div>
                                                 )}
                                             </div>
-<p className="text-[10px] font-bold text-red-400 text-center mt-2 leading-tight"><AlertCircle size={10} className="inline-block mr-1 -mt-0.5" />Enviar comprovantes falsos ou adulterados configura CRIME (Art. 171 e 298 CP). Ao prosseguir, você assume total responsabilidade civil e criminal.</p>
+<div className="mt-3 p-2.5 bg-red-500/10 border-2 border-red-500/40 rounded-xl flex items-start gap-2"><AlertCircle size={12} className="inline-block shrink-0 mt-0.5" /><p className="text-[10px] font-black text-red-400 text-left leading-snug">Enviar comprovantes falsos ou adulterados configura CRIME — Art. 171 (estelionato) e Art. 298 (falsificação de documento) do Código Penal. Ao prosseguir, você assume total responsabilidade civil e criminal.</p></div>
                                             <button onClick={async () => { if (!proofFile) { showNotification('ANEXE O COMPROVANTE.', 'error'); return; } await depositToWalletAction(); setDepositStage('amount'); }} disabled={isSubmitting || !proofFile} className="w-full py-3.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 transition-all cursor-pointer">
                                                 {isSubmitting ? <><Loader2 size={14} className="animate-spin" /> Enviando...</> : <><Upload size={14} /> Enviar Comprovante</>}
                                             </button>
@@ -1767,7 +1767,7 @@ export const UserDashboard: React.FC = () => {
                                         </div>
                                     )}
                                 </div>
-<p className="text-[11px] font-bold text-red-400 text-center mt-2 leading-tight"><AlertCircle size={12} className="inline-block mr-1 -mt-0.5" />Enviar comprovantes falsos ou adulterados configura CRIME (Art. 171 e 298 CP). Ao prosseguir, você assume total responsabilidade civil e criminal.</p>
+<div className="mt-3 p-2.5 bg-red-500/10 border-2 border-red-500/40 rounded-xl flex items-start gap-2"><AlertCircle size={12} className="inline-block shrink-0 mt-0.5" /><p className="text-[11px] font-black text-red-400 text-left leading-snug">Enviar comprovantes falsos ou adulterados configura CRIME — Art. 171 (estelionato) e Art. 298 (falsificação de documento) do Código Penal. Ao prosseguir, você assume total responsabilidade civil e criminal.</p></div>
                                 <button onClick={async () => { if (!proofFile) { showNotification('ANEXE O COMPROVANTE.', 'error'); return; } await depositToWalletAction(); setDepositStage('amount'); }} disabled={isSubmitting || !proofFile} className="w-full py-3 bg-blue-500 text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg disabled:opacity-50">
                                     {isSubmitting ? <><Loader2 size={14} className="animate-spin" /> Enviando...</> : <><Upload size={14} /> Enviar Comprovante</>}
                                 </button>
@@ -1885,7 +1885,7 @@ export const UserDashboard: React.FC = () => {
                                             {proofFile && (
                                                 <p className="text-[10px] text-[var(--primary-color)] font-bold mt-1 text-left break-all">Arquivo selecionado: {proofFile.name}</p>
                                             )}
-                                            <p className="text-[11px] font-bold text-red-600 text-center mt-2 leading-tight"><AlertCircle size={12} className="inline-block mr-1 -mt-0.5" />Enviar comprovantes falsos ou adulterados configura CRIME (Art. 171 e 298 CP). Ao confirmar, você assume total responsabilidade civil e criminal.</p>
+                                            <div className="mt-2 p-2.5 bg-red-500/10 border-2 border-red-500/40 rounded-xl flex items-start gap-2"><AlertCircle size={12} className="inline-block shrink-0 mt-0.5" /><p className="text-[11px] font-black text-red-600 text-left leading-snug">Enviar comprovantes falsos ou adulterados configura CRIME — Art. 171 (estelionato) e Art. 298 (falsificação de documento) do Código Penal. Ao confirmar, você assume total responsabilidade civil e criminal.</p></div>
                                         </div>
                                     </div>
                                 )}

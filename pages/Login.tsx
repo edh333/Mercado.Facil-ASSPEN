@@ -569,7 +569,7 @@ const PremiumInput = ({ icon: Icon, label, value, onChange, type = "text", actio
                     type={type}
                     id={inputId}
                     className="flex-1 py-3 bg-transparent border-none outline-none text-sm font-semibold text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500"
-                    placeholder=" "
+                    placeholder="Digite aqui"
                     value={value}
                     onChange={onChange}
                     required={required}

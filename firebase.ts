@@ -78,9 +78,13 @@ function initFirestoreWithStrategy() {
 }
 
 try {
-  firestoreDb = getFirestore(app);
-} catch {
   firestoreDb = initFirestoreWithStrategy();
+} catch (error) {
+  console.warn(
+    "[FIREBASE] Cache local persistente não disponível. Inicializando instância padrão.",
+    error,
+  );
+  firestoreDb = getFirestore(app);
 }
 
 export const db = firestoreDb;

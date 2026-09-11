@@ -473,7 +473,7 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Valor Inicial (R$)</label>
                 <input type="number" min="0" step="0.01" value={initialBalance}
                   onChange={e => setInitialBalance(e.target.value)}
-                  placeholder="Ex: 100.00"
+                  placeholder="Ex: 100,00"
                   className="w-full border border-slate-300 rounded-xl px-4 py-3 text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-400 mb-4" />
               </>
             )}
@@ -525,7 +525,7 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Valor Contado Fisicamente (R$)</label>
                 <input type="number" min="0" step="0.01" value={closedBalance}
                   onChange={e => setClosedBalance(e.target.value)}
-                  placeholder="0.00"
+                  placeholder="0,00"
                   className="w-full border border-slate-300 rounded-xl px-4 py-3 text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-400 mb-4" />
               </>
             )}

@@ -888,7 +888,36 @@ exports.aprovarDeposito = onCall(async (request) => {
   let novoSaldoFinal = null;
   let valorDepositado = null;
   let usuarioIdDeposito = null;
+  let motivoDuplicado = null;
   try {
+    // ─── PRÉ-VALIDAÇÃO (fora da transação) ────────────────────────────────
+    // Checa status, dono, E valida que o arquivo realmente EXISTE no Storage
+    // com tamanho mínimo de comprovante real (3 KB). Fecha a brecha de URLs
+    // que apontam para objeto inexistente ou arquivo vazio.
+    const preSnap = await db.collection("wallet_transactions").doc(tid).get();
+    if (!preSnap.exists) throw new Error("Transação não encontrada.");
+    const pre = preSnap.data();
+    if (pre.status !== "pending") throw new Error("Esta transação já foi processada.");
+    if (pre.type !== "deposit") throw new Error("Transação não é um depósito.");
+    if (!(Number(pre.amount) > 0)) throw new Error("Valor de depósito inválido.");
+    if (Number(pre.amount) > 100000) throw new Error("Valor de depósito acima do teto permitido (R$ 100.000,00).");
+    const comprovante = String(pre.proofUrl || "").trim();
+    if (!comprovante || comprovante === "PENDENTE_UPLOAD_LOCAL_CACHE") {
+      throw new Error("Depósito sem comprovante válido. Exija o envio da imagem do comprovante.");
+    }
+    // Validação flexível: arquivo real + dedup por hash/URL + avisa se pasta ≠ usuário
+    const validacao = await validarComprovanteFlexivel(
+      comprovante,
+      pre.userId,
+      "wallet_proofs",
+      pre.proofHash,
+      pre.proofSize,
+      pre.proofMime
+    );
+    if (!validacao.ok) throw new Error(validacao.motivo);
+    if (validacao.warning) logger.warn(`[aprovarDeposito] ${validacao.warning} tid=${tid}`);
+
+    // ─── TRANSAÇÃO ATÔMICA ────────────────────────────────────────────────
     await db.runTransaction(async (t) => {
       const tRef = db.collection("wallet_transactions").doc(tid);
       const tSnap = await t.get(tRef);
@@ -898,12 +927,31 @@ exports.aprovarDeposito = onCall(async (request) => {
       if (tx.type !== "deposit") throw new Error("Transação não é um depósito.");
       if (!(Number(tx.amount) > 0)) throw new Error("Valor de depósito inválido.");
       if (Number(tx.amount) > 100000) throw new Error("Valor de depósito acima do teto permitido (R$ 100.000,00).");
-      const comprovante = String(tx.proofUrl || "").trim();
-      if (!comprovante || comprovante === "PENDENTE_UPLOAD_LOCAL_CACHE") {
-        throw new Error("Depósito sem comprovante válido. Exija o envio da imagem do comprovante.");
-      }
-      if (!(await comprovanteEhDoUsuario(comprovante, tx.userId, "wallet_proofs"))) {
-        throw new Error("Comprovante do depósito inválido (não pertence a este usuário).");
+
+      // ANTI-FRAUDE POR HASH: se o mesmo hash de comprovante já aparece em
+      // outro depósito ativo (pending ou approved), rejeita automaticamente.
+      // Auto-rejeita marcando status=rejected + motivo, depois lança erro
+      // para a transação abortar (o crédito NUNCA é liberado).
+      const provaHash = String(tx.proofHash || "").trim();
+      if (provaHash) {
+        try {
+          const dupSnap = await t.get(db.collection("wallet_transactions").where("proofHash", "==", provaHash).limit(8));
+          const duplicatas = dupSnap.docs.filter((d) => {
+            const s = String(d.data().status || "").toLowerCase();
+            return d.id !== tid && s !== "rejected";
+          });
+          if (duplicatas.length > 0) {
+            motivoDuplicado = `Comprovante já utilizado em outra transação (${duplicatas[0].id}). Recusado automaticamente pelo sistema.`;
+            // NÃO grava aqui: a transação ainda vai abortar e ROLLBACK apaga
+            // qualquer escrita. A persistência do status=rejected acontece no
+            // catch, fora da transação.
+            throw new Error("DUPLICATED_PROOF");
+          }
+        } catch (e) {
+          if (e.message === "DUPLICATED_PROOF") throw e;
+          // Se a query falhar, mantém o fluxo — a verificação do objeto
+          // pelo Storage já é uma proteção forte.
+        }
       }
 
       const uRef = db.collection("users").doc(tx.userId);
@@ -911,7 +959,6 @@ exports.aprovarDeposito = onCall(async (request) => {
       if (!uSnap.exists) throw new Error("Usuário não encontrado.");
 
       // ATÔMICO: evita race condition entre aprovações simultâneas
-      const saldoAntes = Number(uSnap.data().walletBalance || 0);
       t.update(uRef, { walletBalance: admin.firestore.FieldValue.increment(arredondar(tx.amount || 0)) });
       valorDepositado = arredondar(tx.amount || 0);
       usuarioIdDeposito = tx.userId;
@@ -924,6 +971,18 @@ exports.aprovarDeposito = onCall(async (request) => {
     const userSnapAfter = await db.collection("users").doc(usuarioIdDeposito).get();
     novoSaldoFinal = arredondar(Number(userSnapAfter.data()?.walletBalance || 0));
   } catch (e) {
+    if (typeof e?.message === "string" && e.message === "DUPLICATED_PROOF") {
+      // A transação abortou (rollback), então grava a rejeição FORA dela.
+      // O crédito NUNCA é liberado; a gravação é best-effort — se falhar,
+      // a transação permanece pending e o admin vê o motivo no erro.
+      await db.collection("wallet_transactions").doc(tid).update({
+        status: "rejected",
+        rejectReason: motivoDuplicado || "Comprovante duplicado.",
+        rejectedBy: "SISTEMA",
+        rejectedAt: new Date().toISOString(),
+      }).catch(() => {});
+      throw new HttpsError("already-exists", "Comprovante já utilizado em outro depósito. Depósito recusado automaticamente.");
+    }
     throw new HttpsError("invalid-argument", "Falha ao aprovar depósito. Tente novamente.");
   }
 
@@ -1035,6 +1094,9 @@ exports.creditarSaldo = onCall(async (request) => {
  * Server-side via admin SDK: as regras bloqueiam edição de walletBalance no
  * cliente por design; antes, a tela "Zerar Créditos" falhava silenciosamente.
  * Gera uma transação 'correction' por carteira para manter o extrato coerente.
+ * CORREÇÃO: usa transação por chunk (até 300 docs) para evitar race condition
+ * com depósitos/aprovações simultâneos — lê o saldo ATUAL dentro da transação
+ * e só zera se ainda > 0.
  */
 exports.zerarCarteiras = onCall(async (request) => {
   const caller = await exigirAdmin(request);
@@ -1052,28 +1114,30 @@ exports.zerarCarteiras = onCall(async (request) => {
     const snap = await q.get();
     if (snap.empty) break;
 
-    const batch = db.batch();
-    let noChunk = 0;
-    snap.docs.forEach((d) => {
-      const saldo = arredondar(Number(d.data().walletBalance || 0));
-      if (saldo <= 0) return;
-      antes.push({ id: d.id, nome: d.data().name || "", saldo });
-      batch.update(d.ref, { walletBalance: 0 });
-      registrarTransacaoCarteira(batch, db.collection("wallet_transactions").doc(), {
-        userId: d.id,
-        amount: -saldo,
-        type: "correction",
-        status: "approved",
-        description: "Zeragem de créditos (reset manual)",
-        createdAt: agora,
-        proofUrl: "",
-        payerName: caller.name || "Administrador",
-        payerId: caller.id,
+    // Processa cada usuário em transação individual (seguro contra race conditions)
+    // Chunk de 300 → 300 transações pequenas, mas atômicas por usuário.
+    for (const docSnap of snap.docs) {
+      await db.runTransaction(async (t) => {
+        const freshSnap = await t.get(docSnap.ref);
+        if (!freshSnap.exists) return;
+        const fresh = freshSnap.data();
+        const saldo = arredondar(Number(fresh.walletBalance || 0));
+        if (saldo <= 0) return;
+        antes.push({ id: docSnap.id, nome: fresh.name || "", saldo });
+        t.update(docSnap.ref, { walletBalance: 0 });
+        registrarTransacaoCarteira(t, db.collection("wallet_transactions").doc(), {
+          userId: docSnap.id,
+          amount: -saldo,
+          type: "correction",
+          status: "approved",
+          description: "Zeragem de créditos (reset manual)",
+          createdAt: agora,
+          proofUrl: "",
+          payerName: caller.name || "Administrador",
+          payerId: caller.id,
+        });
       });
-      noChunk++;
-    });
-    if (noChunk === 0) break;
-    await batch.commit();
+    }
     if (snap.docs.length < 300) break;
     lastDoc = snap.docs[snap.docs.length - 1];
   }
@@ -1247,6 +1311,116 @@ async function comprovanteEhDoUsuario(url, uid, pasta) {
   const marcador1 = encodeURIComponent(`${pasta}/${primaryId}/`);
   const marcador2 = authUid ? encodeURIComponent(`${pasta}/${authUid}/`) : null;
   return u.includes(marcador1) || Boolean(marcador2 && u.includes(marcador2));
+}
+
+// Tamanho mínimo de um comprovante real (foto de recibo, screenshot do app do
+// banco ou PDF). Abaixo disso é arquivo vazio/fragmento — recusado.
+const MIN_PROOF_BYTES = 3 * 1024;
+
+/**
+ * ANTI-FRAUDE: confirma que o comprovante EXISTE de verdade no Storage, está
+ * na pasta permitida, tem tamanho de arquivo real e tipo de mídia permitido.
+ * Fecha a brecha de URLs que apontam para um objeto inexistente (a checagem de
+ * dono só validava o prefixo da URL, não o arquivo).
+ * Retorna { ok, size, mime } ou { ok:false, motivo }.
+ */
+async function verificarObjetoComprovante(url, pasta) {
+  const caminho = caminhoStorageDeUrl(url, FUNC_BUCKET);
+  if (!caminho) return { ok: false, motivo: "URL de comprovante inválida." };
+  if (!caminho.startsWith(pasta + "/")) {
+    return { ok: false, motivo: "Comprovante fora da pasta permitida." };
+  }
+  try {
+    const file = admin.storage().bucket(FUNC_BUCKET).file(caminho);
+    const [meta] = await file.getMetadata();
+    const size = Number(meta?.size || 0);
+    if (!size) return { ok: false, motivo: "Arquivo do comprovante não encontrado no Storage." };
+    if (size < MIN_PROOF_BYTES) {
+      return { ok: false, motivo: "Comprovante suspeito: arquivo muito pequeno para ser um recibo real." };
+    }
+    const mime = String(meta?.contentType || "").toLowerCase();
+    const permitido = mime.startsWith("image/") || mime === "application/pdf";
+    if (!permitido) return { ok: false, motivo: "Tipo de arquivo de comprovante não permitido." };
+    return { ok: true, size, mime };
+  } catch (e) {
+    return { ok: false, motivo: "Falha ao verificar o comprovante no Storage. Tente novamente." };
+  }
+}
+
+/**
+ * Validação flexível de comprovante — permite comprovante de familiar/terceiro.
+ * 1) Sempre valida arquivo real no Storage (existência, tamanho ≥3KB, tipo imagem/PDF)
+ * 2) Deduplicação por HASH (SHA-256) — mesmo arquivo = mesmo hash = bloqueia
+ * 3) Fallback: deduplicação por URL + metadados (size/mime) como heurística
+ * 4) Se pasta do arquivo ≠ userId, loga warning de auditoria mas NÃO bloqueia
+ *    (caso legítimo: familiar paga pelo interno, depósito em conta de terceiro).
+ * Retorna { ok: true/false, motivo?, warning?: string, meta?: {size, mime} }
+ */
+async function validarComprovanteFlexivel(proofUrl, userId, pasta, proofHash, proofSize, proofMime) {
+  const url = String(proofUrl || "").trim();
+  if (!url || url === "PENDENTE_UPLOAD_LOCAL_CACHE") {
+    return { ok: false, motivo: "Comprovante não enviado." };
+  }
+
+  // 1) Validação real do arquivo no Storage (obrigatória)
+  const objCheck = await verificarObjetoComprovante(url, pasta);
+  if (!objCheck.ok) {
+    return { ok: false, motivo: objCheck.motivo };
+  }
+
+  // 2) Deduplicação por HASH (primária — identidade do conteúdo)
+  if (proofHash && proofHash.trim()) {
+    const hash = proofHash.trim();
+    const colecao = pasta === "wallet_proofs" ? "wallet_transactions" : "orders";
+    const campoHash = pasta === "wallet_proofs" ? "proofHash" : "proofHash";
+    const statusExcluir = pasta === "wallet_proofs" ? ["rejected", "cancelled"] : ["cancelled", "cancelado", "refunded", "devolvido", "reembolsado", "rejected", "rejeitado"];
+
+    const dupSnap = await db.collection(colecao)
+      .where(campoHash, "==", hash)
+      .where("status", "not-in", statusExcluir)
+      .limit(1)
+      .get();
+    if (!dupSnap.empty) {
+      const outro = dupSnap.docs[0];
+      return { ok: false, motivo: `Comprovante já utilizado em ${pasta === "wallet_proofs" ? "outro depósito" : "outro pedido"} (#${outro.id}). Cada comprovante só pode ser usado uma vez.` };
+    }
+  }
+
+  // 3) Fallback: dedup por URL (se não há hash ou query falhou)
+  // Usa metadados do arquivo (size/mime) como heurística extra
+  const size = Number(proofSize || objCheck.size || 0);
+  const mime = String(proofMime || objCheck.mime || "").toLowerCase();
+  const colecaoUrl = pasta === "wallet_proofs" ? "wallet_transactions" : "orders";
+  const campoUrl = pasta === "wallet_proofs" ? "proofUrl" : "paymentProofUrl";
+  const statusExcluirUrl = pasta === "wallet_proofs" ? ["rejected", "cancelled"] : ["cancelled", "cancelado", "refunded", "devolvido", "reembolsado", "rejected", "rejeitado"];
+
+  try {
+    const urlSnap = await db.collection(colecaoUrl)
+      .where(campoUrl, "==", url)
+      .where("status", "not-in", statusExcluirUrl)
+      .limit(1)
+      .get();
+    if (!urlSnap.empty) {
+      const outro = urlSnap.docs[0];
+      // Heurística: se size/mime batem, é quase certeza ser o mesmo arquivo
+      const outroSize = Number(outro.data().proofSize || 0);
+      const outroMime = String(outro.data().proofMime || "").toLowerCase();
+      if (size > 0 && outroSize > 0 && size === outroSize && mime && outroMime === mime) {
+        return { ok: false, motivo: `Comprovante já utilizado em ${pasta === "wallet_proofs" ? "outro depósito" : "outro pedido"} (#${outro.id}).` };
+      }
+    }
+  } catch (e) {
+    // Se query falhar, ignora — validação de arquivo real já passou
+  }
+
+  // 4) Auditoria: se pasta ≠ userId, loga warning (não bloqueia)
+  let warning = null;
+  const ehDono = await comprovanteEhDoUsuario(url, userId, pasta);
+  if (!ehDono) {
+    warning = `Atenção: comprovante está na pasta de outro usuário (${pasta}/${userId}). Verifique se é pagamento de familiar/terceiro.`;
+  }
+
+  return { ok: true, meta: { size: objCheck.size, mime: objCheck.mime }, warning };
 }
 
 /** Lê produtos e valida estoque. Retorna { itens, total }. */
@@ -1770,6 +1944,11 @@ exports.registrarPedidoPix = onCall(async (request) => {
   const paymentProofUrl = String(request.data?.paymentProofUrl || "").trim().slice(0, 500000);
   const inmateLocation = request.data?.inmateLocation || null;
   const deliveryLocation = request.data?.deliveryLocation || inmateLocation || null;
+  // Metadados anti-fraude: hash do arquivo, tamanho, tipo (enviados pelo app).
+  // O hash é a identidade do comprovante — MESMO arquivo = MESMO hash.
+  const proofHash = String(request.data?.proofHash || "").trim().slice(0, 128);
+  const proofSize = Number(request.data?.proofSize || 0) || 0;
+  const proofMime = String(request.data?.proofMime || "").trim().slice(0, 100);
 
   if (!paymentProofUrl) {
     throw new HttpsError("invalid-argument", "Envie o comprovante do PIX antes de confirmar o pedido.");
@@ -1779,6 +1958,14 @@ exports.registrarPedidoPix = onCall(async (request) => {
   // (comprovante de outro usuário/projeto não pode ser usado para confirmar um pedido).
   if (paymentProofUrl !== "PENDENTE_UPLOAD_LOCAL_CACHE" && !(await comprovanteEhDoUsuario(paymentProofUrl, user, "comprovantes_pix"))) {
     throw new HttpsError("invalid-argument", "Comprovante inválido. Envie a imagem do comprovante pelo aplicativo.");
+  }
+  // Verificação REAL do arquivo no Storage: confirma que existe, tem tamanho
+  // mínimo de recibo real e tipo permitido. Fecha a brecha de URLs falsas.
+  if (paymentProofUrl !== "PENDENTE_UPLOAD_LOCAL_CACHE") {
+    const objCheck = await verificarObjetoComprovante(paymentProofUrl, "comprovantes_pix");
+    if (!objCheck.ok) {
+      throw new HttpsError("invalid-argument", `Comprovante inválido: ${objCheck.motivo}`);
+    }
   }
 
   // DUPLICIDADE DE COMPROVANTE: impede que a MESMA imagem seja usada
@@ -1832,6 +2019,26 @@ exports.registrarPedidoPix = onCall(async (request) => {
     resultado = await db.runTransaction(async (t) => {
       const guarda = await verificarIdempotenciaVenda(t, clientToken, user.id);
       if (guarda) return { ...guarda.order, replay: true };
+      // ANTI-FRAUDE POR HASH: mesmo arquivo reutilizado = mesmo hash.
+      // Roda DEPOIS do guard de idempotência — replay retorna antes, sem falso-rejeito.
+      if (proofHash) {
+        try {
+          const hashSnap = await t.get(db.collection("orders").where("proofHash", "==", proofHash).limit(8));
+          const ATIVOS = ["cancelled","cancelado","refunded","devolvido","reembolsado","rejected","rejeitado"];
+          const duplicatas = hashSnap.docs.filter((d) => {
+            const s = String(d.data().status || "").toLowerCase();
+            return !ATIVOS.includes(s);
+          });
+          if (duplicatas.length > 0) {
+            const jaUsado = duplicatas[0].data();
+            throw new HttpsError("already-exists", `Este comprovante já foi utilizado no pedido #${duplicatas[0].id} (${jaUsado.status || "?"}). Cada comprovante só pode confirmar uma compra.`);
+          }
+        } catch (e) {
+          if (e instanceof HttpsError) throw e;
+          // Se a query falhar (índice), mantém o fluxo — a dedup por URL
+          // ainda atua como proteção secundária.
+        }
+      }
       const { resultado: itensComPreco, total } = await prepararItensServidor(t, itens);
       const uSnap = await t.get(db.collection("users").doc(user.id));
       const ud = uSnap.exists ? uSnap.data() : {};
@@ -1851,6 +2058,7 @@ exports.registrarPedidoPix = onCall(async (request) => {
       total,
 paymentMethod: "PIX",
       paymentProofUrl,
+      ...(proofHash ? { proofHash, proofSize, proofMime } : {}),
       walletBalanceBefore: arredondar(Number(ud.walletBalance || 0)),
       walletBalanceAfter: arredondar(Number(ud.walletBalance || 0)),
       inmateName: ud.inmateName || ud.prisonerName || "",
@@ -1865,6 +2073,7 @@ paymentMethod: "PIX",
     return novoPedido;
   });
   } catch (e) {
+    if (e instanceof HttpsError) throw e;
     throw new HttpsError("invalid-argument", "Falha ao registrar o pedido. Tente novamente.");
   }
 
@@ -1882,6 +2091,8 @@ paymentMethod: "PIX",
 /** Admin ─ aprova pedido PIX de forma atômica e auditada.
  *  - Valida que o pedido ainda está pendente e possui comprovante anexado
  *    (mesma proteção do aprovarDeposito — nunca aprova sem evidência).
+ *  - Revalida o comprovante no Storage (existência, tamanho, tipo, dono).
+ *  - Verifica deduplicação por hash (mesmo comprovante não pode aprovar 2 pedidos).
  *  - Com finalizar=true, aprova E finaliza a compra em um único passo.
  *  - Registra auditoria e notifica o usuário que fez o pedido.
  */
@@ -1891,24 +2102,46 @@ exports.aprovarPedidoPix = onCall(async (request) => {
   const finalizar = request.data?.finalizar === true;
   if (!orderId) throw new HttpsError("invalid-argument", "Pedido inválido.");
 
+  // 1) Carrega o pedido fora da transação para validações de comprovante
+  const oSnap = await db.collection("orders").doc(orderId).get();
+  if (!oSnap.exists) throw new HttpsError("not-found", "Pedido não encontrado.");
+  const pedido = oSnap.data();
+  const st = String(pedido.status || "").toLowerCase();
+  if (!["pending", "pendente", "pago_pendente", "pending_payment"].includes(st)) {
+    throw new HttpsError("failed-precondition", "Este pedido já foi processado (status atual: " + pedido.status + ").");
+  }
+  const ehCarteira = String(pedido.paymentMethod || "").toUpperCase() === "WALLET";
+
+  // 2) Para PIX (não carteira): validação flexível (arquivo real + dedup hash/URL + avisa se pasta ≠ usuário)
+  if (!ehCarteira) {
+    const proof = String(pedido.paymentProofUrl || "").trim();
+    if (!proof || proof === "PENDENTE_UPLOAD_LOCAL_CACHE") {
+      throw new HttpsError("failed-precondition", "Pedido sem comprovante de pagamento. Anexe o comprovante antes de aprovar.");
+    }
+    const validacao = await validarComprovanteFlexivel(
+      proof,
+      pedido.userId,
+      "comprovantes_pix",
+      pedido.proofHash,
+      pedido.proofSize,
+      pedido.proofMime
+    );
+    if (!validacao.ok) throw new HttpsError("failed-precondition", validacao.motivo);
+    if (validacao.warning) logger.warn(`[aprovarPedidoPix] ${validacao.warning} orderId=${orderId}`);
+  }
+
+  // 3) Transação atômica: atualiza status do pedido
   let statusFinal = "";
   let usuarioId = "";
   try {
     statusFinal = await db.runTransaction(async (t) => {
       const oRef = db.collection("orders").doc(orderId);
-      const oSnap = await t.get(oRef);
-      if (!oSnap.exists) throw new Error("Pedido não encontrado.");
-      const pedido = oSnap.data();
-      const st = String(pedido.status || "").toLowerCase();
-      if (!["pending", "pendente", "pago_pendente", "pending_payment"].includes(st)) {
-        throw new Error("Este pedido já foi processado (status atual: " + pedido.status + ").");
-      }
-      const ehCarteira = String(pedido.paymentMethod || "").toUpperCase() === "WALLET";
-      if (!ehCarteira) {
-        const proof = String(pedido.paymentProofUrl || "").trim();
-        if (!proof || proof === "PENDENTE_UPLOAD_LOCAL_CACHE") {
-          throw new Error("Pedido sem comprovante de pagamento. Anexe o comprovante antes de aprovar.");
-        }
+      const freshSnap = await t.get(oRef);
+      if (!freshSnap.exists) throw new Error("Pedido não encontrado.");
+      const fresh = freshSnap.data();
+      const st2 = String(fresh.status || "").toLowerCase();
+      if (!["pending", "pendente", "pago_pendente", "pending_payment"].includes(st2)) {
+        throw new Error("Este pedido já foi processado (status atual: " + fresh.status + ").");
       }
       const agora = new Date().toISOString();
       const atualizacao = {
@@ -1921,7 +2154,7 @@ exports.aprovarPedidoPix = onCall(async (request) => {
         atualizacao.deliveredAt = agora;
       }
       t.update(oRef, atualizacao);
-      usuarioId = String(pedido.userId || "");
+      usuarioId = String(fresh.userId || "");
       return atualizacao.status;
     });
   } catch (e) {
@@ -1984,8 +2217,16 @@ exports.estornarVenda = onCall(async (request) => {
       if (pedido.deleted) {
         throw new Error("Este pedido foi excluído (lixeira). O estoque já foi devolvido; restaure o pedido antes de estornar.");
       }
-      if (statusAtual.startsWith("CANCEL") || statusAtual === "REFUNDED" || statusAtual === "RETURNED") {
-        throw new Error("Este pedido já foi cancelado/devolvido.");
+      // Bloqueia TODOS os aliases de cancelado/devolvido/estornado (PT/EN)
+      // Impede double-refund se admin fez updateOrderStatus direto com termo variante.
+      const STATUS_ESTORNADO = [
+        "CANCELLED", "CANCELADO", "CANCELED",
+        "REFUNDED", "RETURNED",
+        "DEVOLVIDO", "ESTORNADO", "REEMBOLSADO",
+        "REJECTED", "REJEITADO"
+      ];
+      if (STATUS_ESTORNADO.includes(statusAtual)) {
+        throw new Error("Este pedido já foi cancelado/devolvido/estornado.");
       }
 
       const itens = Array.isArray(pedido.items) ? pedido.items : [];
@@ -2021,17 +2262,19 @@ exports.estornarVenda = onCall(async (request) => {
       if (estorno.ehWallet && uRef && uSnap && uSnap.exists) {
         const ud = uSnap.data();
 
-        // ATÔMICO: estorno usa increment para evitar race condition
+        // ATÔMICO: estorno lê o weeklySpent atual, calcula o novo valor clampado em 0,
+        // e escreve explicitamente — evita weeklySpent NEGATIVO (bug do increment(-)).
+        const parcela1 = arredondar(estorno.primeiraParcela);
+        const novoSaldo = arredondar(Number(ud.walletBalance || 0) + parcela1);
+        const novoWeekly = Math.max(0, arredondar((Number(ud.weeklySpent || 0) - parcela1)));
         t.update(uRef, {
-          walletBalance: admin.firestore.FieldValue.increment(arredondar(estorno.primeiraParcela)),
-          weeklySpent: admin.firestore.FieldValue.increment(-arredondar(estorno.primeiraParcela))
+          walletBalance: admin.firestore.FieldValue.increment(parcela1),
+          weeklySpent: novoWeekly
         });
-        const novoSaldo = arredondar(Number(ud.walletBalance || 0) + estorno.primeiraParcela);
-        const novoWeekly = Math.max(0, arredondar((ud.weeklySpent || 0) - estorno.primeiraParcela));
         registrarTransacaoCarteira(t, db.collection("wallet_transactions").doc(), {
           userId: pedido.userId,
           inmateCpf: cleanCpf(ud.inmateCpf || ud.prisonerCpf || ud.cpf || ""),
-          amount: estorno.primeiraParcela,
+          amount: parcela1,
           proofUrl: "",
           status: "approved",
           createdAt: new Date().toISOString(),
@@ -2052,15 +2295,17 @@ exports.estornarVenda = onCall(async (request) => {
         if (jwSnap.exists) {
           const ud2 = jwSnap.data();
 
-          // ATÔMICO: parcela do devedor 2 também via increment
+          // ATÔMICO: mesma proteção clamp em 0 para weeklySpent do devedor 2
+          const parcela2 = arredondar(estorno.segundaParcela);
+          const novoWeekly2 = Math.max(0, arredondar((Number(ud2.weeklySpent || 0) - parcela2)));
           t.update(jwRef, {
-            walletBalance: admin.firestore.FieldValue.increment(arredondar(estorno.segundaParcela)),
-            weeklySpent: admin.firestore.FieldValue.increment(-arredondar(estorno.segundaParcela))
+            walletBalance: admin.firestore.FieldValue.increment(parcela2),
+            weeklySpent: novoWeekly2
           });
           registrarTransacaoCarteira(t, db.collection("wallet_transactions").doc(), {
             userId: estorno.secondUserId,
             inmateCpf: cleanCpf(ud2.inmateCpf || ud2.prisonerCpf || ud2.cpf || pedido.jointWallet.secondUserCpf || ""),
-            amount: estorno.segundaParcela,
+            amount: parcela2,
             proofUrl: "",
             status: "approved",
             createdAt: new Date().toISOString(),

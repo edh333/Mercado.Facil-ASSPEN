@@ -166,7 +166,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8"/>
-<title>Lista de Presenca - Familiares</title>
+<title>Lista de Presença - Familiares</title>
 <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body { font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif; color:#0f172a; padding:32px; background:#fff; }
@@ -187,8 +187,8 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
 <body>
     <div class="cabecalho">
         <div>
-            <h1>Lista de Presenca — Familiares</h1>
-            <p>Mercado Fácil — saldos de credito e vinculacao</p>
+            <h1>Lista de Presença — Familiares</h1>
+            <p>Mercado Fácil — saldos de crédito e vinculação</p>
         </div>
         <div class="meta">
             <p>Emitido em: <b>${hoje}</b></p>
@@ -402,7 +402,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                         <button
                           onClick={() => setConfirmAction({ tipo: 'excluir', userId: u.id, nome: u.name, saldo: Number(u?.walletBalance || 0) })}
                           className="p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all active:scale-95"
-                          title="Excluir (Soft Delete)"
+                          title="Excluir (desativar conta)"
                         >
                           <Trash2 size={16} />
                         </button>

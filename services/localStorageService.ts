@@ -86,7 +86,7 @@ const openUploadDb = (): Promise<IDBDatabase> => new Promise((resolve, reject) =
     req.onerror = () => reject(req.error);
 });
 
-export const queuePendingUpload = async (entry: { id: string; folder: string; fileName: string; kind?: string; docId?: string; blob: Blob }): Promise<void> => {
+export const queuePendingUpload = async (entry: { id: string; folder: string; fileName: string; kind?: string; docId?: string; blob: Blob; uid?: string }): Promise<void> => {
     const db = await openUploadDb();
     return new Promise((resolve, reject) => {
         const tx = db.transaction(DB_STORE, 'readwrite');

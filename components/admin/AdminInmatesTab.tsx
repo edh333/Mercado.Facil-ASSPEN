@@ -96,7 +96,7 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
     <div class="cabecalho">
         <div>
             <h1>Lista de Internos</h1>
-            <p>Mercado Fácil — relacao de internos com familiares vinculados</p>
+            <p>Mercado Fácil — relação de internos com familiares vinculados</p>
         </div>
         <div class="meta">
             <p>Emitido em: <b>${hoje}</b></p>
@@ -338,7 +338,7 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
       <ConfirmacaoDestrutiva
         isOpen={inmateParaExcluir !== null}
         titulo="Remover Interno"
-        descricao={`REMOVER DEFINITIVAMENTE ${inmateParaExcluir?.name || 'este preso'}? O histórico de vinculo será perdido, mas os saldos dos familiares não são afetados.`}
+        descricao={`REMOVER DEFINITIVAMENTE ${inmateParaExcluir?.name || 'este preso'}? O histórico de vínculo será perdido, mas os saldos dos familiares não são afetados.`}
         palavraChave="REMOVER"
         onConfirm={() => { if (inmateParaExcluir?.id) deletePreRegisteredInmate(inmateParaExcluir.id); setInmateParaExcluir(null); }}
         onClose={() => setInmateParaExcluir(null)}

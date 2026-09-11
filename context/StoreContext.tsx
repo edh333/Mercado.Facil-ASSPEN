@@ -4,6 +4,7 @@ import { cleanProductName, normalizeName, stringSimilarity, compressImageFile, f
 import { listarVendasOffline, salvarVendaOffline, removerVendaOffline, marcarErroVendaOffline, VendaOffline } from '../utils/offlineQueue';
 import { queuePendingUpload, listPendingUploads, removePendingUpload, attachPendingUploadDoc } from '../services/localStorageService';
 import { comprimirImagem } from '../utils/imageCompress';
+import { computeProofMeta, ProofMeta, isProofSuspiciouslySmall } from '../utils/fileHash';
 import { toDate } from '../utils/dateUtils';
 import { ASSPEN_INFO, INITIAL_UNITS } from '../constants';
 import { db, auth, storage } from '../firebase';
@@ -564,8 +565,8 @@ logoutTimerRef.current = setTimeout(() => {
     };
 
     const finalizarVendaComCredito = async (): Promise<boolean> => {
-        if (cart.length === 0) {
-            showNotification('âŒ Carrinho vazio!', 'error');
+if (cart.length === 0) {
+            showNotification('❌ Carrinho vazio!', 'error');
             return false;
         }
 
@@ -588,12 +589,12 @@ logoutTimerRef.current = setTimeout(() => {
 } catch (error: any) {
 console.error('Erro ao finalizar venda:', error);
 const msg = error?.message || 'Erro ao processar venda';
-showNotification('âŒ ' + msg, 'error');
+showNotification('❌ ' + msg, 'error');
 return false;
 }
     };
 
-    const uploadFile = async (file: File, path: string, meta?: { kind?: string; docId?: string }): Promise<string> => {
+    const uploadFile = async (file: File, path: string, meta?: { kind?: string; docId?: string }, onProofMeta?: (m: ProofMeta) => void): Promise<string> => {
         if (!file || file.size === 0) {
             throw new Error("Arquivo vazio. Selecione um arquivo válido.");
         }
@@ -614,19 +615,29 @@ return false;
         // nunca lança erro — em qualquer falha devolve o arquivo original.
         const arquivoFinal = await comprimirImagem(file);
 
+        // Identidade anti-fraude: hash dos bytes REALMENTE enviados ao Storage.
+        // O mesmo arquivo reutilizado (mesma foto/print/PDF) gera o MESMO hash.
+        let proofMetaCapturado: ProofMeta | null = null;
+        if (onProofMeta) {
+            try { proofMetaCapturado = await computeProofMeta(arquivoFinal); } catch {/* noop */}
+        }
+
         try {
             const uid = auth.currentUser?.uid || currentUser?.authUid || currentUser?.id || 'anonimo';
             const folder = (path || 'uploads').replace(/^\/+|\/+$/g, '');
             const fileName = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`;
             const fileRef = storageRef(storage, `${folder}/${uid}/${fileName}`);
             await uploadBytes(fileRef, arquivoFinal);
-            return await getDownloadURL(fileRef);
+            const url = await getDownloadURL(fileRef);
+            if (onProofMeta && proofMetaCapturado) onProofMeta(proofMetaCapturado);
+            return url;
         } catch (error: any) {
             console.warn("[uploadFile] Falha no upload para Storage:", error?.message || error);
             try {
                 const id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
                 await queuePendingUpload({
                     id,
+                    uid: auth.currentUser?.uid || currentUser?.authUid || currentUser?.id || 'anonimo',
                     folder: (path || 'uploads').replace(/^\/+|\/+$/g, ''),
                     fileName: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`,
                     kind: meta?.kind,
@@ -654,13 +665,17 @@ return false;
     const reenviarComprovante = async (kind: 'orders' | 'wallet_transactions', docId: string, file: File): Promise<string> => {
         if (!currentUser) throw new Error('Usuário não autenticado');
         const pasta = kind === 'orders' ? 'comprovantes_pix' : 'wallet_proofs';
-        const url = await uploadFile(file, pasta, { kind, docId });
+        let meta: ProofMeta | null = null;
+        const url = await uploadFile(file, pasta, { kind, docId }, (m) => { meta = m; });
         if (url === 'PENDENTE_UPLOAD_LOCAL_CACHE') {
             await attachPendingUploadDoc(pasta, docId, kind);
             showNotification('Conexão instável: o comprovante será enviado automaticamente.', 'info');
             return url;
         }
-        await updateDoc(doc(db, kind, docId), { [CAMPO_PROVA[kind]]: url });
+        await updateDoc(doc(db, kind, docId), {
+            [CAMPO_PROVA[kind]]: url,
+            ...(meta ? { proofHash: meta.hash, proofSize: meta.size, proofMime: meta.mime } : {}),
+        });
         showNotification('Comprovante reenviado com sucesso!', 'success');
         return url;
     };
@@ -679,7 +694,12 @@ return false;
         const fileRef = storageRef(storage, `${pasta}/${ownerId}/${fileName}`);
         await uploadBytes(fileRef, arquivoFinal);
         const url = await getDownloadURL(fileRef);
-        await updateDoc(doc(db, kind, docId), { [CAMPO_PROVA[kind]]: url });
+        let meta: ProofMeta | null = null;
+        try { meta = await computeProofMeta(arquivoFinal); } catch { /* noop */ }
+        await updateDoc(doc(db, kind, docId), {
+            [CAMPO_PROVA[kind]]: url,
+            ...(meta ? { proofHash: meta.hash, proofSize: meta.size, proofMime: meta.mime } : {}),
+        });
         await registrarAuditClient('ANEXAR_COMPROVANTE_ADMIN', { kind, docId }, { url });
         return url;
     };
@@ -688,10 +708,13 @@ return false;
         try {
             const pendentes = await listPendingUploads();
             if (!pendentes.length) return;
-            const uid = auth.currentUser?.uid || currentUser?.authUid || currentUser?.id || 'anonimo';
             let reenviados = 0;
             for (const p of pendentes) {
                 try {
+                    // uid ORIGINAL de quem fez o upload: evita que um admin
+                    // reenvie o comprovante para o pasta errada se outro
+                    // usuário estiver logado no momento do retry.
+                    const uid = p.uid || auth.currentUser?.uid || currentUser?.authUid || currentUser?.id || 'anonimo';
                     const file = new File([p.blob], p.fileName, { type: p.blob.type });
                     const fileRef = storageRef(storage, `${p.folder}/${uid}/${p.fileName}`);
                     await uploadBytes(fileRef, file);
@@ -703,7 +726,12 @@ return false;
                         const snap = await getDoc(docRef);
                         if (snap.exists()) {
                             const campo = CAMPO_PROVA[p.kind] || 'proofUrl';
-                            await updateDoc(docRef, { [campo]: url });
+                            let metaOffline: ProofMeta | null = null;
+                            try { metaOffline = await computeProofMeta(p.blob); } catch { /* noop */ }
+                            await updateDoc(docRef, {
+                                [campo]: url,
+                                ...(metaOffline ? { proofHash: metaOffline.hash, proofSize: metaOffline.size, proofMime: metaOffline.mime } : {}),
+                            });
                             await removePendingUpload(p.id);
                             reenviados += 1;
                             continue;
@@ -882,8 +910,15 @@ return false;
         try {
             let orderData: Partial<Order>;
             let proofUrl = '';
+            let proofMeta: ProofMeta | null = null;
             if (arg1 instanceof File || arg1 === null) {
-                proofUrl = (arg1 instanceof File) ? await uploadFile(arg1, 'comprovantes_pix', { kind: 'orders' }) : '';
+                // ANTI-FRAUDE: arquivo abaixo do tamanho mínimo de um comprovante real.
+                // (3 KB) — print vazio, foto em branco ou arquivo corrompido são bloqueados
+                // logo no dispositivo, evitando enviar "comprovante" inválido ao servidor.
+                if (arg1 instanceof File && isProofSuspiciouslySmall(arg1.size)) {
+                    throw new Error("Arquivo muito pequeno para ser um comprovante válido. Verifique se o comprovante foi gerado corretamente e tente novamente.");
+                }
+                proofUrl = (arg1 instanceof File) ? await uploadFile(arg1, 'comprovantes_pix', { kind: 'orders' }, (m) => { proofMeta = m; }) : '';
                 orderData = { items: [...carrinhoFonte], total: totalCarrinho, paymentProofUrl: proofUrl, inmateLocation: arg2, deliveryLocation: arg2, paymentMethod: 'PIX' };
             } else { orderData = arg1; }
 
@@ -908,6 +943,9 @@ return false;
                     items,
                     clientToken: token,
                     paymentProofUrl: proofUrl || orderData.paymentProofUrl || '',
+                    proofHash: proofMeta?.hash || '',
+                    proofSize: proofMeta?.size || 0,
+                    proofMime: proofMeta?.mime || '',
                     inmateLocation: orderData.inmateLocation || undefined,
                     deliveryLocation: orderData.deliveryLocation || undefined
                 });
@@ -960,11 +998,37 @@ return false;
         }
     };
 
-    const STATUS_VALIDOS = ['pending', 'pendente', 'pending_payment', 'paid', 'preparing', 'out_for_delivery', 'delivered', 'cancelled', 'rejected', 'refunded', 'pago', 'separacao', 'entregue', 'cancelado', 'rejeitado'];
+    const STATUS_VALIDOS = ['pending', 'pendente', 'pending_payment', 'paid', 'preparing', 'out_for_delivery', 'delivered', 'cancelled', 'rejected', 'refunded', 'pago', 'separacao', 'entregue', 'cancelado', 'rejeitado', 'devolvido', 'estornado', 'reembolsado'];
+    // Status que EXIGEM processamento server-side (restauração financeira/estoque):
+    const STATUS_TERMINAIS_SERVER = ['cancelled', 'cancelado', 'refunded', 'devolvido', 'estornado', 'reembolsado', 'rejected', 'rejeitado'];
+    // Status operacionais que podem ser direto no client (sem impacto financeiro):
+    const STATUS_OPERACIONAIS = ['preparing', 'separacao', 'out_for_delivery', 'delivered', 'entregue', 'paid', 'pago'];
+
     const updateOrderStatus = async (oid: string, status: string) => {
         const alvo = String(status || '').toLowerCase();
         if (!STATUS_VALIDOS.includes(alvo)) { showNotification("Status inválido.", "error"); return; }
-        try { await updateDoc(doc(db, 'orders', oid), { status }); } catch (e: any) { showNotification("Erro ao atualizar status: " + e.message, "error"); throw e; }
+
+        // Status terminais (cancelamento/devolução) → SEMPRE via server (refundOrder/estornarVenda)
+        // Garante restauração atômica: estoque + carteira + fiado + caixa + auditoria.
+        if (STATUS_TERMINAIS_SERVER.includes(alvo)) {
+            const reason = alvo.startsWith('cancel') ? 'Cancelado pelo administrador' :
+                           alvo.startsWith('rejeit') ? 'Rejeitado pelo administrador' :
+                           'Devolução administrativa';
+            await refundOrder(oid, reason);
+            return;
+        }
+
+        // Status operacionais → write direto (sem impacto financeiro/estoque)
+        if (STATUS_OPERACIONAIS.includes(alvo)) {
+            try { await updateDoc(doc(db, 'orders', oid), { status }); }
+            catch (e: any) { showNotification("Erro ao atualizar status: " + e.message, "error"); throw e; }
+            return;
+        }
+
+        // Fallback (status não mapeado) — tenta direto, mas loga warning
+        console.warn(`[updateOrderStatus] status não mapeado: ${alvo} — write direto`);
+        try { await updateDoc(doc(db, 'orders', oid), { status }); }
+        catch (e: any) { showNotification("Erro ao atualizar status: " + e.message, "error"); throw e; }
     };
     const aprovarPedido = async (orderId: string, finalizar: boolean = true) => {
         try {
@@ -979,34 +1043,48 @@ return false;
     const markOrderAsPrinted = async (oid: string) => { try { await updateDoc(doc(db, 'orders', oid), { printCount: increment(1), status: OrderStatus.PREPARING }); } catch (e: any) { console.warn("[markOrderAsPrinted]", e.message); } };
     const deleteOrder = async (oid: string) => {
         try {
-            const order = orders.find(o => o.id === oid);
-            const estornado = order ? ['refunded', 'devolvido', 'reembolsado', 'estornado', 'cancelled', 'cancelado'].includes(String(order.status || '').toLowerCase()) : false;
-            if (order && !estornado) {
-                // Pedido pago com carteira: o dinheiro PRECISA voltar ao usuário —
-                // exclusão direta deixaria o saldo retido para sempre. Rota obrigatória
-                // pelo estorno (servidor devolve saldo + estoque de forma atômica).
-                const usouCarteira = String(order.paymentMethod || '').toUpperCase() === 'WALLET' ||
-                    (Array.isArray(order.payments) && order.payments.some((p: any) => String(p.method || '').toUpperCase() === 'WALLET'));
-                if (usouCarteira) {
-                    await fnEstornarVenda({ orderId: oid, motivo: 'Exclusão administrativa (restituição da carteira)' });
-                    await updateDoc(doc(db, 'orders', oid), { deleted: true });
-                } else {
-                    await runTransaction(db, async (transaction) => {
-                        for (const item of order.items) {
-                            const productRef = doc(db, 'products', item.productId);
-                            const prodSnap = await transaction.get(productRef);
-                            if (prodSnap.exists()) {
-                                const freshStock = prodSnap.data().stock || 0;
-                                transaction.update(productRef, { stock: freshStock + item.quantity });
-                            }
-                        }
-                        transaction.update(doc(db, 'orders', oid), { deleted: true });
-                    });
-                }
-            } else {
+            // Lê o pedido FRESCO no servidor (não do cache local) para evitar race condition
+            const orderSnap = await getDoc(doc(db, 'orders', oid));
+            if (!orderSnap.exists()) { showNotification("Pedido não encontrado.", "error"); return; }
+            const order = orderSnap.data();
+            const statusLower = String(order.status || '').toLowerCase();
+            const JA_ESTORNADO = ['refunded', 'devolvido', 'reembolsado', 'estornado', 'cancelled', 'cancelado', 'rejected', 'rejeitado'].includes(statusLower);
+            if (order.deleted) { showNotification("Pedido já está na lixeira.", "info"); return; }
+
+            const usouCarteira = String(order.paymentMethod || '').toUpperCase() === 'WALLET' ||
+                (Array.isArray(order.payments) && order.payments.some((p: any) => String(p.method || '').toUpperCase() === 'WALLET'));
+
+            if (usouCarteira && !JA_ESTORNADO) {
+                // Carteira: estorno server-side (restaura saldo + estoque + fiado + caixa atômico)
+                await fnEstornarVenda({ orderId: oid, motivo: 'Exclusão administrativa (restituição da carteira)' });
                 await updateDoc(doc(db, 'orders', oid), { deleted: true });
+                showNotification("Pedido excluído — estorno processado (saldo + estoque restaurados).", "success");
+            } else if (!usouCarteira && !JA_ESTORNADO) {
+                // Sem carteira (PIX/CASH/FIADO): transação local para restaurar estoque + marcar deleted
+                await runTransaction(db, async (transaction) => {
+                    const freshOrderSnap = await transaction.get(doc(db, 'orders', oid));
+                    if (!freshOrderSnap.exists()) throw new Error("Pedido não encontrado.");
+                    const freshOrder = freshOrderSnap.data();
+                    const freshStatus = String(freshOrder.status || '').toLowerCase();
+                    const FRESH_ESTORNADO = ['refunded', 'devolvido', 'reembolsado', 'estornado', 'cancelled', 'cancelado', 'rejected', 'rejeitado'].includes(freshStatus);
+                    if (freshOrder.deleted || FRESH_ESTORNADO) throw new Error("Pedido já processado/excluído.");
+
+                    for (const item of freshOrder.items) {
+                        const productRef = doc(db, 'products', item.productId);
+                        const prodSnap = await transaction.get(productRef);
+                        if (prodSnap.exists()) {
+                            const freshStock = prodSnap.data().stock || 0;
+                            transaction.update(productRef, { stock: freshStock + item.quantity });
+                        }
+                    }
+                    transaction.update(doc(db, 'orders', oid), { deleted: true });
+                });
+                showNotification("Pedido excluído e estoque restituído.", "success");
+            } else {
+                // Já estornado/cancelado: só marca deleted
+                await updateDoc(doc(db, 'orders', oid), { deleted: true });
+                showNotification("Pedido estornado movido para a lixeira (estoque/saldo já devolvidos).", "success");
             }
-            showNotification(estornado ? "Pedido estornado movido para a lixeira (estoque já devolvido)" : "Pedido excluído e valores restituídos", "success");
         } catch (e: any) {
             showNotification("Erro ao excluir pedido: " + (e?.message || 'tente novamente'), "error");
         }
@@ -1742,6 +1820,14 @@ return false;
     const resetFinance = async () => {
         if (!currentUser || currentUser.role !== UserRole.ADMIN) return;
         try {
+            // GUARDA DE CAIXA VIVO: zerar com sessão ABERTA apagaria o dinheiro
+            // do balcão em operação (e o saldo de outros operadores). Exige
+            // fechamento de todas as sessões antes da limpeza.
+            const abertasSnap = await getDocs(query(collection(db, 'cash_sessions'), where('status', '==', 'open'), limit(1)));
+            if (!abertasSnap.empty) {
+                showNotification("Não é possível zerar o financeiro com sessão de caixa ABERTA. Feche todos os caixas antes de limpar.", "error");
+                return;
+            }
             const [expSnap, cashSnap, cashSessionsSnap] = await Promise.all([
                 getDocs(collection(db, 'expenses')),
                 getDocs(collection(db, 'cashier')),
@@ -1794,6 +1880,9 @@ return false;
         if (!currentUser) throw new Error('Usuário não autenticado');
         const valorDeposito = Math.round((Number(amount) || 0) * 100) / 100;
         if (!(valorDeposito > 0)) throw new Error('Valor do depósito deve ser maior que zero.');
+        if (isProofSuspiciouslySmall(proofFile.size)) {
+            throw new Error('Comprovante inválido: arquivo muito pequeno. Anexe a imagem ou PDF completo do comprovante PIX.');
+        }
         try {
             const transaction: WalletTransaction = {
                 id: crypto.randomUUID(),
@@ -1808,7 +1897,11 @@ return false;
                 payerName: currentUser?.name || '',
                 payerId: currentUser?.id || ''
             };
-            const proofUrl = await uploadFile(proofFile, 'wallet_proofs', { kind: 'wallet_transactions', docId: transaction.id });
+            const proofUrl = await uploadFile(proofFile, 'wallet_proofs', { kind: 'wallet_transactions', docId: transaction.id }, (m) => {
+                transaction.proofHash = m.hash;
+                transaction.proofSize = m.size;
+                transaction.proofMime = m.mime;
+            });
             transaction.proofUrl = proofUrl;
             if (proofUrl === "PENDENTE_UPLOAD_LOCAL_CACHE") {
                 showNotification('Conexão instável: seu comprovante foi guardado e será enviado automaticamente quando a internet voltar.', 'info');
@@ -1934,6 +2027,10 @@ return false;
                     const sessaoSnap = await tx.get(sessaoRef);
                     if (!sessaoSnap.exists() || String(sessaoSnap.data()?.status || '').toUpperCase() !== 'OPEN') {
                         throw new Error('A sessão de caixa foi fechada. Reabra o caixa antes de lançar a despesa.');
+                    }
+                    const saldoAtual = Number(sessaoSnap.data()?.currentBalance || 0);
+                    if (!(saldoAtual >= valor)) {
+                        throw new Error(`Saldo em caixa insuficiente para despesa de R$ ${valor.toFixed(2).replace('.', ',')} — disponível: R$ ${saldoAtual.toFixed(2).replace('.', ',')}.`);
                     }
                     tx.set(expenseRef, { ...e, id, amount: valor });
                     tx.update(sessaoRef, {
@@ -2171,6 +2268,28 @@ return false;
     const deletePreRegisteredInmate = async (id: string) => {
         if (!currentUser || currentUser.role !== UserRole.ADMIN) return;
         try {
+            const snap = await getDoc(doc(db, 'pre_registered_inmates', id));
+            if (!snap.exists()) {
+                showNotification("Interno não encontrado.", "error");
+                return;
+            }
+            const cpf = String(snap.data()?.cpf || '').replace(/\D/g, '');
+            if (cpf.length !== 11) {
+                throw new Error("Cadastro sem CPF válido.");
+            }
+            // GUARDA DE VÍNCULOS: removendo o pré-cadastro de um interno que já tem
+            // familiar cadastrado (prisonerCpf/inmateCpf) ou pedidos em seu nome,
+            // a lista de liberação do cadastro deixa de bater com o CPF ativo.
+            const [u1, u2, u3] = await Promise.all([
+                getDocs(query(collection(db, 'users'), where('prisonerCpf', '==', cpf), limit(1))),
+                getDocs(query(collection(db, 'users'), where('inmateCpf', '==', cpf), limit(1))),
+                getDocs(query(collection(db, 'orders'), where('inmateCpf', '==', cpf), limit(1))),
+            ]);
+            const vinculados = u1.size + u2.size + u3.size;
+            if (vinculados > 0) {
+                showNotification(`Não é possível remover este interno: existem ${vinculados} vínculo(s) ativo(s) (familiares cadastrados ou pedidos). Exclua os vínculos antes de remover o pré-cadastro.`, "error");
+                return;
+            }
             await deleteDoc(doc(db, 'pre_registered_inmates', id));
             showNotification("Interno removido da lista.", "info");
         } catch (e: any) {
@@ -2254,7 +2373,37 @@ return false;
                     } else {
                         await signOut(auth).catch(() => {});
                     }
-                } catch (cfErr) {
+                } catch (cfErr: any) {
+                    // Cadastro ainda não aprovado: a Cloud Function lança
+                    // failed-precondition ("Cadastro em análise"). NÃO desloga —
+                    // mantém sessão e deixa o App.tsx mostrar a PendingScreen
+                    // ("CADASTRO EM ANÁLISE"). O onSnapshot do próprio doc
+                    // (listener 'user-self') atualiza currentUser quando o
+                    // admin aprovar, e a tela sai sozinha.
+                    const msg = String(cfErr?.message || '');
+                    const bloqueioPending =
+                        msg.includes('Cadastro em análise') ||
+                        msg.includes('Aguarde aprovação') ||
+                        cfErr?.code === 'functions/failed-precondition';
+                    if (bloqueioPending && ativo) {
+                        setCurrentUser({
+                            id: fbUser.uid,
+                            authUid: fbUser.uid,
+                            name: fbUser.displayName || '',
+                            cpf: '',
+                            email: fbUser.email || '',
+                            role: UserRole.FAMILY,
+                            status: 'pending',
+                            approved: false,
+                            walletBalance: 0,
+                            weeklySpent: 0,
+                            inmateCpf: '',
+                            inmateName: '',
+                            phone: '',
+                        } as User);
+                        setCreditoCliente(0);
+                        return;
+                    }
                     console.error('[AUTH LOADER] Falha total:', cfErr);
                     try { await signOut(auth).catch(() => {}); } catch { /* noop */ }
                 }

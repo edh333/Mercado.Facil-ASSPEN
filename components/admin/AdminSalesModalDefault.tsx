@@ -1291,22 +1291,23 @@ if (changeValue > pCash + 0.009) {
   return (
     <div className="fixed inset-0 z-[500] flex flex-col font-sans bg-white animate-fadeIn overflow-hidden">
 
-      {/* HEADER - GLASSMORPHISM PRO MAX */}
-      <header className="flex items-center justify-between px-8 py-5 bg-white/80 backdrop-blur-md border-b border-slate-200 shrink-0 relative z-[100] shadow-sm">
-        <div className="flex items-center gap-5 relative z-10">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-100 bg-white group transition-transform hover:scale-105">
-            <ShoppingCart size={24} style={{ color: corPrincipal }} className="group-hover:rotate-12 transition-transform" />
+{/* HEADER - GLASSMORPHISM PRO MAX */}
+      <header className="flex items-center justify-between px-3 sm:px-8 py-3 sm:py-5 bg-white/80 backdrop-blur-md border-b border-slate-200 shrink-0 relative z-[100] shadow-sm">
+        <div className="flex items-center gap-3 sm:gap-5 relative z-10 min-w-0">
+          <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-100 bg-white group transition-transform hover:scale-105">
+            <ShoppingCart size={20} className="sm:hidden" style={{ color: corPrincipal }} />
+            <ShoppingCart size={24} style={{ color: corPrincipal }} className="hidden sm:block group-hover:rotate-12 transition-transform" />
           </div>
           <div className="min-w-0">
-            <h1 className="font-black text-2xl text-slate-900 tracking-tight truncate leading-none mb-1">{settings?.appName || 'MERCADO FÁCIL'}</h1>
+            <h1 className="font-black text-lg sm:text-2xl text-slate-900 tracking-tight truncate leading-none mb-1">{settings?.appName || 'MERCADO FÁCIL'}</h1>
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Terminal de Venda Direta</p>
+              <p className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] sm:tracking-[0.3em] whitespace-nowrap">Terminal de Venda Direta</p>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-4 relative z-10">
+        <div className="flex items-center gap-2 sm:gap-4 relative z-10 min-w-0 flex-1 justify-end">
           {/* Status Indicators */}
           <div className="hidden sm:flex items-center gap-6 mr-6 px-6 py-3 bg-slate-50 rounded-2xl border border-slate-100">
              <div className="text-right">
@@ -1320,101 +1321,105 @@ if (changeValue > pCash + 0.009) {
              </div>
           </div>
 
-          {cashLoading ? (
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-slate-100 text-slate-400">
-              <RefreshCw className="animate-spin" size={20} />
-            </div>
-          ) : cashSession ? (
-            <>
-              <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-200 rounded-2xl">
-                <Landmark size={16} className="text-emerald-600" />
-                <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider">Caixa Aberto</span>
+          {/* Botões secundários: rolam horizontalmente no celular (nunca estouram) */}
+          <div className="flex items-center gap-2 sm:gap-4 overflow-x-auto max-w-full no-scrollbar shrink">
+            {cashLoading ? (
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center bg-slate-100 text-slate-400 shrink-0">
+                <RefreshCw className="animate-spin" size={20} />
               </div>
-              <button
-                onClick={() => { setCashAmount(''); setCashReason(''); setShowCashModal('withdrawal'); }}
-                className="lg:w-auto w-14 h-14 rounded-2xl flex items-center justify-center gap-2 px-4 bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition-all shadow-sm active:scale-95 font-black text-[10px] uppercase tracking-wider"
-                title="Registrar Sangria"
-              >
-                <Minus size={20} /> <span className="hidden lg:inline">Sangria</span>
-              </button>
-              <button
-                onClick={() => { setCashAmount(''); setShowCashModal('close'); }}
-                className="lg:w-auto w-14 h-14 rounded-2xl flex items-center justify-center gap-2 px-4 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 transition-all shadow-sm active:scale-95 font-black text-[10px] uppercase tracking-wider"
-                title="Fechar Caixa"
-              >
-                <LogOut size={20} /> <span className="hidden lg:inline">Fechar</span>
-              </button>
-            </>
-          ) : null}
+            ) : cashSession ? (
+              <>
+                <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-200 rounded-2xl shrink-0">
+                  <Landmark size={16} className="text-emerald-600" />
+                  <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider">Caixa Aberto</span>
+                </div>
+                <button
+                  onClick={() => { setCashAmount(''); setCashReason(''); setShowCashModal('withdrawal'); }}
+                  className="lg:w-auto w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center gap-2 px-4 bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition-all shadow-sm active:scale-95 font-black text-[10px] uppercase tracking-wider shrink-0"
+                  title="Registrar Sangria"
+                >
+                  <Minus size={20} /> <span className="hidden lg:inline">Sangria</span>
+                </button>
+                <button
+                  onClick={() => { setCashAmount(''); setShowCashModal('close'); }}
+                  className="lg:w-auto w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center gap-2 px-4 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 transition-all shadow-sm active:scale-95 font-black text-[10px] uppercase tracking-wider shrink-0"
+                  title="Fechar Caixa"
+                >
+                  <LogOut size={20} /> <span className="hidden lg:inline">Fechar</span>
+                </button>
+              </>
+            ) : null}
 
-          <button
-            onClick={() => reimprimirUltimo()}
-            disabled={!ultimaVenda && !ultimoPedido}
-            className="w-14 h-14 rounded-2xl flex items-center justify-center bg-white border border-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-all shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
-            title="Reimprimir Último Cupom (F10)"
-          >
-            <Printer size={22} />
-          </button>
+            <button
+              onClick={() => reimprimirUltimo()}
+              disabled={!ultimaVenda && !ultimoPedido}
+              className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center bg-white border border-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-all shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+              title="Reimprimir Último Cupom (F10)"
+            >
+              <Printer size={22} />
+            </button>
 
-          <button
-            onClick={() => desfazerUltimaVenda()}
-            disabled={!ultimaVenda && !ultimoPedido}
-            className="w-14 h-14 rounded-2xl flex items-center justify-center bg-white border border-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
-            title="Desfazer / Cancelar Última Venda (estorno completo)"
-          >
-            <Undo2 size={22} />
-          </button>
+            <button
+              onClick={() => desfazerUltimaVenda()}
+              disabled={!ultimaVenda && !ultimoPedido}
+              className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center bg-white border border-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+              title="Desfazer / Cancelar Última Venda (estorno completo)"
+            >
+              <Undo2 size={22} />
+            </button>
 
-          <button
-            onClick={() => suspenderVenda()}
-            disabled={carrinho.length === 0}
-            className="w-14 h-14 rounded-2xl flex items-center justify-center bg-white border border-slate-100 text-slate-600 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 transition-all shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
-            title="Suspender Venda (salvar carrinho para retomar depois)"
-          >
-            <PauseCircle size={22} />
-          </button>
+            <button
+              onClick={() => suspenderVenda()}
+              disabled={carrinho.length === 0}
+              className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center bg-white border border-slate-100 text-slate-600 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 transition-all shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+              title="Suspender Venda (salvar carrinho para retomar depois)"
+            >
+              <PauseCircle size={22} />
+            </button>
 
-          <button
-            onClick={() => setShowSuspendedList(true)}
-            disabled={suspendedCarts.length === 0}
-            className="w-14 h-14 rounded-2xl flex items-center justify-center bg-white border border-slate-100 text-slate-600 hover:bg-sky-50 hover:text-sky-600 hover:border-sky-200 transition-all shadow-md active:scale-95 relative disabled:opacity-40 disabled:cursor-not-allowed"
-            title="Vendas Suspensas (retomar ou descartar)"
-          >
-            <History size={22} />
-            {suspendedCarts.length > 0 && (
-              <span className="absolute -top-1 -right-1 w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center text-[9px] font-black text-white border-2 border-white">
-                {suspendedCarts.length}
-              </span>
-            )}
-          </button>
+            <button
+              onClick={() => setShowSuspendedList(true)}
+              disabled={suspendedCarts.length === 0}
+              className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center bg-white border border-slate-100 text-slate-600 hover:bg-sky-50 hover:text-sky-600 hover:border-sky-200 transition-all shadow-md active:scale-95 relative disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+              title="Vendas Suspensas (retomar ou descartar)"
+            >
+              <History size={22} />
+              {suspendedCarts.length > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center text-[9px] font-black text-white border-2 border-white">
+                  {suspendedCarts.length}
+                </span>
+              )}
+            </button>
 
-          <button
-            onClick={() => abrirEstorno()}
-            className="w-14 h-14 rounded-2xl flex items-center justify-center bg-white border border-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all shadow-md active:scale-95"
-            title="Estorno de Venda (buscar pedido e devolver — F9)"
-          >
-            <RotateCcw size={22} />
-          </button>
+            <button
+              onClick={() => abrirEstorno()}
+              className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center bg-white border border-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all shadow-md active:scale-95 shrink-0"
+              title="Estorno de Venda (buscar pedido e devolver — F9)"
+            >
+              <RotateCcw size={22} />
+            </button>
 
-          <button
-            onClick={() => setShowSalesPanel(true)}
-            className="w-14 h-14 rounded-2xl flex items-center justify-center bg-white border border-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-all shadow-md active:scale-95"
-            title="Histórico de Vendas com ações (F11)"
-          >
-            <BarChart3 size={24} />
-          </button>
+            <button
+              onClick={() => setShowSalesPanel(true)}
+              className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center bg-white border border-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-all shadow-md active:scale-95 shrink-0"
+              title="Histórico de Vendas com ações (F11)"
+            >
+              <BarChart3 size={24} />
+            </button>
 
-          <button
-            onClick={() => setIsSoundEnabled(!isSoundEnabled)}
-            className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all shadow-md border ${isSoundEnabled ? 'bg-white border-slate-100 text-emerald-600 hover:bg-emerald-50' : 'bg-red-50 text-red-500 border-red-100 hover:bg-red-100'}`}
-            title="Sons"
-          >
-            {isSoundEnabled ? <Volume2 size={24} /> : <VolumeX size={24} />}
-          </button>
+            <button
+              onClick={() => setIsSoundEnabled(!isSoundEnabled)}
+              className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center transition-all shadow-md border shrink-0 ${isSoundEnabled ? 'bg-white border-slate-100 text-emerald-600 hover:bg-emerald-50' : 'bg-red-50 text-red-500 border-red-100 hover:bg-red-100'}`}
+              title="Sons"
+            >
+              {isSoundEnabled ? <Volume2 size={24} /> : <VolumeX size={24} />}
+            </button>
+          </div>
 
+          {/* Fechar: SEMPRE visível (fora da rolagem) — crítico em telas touch sem ESC */}
           <button
             onClick={onClose}
-            className="w-14 h-14 rounded-2xl flex items-center justify-center bg-slate-900 text-white hover:bg-red-600 transition-all shadow-xl active:scale-95 group border border-slate-800"
+            className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center bg-slate-900 text-white hover:bg-red-600 transition-all shadow-xl active:scale-95 group border border-slate-800 shrink-0"
             title="Fechar (ESC)"
           >
             <X size={28} className="group-hover:rotate-90 transition-transform duration-300" />
@@ -2032,7 +2037,7 @@ if (changeValue > pCash + 0.009) {
                               <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2">Valor a debitar do 2º devedor</p>
                               <input
                                 type="number" min="0" step="0.01" inputMode="decimal"
-                                placeholder="0.00"
+                                placeholder="0,00"
                                 className="w-full bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 p-4 rounded-2xl font-black text-2xl text-center outline-none transition-colors tnum"
                                 value={secondWalletAmountInput}
                                 onChange={e => setSecondWalletAmountInput(e.target.value)}
@@ -2133,7 +2138,7 @@ if (changeValue > pCash + 0.009) {
                       type="number"
                       min="0"
                       step="0.01"
-                      placeholder="0.00"
+                      placeholder="0,00"
                       className="w-full bg-slate-50 border border-slate-200 p-6 rounded-[2rem] font-black text-3xl text-center text-slate-900 outline-none focus:border-emerald-500 transition-colors shadow-inner"
                       value={valorRecebido}
                       onChange={e => setValorRecebido(e.target.value)}
@@ -2219,7 +2224,7 @@ if (changeValue > pCash + 0.009) {
                           type="number"
                           min="0"
                           step="0.01"
-                          placeholder="0.00"
+                          placeholder="0,00"
                           className="flex-1 bg-transparent border-b border-slate-200 p-2 text-slate-900 font-black text-xl text-right outline-none focus:border-emerald-500 transition-colors"
                           value={valorMisto[key as keyof typeof valorMisto]}
                           onChange={e => { if (key === 'PIX') setPixConfirmado(false); setValorMisto({...valorMisto, [key]: e.target.value}); }}
@@ -2791,7 +2796,7 @@ if (changeValue > pCash + 0.009) {
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Valor Inicial (R$)</label>
                 <input type="number" min="0" step="0.01" value={cashAmount}
                   onChange={e => setCashAmount(e.target.value)}
-                  placeholder="Ex: 100.00"
+                  placeholder="Ex: 100,00"
                   className="w-full border border-slate-300 rounded-xl px-4 py-3 text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-400 mb-4" />
               </>
             )}
@@ -2807,7 +2812,7 @@ if (changeValue > pCash + 0.009) {
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Valor (R$)</label>
                 <input type="number" min="0.01" step="0.01" value={cashAmount}
                   onChange={e => setCashAmount(e.target.value)}
-                  placeholder="0.00"
+                  placeholder="0,00"
                   className="w-full border border-slate-300 rounded-xl px-4 py-3 text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 mb-3" />
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Motivo</label>
                 <input type="text" value={cashReason}
@@ -2825,7 +2830,7 @@ if (changeValue > pCash + 0.009) {
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Valor Contado Fisicamente (R$)</label>
                 <input type="number" min="0" step="0.01" value={cashAmount}
                   onChange={e => setCashAmount(e.target.value)}
-                  placeholder="0.00"
+                  placeholder="0,00"
                   className="w-full border border-slate-300 rounded-xl px-4 py-3 text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-400 mb-4" />
               </>
             )}
@@ -3328,7 +3333,7 @@ if (changeValue > pCash + 0.009) {
                     step="0.01"
                     inputMode="decimal"
                     autoFocus
-                    placeholder="0.00"
+                    placeholder="0,00"
                     className="w-full bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 pl-14 pr-4 py-4 rounded-2xl font-black text-2xl tnum outline-none transition-colors"
                     value={produtoPrecoDinamico.preco}
                     onChange={e => setProdutoPrecoDinamico(prev => prev ? { ...prev, preco: e.target.value } : prev)}

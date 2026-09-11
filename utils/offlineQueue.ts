@@ -35,7 +35,25 @@ function ler(): VendaOffline[] {
 
 function gravar(lista: VendaOffline[]): void {
   try {
-    localStorage.setItem(KEY, JSON.stringify(lista.slice(-200)));
+    // LIMITE DE SEGURANÇA do localStorage: nunca deixa a fila estourar a cota.
+    // Se estourar, NÃO apaga em silêncio — grita no console e emite evento
+    // para o app avisar o operador (dados em risco = venda sem rastro).
+    const LIMITE = 200;
+    if (lista.length > LIMITE) {
+      const descartadas = lista.slice(0, lista.length - LIMITE);
+      console.warn(
+        `[PDV OFFLINE] Fila cheia (${LIMITE}): ${descartadas.length} venda(s) mais antiga(s) foram removidas do cache local.`,
+        descartadas.map((v) => ({ id: v.id, createdAt: v.createdAt, total: v.total })),
+      );
+      try {
+        window.dispatchEvent(
+          new CustomEvent('offline-queue-depleted', {
+            detail: { descartadas: descartadas.map((v) => ({ id: v.id, createdAt: v.createdAt, total: v.total })) },
+          }),
+        );
+      } catch { /* noop */ }
+    }
+    localStorage.setItem(KEY, JSON.stringify(lista.slice(-LIMITE)));
   } catch { /* storage cheio/indisponível — a fila fica só em memória */ }
 }
 

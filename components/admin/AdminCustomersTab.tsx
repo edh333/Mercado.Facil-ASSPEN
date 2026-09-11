@@ -435,7 +435,7 @@ export function AdminCustomersTab() {
                   value={payAmount}
                   onChange={e => setPayAmount(e.target.value)}
                   className="w-full px-4 py-4 rounded-xl border border-emerald-200 text-slate-900 font-black text-2xl outline-none focus:border-emerald-500 transition-all text-center"
-                  placeholder="0.00"
+                  placeholder="0,00"
                   autoFocus
                 />
               </div>

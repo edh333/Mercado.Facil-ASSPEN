@@ -4,14 +4,15 @@ service firebase.storage {
 
     // Imagens de produtos — qualquer usuário autenticado pode ler;
     // escrita apenas por administradores (Custom Claims OU doc users).
-    function isAdmin() {
+function isAdmin() {
       return request.auth != null && (
         request.auth.token.admin == true ||
         (firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+         firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.status == 'active' &&
          (firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-          firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'ADMIN' ||
-          firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'master' ||
-          firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'MASTER'))
+           firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'ADMIN' ||
+           firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'master' ||
+           firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'MASTER'))
       );
     }
 

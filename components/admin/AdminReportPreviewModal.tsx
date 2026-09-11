@@ -9,7 +9,7 @@ import { getLocalDateStr, ehReceita } from './adminUtils';
 import { buildMonthlyDre, buildSalesCsv, buildStockAbc, buildDailySales, buildSalesByCategory, buildLowStock, buildProductsCatalog, buildExtratoIndividual } from '../../context/StoreContext';
 
 const PAYMENT_LABELS: Record<string, string> = {
-    PIX: 'Pix',
+    PIX: 'PIX',
     CASH: 'Dinheiro',
     CARD: 'Cartão',
     WALLET: 'Carteira',

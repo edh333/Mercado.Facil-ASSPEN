@@ -292,15 +292,15 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
               onChange={e => setUserSearch(e.target.value)}
             />
           </div>
-          <div className="flex-1 flex gap-3">
+          <div className="flex-1 flex flex-wrap gap-3">
             <div className="flex bg-slate-100 rounded-2xl p-1.5 border border-slate-200 flex-1 overflow-hidden">
               <button onClick={() => applyQuickDate('ALL')} className={`flex-1 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'ALL' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>Todas</button>
               <button onClick={() => applyQuickDate('TODAY')} className={`flex-1 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'TODAY' ? 'bg-emerald-100 text-emerald-700' : 'text-emerald-600/70 hover:text-emerald-600'}`}>Hoje</button>
               <button onClick={() => applyQuickDate('WEEK')} className={`flex-1 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'WEEK' ? 'bg-blue-100 text-blue-700' : 'text-blue-600/70 hover:text-blue-600'}`}>Semana</button>
               <button onClick={() => applyQuickDate('MONTH')} className={`flex-1 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'MONTH' ? 'bg-indigo-100 text-indigo-700' : 'text-indigo-600/70 hover:text-indigo-600'}`}>30 Dias</button>
             </div>
-            <input type="date" className="w-36 px-4 py-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-2xl text-[11px] font-black uppercase text-slate-900 outline-none" value={financeFilters?.start || ''} onChange={e => { setFinanceFilters({...financeFilters, start: e.target.value}); setQuickDateFilter('ALL'); }} />
-            <input type="date" className="w-36 px-4 py-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-2xl text-[11px] font-black uppercase text-slate-900 outline-none" value={financeFilters?.end || ''} onChange={e => { setFinanceFilters({...financeFilters, end: e.target.value}); setQuickDateFilter('ALL'); }} />
+            <input type="date" className="w-36 flex-1 min-w-[120px] px-4 py-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-2xl text-[11px] font-black uppercase text-slate-900 outline-none" value={financeFilters?.start || ''} onChange={e => { setFinanceFilters({...financeFilters, start: e.target.value}); setQuickDateFilter('ALL'); }} />
+            <input type="date" className="w-36 flex-1 min-w-[120px] px-4 py-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-2xl text-[11px] font-black uppercase text-slate-900 outline-none" value={financeFilters?.end || ''} onChange={e => { setFinanceFilters({...financeFilters, end: e.target.value}); setQuickDateFilter('ALL'); }} />
           </div>
         </div>
       </div>
