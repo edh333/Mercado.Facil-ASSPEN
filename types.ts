@@ -13,7 +13,7 @@ export function toUserRole(role?: string | null | undefined): UserRole {
 export type SystemRole = 'admin' | 'manager' | 'operator' | 'user';
 
 export enum OrderStatus {
-  PENDING = 'Pendente',
+  PENDING = 'pending',
   PENDING_PAYMENT = 'pending_payment',
   PAID = 'paid',
   PREPARING = 'preparing',

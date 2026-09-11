@@ -452,7 +452,8 @@ logoutTimerRef.current = setTimeout(() => {
             window.removeEventListener('touchstart', resetInactivityTimer);
             window.removeEventListener('scroll', resetInactivityTimer);
         };
-    }, [currentUser]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentUser?.id, currentUser?.role]);
 
     // --- AUTO-CLEANUP ---
     const performAutoCleanup = async () => {
@@ -569,8 +570,11 @@ logoutTimerRef.current = setTimeout(() => {
         }
 
         try {
+            // Token de idempotência: um timeout + retry não pode debitar a
+            // carteira/estoque duas vezes (o servidor deduplica pelo clientToken).
             const res = await fnComprarComCarteira({
-                items: cart.map(item => ({ productId: item.productId, quantity: item.quantity }))
+                items: cart.map(item => ({ productId: item.productId, quantity: item.quantity })),
+                clientToken: crypto.randomUUID()
             });
             const data = res.data as any;
             const novoSaldo = data?.order?.walletBalanceAfter !== undefined ? Number(data.order.walletBalanceAfter) : (currentUser.walletBalance ?? 0);
@@ -710,6 +714,12 @@ return false;
                     if (p.docId) {
                         await removePendingUpload(p.id);
                         reenviados += 1;
+                    } else if (p.uploadedUrl) {
+                        // Já enviado ao Storage por um retry anterior, MAS sem vínculo
+                        // (o pedido/cadastro nunca foi criado): NÃO reenvia — aguarda o
+                        // attach vincular a URL quando o documento existir. Sem isso, a
+                        // fila-zumbi reenvia o mesmo blob a cada reconexão, para sempre.
+                        console.warn('[retryPendingProofs] upload sem vínculo aguardando attach:', p.folder);
                     } else {
                         // Ainda sem vínculo (o pedido/cadastro ainda não foi criado):
                         // guarda a URL na fila e NÃO remove — o attach vai vincular depois.
@@ -950,7 +960,7 @@ return false;
         }
     };
 
-    const STATUS_VALIDOS = ['pending', 'paid', 'preparing', 'delivered', 'cancelled', 'rejected', 'refunded', 'pago', 'separacao', 'entregue', 'cancelado', 'rejeitado'];
+    const STATUS_VALIDOS = ['pending', 'pendente', 'pending_payment', 'paid', 'preparing', 'out_for_delivery', 'delivered', 'cancelled', 'rejected', 'refunded', 'pago', 'separacao', 'entregue', 'cancelado', 'rejeitado'];
     const updateOrderStatus = async (oid: string, status: string) => {
         const alvo = String(status || '').toLowerCase();
         if (!STATUS_VALIDOS.includes(alvo)) { showNotification("Status inválido.", "error"); return; }
@@ -2200,23 +2210,37 @@ return false;
                 // antigo (~1h), deixando regras híbridas lentas e suspensões com atraso.
                 try { await fbUser.getIdToken(true); } catch (e) { /* noop */ }
 
-                // Busca direta no Firestore pelo authUid (regras permitem get próprio doc)
-                const userQuery = query(collection(db, 'users'), where('authUid', '==', fbUser.uid), limit(1));
-                const snap = await getDocs(userQuery);
-                if (snap.empty) {
-                    await signOut(auth).catch(() => {});
-                    return;
+                // Roteamento por Custom Claim: só admins podem listar a coleção
+                // 'users' (firestore.rules). Para o resto, a query é SEMPRE negada —
+                // íamos direto à Cloud Function, que além da busca também valida
+                // status pending/suspended (a query direta não cobre isso).
+                let ehAdminClaim = false;
+                try {
+                    const tr = await fbUser.getIdTokenResult();
+                    ehAdminClaim = tr.claims?.admin === true;
+                } catch (e) { /* noop */ }
+
+                if (ehAdminClaim) {
+                    try {
+                        const userQuery = query(collection(db, 'users'), where('authUid', '==', fbUser.uid), limit(1));
+                        const snap = await getDocs(userQuery);
+                        if (snap.empty) {
+                            await signOut(auth).catch(() => {});
+                            return;
+                        }
+                        const docSnap = snap.docs[0];
+                        const userData = { ...docSnap.data(), id: docSnap.id } as any;
+                        const u = { ...userData, role: toUserRole(userData.role) } as User;
+                        if (ativo) {
+                            setCurrentUser(u);
+                            setCreditoCliente(u.walletBalance || 0);
+                        }
+                        return;
+                    } catch (e: any) {
+                        console.warn('[AUTH LOADER] Query admin falhou, usando Cloud Function', e);
+                    }
                 }
-                const docSnap = snap.docs[0];
-                const userData = { ...docSnap.data(), id: docSnap.id } as any;
-                const u = { ...userData, role: toUserRole(userData.role) } as User;
-                if (ativo) {
-                    setCurrentUser(u);
-                    setCreditoCliente(u.walletBalance || 0);
-                }
-            } catch (e: any) {
-                console.warn('[AUTH LOADER] Fallback para Cloud Function', e);
-                // Fallback: tenta a Cloud Function se a query falhar
+
                 try {
                     const buscarUsuario = httpsCallable(functions, 'buscarUsuarioAtual');
                     const result = await buscarUsuario({});
@@ -2711,7 +2735,14 @@ if (currentUser?.role !== UserRole.ADMIN && currentUser) {
                     return createdOrder;
                 } catch (e: any) {
                     console.error("Erro na Venda Direta:", e);
-                    showNotification(e.message || "Erro ao processar venda.", "error");
+                    // Quando sem internet, o erro de rede é esperado: o caller
+                    // oferece o fallback OFFLINE e mostra a mensagem correta.
+                    // Exibir o erro aqui também gerava um toast contraditório
+                    // ("Erro ao processar venda." seguido de "Venda registrada
+                    // OFFLINE") — confundia o operador e incentivava novo clique.
+                    if (!(typeof navigator !== 'undefined' && navigator.onLine === false)) {
+                        showNotification(e.message || "Erro ao processar venda.", "error");
+                    }
                     return null;
                 }
             },

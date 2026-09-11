@@ -98,6 +98,11 @@ export const AdminOrderDetailsModal: React.FC<AdminOrderDetailsModalProps> = ({
 
   const temComprovante = order.paymentMethod === 'WALLET' || !!(proofSrc && proofSrc !== 'PENDENTE_UPLOAD_LOCAL_CACHE');
 
+  // Spelling normalizado: o servidor grava 'pending'; dados legados podem ter
+  // 'pendente'/'pending_payment'/'pago_pendente'. Todos precisam do fluxo de
+  // aprovação — sem isso o botão "Aprovar" desaparecia silenciosamente.
+  const ehPedidoAguardandoAprovacao = ['pending', 'pendente', 'pending_payment', 'pago_pendente'].includes(String(order.status || '').toLowerCase());
+
   // Fecha o modal SOMENTE em caso de sucesso. Em erro, mantém aberto com a
   // mensagem exibida — o admin nunca perde a janela com o pedido pendente.
   const executarAprovacao = async (finalizar: boolean) => {
@@ -465,7 +470,7 @@ export const AdminOrderDetailsModal: React.FC<AdminOrderDetailsModalProps> = ({
                 )}
 
                 <div className="pt-4 border-t border-slate-200 mt-4">
-                    {order.status === OrderStatus.PENDING ? (
+                    {ehPedidoAguardandoAprovacao ? (
                       <>
                         <button
                           onClick={handleApproveAndFinalize}

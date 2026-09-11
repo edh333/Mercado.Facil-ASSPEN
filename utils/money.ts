@@ -3,8 +3,8 @@ import { formatarMoeda } from '../utils';
 const nfBRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
 const number = (valor: unknown): number => {
-  const n = typeof valor === 'number' ? valor : Number(String(valor).replace(/\./g, '').replace(',', '.'));
-  return isFinite(n) ? n : 0;
+  if (typeof valor === 'number') return isFinite(valor) ? valor : 0;
+  return parseMoeda(valor as string);
 };
 
 /**

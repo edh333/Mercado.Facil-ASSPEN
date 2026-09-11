@@ -25,6 +25,12 @@ describe('formatBRL', () => {
   it('valores negativos', () => {
     expect(formatBRL(-12.34)).toBe('-R$ 12,34');
   });
+
+  it('string com ponto decimal não vira milhar (regressão #10)', () => {
+    expect(formatBRL('12.90' as any)).toBe('R$ 12,90');
+    expect(formatBRL('45,67' as any)).toBe('R$ 45,67');
+    expect(formatBRL('1.234,56' as any)).toBe('R$ 1.234,56');
+  });
 });
 
 describe('formatBRLSigned', () => {
