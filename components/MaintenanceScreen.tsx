@@ -1,5 +1,5 @@
-import React from 'react';
-import { Lock, LogOut, Power, AlertTriangle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Lock, LogOut, Power, AlertTriangle, X, CheckCircle } from 'lucide-react';
 import { MaintenanceState } from '../hooks/useMaintenance';
 
 function formatDateTime(iso?: string): string {
@@ -59,13 +59,40 @@ export const MaintenanceScreen: React.FC<{
   );
 };
 
-/** Faixa exibida ao admin que desativou (ou master): aviso + botão reativar. */
+/** Faixa exibida ao admin que desativou (ou master): aviso + botão reativar.
+ *  Auto-oculta após 20s e oferece "Já resolvido" para dispensar até a próxima manutenção. */
 export const MaintenanceBanner: React.FC<{
   maintenance: MaintenanceState;
   onReativar: () => void;
 }> = ({ maintenance, onReativar }) => {
+  const [visivel, setVisivel] = useState(true);
+  const [jaResolvido, setJaResolvido] = useState(false);
+
+  // Chave única por sessão de manutenção (usa timestamp de desativação)
+  const chaveSessao = `maintenance-dismissed-${maintenance.desativadoEm}`;
+
+  useEffect(() => {
+    // Se já marcou "Já resolvido" nesta sessão de manutenção, esconde
+    if (sessionStorage.getItem(chaveSessao) === 'true') {
+      setVisivel(false);
+      setJaResolvido(true);
+      return;
+    }
+    // Auto-oculta após 20 segundos
+    const timer = setTimeout(() => setVisivel(false), 20_000);
+    return () => clearTimeout(timer);
+  }, [chaveSessao]);
+
+  if (!visivel) return null;
+
+  const handleJaResolvido = () => {
+    sessionStorage.setItem(chaveSessao, 'true');
+    setVisivel(false);
+    setJaResolvido(true);
+  };
+
   return (
-    <div className="sticky top-0 z-50 w-full bg-amber-400 border-b-2 border-amber-500 px-3 py-2 flex items-center gap-2 flex-wrap">
+    <div className="sticky top-0 z-50 w-full bg-amber-400 border-b-2 border-amber-500 px-3 py-2 flex items-center gap-2 flex-wrap animate-slide-down">
       <AlertTriangle size={16} className="text-amber-900 shrink-0" />
       <div className="flex-1 min-w-[200px]">
         <p className="text-xs font-black text-amber-950 uppercase tracking-wide">
@@ -78,12 +105,29 @@ export const MaintenanceBanner: React.FC<{
           {maintenance.desativadoEm ? ` · Desde ${formatDateTime(maintenance.desativadoEm)}` : ''}
         </p>
       </div>
-      <button
-        onClick={onReativar}
-        className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-amber-950 hover:bg-amber-900 text-amber-50 text-xs font-bold transition-colors"
-      >
-        <Power size={13} /> Reativar sistema
-      </button>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={handleJaResolvido}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-900/80 hover:bg-amber-900 text-amber-100 text-xs font-bold transition-colors"
+          title="Dispensar este aviso até a próxima manutenção"
+        >
+          <CheckCircle size={12} /> Já resolvido
+        </button>
+        <button
+          onClick={onReativar}
+          className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-amber-950 hover:bg-amber-900 text-amber-50 text-xs font-bold transition-colors"
+        >
+          <Power size={13} /> Reativar sistema
+        </button>
+        <button
+          onClick={() => setVisivel(false)}
+          className="p-1.5 rounded-lg text-amber-900/60 hover:text-amber-900 hover:bg-amber-900/10 transition-colors"
+          title="Ocultar por 20 segundos"
+          aria-label="Ocultar aviso"
+        >
+          <X size={14} />
+        </button>
+      </div>
     </div>
   );
 };
