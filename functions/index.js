@@ -912,7 +912,8 @@ exports.aprovarDeposito = onCall(async (request) => {
       "wallet_proofs",
       pre.proofHash,
       pre.proofSize,
-      pre.proofMime
+      pre.proofMime,
+      tid // docIdAtual: ignora o PRÓPRIO depósito na dedup
     );
     if (!validacao.ok) throw new Error(validacao.motivo);
     if (validacao.warning) logger.warn(`[aprovarDeposito] ${validacao.warning} tid=${tid}`);
@@ -1356,7 +1357,7 @@ async function verificarObjetoComprovante(url, pasta) {
  *    (caso legítimo: familiar paga pelo interno, depósito em conta de terceiro).
  * Retorna { ok: true/false, motivo?, warning?: string, meta?: {size, mime} }
  */
-async function validarComprovanteFlexivel(proofUrl, userId, pasta, proofHash, proofSize, proofMime) {
+async function validarComprovanteFlexivel(proofUrl, userId, pasta, proofHash, proofSize, proofMime, docIdAtual) {
   const url = String(proofUrl || "").trim();
   if (!url || url === "PENDENTE_UPLOAD_LOCAL_CACHE") {
     return { ok: false, motivo: "Comprovante não enviado." };
@@ -1369,6 +1370,9 @@ async function validarComprovanteFlexivel(proofUrl, userId, pasta, proofHash, pr
   }
 
   // 2) Deduplicação por HASH (primária — identidade do conteúdo)
+  // IMPORTANTE: filtra o PRÓPRIO documento (docIdAtual). Sem isso, ao aprovar
+  // um pedido/depósito, a query encontra o próprio registro (status ainda
+  // pending) e bloqueia a aprovação achando que o comprovante é duplicado.
   if (proofHash && proofHash.trim()) {
     const hash = proofHash.trim();
     const colecao = pasta === "wallet_proofs" ? "wallet_transactions" : "orders";
@@ -1378,11 +1382,11 @@ async function validarComprovanteFlexivel(proofUrl, userId, pasta, proofHash, pr
     const dupSnap = await db.collection(colecao)
       .where(campoHash, "==", hash)
       .where("status", "not-in", statusExcluir)
-      .limit(1)
+      .limit(8)
       .get();
-    if (!dupSnap.empty) {
-      const outro = dupSnap.docs[0];
-      return { ok: false, motivo: `Comprovante já utilizado em ${pasta === "wallet_proofs" ? "outro depósito" : "outro pedido"} (#${outro.id}). Cada comprovante só pode ser usado uma vez.` };
+    const dup = dupSnap.docs.find((d) => d.id !== docIdAtual);
+    if (dup) {
+      return { ok: false, motivo: `Comprovante já utilizado em ${pasta === "wallet_proofs" ? "outro depósito" : "outro pedido"} (#${dup.id}). Cada comprovante só pode ser usado uma vez.` };
     }
   }
 
@@ -1398,15 +1402,15 @@ async function validarComprovanteFlexivel(proofUrl, userId, pasta, proofHash, pr
     const urlSnap = await db.collection(colecaoUrl)
       .where(campoUrl, "==", url)
       .where("status", "not-in", statusExcluirUrl)
-      .limit(1)
+      .limit(8)
       .get();
-    if (!urlSnap.empty) {
-      const outro = urlSnap.docs[0];
+    const dupUrl = urlSnap.docs.find((d) => d.id !== docIdAtual);
+    if (dupUrl) {
       // Heurística: se size/mime batem, é quase certeza ser o mesmo arquivo
-      const outroSize = Number(outro.data().proofSize || 0);
-      const outroMime = String(outro.data().proofMime || "").toLowerCase();
+      const outroSize = Number(dupUrl.data().proofSize || 0);
+      const outroMime = String(dupUrl.data().proofMime || "").toLowerCase();
       if (size > 0 && outroSize > 0 && size === outroSize && mime && outroMime === mime) {
-        return { ok: false, motivo: `Comprovante já utilizado em ${pasta === "wallet_proofs" ? "outro depósito" : "outro pedido"} (#${outro.id}).` };
+        return { ok: false, motivo: `Comprovante já utilizado em ${pasta === "wallet_proofs" ? "outro depósito" : "outro pedido"} (#${dupUrl.id}).` };
       }
     }
   } catch (e) {
@@ -2124,7 +2128,8 @@ exports.aprovarPedidoPix = onCall(async (request) => {
       "comprovantes_pix",
       pedido.proofHash,
       pedido.proofSize,
-      pedido.proofMime
+      pedido.proofMime,
+      orderId // docIdAtual: ignora o PRÓPRIO pedido na dedup
     );
     if (!validacao.ok) throw new HttpsError("failed-precondition", validacao.motivo);
     if (validacao.warning) logger.warn(`[aprovarPedidoPix] ${validacao.warning} orderId=${orderId}`);

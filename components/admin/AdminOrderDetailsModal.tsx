@@ -11,6 +11,7 @@ import { ModalShell } from '../ui/ModalShell';
 import ImagePreviewModal from '../ImagePreviewModal';
 import { useApp } from '../../context/StoreContext';
 import { toDate } from '../../utils/dateUtils';
+import AdminRefundPasswordModal from './AdminRefundPasswordModal';
 
 const ComprovanteImg: React.FC<{ src: string }> = ({ src }) => {
   const [erro, setErro] = React.useState(false);
@@ -88,13 +89,68 @@ export const AdminOrderDetailsModal: React.FC<AdminOrderDetailsModalProps> = ({
   settings
 }) => {
   const { colors } = useTheme();
-  const { attachAdminProof, showNotification: notifCtx, aprovarPedido } = useApp();
+  const { attachAdminProof, showNotification: notifCtx, aprovarPedido, refundOrder, validateMasterPassword, masterPasswordStatus, sendSystemMessage, currentUser } = useApp();
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [isRawPrinting, setIsRawPrinting] = React.useState(false);
   const [proofLocal, setProofLocal] = React.useState('');
   const [isAttaching, setIsAttaching] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const proofSrc = proofLocal || order.paymentProofUrl || '';
+
+  // ─── Estorno / Cancelamento com confirmação por senha ─────────────────────
+  const [confirmAcao, setConfirmAcao] = React.useState<'estorno' | 'cancelar' | null>(null);
+  const [confirmErro, setConfirmErro] = React.useState('');
+  const [isRefunding, setIsRefunding] = React.useState(false);
+  const [senhaMestraDefinida, setSenhaMestraDefinida] = React.useState<boolean | null>(null);
+
+  React.useEffect(() => {
+    let ativo = true;
+    masterPasswordStatus().then((r: any) => { if (ativo) setSenhaMestraDefinida(r?.definida === true); })
+      .catch(() => { if (ativo) setSenhaMestraDefinida(false); });
+    return () => { ativo = false; };
+  }, [masterPasswordStatus]);
+
+  // PADRÃO SEGURO: exige senha para TODOS, exceto quando confirmamos que a
+  // senha mestra ainda NÃO foi configurada e o operador é o admin principal.
+  const u = currentUser as any;
+  const isMainAdmin = u?.mainAdmin === true || u?.id === 'master' ||
+    u?.id === 'admin' || u?.email === 'admin@mercado.com';
+  const exigirSenha = senhaMestraDefinida === false ? !isMainAdmin : true;
+
+  const STATUS_TERMINAIS = ['cancelled', 'cancelado', 'refunded', 'devolvido', 'estornado', 'reembolsado', 'rejected', 'rejeitado'];
+  const pedidoTerminal = STATUS_TERMINAIS.includes(String(order.status || '').toLowerCase());
+
+  // Executa estorno/cancelamento APÓS validação de senha interna do modal.
+  const executarRefund = async (motivo: string, senha: string) => {
+    if (isRefunding) return;
+    // Segurança: revalida a senha AQUI (não confia no front do modal)
+    if (exigirSenha) {
+      if (!senha) { setConfirmErro('Informe a senha do administrador.'); return; }
+      const ok = await validateMasterPassword(senha).catch(() => false);
+      if (!ok) { setConfirmErro('Senha incorreta. Operação bloqueada.'); return; }
+    }
+    setConfirmErro('');
+    setIsRefunding(true);
+    try {
+      await refundOrder(order.id, motivo);
+      // Notifica o familiar sobre a ação financeira
+      await sendSystemMessage({
+        title: confirmAcao === 'cancelar' ? `Pedido #${order.id.slice(0, 6)} Cancelado` : `Pedido #${order.id.slice(0, 6)} Reembolsado`,
+        content: confirmAcao === 'cancelar'
+          ? `Seu pedido foi cancelado. Motivo: ${motivo}`
+          : `O valor do seu pedido foi devolvido para a carteira. Motivo: ${motivo}`,
+        targetUserId: order.userId,
+        type: confirmAcao === 'cancelar' ? 'error' : 'info',
+      });
+      showNotification(confirmAcao === 'cancelar' ? 'Venda cancelada com sucesso!' : 'Pedido estornado com sucesso!', 'success');
+      setConfirmAcao(null);
+      onClose();
+    } catch (e: any) {
+      setConfirmErro(e?.message || 'Erro ao processar a operação.');
+    } finally {
+      setIsRefunding(false);
+    }
+  };
 
   const temComprovante = order.paymentMethod === 'WALLET' || !!(proofSrc && proofSrc !== 'PENDENTE_UPLOAD_LOCAL_CACHE');
 
@@ -503,10 +559,15 @@ export const AdminOrderDetailsModal: React.FC<AdminOrderDetailsModalProps> = ({
                     )}
                 </div>
 
-                {order.status !== OrderStatus.CANCELLED && (
-                  <button onClick={() => setShowRefundModal(order)} className="w-full py-4 bg-amber-50 text-amber-600 border border-amber-200 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-amber-100 transition-all">
-                      <RefreshCw size={18}/> Estornar Total de Produtos
-                  </button>
+                {!pedidoTerminal && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <button onClick={() => { setConfirmAcao('cancelar'); setConfirmErro(''); }} className="py-4 bg-rose-50 text-rose-600 border border-rose-200 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-rose-100 transition-all">
+                        <XCircle size={18}/> Cancelar Venda
+                    </button>
+                    <button onClick={() => { setConfirmAcao('estorno'); setConfirmErro(''); }} className="py-4 bg-amber-50 text-amber-600 border border-amber-200 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-amber-100 transition-all">
+                        <RefreshCw size={18}/> Estornar Pedido
+                    </button>
+                  </div>
                 )}
 
                 <div className="pt-4 border-t border-slate-200 mt-4">
@@ -563,6 +624,17 @@ export const AdminOrderDetailsModal: React.FC<AdminOrderDetailsModalProps> = ({
               accept="image/*,application/pdf"
               className="hidden"
               onChange={handleAttachProof}
+            />
+            {/* Confirmação profissional para estorno/cancelamento (motivo + senha do admin) */}
+            <AdminRefundPasswordModal
+              isOpen={confirmAcao !== null}
+              acao={confirmAcao}
+              order={order}
+              exigirSenha={exigirSenha}
+              processando={isRefunding}
+              erro={confirmErro}
+              onClose={() => { if (!isRefunding) setConfirmAcao(null); }}
+              onConfirm={executarRefund}
             />
         </ModalShell>
   );
