@@ -87,7 +87,8 @@ interface StoreContextType {
     login: (cpf: string, pass: string, targetRole?: UserRole) => Promise<{ success: boolean; message?: string }>;
     loginAdmin: (email: string, pass: string) => Promise<void>;
     loginFamiliar: (cpf: string, pass: string) => Promise<void>;
-    logout: () => void;
+    logout: () => Promise<void>;
+    isLoggingOut: boolean;
     registerUser: (userData: Partial<User>, docFile: File | null) => Promise<{ success: boolean; message: string }>;
     recoverPassword: (identifier: string) => Promise<{ success: boolean; message: string }>;
     validateRecovery: (userCpf: string, prisonerCpf: string, nomeCompleto: string) => Promise<User>;
@@ -393,10 +394,13 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         setCotaCritica(false);
     };
 
+const [isLoggingOut, setIsLoggingOut] = useState(false);
+
     const logoutTimerRef = useRef<any>(null);
     const unsubscribeRefs = useRef<(() => void)[]>([]);
 
     const logout = async () => {
+        setIsLoggingOut(true);
         try {
             unsubscribeRefs.current.forEach(unsub => unsub());
             unsubscribeRefs.current = [];
@@ -418,19 +422,20 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         } catch (error) {
             console.error('Erro ao deslogar:', error);
             setCurrentUser(null);
+        } finally {
+            setIsLoggingOut(false);
         }
         if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
-    };    // Log de Auditoria centralizado em registrarAuditClient (persistido no Firestore).
-
+    };
 
     const resetInactivityTimer = () => {
         if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
         if (currentUser) {
-logoutTimerRef.current = setTimeout(() => {
+            logoutTimerRef.current = setTimeout(() => {
                 logout();
-                const event = new CustomEvent('session-expired', { detail: { message: "Sessão encerrada por inatividade." } });
+                const event = new CustomEvent('session-expired', { detail: { message: "Sessão encerrada por inatividade (20 min)." } });
                 window.dispatchEvent(event);
-            }, 30 * 60 * 1000);
+            }, 20 * 60 * 1000);
         }
     };
 
@@ -2767,6 +2772,7 @@ if (currentUser?.role !== UserRole.ADMIN && currentUser) {
             depositToWallet, approveWalletTransaction, rejectWalletTransaction, getWalletTransactions, withdrawWalletCredit, attachAdminProof, reenviarComprovante,
             validateMasterPassword, defineMasterPassword, masterPasswordStatus, addPreRegisteredInmate, updatePreRegisteredInmate, deletePreRegisteredInmate, preRegisteredInmates, refundOrder, importInmatesCsv, updateAdminPassword,
             isInstallable: !!deferredPrompt, installApp,
+            isLoggingOut,
             mergeDuplicateProducts: async () => {
                 setIsLoading(true);
                 try {

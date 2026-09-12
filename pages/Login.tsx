@@ -278,6 +278,17 @@ const [recoveryName, setRecoveryName] = useState('');
 
                     <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xl shadow-slate-900/[0.06] sm:p-8">
 
+                        {/* Botão Voltar ao Início (quando Login é modal do Landing) */}
+                        {onVolver && (
+                            <button
+                                type="button"
+                                onClick={onVolver}
+                                className="w-full mb-4 py-2.5 rounded-xl font-semibold text-sm text-slate-500 hover:text-slate-700 bg-slate-50 border border-slate-200 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                            >
+                                <ArrowLeft size={16} /> Voltar ao Início
+                            </button>
+                        )}
+
                         {/* Abas */}
                         <AnimatePresence mode="wait">
                             {!isAdmin && !isRecovery && (

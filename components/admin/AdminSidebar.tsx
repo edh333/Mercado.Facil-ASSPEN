@@ -3,7 +3,7 @@ import { NavItem } from './AdminCommon';
 import {
   Users, Package, ShoppingCart, DollarSign, LogOut, Settings,
   BarChart3, Home, Shield, CreditCard, Landmark, Activity, AlertTriangle,
-  BookOpen, MessageSquare, Sun, Moon, Monitor, Wrench
+  BookOpen, MessageSquare, Sun, Moon, Monitor, Wrench, Loader2
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { SystemRole } from '../PWAInstallProvider';
@@ -15,7 +15,8 @@ interface AdminSidebarProps {
   pendingOrdersCount: number;
   pendingDepositsCount: number;
   pendingUsersCount?: number;
-  logout: () => void;
+  logout: () => Promise<void>;
+  isLoggingOut: boolean;
   appName: string;
   userName: string;
   isOpen?: boolean;
@@ -29,7 +30,7 @@ interface AdminSidebarProps {
 }
 
 export const AdminSidebar: React.FC<AdminSidebarProps> = ({
-  activeTab, setActiveTab, pendingOrdersCount, pendingDepositsCount, pendingUsersCount = 0, logout, appName, userName,
+  activeTab, setActiveTab, pendingOrdersCount, pendingDepositsCount, pendingUsersCount = 0, logout, isLoggingOut, appName, userName,
   isOpen, onClose, onOpenSales, permissions = [], isMaster = false, isImageBg = false, primaryColor = '#10b981',
   userRole = 'admin'
 }) => {
@@ -143,8 +144,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                     <p className="text-xs capitalize text-slate-400">Administrador</p>
                 </div>
             </div>
-            <button onClick={logout} className="w-full flex items-center gap-2 px-3 py-2 text-slate-400 hover:bg-red-500/10 hover:text-red-400 rounded-lg transition-colors text-[13px]">
-                <LogOut size={16}/> Sair do Painel
+            <button onClick={logout} disabled={isLoggingOut} className="w-full flex items-center gap-2 px-3 py-2 text-slate-400 hover:bg-red-500/10 hover:text-red-400 rounded-lg transition-colors text-[13px] disabled:opacity-50 disabled:cursor-not-allowed">
+                {isLoggingOut ? <Loader2 className="animate-spin" size={16} /> : <LogOut size={16} />} {isLoggingOut ? 'Saindo...' : 'Sair do Painel'}
             </button>
             <p className="mt-1 px-2 text-center text-[9px] text-slate-600">Desenvolvido por Edevaldo de Lima Almeida</p>
         </div>

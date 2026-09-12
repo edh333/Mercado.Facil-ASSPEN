@@ -145,7 +145,8 @@ export function AdminDashboard() {
     vendasOfflinePendentes,
     vendasOfflineComErro,
     messages,
-    sendMessage
+    sendMessage,
+    isLoggingOut
   } = useApp();
 
   // 2. Local State Management
@@ -784,6 +785,7 @@ export function AdminDashboard() {
         pendingDepositsCount={depositPendingCount}
         pendingUsersCount={stats.pendingUsersCount}
         logout={logout}
+        isLoggingOut={isLoggingOut}
         appName={settings?.appName || 'Mercado Fácil'}
         userName={currentUser?.name || 'Administrador'}
         isOpen={isMobileMenuOpen}
