@@ -40,6 +40,10 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
   const [confirmarAprovErro, setConfirmarAprovErro] = React.useState('');
   const [agruparPorDia, setAgruparPorDia] = React.useState(false);
 
+  // Status de pedido ainda em fluxo de pagamento (pendente de aprovação).
+  // Usado tanto no filtro quanto nos botões — evita 'pago_pendente' sem ação.
+  const isPending = (status: string) => ['pendente', 'pending_payment', 'pending', 'pago_pendente'].includes(String(status || '').toLowerCase());
+
   // Contagens por situação no acervo atual — para badges nos filtros.
   const contagens = React.useMemo(() => {
     const pend = (orders || []).filter(o => isPending(o.status)).length;
@@ -48,10 +52,6 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
     const dev = (orders || []).filter(o => ['refunded', 'devolvido', 'reembolsado'].includes(String(o.status || '').toLowerCase())).length;
     return { pend, conc, canc, dev };
   }, [orders]);
-
-  // Status de pedido ainda em fluxo de pagamento (pendente de aprovação).
-  // Usado tanto no filtro quanto nos botões — evita 'pago_pendente' sem ação.
-  const isPending = (status: string) => ['pendente', 'pending_payment', 'pending', 'pago_pendente'].includes(String(status || '').toLowerCase());
 
   // Aprovação direta pelo card: valida comprovante, pede confirmação e
   // finaliza a compra em um clique — sem reabrir a janela de detalhes.
