@@ -1042,7 +1042,14 @@ return false;
             if (!data?.ok) throw new Error(data?.error || 'Falha ao aprovar o pedido.');
             return data;
         } catch (e: any) {
-            throw new Error(e?.message || 'Erro ao aprovar o pedido. Tente novamente.');
+            // Erros HttpsError do servidor já trazem a mensagem amigável.
+            // 'internal' é resposta genérica do runtime (ex.: função sem deploy
+            // ou exceção não mapeada) — mostra algo útil em vez de "internal".
+            const msg = String(e?.message || '');
+            if (!msg || msg === 'internal' || msg === 'INTERNAL' || msg.includes('UNAVAILABLE') || msg.includes('unavailable')) {
+                throw new Error('Falha ao se comunicar com o servidor (functions desatualizadas ou indisponíveis). Verifique se o deploy das Cloud Functions foi feito e tente novamente.');
+            }
+            throw new Error(msg);
         }
     };
     const markOrderAsPrinted = async (oid: string) => { try { await updateDoc(doc(db, 'orders', oid), { printCount: increment(1), status: OrderStatus.PREPARING }); } catch (e: any) { console.warn("[markOrderAsPrinted]", e.message); } };

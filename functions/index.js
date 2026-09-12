@@ -1369,42 +1369,52 @@ async function validarComprovanteFlexivel(proofUrl, userId, pasta, proofHash, pr
     return { ok: false, motivo: objCheck.motivo };
   }
 
+  // Status que NÃO contam como duplicata (registro já finalizado/cancelado).
+  // Depósitos: só rejected/cancelled liberam reuso; pedidos: qualquer terminal.
+  const EXCLUIR_STATUS = pasta === "wallet_proofs"
+    ? ["rejected", "cancelled", "cancelado"]
+    : ["cancelled", "cancelado", "canceled", "refunded", "returned", "devolvido", "estornado", "reembolsado", "rejected", "rejeitado"];
+  const ativo = (d) => d.id !== docIdAtual && !EXCLUIR_STATUS.includes(String(d.data().status || "").toLowerCase());
+
+  const colecao = pasta === "wallet_proofs" ? "wallet_transactions" : "orders";
+
   // 2) Deduplicação por HASH (primária — identidade do conteúdo)
   // IMPORTANTE: filtra o PRÓPRIO documento (docIdAtual). Sem isso, ao aprovar
   // um pedido/depósito, a query encontra o próprio registro (status ainda
   // pending) e bloqueia a aprovação achando que o comprovante é duplicado.
+  // Query de CAMPO ÚNICO (índice automático) + filtro de status em memória:
+  // não depende de índice composto (proofHash+status) — evita o erro "internal"
+  // quando o índice ainda não existe no Firestore.
   if (proofHash && proofHash.trim()) {
-    const hash = proofHash.trim();
-    const colecao = pasta === "wallet_proofs" ? "wallet_transactions" : "orders";
-    const campoHash = pasta === "wallet_proofs" ? "proofHash" : "proofHash";
-    const statusExcluir = pasta === "wallet_proofs" ? ["rejected", "cancelled"] : ["cancelled", "cancelado", "refunded", "devolvido", "reembolsado", "rejected", "rejeitado"];
-
-    const dupSnap = await db.collection(colecao)
-      .where(campoHash, "==", hash)
-      .where("status", "not-in", statusExcluir)
-      .limit(8)
-      .get();
-    const dup = dupSnap.docs.find((d) => d.id !== docIdAtual);
-    if (dup) {
-      return { ok: false, motivo: `Comprovante já utilizado em ${pasta === "wallet_proofs" ? "outro depósito" : "outro pedido"} (#${dup.id}). Cada comprovante só pode ser usado uma vez.` };
+    try {
+      const dupSnap = await db.collection(colecao)
+        .where("proofHash", "==", proofHash.trim())
+        .limit(30)
+        .get();
+      const dup = dupSnap.docs.find(ativo);
+      if (dup) {
+        return { ok: false, motivo: `Comprovante já utilizado em ${pasta === "wallet_proofs" ? "outro depósito" : "outro pedido"} (#${dup.id}). Cada comprovante só pode ser usado uma vez.` };
+      }
+    } catch (e) {
+      // Dedup por hash indisponível → não bloqueia; a validação do arquivo
+      // real no Storage + o fallback por URL ainda protegem.
+      logger.warn(`[validarComprovanteFlexivel] Dedup por hash indisponível: ${e.message}`);
     }
   }
 
   // 3) Fallback: dedup por URL (se não há hash ou query falhou)
-  // Usa metadados do arquivo (size/mime) como heurística extra
+  // Usa metadados do arquivo (size/mime) como heurística extra.
+  // Mesma política de índice único + filtro em memória.
   const size = Number(proofSize || objCheck.size || 0);
   const mime = String(proofMime || objCheck.mime || "").toLowerCase();
-  const colecaoUrl = pasta === "wallet_proofs" ? "wallet_transactions" : "orders";
   const campoUrl = pasta === "wallet_proofs" ? "proofUrl" : "paymentProofUrl";
-  const statusExcluirUrl = pasta === "wallet_proofs" ? ["rejected", "cancelled"] : ["cancelled", "cancelado", "refunded", "devolvido", "reembolsado", "rejected", "rejeitado"];
 
   try {
-    const urlSnap = await db.collection(colecaoUrl)
+    const urlSnap = await db.collection(colecao)
       .where(campoUrl, "==", url)
-      .where("status", "not-in", statusExcluirUrl)
-      .limit(8)
+      .limit(30)
       .get();
-    const dupUrl = urlSnap.docs.find((d) => d.id !== docIdAtual);
+    const dupUrl = urlSnap.docs.find(ativo);
     if (dupUrl) {
       // Heurística: se size/mime batem, é quase certeza ser o mesmo arquivo
       const outroSize = Number(dupUrl.data().proofSize || 0);
