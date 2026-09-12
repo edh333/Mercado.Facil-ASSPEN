@@ -69,7 +69,9 @@ export const MaintenanceBanner: React.FC<{
   const [jaResolvido, setJaResolvido] = useState(false);
 
   // Chave única por sessão de manutenção (usa timestamp de desativação)
-  const chaveSessao = `maintenance-dismissed-${maintenance.desativadoEm}`;
+  // Fallback defensivo: se desativadoEm não vier, usa timestamp atual
+  const desativadoEmSeguro = maintenance.desativadoEm ?? new Date().toISOString();
+  const chaveSessao = `maintenance-dismissed-${desativadoEmSeguro}`;
 
   useEffect(() => {
     // Se já marcou "Já resolvido" nesta sessão de manutenção, esconde
