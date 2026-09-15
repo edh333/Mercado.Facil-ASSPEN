@@ -12,7 +12,7 @@
  *   node scripts/sanitize_mojibake.js --key caminho.json  # service account
  *
  * Credenciais: `--key <arquivo>` OU variável GOOGLE_APPLICATION_CREDENTIALS.
- * Coleções verificadas: products, users, customer_accounts, suppliers.
+ * Coleções verificadas: products, users, suppliers.
  */
 'use strict';
 
@@ -114,7 +114,6 @@ function aplicarFaixa(s) {
 const COLECOES = [
   { nome: 'products', campos: ['name', 'category', 'brand', 'description'] },
   { nome: 'users', campos: ['name', 'inmateName', 'prisonerName'] },
-  { nome: 'customer_accounts', campos: ['nome'] },
   { nome: 'suppliers', campos: ['name', 'cnpj'] },
 ];
 

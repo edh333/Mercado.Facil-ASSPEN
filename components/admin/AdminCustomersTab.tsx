@@ -262,6 +262,15 @@ export function AdminCustomersTab() {
             {filtered.map(c => {
               const usedPct = c.creditLimit > 0 ? ((c.currentDebt || 0) / c.creditLimit) * 100 : 0;
               const isOverLimit = c.currentDebt >= c.creditLimit && c.creditLimit > 0;
+              const vencida30 = (() => {
+                // Nota vencida = dívida em aberto há 30+ dias desde a data de início
+                // da dívida (debtStartedAt, gravada no servidor na 1ª venda fiada).
+                if (!(c.currentDebt > 0) || !c.debtStartedAt) return false;
+                const d = new Date(c.debtStartedAt);
+                if (isNaN(d.getTime())) return false;
+                const dias = Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
+                return dias >= 30;
+              })();
               return (
                 <div key={c.id} className={`flex items-center gap-5 p-5 hover:bg-slate-50 transition-all ${c.status === 'blocked' ? 'opacity-50' : ''}`}>
                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${isOverLimit ? 'bg-red-100 text-red-600' : usedPct > 70 ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>
@@ -271,6 +280,7 @@ export function AdminCustomersTab() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-bold text-slate-900 text-sm truncate">{c.nome}</p>
                       {c.status === 'blocked' && <span className="text-[10px] font-black text-red-600 bg-red-50 px-2 py-0.5 rounded uppercase tracking-wider border border-red-200">Bloqueado</span>}
+                      {vencida30 && <span className="text-[10px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded uppercase tracking-wider border border-orange-200">VENCIDA · 30 DIAS</span>}
                     </div>
                     <p className="text-[10px] font-semibold text-slate-500">{c.telefone || '—'}</p>
                     <div className="flex items-center gap-4 mt-1.5 flex-wrap">

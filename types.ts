@@ -338,4 +338,5 @@ export interface CustomerAccount {
   status: 'active' | 'blocked';
   transactions: CustomerAccountTransaction[];
   createdAt?: string;
+  debtStartedAt?: string;
 }

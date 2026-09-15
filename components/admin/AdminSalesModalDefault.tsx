@@ -12,6 +12,7 @@ import { formatarMoeda, parseMoeda, generatePixPayload as generatePix, isAdminRo
 import { getActiveSession, openCashSession, addSupplement, addWithdrawal, closeCashSession, CashSession } from '../../utils/cashSession';
 import { imprimirSilenciosoFiscal, imprimirComPrioridadeFiscal } from '../../utils/printUtils';
 import ConfirmacaoDestrutiva from './ConfirmacaoDestrutiva';
+import RefundSaleModal from './RefundSaleModal';
 import { useApp } from '../../context/StoreContext';
 
 interface AdminSalesModalProps {
@@ -59,11 +60,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
   const { refundOrder, showNotification, validateMasterPassword } = useApp();
   const [ultimaVenda, setUltimaVenda] = useState<Order | null>(null);
   const [showRefundModal, setShowRefundModal] = useState(false);
-  const [refundSearch, setRefundSearch] = useState('');
   const [refundSelected, setRefundSelected] = useState<Order | null>(null);
-  const [refundReason, setRefundReason] = useState('');
-  const [refundLoading, setRefundLoading] = useState(false);
-  const [refundResult, setRefundResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [showSuspendedList, setShowSuspendedList] = useState(false);
   const [suspendedCarts, setSuspendedCarts] = useState<{ id: string; items: any[]; clienteId: string; clienteNome: string; total: number; createdAt: string }[]>(() => {
     try {
@@ -250,9 +247,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
       setCloseResult(null);
       setSelectedCustomerAccount(null);
       setCustomerAccountSearch('');
-      setRefundResult(null);
       setRefundSelected(null);
-      setRefundReason('');
       fiadoVinculoAtivo.current = null;
       fiadoDesvinculadoRef.current = false;
       checkCashSession();
@@ -494,18 +489,6 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
     return s.startsWith('CANCEL') || s === 'REFUNDED' || s === 'RETURNED' || s === 'ESTORNADO';
   };
 
-  const refundResults = useMemo(() => {
-    const term = (refundSearch || '').trim().toLowerCase();
-    const base = (orders || []).filter(o => o && !estaCancelado(o));
-    if (!term) return base.slice(0, 8);
-    return base.filter(o =>
-      String(o.id || '').toLowerCase().includes(term) ||
-      String(o.userName || '').toLowerCase().includes(term) ||
-      String(o.inmateName || '').toLowerCase().includes(term) ||
-      String(o.userCpf || '').replace(/\D/g, '').includes(term.replace(/\D/g, ''))
-    ).slice(0, 8);
-  }, [orders, refundSearch]);
-
   // AudioContext ÚNICO e reutilizável — criar um novo por clique vaza memória e trava o navegador.
   const playAddSound = () => {
     if (!isSoundEnabled) return;
@@ -726,18 +709,12 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
   };
 
   const abrirEstorno = () => {
-    setRefundResult(null);
-    setRefundSearch('');
     setRefundSelected(null);
-    setRefundReason('');
     setShowRefundModal(true);
   };
 
   const abrirEstornoCom = (o: Order) => {
     setRefundSelected(o);
-    setRefundReason('');
-    setRefundResult(null);
-    setRefundSearch(String(o.id || '').slice(0, 12));
     setShowRefundModal(true);
   };
 
@@ -778,36 +755,6 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
   const desfazerUltimaVenda = () => {
     if (!ultimaVenda && !ultimoPedido) return;
     setConfirmandoDesfazer(true);
-  };
-
-  const confirmarEstorno = async () => {
-    if (!refundSelected) {
-      showNotification('Selecione um pedido para estornar.', 'error');
-      return;
-    }
-    const motivo = refundReason.trim();
-    if (motivo.length < 3) {
-      showNotification('Informe o motivo do estorno (mínimo 3 caracteres).', 'error');
-      return;
-    }
-    setRefundLoading(true);
-    try {
-      await refundOrder(refundSelected.id, motivo);
-      if (ultimaVenda && String(refundSelected.id) === String(ultimaVenda.id)) setUltimaVenda(null);
-      const ehFiado = String(refundSelected.paymentMethod || '').toUpperCase() === 'FIADO';
-      setRefundResult({
-        ok: true,
-        message: ehFiado
-          ? 'Venda fiada estornada com sucesso. Dívida do cliente revertida automaticamente.'
-          : 'Venda estornada com sucesso. Estoque e valores restaurados.'
-      });
-      setRefundSelected(null);
-      setRefundReason('');
-    } catch (e: any) {
-      setRefundResult({ ok: false, message: e.message || 'Erro ao estornar o pedido.' });
-    } finally {
-      setRefundLoading(false);
-    }
   };
 
   const suspenderVenda = () => {
@@ -1065,15 +1012,15 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
            showNotification(`Excedente de R$ ${excedente} sem dinheiro em caixa para devolver o troco. Ajuste os valores informados.`, 'error');
            return;
         }
-        if (totalRecebido > totalCarrinho && pCash > 0) {
-           changeValue = totalRecebido - totalCarrinho;
+if (totalRecebido > totalCarrinho && pCash > 0) {
+           changeValue = Math.round((totalRecebido - totalCarrinho) * 100) / 100;
            const cashIndex = paymentsArray.findIndex(p => p.method === 'CASH');
            if (cashIndex >= 0) {
-if (changeValue > pCash + 0.009) {
+ if (changeValue > pCash + 0.009) {
                    showNotification(`O troco (R$ ${changeValue.toFixed(2).replace('.', ',')}) é maior que o valor recebido em dinheiro (R$ ${pCash.toFixed(2).replace('.', ',')}). Aumente o valor em dinheiro ou reduza o excedente.`, 'error');
                    return;
                 }
-               paymentsArray[cashIndex].amount = Math.max(0, paymentsArray[cashIndex].amount - changeValue);
+               paymentsArray[cashIndex].amount = Math.max(0, Math.round((paymentsArray[cashIndex].amount - changeValue) * 100) / 100);
            }
            paymentsArray = paymentsArray.filter(p => p.amount > 0);
         }
@@ -1085,7 +1032,7 @@ if (changeValue > pCash + 0.009) {
            return;
         }
         if (recebido > totalCarrinho) {
-          changeValue = recebido - totalCarrinho;
+          changeValue = Math.round((recebido - totalCarrinho) * 100) / 100;
         }
       }
 
@@ -3078,144 +3025,15 @@ if (changeValue > pCash + 0.009) {
       )}
 
       {/* ── MODAL DE ESTORNO DE VENDA (F9) ── */}
-      {showRefundModal && (
-        <div className="fixed inset-0 z-[950] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.96, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="bg-white rounded-[2rem] w-full max-w-2xl shadow-2xl flex flex-col overflow-hidden max-h-[92vh]"
-          >
-            <div className="px-6 sm:px-8 py-5 border-b border-slate-100 bg-gradient-to-br from-red-600 via-red-600 to-red-700 text-white flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-white/15 flex items-center justify-center shadow-lg">
-                  <RotateCcw size={24} />
-                </div>
-                <div>
-                  <h2 className="font-black text-base uppercase tracking-tight leading-none">Estorno de Venda</h2>
-                  <p className="text-[10px] text-white/60 font-bold uppercase tracking-[0.25em] mt-1.5">Devolução completa (estoque + valores)</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowRefundModal(false)}
-                className="w-11 h-11 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all active:scale-90"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto px-6 sm:px-8 py-5 custom-scrollbar space-y-5">
-              {refundResult && (
-                <div className={`rounded-2xl border p-4 flex items-start gap-3 ${refundResult.ok ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
-                  {refundResult.ok
-                    ? <CheckCircle size={20} className="text-emerald-500 mt-0.5 shrink-0" />
-                    : <AlertTriangle size={20} className="text-red-500 mt-0.5 shrink-0" />}
-                  <div className="flex-1">
-                    <p className={`font-black text-xs uppercase tracking-wider ${refundResult.ok ? 'text-emerald-700' : 'text-red-700'}`}>
-                      {refundResult.ok ? 'Estorno concluído' : 'Erro no estorno'}
-                    </p>
-                    <p className="text-sm text-slate-600 mt-1">{refundResult.message}</p>
-                  </div>
-                  <button onClick={() => setRefundResult(null)} className="text-slate-400 hover:text-slate-700 cursor-pointer">
-                    <X size={16} />
-                  </button>
-                </div>
-              )}
-
-              {!refundResult?.ok && (
-                <>
-                  <div>
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-2">Buscar Pedido (número, cliente ou CPF)</p>
-                    <div className="relative">
-                      <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <input
-                        type="text"
-                        autoFocus
-                        placeholder="Ex.: #ABC123 ou nome do cliente..."
-                        value={refundSearch}
-                        onChange={e => { setRefundSearch(e.target.value); setRefundSelected(null); }}
-                        onKeyDown={e => { if (e.key === 'Enter' && !refundSelected && refundResults.length === 1) setRefundSelected(refundResults[0]); }}
-                        className="w-full pl-10 pr-4 py-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 font-semibold text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-400/20 transition-all"
-                      />
-                    </div>
-                    {!refundSelected && refundResults.length > 0 && (
-                      <div className="mt-2 bg-white rounded-2xl border border-slate-200 shadow-sm max-h-52 overflow-y-auto custom-scrollbar">
-                        {refundResults.map(o => (
-                          <button
-                            key={o.id}
-                            onClick={() => setRefundSelected(o)}
-                            className="w-full flex items-center justify-between gap-3 p-3.5 hover:bg-red-50 border-b border-slate-100 last:border-0 transition-all text-left"
-                          >
-                            <div className="min-w-0">
-                              <p className="font-black text-slate-900 text-xs uppercase truncate">#{String(o.id || '').slice(0, 12)} · {o.userName || o.inmateName || 'CONSUMIDOR GERAL'}</p>
-                              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">{new Date(o.date).toLocaleString('pt-BR')} · {o.paymentMethod}</p>
-                            </div>
-                            <span className="font-black text-red-500 text-sm shrink-0">R$ {formatarMoeda(o.total)}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    {!refundSelected && refundResults.length === 0 && (
-                      <p className="mt-2 p-3 text-center text-xs font-bold text-slate-400 bg-slate-50 rounded-xl">Nenhum pedido ativo encontrado.</p>
-                    )}
-                  </div>
-
-                  {refundSelected && (
-                    <div className="bg-slate-50 rounded-2xl border border-slate-200 p-5 space-y-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="font-black text-slate-900 text-sm uppercase truncate">#{String(refundSelected.id || '').slice(0, 12)}</p>
-                          <p className="text-[10px] text-slate-500 mt-0.5">{new Date(refundSelected.date).toLocaleString('pt-BR')}</p>
-                        </div>
-                        <span className="font-black text-red-500 text-lg shrink-0">R$ {formatarMoeda(refundSelected.total)}</span>
-                      </div>
-                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                        Cliente: {refundSelected.userName || refundSelected.inmateName || 'CONSUMIDOR GERAL'} · Pagamento: {refundSelected.paymentMethod}
-                      </p>
-                      <div className="max-h-32 overflow-y-auto custom-scrollbar bg-white rounded-xl border border-slate-100 p-3 space-y-1.5">
-                        {(refundSelected.items || []).map((item: any, idx: number) => (
-                          <div key={idx} className="flex justify-between text-xs gap-3">
-                            <span className="font-bold text-slate-700 truncate">{item.name}</span>
-                            <span className="font-black text-slate-500 shrink-0">{item.quantity}un · R$ {formatarMoeda((item.priceAtPurchase || 0) * (item.quantity || 1))}</span>
-                          </div>
-                        ))}
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-2">Motivo do Estorno <span className="text-red-500">*</span></p>
-                        <textarea
-                          rows={3}
-                          placeholder="Ex.: Cliente devolveu o produto / Venda equivocada..."
-                          value={refundReason}
-                          onChange={e => setRefundReason(e.target.value)}
-                          className="w-full p-4 rounded-2xl bg-white border border-slate-200 text-slate-900 font-semibold text-sm outline-none focus:border-red-400 focus:ring-2 focus:ring-red-400/20 transition-all resize-none"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-
-            <div className="px-6 sm:px-8 py-4 border-t border-slate-100 flex gap-3 shrink-0 bg-slate-50/60">
-              <button
-                onClick={() => setShowRefundModal(false)}
-                className="px-6 py-3.5 rounded-2xl border border-slate-200 text-slate-600 font-black text-[10px] uppercase tracking-widest hover:bg-slate-100 transition-all"
-              >
-                Fechar
-              </button>
-              {!refundResult?.ok && (
-                <button
-                  onClick={confirmarEstorno}
-                  disabled={refundLoading || !refundSelected}
-                  className="flex-1 py-3.5 rounded-2xl bg-red-600 text-white font-black text-[10px] uppercase tracking-widest hover:bg-red-700 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-red-600/20"
-                >
-                  {refundLoading ? <RefreshCw className="animate-spin" size={16} /> : <RotateCcw size={16} />}
-                  Confirmar Estorno Completo
-                </button>
-              )}
-            </div>
-          </motion.div>
-        </div>
-      )}
+      <RefundSaleModal
+        isOpen={showRefundModal}
+        initialOrder={refundSelected}
+        ordersBase={orders}
+        onClose={() => setShowRefundModal(false)}
+        onAfterSuccess={(order) => {
+          if (ultimaVenda && String(order.id) === String(ultimaVenda.id)) setUltimaVenda(null);
+        }}
+      />
 
       {/* ── MODAL DE VENDAS SUSPENSAS ── */}
       {showSuspendedList && (

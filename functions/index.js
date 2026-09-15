@@ -368,6 +368,7 @@ async function registrarAudit(operadorUid, acaoTipo, payloadAntes = null, payloa
  * NÃO expõe senhas, saldos ou dados sensíveis.
  */
 exports.buscarLoginInfo = onCall(async (request) => {
+  try {
   verificarRateLimit("buscarLoginInfo:" + ipDoRequest(request), 30);
   const identificador = String(request.data?.identificador || "").trim();
   if (!identificador) throw new HttpsError("invalid-argument", "Informe CPF ou e-mail.");
@@ -391,6 +392,15 @@ exports.buscarLoginInfo = onCall(async (request) => {
     role: usuario.role || "user",
     status: usuario.status || "pending",
   };
+  } catch (e) {
+    if (e && e.code && String(e.code).indexOf("functions/") === 0) throw e;
+    const msgErro = String((e && e.message) || "").trim();
+    console.error("[buscarLoginInfo] Falha ao processar a solicita\u00e7\u00e3o", { msg: msgErro, stack: e && e.stack ? e.stack : undefined });
+    if (new RegExp("produto n\u00e3o encontrado|estoque insuficiente|saldo insuficiente|limite semanal|limite de|consumidor final|n\u00e3o confere com o total|nenhuma sess\u00e3o de caixa|caixa antes|caixa foi fechada|reabra o caixa|cliente bloqueado|cliente de fiado|exige cliente cadastrado|pagamento misto sem valores|m\u00e9todo inv\u00e1lido|valor inv\u00e1lido|fiado e card n\u00e3o s\u00e3o suportados|carteira|duplicada|troco|cadastro em an\u00e1lise|em an\u00e1lise|an\u00e1lise|primeiro acesso|conta suspensa|conta bloqueada|conta pendente|usu\u00e1rio n\u00e3o encontrad|usu\u00e1rio n\u00e3o cadastrad|usu\u00e1rio n\u00e3o existe|usu\u00e1rio j\u00e1|n\u00e3o foi poss\u00edvel encontrar|e-mail ou senha|e-mail e senha|credenciais|senha incorreta|senha inv\u00e1lida|informe o CPF|informe CPF|informe o e-mail|informe e-mail|caracteres|m\u00ednimo|m\u00e1ximo|redefinir senha|novo acesso|n\u00e3o pode ser|n\u00e3o confere|j\u00e1 cadastrad|j\u00e1 utilizad|j\u00e1 vinculad|n\u00e3o cadastrad|n\u00e3o existe|existe|bloquead|suspens|pendente|aguarde|tente novamente|tentativas|excedeu|aguardando|aprova\u00e7\u00e3o|aprovad|rejeitad|an\u00e1lise manual|revisor|moderador|admin|permiss\u00e3o|acesso restrito|n\u00e3o autenticado|n\u00e3o autorizad|conta n\u00e3o encontrada|conta n\u00e3o existe|conta suspensa", "i").test(msgErro)) {
+      throw new HttpsError("invalid-argument", msgErro);
+    }
+    throw new HttpsError("internal", "Falha ao processar a solicita\u00e7\u00e3o. Tente novamente.");
+  }
 });
 
 /**
@@ -398,48 +408,55 @@ exports.buscarLoginInfo = onCall(async (request) => {
  * Substitui a query client-side `where('authUid', '==', uid)` que vaza PII.
  */
 exports.buscarUsuarioAtual = onCall(async (request) => {
-  const caller = await exigirAutenticado(request);
-
-  // caller.id é o ID do documento Firestore (pode ser CPF em usuários legados).
-  // Para a query, precisamos do Firebase Auth UID (context.auth.uid).
-  const authUid = request.auth.uid;
-  const snap = await db.collection("users").where("authUid", "==", authUid).limit(1).get();
-  if (snap.empty) {
-    throw new HttpsError("not-found", "Usuário não encontrado no sistema.");
+  if (!request.auth || !request.auth.uid) {
+    throw new HttpsError("unauthenticated", "Sessão expirada. Entre novamente.");
   }
-  const doc = snap.docs[0];
-  const data = doc.data();
-  const status = String(data.status || "pending").toLowerCase();
-  if (status === "suspended") {
-    throw new HttpsError("permission-denied", "Conta suspensa. Entre em contato com a administração.");
+  try {
+    const snap = await db.collection("users").where("authUid", "==", request.auth.uid).limit(1).get();
+    if (snap.empty) {
+      throw new HttpsError("not-found", "Usuário não encontrado.");
+    }
+    const doc = snap.docs[0];
+    const data = doc.data();
+    const status = String(data.status || "pending").toLowerCase();
+    if (status === "suspended") {
+      throw new HttpsError("permission-denied", "Conta suspensa. Contate a administração.");
+    }
+    if (status === "pending") {
+      // O frontend depende DESTA exceção para exibir a tela "CADASTRO EM ANÁLISE"
+      // (context/StoreContext.tsx trata functions/failed-precondition).
+      throw new HttpsError("failed-precondition", "Cadastro em análise. Aguarde aprovação.");
+    }
+    // Shape de retorno ESTÁVEL (mesmos campos que o frontend sempre consumiu) —
+    // incluindo os usados pelo PDV/family app (selectedUnitId, permissions...).
+    return {
+      id: doc.id,
+      name: data.name || data.nome || "",
+      email: data.email || "",
+      cpf: data.cpf || "",
+      role: data.role || "user",
+      status,
+      walletBalance: Number(data.walletBalance || data.carteira || 0),
+      weeklySpent: Number(data.weeklySpent || data.gastoSemanal || 0),
+      inmateName: data.inmateName || data.prisonerName || "",
+      inmateCpf: data.inmateCpf || data.prisonerCpf || "",
+      selectedUnitId: data.selectedUnitId || data.unitId || "",
+      avatarUrl: data.avatarUrl || "",
+      phone: data.phone || "",
+      mainAdmin: Boolean(data.mainAdmin),
+      permissions: data.permissions || [],
+    };
+  } catch (e) {
+    if (e && e.code && String(e.code).indexOf("functions/") === 0) throw e;
+    const msg = String((e && e.message) || "").trim();
+    console.error("[buscarUsuarioAtual] Falha ao processar a solicitação", { msg, stack: e && e.stack ? e.stack : undefined });
+    if (new RegExp("não encontrado|não cadastrad|não existe|informe|inválid|bloquead|suspens|pendente|em análise|análise|usuário|conta|não autorizad|permissão|sessão|token", "i").test(msg)) {
+      throw new HttpsError("invalid-argument", msg);
+    }
+    throw new HttpsError("internal", "Falha ao processar a solicitação. Tente novamente.");
   }
-  if (status === "pending") {
-    throw new HttpsError("failed-precondition", "Cadastro em análise. Aguarde aprovação.");
-  }
-  return {
-    id: doc.id,
-    name: data.name || "",
-    email: data.email || "",
-    cpf: data.cpf || "",
-    role: data.role || "user",
-    status: data.status || "pending",
-    walletBalance: Number(data.walletBalance || 0),
-    weeklySpent: Number(data.weeklySpent || 0),
-    inmateName: data.inmateName || data.prisonerName || "",
-    inmateCpf: data.inmateCpf || data.prisonerCpf || "",
-    selectedUnitId: data.selectedUnitId || data.unitId || "",
-    avatarUrl: data.avatarUrl || "",
-    phone: data.phone || "",
-    mainAdmin: Boolean(data.mainAdmin),
-    permissions: data.permissions || [],
-  };
 });
 
-/**
- * Público — cria a conta no Firebase Auth + documento do usuário.
- * Com `provisionar: true`, vincula a conta a um usuário existente (migração),
- * validando a senha atual contra o hash armazenado.
- */
 exports.registrarUsuario = onCall(async (request) => {
   const ip = ipDoRequest(request);
   verificarRateLimit("registrarUsuario:" + ip, 5);
@@ -1591,11 +1608,23 @@ exports.processarVendaAdmin = onCall(async (request) => {
     ? String(request.data?.cardBrand || "").replace(/[^A-Za-z0-9áéíóúâêôãõçÁÉÍÓÚÂÊÔÃÕÇ ]/g, "").slice(0, 20).trim()
     : "";
   const itens = validarItens(request.data?.items);
-  const payments = Array.isArray(request.data?.payments) ? request.data.payments : undefined;
-  const change = request.data?.change === undefined || request.data?.change === null ? undefined : Number(request.data.change);
-  if (change !== undefined && !Number.isFinite(change)) {
+  // Normalização server-side (defesa em profundidade): arredonda para centavos e
+  // normaliza o método para UPPERCASE ANTES de calcular partes e de PERSISTIR no
+  // pedido — impede que ruído de ponto flutuante vindo do frontend (ex. troco
+  // 0.30000000000000004) seja gravado no histórico/relatórios.
+  const payments = Array.isArray(request.data?.payments)
+    ? request.data.payments
+        .map((p) => ({
+          method: String((p && p.method) || "").toUpperCase(),
+          amount: arredondar(Number((p && p.amount) || 0)),
+        }))
+        .filter((p) => p.method && p.amount > 0)
+    : undefined;
+  const changeRaw = request.data?.change;
+  if (changeRaw !== undefined && changeRaw !== null && !Number.isFinite(Number(changeRaw))) {
     throw new HttpsError("invalid-argument", "Troco inválido.");
   }
+  const change = changeRaw === undefined || changeRaw === null ? undefined : arredondar(Number(changeRaw));
   const customerAccountId = request.data?.customerAccountId ? String(request.data.customerAccountId) : null;
 
   const isConsumer = targetUserId === "consumidor_geral" || targetUserId === "balcao_anonimo";
@@ -1645,14 +1674,6 @@ exports.processarVendaAdmin = onCall(async (request) => {
       // Partes de carteira/dinheiro calculadas NO SERVIDOR (lógica pura testável)
       const { walletPortion, cashPortion } = calcularPartesPagamento(paymentMethod, payments, total, isConsumer);
 
-      if (temParteCash) {
-        if (!sessaoCaixa) throw new Error("Nenhuma sessão de caixa aberta para este operador. Abra o caixa antes de vender em dinheiro.");
-        const sessaoAtual = await t.get(refSessaoCaixa(sessaoCaixa));
-        if (!sessaoAtual.exists || String(sessaoAtual.data().status || "").toUpperCase() !== "OPEN") {
-          throw new Error("A sessão de caixa foi fechada. Reabra o caixa antes de vender em dinheiro.");
-        }
-      }
-
     let userData = null;
     let userData2 = null;
     let clienteFiadoNome = null;
@@ -1699,33 +1720,40 @@ exports.processarVendaAdmin = onCall(async (request) => {
       }
     }
 
-    // FIADO: validação e registro de dívida NO SERVIDOR (atômico com a venda)
+    // FIADO: validação e registro de dívida NO SERVIDOR (atômico com a venda).
+    // UNIFICADO: o cliente de fiado É o usuário cadastrado selecionado no PDV
+    // (mesmo universo das vendas PIX/WALLET/CASH/CARD/MIXED). Nada de coleção
+    // paralela customer_accounts — dívida/limite/gasto ficam no próprio doc do
+    // usuário (users/<targetUserId>).
     if (paymentMethod === "FIADO") {
-      if (isConsumer) throw new Error("Venda fiada exige cliente cadastrado.");
-      if (!customerAccountId) throw new Error("Selecione um cliente de fiado.");
-      const caRef = db.collection("customer_accounts").doc(customerAccountId);
-      const caSnap = await t.get(caRef);
-      if (!caSnap.exists) throw new Error("Cliente de fiado não encontrado.");
-      const contaFiado = caSnap.data();
-      clienteFiadoNome = String(contaFiado.nome || contaFiado.name || contaFiado.clienteNome || "Fiado").slice(0, 80);
-      if (String(contaFiado.status || "").toLowerCase() === "blocked") {
-        throw new Error("Cliente bloqueado para venda fiada.");
+      if (isConsumer) throw new Error("Venda fiada exige usuário cadastrado.");
+      if (!customerAccountId) throw new Error("Selecione o usuário cadastrado para o fiado.");
+      if (!userData) throw new Error("Usuário de fiado não encontrado.");
+      clienteFiadoNome = String(userData.name || userData.nome || "Fiado").slice(0, 80);
+      if (String(userData.status || "").toLowerCase() === "blocked") {
+        throw new Error("Usuário bloqueado para venda fiada.");
       }
-      const dividaAtual = Number(contaFiado.currentDebt || 0);
-      const limiteCredito = Number(contaFiado.creditLimit || 0);
+      if (!userData.allowCredit && !userData.autorizacaoExcepcional) {
+        throw new Error("Usuário sem permissão para venda fiada.");
+      }
+      const dividaAtual = Number(userData.currentDebt || 0);
+      const limiteCredito = Number(userData.creditLimit || 0);
+      if (limiteCredito <= 0) throw new Error("Usuário de fiado não possui limite de crédito definido.");
       if (dividaAtual + total > limiteCredito) {
-        throw new Error("Venda bloqueada: ultrapassa o limite de crédito total do cliente.");
+        throw new Error("Venda bloqueada: ultrapassa o limite de crédito total do usuário.");
       }
-      t.update(caRef, {
+      // Grava o INÍCIO da dívida (debtStartedAt) apenas quando o cliente parte de
+      // dívida zero — base para o PDV marcar "nota vencida após 30 dias" em Contas
+      // a Receber. Mantém a data original enquanto houver débito em aberto.
+      const updateParcial = {
         currentDebt: admin.firestore.FieldValue.increment(total),
         weeklySpent: admin.firestore.FieldValue.increment(total),
-        transactions: admin.firestore.FieldValue.arrayUnion({
-          type: "debt",
-          amount: total,
-          orderId,
-          timestamp: admin.firestore.Timestamp.now(),
-        }),
-      });
+      };
+      const dividaAntes = Number(userData?.currentDebt || 0);
+      if (!(dividaAntes > 0)) {
+        updateParcial.debtStartedAt = admin.firestore.Timestamp.now();
+      }
+      t.update(db.collection("users").doc(targetUserId), updateParcial);
     }
 
     debitarEstoque(t, itensComPreco);
@@ -1828,7 +1856,25 @@ exports.processarVendaAdmin = onCall(async (request) => {
     return novoPedido;
   });
   } catch (e) {
-    throw new HttpsError("invalid-argument", "Falha ao processar a venda. Tente novamente.");
+    // NUNCA engolir o erro real: loga para auditoria/diagnóstico e devolve ao
+    // operador a MENSAGEM REAL (já escrita em PT-BR amigável) — ex.: "Estoque
+    // insuficiente", "A sessão de caixa foi fechada", "A soma dos pagamentos
+    // não confere". O genérico "tente novamente" escondia saldo/estoque/sessão
+    // e o operador não tinha como corrigir o problema.
+    console.error("[processarVendaAdmin] Falha ao processar venda", {
+      paymentMethod,
+      targetUserId,
+      totalRequisitado: request.data?.total,
+      erro: e && e.message ? e.message : e,
+      stack: e && e.stack ? e.stack : undefined,
+    });
+    if (e && e.code && String(e.code).startsWith("functions/")) throw e;
+    const msg = (e && e.message) || "Falha ao processar a venda. Tente novamente.";
+    // Whitelist de erros de negócio já amigáveis (escritos em PT-BR no backend).
+    if (/produto não encontrado|estoque insuficiente|saldo insuficiente|limite semanal|consumidor final não pode|2º devedor|não confere com o total|nenhuma sessão de caixa|caixa antes|cai?a foi fechada|reabra o caixa|cliente bloqueado|cliente de fiado (não )?encontrado|exige cliente cadastrado|pagamento misto sem valores|método inválido|valor inválido|fiado e card não são suportados|carteira|duplicada|troco/i.test(msg)) {
+      throw new HttpsError("invalid-argument", msg);
+    }
+    throw new HttpsError("internal", "Falha ao processar a venda. Tente novamente.");
   }
 
   if (!resultado.replay) {
@@ -2203,6 +2249,82 @@ exports.aprovarPedidoPix = onCall(async (request) => {
   return { ok: true, status: statusFinal };
 });
 
+// ──────────────────────────────────────────────
+// BUSCA DE PEDIDOS PARA ESTORNO (PDV + Ordens)
+// ──────────────────────────────────────────────
+// Busca server-side por pedidos estornáveis. Não depende de ÍNDICE
+// COMPOSTO (lição do erro "internal"): usa apenas orderBy('createdAt')
+// por janela — índice de campo único, disponível automaticamente — e
+// aplica o filtro de termo/status em MEMÓRIA. Paginação por
+// startAfter(createdAt) do último resultado (createdAt é ISO string,
+// ordenação lexicográfica == cronológica).
+exports.buscarPedidosParaEstorno = onCall(async (request) => {
+  await exigirAdminPermissao(request, "sales");
+  const term = String(request.data?.term || "").trim().toLowerCase();
+  const termCpf = term.replace(/\D/g, "");
+  const startAfter = String(request.data?.startAfter || "");
+  const WINDOW = 400;
+  const LIMITE_RESULTADOS = 20;
+
+  const EXCLUIR = new Set([
+    "CANCELLED", "CANCELADO", "CANCELED",
+    "REFUNDED", "RETURNED",
+    "DEVOLVIDO", "ESTORNADO", "REEMBOLSADO",
+    "REJECTED", "REJEITADO",
+  ]);
+  const ativo = (o) => {
+    const st = String(o.status || "").toUpperCase();
+    return !o.deleted && !EXCLUIR.has(st);
+  };
+  const combina = (o) => {
+    if (!term) return true;
+    if (String(o.id || "").toLowerCase().includes(term)) return true;
+    if (String(o.userName || "").toLowerCase().includes(term)) return true;
+    if (String(o.inmateName || "").toLowerCase().includes(term)) return true;
+    if (termCpf && String(o.userCpf || "").replace(/\D/g, "").includes(termCpf)) return true;
+    return false;
+  };
+
+  try {
+    let q = db.collection("orders").orderBy("createdAt", "desc").limit(WINDOW);
+    if (startAfter) q = q.startAfter(startAfter);
+    const snap = await q.get();
+
+    const resultados = [];
+    for (const doc of snap.docs) {
+      const d = doc.data();
+      if (!ativo(d) || !combina(d)) continue;
+      resultados.push({
+        id: doc.id,
+        total: d.total || 0,
+        paymentMethod: d.paymentMethod || "",
+        userName: d.userName || d.inmateName || "CONSUMIDOR GERAL",
+        inmateName: d.inmateName || "",
+        userCpf: d.userCpf || "",
+        date: d.date || d.createdAt || "",
+        createdAt: d.createdAt || "",
+        status: d.status || "pending",
+        items: (Array.isArray(d.items) ? d.items : []).map((i) => ({
+          name: i.name || "",
+          quantity: i.quantity || 0,
+          priceAtPurchase: i.priceAtPurchase || 0,
+        })),
+      });
+      if (resultados.length >= LIMITE_RESULTADOS) break;
+    }
+
+    return {
+      ok: true,
+      results: resultados,
+      hasMore: resultados.length >= LIMITE_RESULTADOS,
+      last: resultados.length > 0 ? (resultados[resultados.length - 1].createdAt || "") : "",
+    };
+  } catch (e) {
+    logger.warn("[BuscarPedidosEstorno] Falha:", e.message);
+    throw new HttpsError("unavailable", "Falha ao buscar pedidos para estorno. Tente novamente.");
+  }
+});
+
 /** Admin — estorno/devolução de pedido com carteira. */
 exports.estornarVenda = onCall(async (request) => {
   const caller = await exigirAdminPermissao(request, "sales");
@@ -2259,8 +2381,10 @@ exports.estornarVenda = onCall(async (request) => {
       const caixaRef = caixaAlvo ? caixaAlvo.ref : null;
       const caixaSnap = caixaRef ? await t.get(caixaRef) : null;
       const ehFiado = pedido.paymentMethod === "FIADO";
+      // UNIFICADO: a dívida fiada mora no doc do USUÁRIO (users/<customerAccountId>),
+      // então o estorno reverte lá — nada de chunk paralelo customer_accounts.
       const caRef = ehFiado && pedido.customerAccountId
-        ? db.collection("customer_accounts").doc(pedido.customerAccountId)
+        ? db.collection("users").doc(pedido.customerAccountId)
         : null;
       const caSnap = caRef ? await t.get(caRef) : null;
 
@@ -2400,7 +2524,9 @@ exports.registrarPagamentoConta = onCall({
   if (!customerAccountId) throw new HttpsError("invalid-argument", "Cliente de fiado não informado.");
   if (!(amount > 0)) throw new HttpsError("invalid-argument", "Valor do pagamento deve ser maior que zero.");
 
-  const clienteRef = db.collection("customer_accounts").doc(customerAccountId);
+      // UNIFICADO: a "conta de fiado" É o usuário cadastrado (users/<customerAccountId>),
+  // mesmo universo das demais formas. Dívida/limite/gasto ficam no doc do usuário.
+  const clienteRef = db.collection("users").doc(customerAccountId);
 
   // Sessão de caixa do operador resolvida ANTES da transação (revalidada dentro),
   // mesmo padrão das vendas em dinheiro — cobre cash_sessions E cashier legado.
@@ -2465,6 +2591,57 @@ exports.registrarPagamentoConta = onCall({
   return { ok: true, ...resultado };
 });
 
+/**
+ * Admin — cria um cliente de fiado no universo UNIFICADO (fiado = usuário).
+ * Grava users/<id> com allowCredit, SEM criar credenciais de login (o cliente
+ * pode ser vinculado depois pelo fluxo "provisionar" do registrarUsuario).
+ * Criação 100% SERVER-SIDE (admin SDK ignora as rules — o allow create: if
+ * false permanece nas rules como proteção contra criação arbitrária do cliente).
+ */
+exports.criarClienteFiado = onCall(async (request) => {
+  const caller = await exigirAdminPermissao(request, "users");
+  const nome = String(request.data?.nome || "").trim();
+  const cpf = cleanCpf(request.data?.cpf);
+  const telefone = String(request.data?.telefone || "").trim().slice(0, 20);
+  const creditLimit = arredondar(Number(request.data?.creditLimit) || 0);
+
+  verificarRateLimit("criarClienteFiado:" + caller.id, 20);
+
+  if (nome.length < 3) throw new HttpsError("invalid-argument", "Informe o nome completo do cliente.");
+  if (!(creditLimit > 0)) throw new HttpsError("invalid-argument", "Informe um limite de crédito maior que zero.");
+  if (cpf && cpf.length !== 11) throw new HttpsError("invalid-argument", "CPF inválido.");
+
+  if (cpf.length === 11) {
+    const existente = await usuarioPorCpf(cpf);
+    if (existente) {
+      throw new HttpsError("already-exists", "Já existe um usuário cadastrado com este CPF.");
+    }
+  }
+
+  const ref = db.collection("users").doc();
+  const dados = {
+    authUid: "",
+    name: nome.toUpperCase().slice(0, 80),
+    cpf: cpf || "",
+    email: "",
+    role: "user",
+    status: "active",
+    approved: true,
+    allowCredit: true,
+    creditLimit,
+    currentDebt: 0,
+    weeklySpent: 0,
+    walletBalance: 0,
+    phone: telefone,
+    inmateCpf: "",
+    inmateName: "",
+    createdAt: new Date().toISOString(),
+  };
+  await ref.set(dados);
+  await registrarAudit(caller.id, "CRIAR_CLIENTE_FIADO", { usuarioId: ref.id, nome: dados.name }, { creditLimit });
+  return { ok: true, userId: ref.id };
+});
+
 // ──────────────────────────────────────────────
 // ARQUIVAMENTO (rotina existente)
 // ──────────────────────────────────────────────
@@ -2497,18 +2674,10 @@ async function executarResetSemanal() {
     snapshot = await db.collection("users").where("weeklySpent", ">", 0).limit(500).get();
   }
 
-  // Contas de fiado também têm cota semanal — zera junto (antes ficava acumulado)
-  let totalZeradosFiado = 0;
-  let snapshotFiado = await db.collection("customer_accounts").where("weeklySpent", ">", 0).limit(500).get();
-  while (!snapshotFiado.empty && totalZeradosFiado < 5000) {
-    const batchFiado = db.batch();
-    snapshotFiado.docs.forEach((d) => batchFiado.update(d.ref, { weeklySpent: 0 }));
-    await batchFiado.commit();
-    totalZeradosFiado += snapshotFiado.size;
-    snapshotFiado = await db.collection("customer_accounts").where("weeklySpent", ">", 0).limit(500).get();
-  }
-  if (totalZerados + totalZeradosFiado > 0) {
-    logger.info(`[WeeklyReset] ${totalZerados} usuários e ${totalZeradosFiado} contas de fiado com cota zerada.`);
+  // (coleção customer_accounts removida do sistema — fiado é gravado em users.
+  //  Reset semanal aplica-se somente aos usuários cadastrados.)
+  if (totalZerados > 0) {
+    logger.info(`[WeeklyReset] ${totalZerados} usuários com cota semanal zerada.`);
   }
 
   await settingsRef.set({ lastWeeklyReset: mondayStr }, { merge: true });

@@ -11,7 +11,7 @@ import {
 import { CupomEntrega } from '../components/CupomEntrega';
 import { NotificationSystem } from '../components/NotificationSystem';
 
-import { generatePixPayload, formatarMoeda, compressImageFile } from '../utils';
+import { generatePixPayload, formatarMoeda, compressImageFile, copiarTextoComFallback } from '../utils';
 import { imprimirComPrioridadeFiscal } from '../utils/printUtils';
 import { toDate } from '../utils/dateUtils';
 import { collection, query, where, onSnapshot, orderBy, limit, getDocs, getDocsFromServer } from 'firebase/firestore';
@@ -1260,7 +1260,7 @@ export const UserDashboard: React.FC = () => {
                                                             <p className="text-[10px] font-bold text-red-400 uppercase">PIX indisponível. Fale com a administração.</p>
                                                         </div>
                                                     )}
-                                                    <button onClick={() => { navigator.clipboard.writeText(pixPayload || ''); setPixCopied(true); setTimeout(() => setPixCopied(false), 2000); }} className={`w-full mt-3 py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${pixCopied ? 'bg-emerald-600 text-white' : 'bg-blue-500 text-white'}`}>
+                                                    <button onClick={() => { copiarTextoComFallback(pixPayload || ''); setPixCopied(true); setTimeout(() => setPixCopied(false), 2000); }} className={`w-full mt-3 py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${pixCopied ? 'bg-emerald-600 text-white' : 'bg-blue-500 text-white'}`}>
                                                         {pixCopied ? <><CheckCircle size={12} /> COPIADO!</> : <><RefreshCcw size={12} /> Copiar PIX</>}
                                                     </button>
                                                 </div>
@@ -1718,7 +1718,7 @@ export const UserDashboard: React.FC = () => {
                                                 <p className="text-[10px] font-bold text-red-400 uppercase">PIX indisponível. Fale com a administração.</p>
                                             </div>
                                         )}
-                                        <button onClick={() => { navigator.clipboard.writeText(pixPayload || ''); setPixCopied(true); setTimeout(() => setPixCopied(false), 2000); }} className={`w-full mt-3 py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${pixCopied ? 'bg-emerald-600 text-white' : 'bg-blue-500 text-white'}`}>
+                                        <button onClick={() => { copiarTextoComFallback(pixPayload || ''); setPixCopied(true); setTimeout(() => setPixCopied(false), 2000); }} className={`w-full mt-3 py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${pixCopied ? 'bg-emerald-600 text-white' : 'bg-blue-500 text-white'}`}>
                                             {pixCopied ? <><CheckCircle size={12} /> COPIADO!</> : <><RefreshCcw size={12} /> Copiar PIX</>}
                                         </button>
                                     </div>
@@ -1848,7 +1848,7 @@ export const UserDashboard: React.FC = () => {
                                                         <input readOnly value={pixPayload} className="w-full text-[10px] font-mono text-slate-500 bg-transparent outline-none text-center select-all mb-1 break-all" onClick={(e) => (e.target as HTMLInputElement).select()} />
                                                         <button
                                                             onClick={() => {
-                                                                navigator.clipboard.writeText(pixPayload);
+                                                                    copiarTextoComFallback(pixPayload);
                                                                 setPixCopied(true);
                                                                 setTimeout(() => setPixCopied(false), 2000);
                                                             }}

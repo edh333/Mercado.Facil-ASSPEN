@@ -264,6 +264,34 @@ export const isAdminRole = (role?: string | null | undefined): boolean => {
   return r === 'admin' || r === 'master';
 };
 
+/** Copia texto para a área de transferência com fallback para navegadores/contextos
+ *  sem a API async (HTTP, PWA antiga, WebView): tenta navigator.clipboard primeiro
+ *  e, se indisponível/falhar, usa um textarea temporário + document.execCommand("copy"). */
+export const copiarTextoComFallback = async (texto: string): Promise<boolean> => {
+  if (typeof navigator !== "undefined" && navigator.clipboard && navigator.clipboard.writeText) {
+    try {
+      await navigator.clipboard.writeText(texto);
+      return true;
+    } catch { /* segue para o fallback */ }
+  }
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = String(texto);
+    ta.setAttribute("readonly", "");
+    ta.style.position = "fixed";
+    ta.style.top = "-9999px";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, ta.value.length);
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return !!ok;
+  } catch {
+    return false;
+  }
+};
+
 /** Converte entrada de valor monetário (aceita vírgula ou ponto) em número.
  *  Com vírgula: o ponto é separador de milhar ("1.234,56"). Sem vírgula: o
  *  ponto é decimal ("129.90") — padrão de teclados internacionais. */

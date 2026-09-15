@@ -187,12 +187,6 @@ function isAdmin() {
       allow write: if isAdmin();
     }
 
-    // ── CONTAS DE CLIENTES (fiado) ──
-    match /customer_accounts/{accountId} {
-      allow read: if isAdmin();
-      allow write: if isAdmin();
-    }
-
     // ── DESPESAS ──
     match /expenses/{expenseId} {
       allow read, write: if isAdmin();

@@ -69,6 +69,13 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     operationType,
     path
   }
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  // Log SEM dados pessoais (LGPD): nunca imprime email/UID completo no console —
+  // apenas o ID truncado para correlação no suporte.
+  console.error('Firestore Error: ', {
+    error: errInfo.error,
+    operationType,
+    path,
+    userId: errInfo.authInfo.userId ? `${String(errInfo.authInfo.userId).slice(0, 8)}…` : undefined,
+  });
   return errInfo;
 }

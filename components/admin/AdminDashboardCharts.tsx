@@ -57,8 +57,12 @@ export const AdminDashboardCharts: React.FC = () => {
         const cutoff = thirtyDaysAgo.toISOString();
 
         const [activeOrdersSnap, archivedSnapshot, discrepanciesSnap] = await Promise.all([
-          getDocs(query(collection(db, 'orders'), where('createdAt', '>=', cutoff), orderBy('createdAt', 'desc'))),
-          getDocs(query(collection(db, 'historico_geral'), where('origem', '==', 'orders'), where('arquivadoEm', '>=', cutoff), orderBy('arquivadoEm', 'desc'))),
+          // Sem limite fixo, a query de BI crescia com o tempo (pedidos dos últimos
+          // 30 dias somados ao arquivo). Cap preventivo de 10 mil pedidos por janela —
+          // suporta operação intensa sem risco de leitura gigante/OOM. Se a unidade
+          // ultrapassar esse volume, o dashboard deve migrar para agregação server-side.
+          getDocs(query(collection(db, 'orders'), where('createdAt', '>=', cutoff), orderBy('createdAt', 'desc'), limit(10000))),
+          getDocs(query(collection(db, 'historico_geral'), where('origem', '==', 'orders'), where('arquivadoEm', '>=', cutoff), orderBy('arquivadoEm', 'desc'), limit(10000))),
           // Quebras acumulam para sempre; as 500 mais recentes bastam para o alerta.
           getDocs(query(collection(db, 'cash_sessions'), where('hasDiscrepancy', '==', true), limit(500))),
         ]);

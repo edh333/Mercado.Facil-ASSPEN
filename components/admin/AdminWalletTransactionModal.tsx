@@ -1,7 +1,7 @@
 import React from 'react';
 import { Printer, CheckCircle, XCircle, User, UserCheck, DollarSign, ImageIcon, ArrowRight, Activity, FileText, Loader2, ExternalLink, AlertTriangle, Download, Shield, ShieldCheck, Copy, Ban } from 'lucide-react';
 import { WalletTransaction } from '../../types';
-import { formatarMoeda } from '../../utils';
+import { formatarMoeda, copiarTextoComFallback } from '../../utils';
 import { ModalShell } from '../ui/ModalShell';
 import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
 import { NotaPromissoriaA4 } from '../NotaPromissoriaA4';
@@ -310,7 +310,7 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
           </div>
           {temHash && (
             <button
-              onClick={() => { try { navigator.clipboard?.writeText(tx.proofHash || ''); } catch { /* ignore */ } }}
+              onClick={() => copiarTextoComFallback(tx.proofHash || '')}
               className="w-full py-2 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-slate-700 active:scale-95 transition-all flex items-center justify-center gap-2"
             >
               <Copy size={12}/> Copiar Hash Completo

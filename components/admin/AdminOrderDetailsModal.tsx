@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { Order, OrderStatus } from '../../types';
-import { formatarMoeda, formatCPF } from '../../utils';
+import { formatarMoeda, formatCPF, copiarTextoComFallback } from '../../utils';
 import { abrirJanelaImpressao } from '../../utils/printUtils';
 import { ModalShell } from '../ui/ModalShell';
 import ImagePreviewModal from '../ImagePreviewModal';
@@ -528,7 +528,7 @@ export const AdminOrderDetailsModal: React.FC<AdminOrderDetailsModalProps> = ({
                   </div>
                   {order.proofHash && (
                     <button
-                      onClick={() => { try { navigator.clipboard?.writeText(order.proofHash || ''); } catch { /* ignore */ } }}
+                      onClick={() => copiarTextoComFallback(order.proofHash || '')}
                       className="w-full py-2 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-slate-700 active:scale-95 transition-all flex items-center justify-center gap-2"
                     >
                       <Copy size={12}/> Copiar Hash Completo

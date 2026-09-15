@@ -2,6 +2,8 @@ import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
+export type ModalTone = 'primary' | 'danger' | 'warning' | 'info' | 'success';
+
 interface ModalShellProps {
   open: boolean;
   onClose: () => void;
@@ -9,6 +11,7 @@ interface ModalShellProps {
   subtitle?: string;
   icon?: React.ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
+  tone?: ModalTone;
   actions?: React.ReactNode;
   children: React.ReactNode;
   footer?: React.ReactNode;
@@ -24,6 +27,46 @@ const SIZE_CLASS: Record<NonNullable<ModalShellProps['size']>, string> = {
   xl: 'max-w-6xl',
 };
 
+// Identidade visual por tom semântico — destrutivo = vermelho, aviso = âmbar,
+// informativo = azul, sucesso = esmeralda, neutro = escuro slate.
+const TONE_STYLES: Record<ModalTone, { header: string; tile: string; accent: string; subtitle: string; shadow: string }> = {
+  primary: {
+    header: 'from-[#0f172a] via-[#1e293b] to-[#0f172a]',
+    tile: 'from-emerald-500 to-emerald-600',
+    accent: 'from-emerald-500 to-emerald-600',
+    subtitle: 'text-slate-400',
+    shadow: 'shadow-emerald-500/30',
+  },
+  danger: {
+    header: 'from-red-600 via-red-600 to-red-700',
+    tile: 'bg-white/15',
+    accent: 'from-red-600 to-red-700',
+    subtitle: 'text-white/60',
+    shadow: 'shadow-red-600/30',
+  },
+  warning: {
+    header: 'from-amber-500 via-amber-500 to-amber-600',
+    tile: 'bg-white/15',
+    accent: 'from-amber-500 to-amber-600',
+    subtitle: 'text-white/70',
+    shadow: 'shadow-amber-500/30',
+  },
+  info: {
+    header: 'from-sky-600 via-sky-600 to-sky-700',
+    tile: 'bg-white/15',
+    accent: 'from-sky-500 to-sky-600',
+    subtitle: 'text-white/70',
+    shadow: 'shadow-sky-500/30',
+  },
+  success: {
+    header: 'from-emerald-600 via-emerald-600 to-emerald-700',
+    tile: 'bg-white/15',
+    accent: 'from-emerald-500 to-emerald-600',
+    subtitle: 'text-white/70',
+    shadow: 'shadow-emerald-600/30',
+  },
+};
+
 export const ModalShell: React.FC<ModalShellProps> = ({
   open,
   onClose,
@@ -31,13 +74,15 @@ export const ModalShell: React.FC<ModalShellProps> = ({
   subtitle,
   icon,
   size = 'md',
+  tone = 'primary',
   actions,
   children,
   footer,
   closeOnBackdrop = true,
   bodyClassName = '',
-  headerColor = 'from-[#0f172a] via-[#1e293b] to-[#0f172a]',
+  headerColor,
 }) => {
+  const toneStyle = TONE_STYLES[tone] ?? TONE_STYLES.primary;
   // Refs e hooks SEMPRE antes de qualquer return condicional
   const innerRef = useRef<HTMLDivElement>(null);
 
@@ -93,19 +138,19 @@ export const ModalShell: React.FC<ModalShellProps> = ({
         tabIndex={-1}
         className={`modal-content modal-shell-fixed relative w-full ${SIZE_CLASS[size]} bg-white overflow-hidden flex flex-col max-h-[90vh] rounded-2xl shadow-2xl animate-scaleIn outline-none`}
       >
-        {/* TOP ACCENT BAR — identidade esmeralda do sistema */}
-        <div className="h-1.5 shrink-0 bg-gradient-to-r from-emerald-500 to-emerald-600"></div>
+        {/* TOP ACCENT BAR — identidade visual por tom */}
+        <div className={`h-1.5 shrink-0 bg-gradient-to-r ${toneStyle.accent}`}></div>
 
-        <div className={`px-6 py-4 shrink-0 flex items-center justify-between gap-4 bg-gradient-to-r ${headerColor} text-white`}>
+        <div className={`px-6 py-4 shrink-0 flex items-center justify-between gap-4 bg-gradient-to-r ${headerColor ?? toneStyle.header} text-white`}>
           <div className="flex items-center gap-4 min-w-0">
             {icon && (
-              <div className="w-11 h-11 shrink-0 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-500/30">
+              <div className={`w-11 h-11 shrink-0 rounded-2xl flex items-center justify-center text-white shadow-lg ${toneStyle.shadow} ${toneStyle.tile.startsWith('bg-') ? toneStyle.tile : `bg-gradient-to-br ${toneStyle.tile}`}`}>
                 {icon}
               </div>
             )}
             <div className="min-w-0">
               <h3 className="font-black uppercase tracking-wide text-sm truncate">{title}</h3>
-              {subtitle && <p className="text-[10px] font-bold text-slate-400 truncate">{subtitle}</p>}
+              {subtitle && <p className={`text-[10px] font-bold ${toneStyle.subtitle} truncate`}>{subtitle}</p>}
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">

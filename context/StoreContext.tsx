@@ -32,6 +32,7 @@ const fnRegistrarPedidoPix = httpsCallable(functions, 'registrarPedidoPix');
 const fnAprovarPedidoPix = httpsCallable(functions, 'aprovarPedidoPix');
 const fnProcessarVendaAdmin = httpsCallable(functions, 'processarVendaAdmin');
 const fnEstornarVenda = httpsCallable(functions, 'estornarVenda');
+const fnBuscarPedidosParaEstorno = httpsCallable(functions, 'buscarPedidosParaEstorno');
 const fnValidarSenhaMestra = httpsCallable(functions, 'validarSenhaMestra');
 const fnDefinirSenhaMestra = httpsCallable(functions, 'definirSenhaMestra');
 const fnResetarSistemaTotal = httpsCallable(functions, 'resetarSistemaTotal');
@@ -167,6 +168,7 @@ interface StoreContextType {
     defineMasterPassword: (password: string) => Promise<boolean>;
     masterPasswordStatus: () => Promise<{ definida: boolean }>;
     updateAdminPassword: (newPassword: string) => Promise<void>;
+    buscarPedidosParaEstorno: (opts?: { term?: string; startAfter?: string }) => Promise<{ results: Order[]; hasMore: boolean; last: string }>;
 
     preRegisteredInmates: { id: string, name: string, cpf: string, unit?: string, gallery?: string, cell?: string, observations?: string, status?: 'ATIVO' | 'INATIVO' }[];
     addPreRegisteredInmate: (inmate: { name: string, cpf: string, unit?: string, gallery?: string, cell?: string, observations?: string }) => Promise<void>;
@@ -177,6 +179,7 @@ interface StoreContextType {
     realizarSaque: (valor: number) => Promise<boolean>;
     verificarCredito: (valor: number) => boolean;
     refundOrder: (orderId: string, reason?: string) => Promise<void>;
+    estornarPedido: (orderId: string, motivo: string) => Promise<void>;
     resetCredits: () => Promise<void>;
     mergeDuplicateProducts: () => Promise<void>;
     adminDirectSale: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO', total: number, payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO'; amount: number }[], change?: number, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string) => Promise<Order | null>;
@@ -999,7 +1002,36 @@ return false;
             showNotification(`Pedido #${order.id.slice(0,6)} devolvido com sucesso!`, 'success');
         } catch (e: any) {
             console.error(e);
-            throw new Error("Erro ao processar devolução: " + e.message);
+            // 'internal'/unavailable é resposta genérica do runtime (ex.: functions
+            // sem deploy ou exceção não mapeada) — mostra algo útil em vez de "internal".
+            const msg = String(e?.message || '');
+            if (!msg || msg === 'internal' || msg === 'INTERNAL' || msg.includes('unavailable') || msg.includes('UNAVAILABLE')) {
+                throw new Error('Falha ao processar a devolução. Verifique se as Cloud Functions estão atualizadas (deploy) e tente novamente.');
+            }
+            throw new Error("Erro ao processar devolução: " + msg);
+        }
+    };
+
+    const estornarPedido = async (orderId: string, motivo: string = 'Devolução administrativa') => {
+        await fnEstornarVenda({ orderId, motivo });
+        setOrders(prev => prev.map(o =>
+            o.id === orderId ? { ...o, status: OrderStatus.CANCELLED, refundReason: motivo } : o
+        ));
+        showNotification(`Pedido #${orderId.slice(0, 6)} devolvido com sucesso!`, 'success');
+    };
+
+    const buscarPedidosParaEstorno = async (opts?: { term?: string; startAfter?: string }) => {
+        try {
+            const res = await fnBuscarPedidosParaEstorno({ term: opts?.term || '', startAfter: opts?.startAfter || '' }) as any;
+            const data = res.data || {};
+            return {
+                results: (data.results || []) as Order[],
+                hasMore: !!data.hasMore,
+                last: String(data.last || ''),
+            };
+        } catch (e: any) {
+            console.warn('[buscarPedidosParaEstorno]', e);
+            throw new Error("Falha ao buscar pedidos. Verifique sua conexão e tente novamente.");
         }
     };
 
@@ -1587,16 +1619,27 @@ return false;
         if (currentUser?.role !== UserRole.ADMIN) return;
         try {
             const allRefs: import('firebase/firestore').DocumentReference[] = [];
-            
-            const pSnap = await getDocs(collection(db, 'products'));
-            pSnap.docs.forEach(d => {
-                if (d.data().deleted === undefined) allRefs.push(d.ref);
-            });
 
-            const uSnap = await getDocs(collection(db, 'users'));
-            uSnap.docs.forEach(d => {
-                if (d.data().deleted === undefined) allRefs.push(d.ref);
-            });
+            // Varredura PAGINADA (500 por página por __name__): evita o erro de
+            // leitura gigante em coleções grandes — mesmo comportamento, sem OOM.
+            const scanCollection = async (col: import('firebase/firestore').CollectionReference) => {
+                let cursor: any = null;
+                for (;;) {
+                    const q = cursor
+                        ? query(col, orderBy('__name__'), startAfter(cursor), limit(500))
+                        : query(col, orderBy('__name__'), limit(500));
+                    const snap = await getDocs(q);
+                    if (snap.empty) break;
+                    snap.docs.forEach(d => {
+                        if (d.data().deleted === undefined) allRefs.push(d.ref);
+                    });
+                    if (snap.size < 500) break;
+                    cursor = snap.docs[snap.docs.length - 1];
+                }
+            };
+
+            await scanCollection(collection(db, 'products'));
+            await scanCollection(collection(db, 'users'));
 
             let count = 0;
             for (let i = 0; i < allRefs.length; i += 500) {
@@ -2777,7 +2820,7 @@ if (currentUser?.role !== UserRole.ADMIN && currentUser) {
             processInvoiceImport, importXmlProduct, previewXmlImport, sanitizeCatalog, updateAppConfig, updateSettings: updateAppConfig,
             downloadBackup, backupSystem: downloadBackup, resetSystem, resetStock, resetFinance, resetCredits, checkPermission, sendSystemMessage, sendMessage, markMessageRead, showNotification, removeNotification,
             depositToWallet, approveWalletTransaction, rejectWalletTransaction, getWalletTransactions, withdrawWalletCredit, attachAdminProof, reenviarComprovante,
-            validateMasterPassword, defineMasterPassword, masterPasswordStatus, addPreRegisteredInmate, updatePreRegisteredInmate, deletePreRegisteredInmate, preRegisteredInmates, refundOrder, importInmatesCsv, updateAdminPassword,
+            validateMasterPassword, defineMasterPassword, masterPasswordStatus, addPreRegisteredInmate, updatePreRegisteredInmate, deletePreRegisteredInmate, preRegisteredInmates, refundOrder, estornarPedido, buscarPedidosParaEstorno, importInmatesCsv, updateAdminPassword,
             isInstallable: !!deferredPrompt, installApp,
             isLoggingOut,
             mergeDuplicateProducts: async () => {

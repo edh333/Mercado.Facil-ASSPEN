@@ -1,64 +1,85 @@
 @echo off
 setlocal EnableExtensions
-title Mercado Facil - Deploy
-
+title Mercado Facil - Deploy Completo
 cd /d "%~dp0"
 
-echo ============================================================
-echo   MERCADO FACIL - DEPLOY PROFISSIONAL
-echo ============================================================
-echo.
-
-where node >nul 2>&1
-if errorlevel 1 (
-    echo [ERRO] Node.js nao encontrado no PATH.
-    goto :fail
-)
-
-where firebase >nul 2>&1
-if errorlevel 1 (
-    echo [ERRO] Firebase CLI nao encontrada. Instale com: npm install -g firebase-tools
-    goto :fail
-)
-
-echo [1/5] Verificando dependencias...
-if not exist "node_modules\" (
-    echo        Instalando pacotes (npm install^)...
-    call npm install || goto :fail
-)
-if not exist "functions\node_modules\" (
-    echo        Instalando dependencias das Cloud Functions (npm install em functions^)...
-    call npm --prefix functions install || goto :fail
-)
-
-echo [2/5] Checagem de tipos (tsc^)...
-call npm run lint || goto :fail
-
-echo [3/5] Testes...
-call npm test || goto :fail
-call npm --prefix functions test || goto :fail
-
-echo [3.5/5] Sintaxe das Cloud Functions (node -c^)...
-call node -c "functions\index.js" || goto :fail
-
-echo [4/5] Build de producao...
-call npm run build || goto :fail
-
-echo [5/5] Publicando no Firebase (hosting + firestore + storage[main] + functions^)...
-call firebase deploy --only "hosting,firestore,storage:main,functions" || goto :fail
+set "PROJ=mercado-facil-mt"
 
 echo.
-echo ============================================================
-echo   DEPLOY CONCLUIDO COM SUCESSO!
-echo ============================================================
-goto :end
-
-:fail
+echo  ==================================================
+echo     MERCADO FACIL - DEPLOY COMPLETO
+echo     Projeto: %PROJ%
+echo  ==================================================
 echo.
-echo ============================================================
-echo   DEPLOY INTERROMPIDO - corrija o erro acima e rode novamente
-echo ============================================================
 
-:end
+if not exist node_modules goto :instala
+if not exist functions\node_modules goto :instala
+
+goto :prepara
+
+:instala
+echo  [1/7] Instalando dependencias...
+call npm install
+call npm --prefix functions install
+if errorlevel 1 goto :falha
+
+:prepara
+echo  [2/7] Checagem de tipos...
+call npm run lint
+if errorlevel 1 goto :falha
+
+echo  [3/7] Testes unitarios...
+call npm test
+if errorlevel 1 goto :falha
+call npm --prefix functions test
+if errorlevel 1 goto :falha
+
+echo  [4/7] Sintaxe das Cloud Functions...
+node -c functions\index.js
+if errorlevel 1 goto :falha
+
+echo  [5/7] Build de producao...
+call npm run build
+if errorlevel 1 goto :falha
+
+echo  [6/7] Publicando Cloud Functions...
+firebase deploy --only functions
+if errorlevel 1 goto :falha
+
+echo  [7/7] Publicando Regras + Storage + Hosting...
+firebase deploy --only firestore,storage:main,hosting
+if errorlevel 1 goto :falha
+
+echo.
+echo  ==================================================
+echo     DEPLOY CONCLUIDO COM SUCESSO!
+echo  ==================================================
+echo.
+echo  PASSO OBRIGATORIO A POS-DEPLOY:
+echo  - Roteie as 2 senhas expostas no historico do repositorio.
+echo  - Teste no PDV real: PIX / MISTA / CASH / FIADO.
+echo  - Teste estorno (F9 e aba Ordens), ambos com senha.
+echo.
+echo  Se alguma venda ainda falhar, a mensagem que aparece
+echo  agora revela a causa exata. Me mande o texto dela.
 echo.
 pause
+goto :fim
+
+:falha
+echo.
+echo  ==================================================
+echo    DEPLOY INTERROMPIDO - veja o erro acima
+echo  ==================================================
+echo.
+echo  Dica: se o erro for sobre "cloudresourcemanager" ou
+echo  "Failed to make request", habilite a API no navegador:
+echo    start https://console.cloud.google.com/apis/library/cloudresourcemanager.googleapis.com?project=%PROJ%
+echo.
+echo  Comando manual equivalente se este arquivo fechar:
+echo    npm run lint ^&^& npm test ^&^& npm --prefix functions test ^&^& npm run build ^&^& firebase deploy --only functions ^&^& firebase deploy --only hosting
+echo.
+pause
+
+:fim
+endlocal

@@ -946,8 +946,11 @@ export function AdminDashboard() {
                     // Busca TODOS os produtos do Firestore (sem limite do productsLimit)
                     // para garantir que o catálogo mostre tudo, não apenas os primeiros 500.
                     try {
-                      const { getDocs, query: fsQuery, collection, orderBy, where } = await import('firebase/firestore');
-                      const snap = await getDocs(fsQuery(collection(db, 'products'), orderBy('name', 'asc')));
+                      const { getDocs, query: fsQuery, collection, orderBy, where, limit } = await import('firebase/firestore');
+                      // Cap preventivo: evita leitura gigante de catálogo sem limite.
+                      // Um catálogo de PDV raramente excede 5 mil SKUs; acima disso a
+                      // impressão deve evoluir para faixas (ex.: por categoria).
+                      const snap = await getDocs(fsQuery(collection(db, 'products'), orderBy('name', 'asc'), limit(5000)));
                       const allProducts = snap.docs.map(d => ({ ...d.data(), id: d.id } as Product))
                         .filter(p => (p as any).deleted !== true);
                       if (allProducts.length === 0) {

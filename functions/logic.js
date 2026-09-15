@@ -63,8 +63,12 @@ function calcularPartesPagamento(paymentMethod, payments, total, isConsumer) {
       if (p.method === "CASH") cashPortion = arredondar(cashPortion + Number(p.amount));
     }
     const somaPagamentos = arredondar((payments || []).reduce((s, p) => s + (Number(p.amount) || 0), 0));
-    if (somaPagamentos !== total) throw new Error("A soma dos pagamentos não confere com o total.");
-    if (walletPortion > total) throw new Error("Valor de carteira excede o total.");
+    // Tolerância de ±R$ 0,02: o operador digita valores a partir do total exibido
+    // no PDV (cache local), enquanto o total AQUI é recalculado dos preços no
+    // servidor. Diferença de centavo (promo/preço alterado, arredondamento)
+    // NÃO pode rejeitar a venda com "tente novamente".
+    if (Math.abs(somaPagamentos - total) > 0.02) throw new Error("A soma dos pagamentos não confere com o total.");
+    if (walletPortion > total + 0.02) throw new Error("Valor de carteira excede o total.");
     if (payments.some((p) => p.method === "FIADO" || p.method === "CARD")) {
       throw new Error("FIADO e CARD não são suportados em pagamento misto. Use somente PIX, WALLET e/ou CASH.");
     }

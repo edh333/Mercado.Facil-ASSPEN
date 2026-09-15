@@ -105,6 +105,14 @@ describe("calcularPartesPagamento", () => {
     ], 25, false)).toThrow("A soma dos pagamentos não confere");
   });
 
+  it("MIXED: diferença de centavos (preço/promo recalculado) não bloqueia", () => {
+    const partes = calcularPartesPagamento("MIXED", [
+      { method: "WALLET", amount: 10.5 },
+      { method: "CASH", amount: 15.25 },
+    ], 25.76, false);
+    expect(partes.walletPortion + partes.cashPortion).toBeCloseTo(25.75, 2);
+  });
+
   it("MIXED: FIADO e CARD não são permitidos", () => {
     expect(() => calcularPartesPagamento("MIXED", [
       { method: "CASH", amount: 5 },

@@ -305,7 +305,8 @@ export async function getCashDiscrepanciesReport(): Promise<{
     const q = query(
       collection(db, "cash_sessions"),
       where("hasDiscrepancy", "==", true),
-      orderBy("closedAt", "desc")
+      orderBy("closedAt", "desc"),
+      limit(2000)
     );
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc) => {
