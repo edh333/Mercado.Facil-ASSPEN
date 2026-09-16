@@ -385,16 +385,19 @@ export function AdminDashboard() {
   const handleConfirmDirectSale = async (
     targetUserId: string, 
     items: any[], 
-    paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'MIXED' | 'FIADO', 
+    paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'MIXED' | 'FIADO' | 'FIADO_30', 
     total: number, 
-    payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO'; amount: number }[], 
+    payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30'; amount: number }[], 
     change?: number,
     customerAccountId?: string,
     clientToken?: string,
     jointWallet?: { secondUserId: string; secondWalletAmount: number },
-    cardBrand?: string
+    cardBrand?: string,
+    fiado30UserId?: string,
+    senhaPrimaria?: string,
+    senhaSecundaria?: string
   ) => {
-    const res = await adminDirectSale(targetUserId, items, paymentMethod, total, payments, change, customerAccountId, clientToken, jointWallet, cardBrand);
+    const res = await adminDirectSale(targetUserId, items, paymentMethod, total, payments, change, customerAccountId, clientToken, jointWallet, cardBrand, fiado30UserId, senhaPrimaria, senhaSecundaria);
     if (!res) {
       throw new Error('Erro ao processar venda no caixa.');
     }

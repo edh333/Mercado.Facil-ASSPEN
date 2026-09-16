@@ -90,3 +90,4 @@ try {
 export const db = firestoreDb;
 export const auth = getAuth(app);
 export const storage = getStorage(app);
+export const FIREBASE_API_KEY = firebaseConfig.apiKey;

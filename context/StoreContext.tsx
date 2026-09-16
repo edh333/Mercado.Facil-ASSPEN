@@ -7,7 +7,7 @@ import { comprimirImagem } from '../utils/imageCompress';
 import { computeProofMeta, ProofMeta, isProofSuspiciouslySmall } from '../utils/fileHash';
 import { toDate } from '../utils/dateUtils';
 import { ASSPEN_INFO, INITIAL_UNITS } from '../constants';
-import { db, auth, storage } from '../firebase';
+import { db, auth, storage, FIREBASE_API_KEY } from '../firebase';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -34,6 +34,7 @@ const fnProcessarVendaAdmin = httpsCallable(functions, 'processarVendaAdmin');
 const fnEstornarVenda = httpsCallable(functions, 'estornarVenda');
 const fnBuscarPedidosParaEstorno = httpsCallable(functions, 'buscarPedidosParaEstorno');
 const fnValidarSenhaMestra = httpsCallable(functions, 'validarSenhaMestra');
+const fnValidarDuplaSenhaMestra = httpsCallable(functions, 'validarDuplaSenhaMestra');
 const fnDefinirSenhaMestra = httpsCallable(functions, 'definirSenhaMestra');
 const fnResetarSistemaTotal = httpsCallable(functions, 'resetarSistemaTotal');
 const fnZerarCarteiras = httpsCallable(functions, 'zerarCarteiras');
@@ -165,6 +166,7 @@ interface StoreContextType {
     isInstallable: boolean;
     installApp: () => Promise<void>;
     validateMasterPassword: (password: string) => Promise<boolean>;
+    validateDualMasterPassword: (senhaPrimaria: string, senhaSecundaria: string) => Promise<boolean>;
     defineMasterPassword: (password: string) => Promise<boolean>;
     masterPasswordStatus: () => Promise<{ definida: boolean }>;
     updateAdminPassword: (newPassword: string) => Promise<void>;
@@ -182,7 +184,7 @@ interface StoreContextType {
     estornarPedido: (orderId: string, motivo: string) => Promise<void>;
     resetCredits: () => Promise<void>;
     mergeDuplicateProducts: () => Promise<void>;
-    adminDirectSale: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30', total: number, payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30'; amount: number }[], change?: number, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string) => Promise<Order | null>;
+    adminDirectSale: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30', total: number, payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30'; amount: number }[], change?: number, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string, fiado30UserId?: string, senhaPrimaria?: string, senhaSecundaria?: string) => Promise<Order | null>;
     loadMoreOrders: () => void;
     loadMoreExpenses: () => void;
     ordersLimit: number;
@@ -2189,6 +2191,16 @@ return false;
         }
     };
 
+    const validateDualMasterPassword = async (senhaPrimaria: string, senhaSecundaria: string) => {
+        try {
+            const res = await fnValidarDuplaSenhaMestra({ senhaPrimaria: senhaPrimaria || '', senhaSecundaria: senhaSecundaria || '', apiKey: FIREBASE_API_KEY || '' }) as any;
+            return !!res.data?.ok;
+        } catch (e) {
+            console.warn('[validateDualMasterPassword]', e);
+            return false;
+        }
+    };
+
     const defineMasterPassword = async (pass: string) => {
         try {
             const res = await fnDefinirSenhaMestra({ senha: pass || '' }) as any;
@@ -2564,6 +2576,7 @@ return false;
                         change: v.change ?? undefined,
                         customerAccountId: v.customerAccountId || undefined,
                         cardBrand: v.paymentMethod === 'CARD' ? (v.cardBrand || undefined) : undefined,
+                        origemOffline: true,
                     });
                     const pedido = (res.data as any)?.order;
                     if (!pedido) throw new Error('Servidor não confirmou a venda.');
@@ -2820,7 +2833,7 @@ if (currentUser?.role !== UserRole.ADMIN && currentUser) {
             processInvoiceImport, importXmlProduct, previewXmlImport, sanitizeCatalog, updateAppConfig, updateSettings: updateAppConfig,
             downloadBackup, backupSystem: downloadBackup, resetSystem, resetStock, resetFinance, resetCredits, checkPermission, sendSystemMessage, sendMessage, markMessageRead, showNotification, removeNotification,
             depositToWallet, approveWalletTransaction, rejectWalletTransaction, getWalletTransactions, withdrawWalletCredit, attachAdminProof, reenviarComprovante,
-            validateMasterPassword, defineMasterPassword, masterPasswordStatus, addPreRegisteredInmate, updatePreRegisteredInmate, deletePreRegisteredInmate, preRegisteredInmates, refundOrder, estornarPedido, buscarPedidosParaEstorno, importInmatesCsv, updateAdminPassword,
+            validateMasterPassword, validateDualMasterPassword, defineMasterPassword, masterPasswordStatus, addPreRegisteredInmate, updatePreRegisteredInmate, deletePreRegisteredInmate, preRegisteredInmates, refundOrder, estornarPedido, buscarPedidosParaEstorno, importInmatesCsv, updateAdminPassword,
             isInstallable: !!deferredPrompt, installApp,
             isLoggingOut,
             mergeDuplicateProducts: async () => {
@@ -2879,7 +2892,7 @@ if (currentUser?.role !== UserRole.ADMIN && currentUser) {
                     setIsLoading(false);
                 }
             },
-            adminDirectSale: async (targetUserId, items, paymentMethod, total, payments: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30'; amount: number }[] | undefined, change, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string) => {
+            adminDirectSale: async (targetUserId, items, paymentMethod, total, payments: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30'; amount: number }[] | undefined, change, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string, fiado30UserId?: string, senhaPrimaria?: string, senhaSecundaria?: string) => {
                 if (!currentUser || currentUser.role !== UserRole.ADMIN) {
                     throw new Error("Acesso restrito a administradores.");
                 }
@@ -2921,7 +2934,10 @@ if (currentUser?.role !== UserRole.ADMIN && currentUser) {
                         change: change ?? undefined,
                         customerAccountId: customerAccountId || undefined,
                         jointWallet: jointWallet || undefined,
-                        cardBrand: paymentMethod === 'CARD' ? (cardBrand || '') : undefined
+                        cardBrand: paymentMethod === 'CARD' ? (cardBrand || '') : undefined,
+                        senhaPrimaria: senhaPrimaria || undefined,
+                        senhaSecundaria: senhaSecundaria || undefined,
+                        apiKey: (paymentMethod === 'FIADO' || paymentMethod === 'FIADO_30') ? (FIREBASE_API_KEY || undefined) : undefined
                     });
                     const data = res.data as any;
                     const createdOrder = cleanObject(data?.order || null);

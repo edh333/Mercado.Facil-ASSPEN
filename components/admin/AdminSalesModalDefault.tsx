@@ -22,7 +22,7 @@ interface AdminSalesModalProps {
   users: User[];
   products: Product[];
   orders?: Order[];
-  onConfirm: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30', total: number, payments?: {method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30', amount: number}[], change?: number, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string, fiado30UserId?: string) => Promise<any>;
+  onConfirm: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30', total: number, payments?: {method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30', amount: number}[], change?: number, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string, fiado30UserId?: string, senhaPrimaria?: string, senhaSecundaria?: string) => Promise<any>;
   onConfirmOffline?: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30', total: number, payments?: {method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30', amount: number}[], change?: number, customerAccountId?: string, cardBrand?: string, fiado30UserId?: string) => Promise<any>;
   setPrintOrder?: (order: any) => void;
   settings?: AppConfig;
@@ -58,7 +58,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
   const [produtoPrecoDinamico, setProdutoPrecoDinamico] = useState<{ produto: Product; preco: string } | null>(null);
 
   // ── Novas opções PDV: estorno, última venda, suspensas ──
-  const { refundOrder, showNotification, validateMasterPassword } = useApp();
+  const { refundOrder, showNotification, validateMasterPassword, validateDualMasterPassword } = useApp();
   const [ultimaVenda, setUltimaVenda] = useState<Order | null>(null);
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [refundSelected, setRefundSelected] = useState<Order | null>(null);
@@ -93,17 +93,19 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
   const [customerAccountSearch, setCustomerAccountSearch] = useState('');
   const [customerAccountsLoaded, setCustomerAccountsLoaded] = useState(false);
 
-  // ── Fiado: confirmação de senha (admin/secundária) antes de finalizar ──
+  // ── Fiado: confirmação de DUPLA senha (primária + secundária) antes de finalizar ──
   const [confirmandoFiado, setConfirmandoFiado] = useState(false);
-  const [senhaFiado, setSenhaFiado] = useState('');
+  const [senhaFiadoPrimaria, setSenhaFiadoPrimaria] = useState('');
+  const [senhaFiadoSecundaria, setSenhaFiadoSecundaria] = useState('');
   const [senhaFiadoErro, setSenhaFiadoErro] = useState('');
   const [senhaFiadoProcessando, setSenhaFiadoProcessando] = useState(false);
 
-  // ── Fiado 30 dias: seleção de usuário + senha mestra ──
+  // ── Fiado 30 dias: seleção de usuário + DUPLA senha mestra ──
   const [fiado30UserId, setFiado30UserId] = useState<string>('');
   const [fiado30Search, setFiado30Search] = useState('');
   const [confirmandoFiado30, setConfirmandoFiado30] = useState(false);
-  const [senhaFiado30, setSenhaFiado30] = useState('');
+  const [senhaFiado30Primaria, setSenhaFiado30Primaria] = useState('');
+  const [senhaFiado30Secundaria, setSenhaFiado30Secundaria] = useState('');
   const [senhaFiado30Erro, setSenhaFiado30Erro] = useState('');
   const [senhaFiado30Processando, setSenhaFiado30Processando] = useState(false);
 
@@ -188,7 +190,8 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
       setSelectedCustomerAccount(null);
       setCustomerAccountSearch('');
       setConfirmandoFiado(false);
-      setSenhaFiado('');
+      setSenhaFiadoPrimaria('');
+      setSenhaFiadoSecundaria('');
       setSenhaFiadoErro('');
       setPixConfirmado(false);
       setBandeiraCartao('');
@@ -333,7 +336,8 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
           setProdutoPrecoDinamico(null);
         } else if (confirmandoFiado) {
           setConfirmandoFiado(false);
-          setSenhaFiado('');
+          setSenhaFiadoPrimaria('');
+          setSenhaFiadoSecundaria('');
           setSenhaFiadoErro('');
         } else if (modalPagamento) {
           setPixConfirmado(false);
@@ -1043,24 +1047,25 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
     } finally { setProcessando(false); }
   };
 
-  // Confirma a venda FIADA após validar a senha (admin/secundária) no servidor.
+  // Confirma a venda FIADA após validar a DUPLA senha (primária + secundária) no servidor.
   const executarVendaFiado = async () => {
     if (senhaFiadoProcessando) return;
     setSenhaFiadoProcessando(true);
     setSenhaFiadoErro('');
     try {
-      const senha = (senhaFiado || '').trim();
-      if (!senha) {
-        setSenhaFiadoErro('Digite a senha para finalizar.');
+      const primaria = (senhaFiadoPrimaria || '').trim();
+      const secundaria = (senhaFiadoSecundaria || '').trim();
+      if (!primaria || !secundaria) {
+        setSenhaFiadoErro('Digite ambas as senhas (primária e secundária).');
         return;
       }
       if (!selectedCustomerAccount) throw new Error('Selecione um cliente de fiado.');
-      const ok = await validateMasterPassword(senha);
+      const ok = await validateDualMasterPassword(primaria, secundaria);
       if (!ok) {
-        setSenhaFiadoErro('Senha incorreta. Tente novamente.');
+        setSenhaFiadoErro('Uma das senhas está incorreta. Tente novamente.');
         return;
       }
-      const pedido = await onConfirm(clienteSelecionado, carrinho, 'FIADO', totalCarrinho, undefined, undefined, selectedCustomerAccount.id, saleToken);
+      const pedido = await onConfirm(clienteSelecionado, carrinho, 'FIADO', totalCarrinho, undefined, undefined, selectedCustomerAccount.id, saleToken, undefined, undefined, undefined, primaria, secundaria);
       if (pedido) {
         setUltimoPedido(pedido);
         setUltimaVenda(pedido);
@@ -1081,7 +1086,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
         }
         return;
       }
-      if (/senha/i.test(String(e?.message || '')) || /password/i.test(String(e?.message || ''))) {
+      if (/senha|password/i.test(String(e?.message || ''))) {
         setSenhaFiadoErro(e.message);
       } else {
         setSenhaFiadoErro(e.message || 'Erro ao finalizar venda.');
@@ -1091,24 +1096,25 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
     }
   };
 
-  // Confirma a venda FIADO 30 DIAS após validar a senha mestra no servidor.
+  // Confirma a venda FIADO 30 DIAS após validar a DUPLA senha mestra no servidor.
   const executarVendaFiado30 = async () => {
     if (senhaFiado30Processando) return;
     setSenhaFiado30Processando(true);
     setSenhaFiado30Erro('');
     try {
-      const senha = (senhaFiado30 || '').trim();
-      if (!senha) {
-        setSenhaFiado30Erro('Digite a senha mestra para finalizar.');
+      const primaria = (senhaFiado30Primaria || '').trim();
+      const secundaria = (senhaFiado30Secundaria || '').trim();
+      if (!primaria || !secundaria) {
+        setSenhaFiado30Erro('Digite ambas as senhas (primária e secundária).');
         return;
       }
       if (!fiado30UserId) throw new Error('Selecione um usuário para o fiado 30 dias.');
-      const ok = await validateMasterPassword(senha);
+      const ok = await validateDualMasterPassword(primaria, secundaria);
       if (!ok) {
-        setSenhaFiado30Erro('Senha mestra incorreta. Tente novamente.');
+        setSenhaFiado30Erro('Uma das senhas está incorreta. Tente novamente.');
         return;
       }
-      const pedido = await onConfirm(fiado30UserId, carrinho, 'FIADO_30', totalCarrinho, undefined, undefined, undefined, saleToken, undefined, undefined, fiado30UserId);
+      const pedido = await onConfirm(fiado30UserId, carrinho, 'FIADO_30', totalCarrinho, undefined, undefined, fiado30UserId, saleToken, undefined, undefined, fiado30UserId, primaria, secundaria);
       if (pedido) {
         setUltimoPedido(pedido);
         setUltimaVenda(pedido);
@@ -2381,10 +2387,10 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                   <div className="w-full py-6 rounded-[2rem] bg-red-50 border-2 border-red-200 flex items-center justify-center">
                     <span className="font-black text-red-600 uppercase tracking-[0.3em] text-xs leading-none">Sem saldo no momento</span>
                   </div>
-                ) : formaPagamento === 'FIADO' && (clienteEhConsumidor || !selectedCustomerAccount || ((selectedCustomerAccount.currentDebt || 0) + totalCarrinho > (selectedCustomerAccount.creditLimit || 0))) ? (
+                ) : (formaPagamento === 'FIADO' || formaPagamento === 'FIADO_30') && (clienteEhConsumidor || !selectedCustomerAccount && formaPagamento === 'FIADO' || !fiado30UserId && formaPagamento === 'FIADO_30') ? (
                   <div className="w-full py-6 rounded-[2rem] bg-red-50 border-2 border-red-200 flex items-center justify-center px-4">
                     <span className="font-black text-red-600 uppercase tracking-[0.3em] text-xs leading-none text-center">
-                      {clienteEhConsumidor ? 'Exige cliente cadastrado' : !selectedCustomerAccount ? 'Selecione um cliente' : 'Sem saldo no momento'}
+                      {clienteEhConsumidor ? 'Exige cliente cadastrado' : formaPagamento === 'FIADO' && !selectedCustomerAccount ? 'Selecione um cliente' : formaPagamento === 'FIADO_30' && !fiado30UserId ? 'Selecione um usuário' : 'Sem saldo no momento'}
                     </span>
                   </div>
                 ) : (
@@ -2465,7 +2471,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
         )}
       </AnimatePresence>
 
-      {/* SENHA MESTRA — AUTORIZAÇÃO DE VENDA FIADA */}
+      {/* DUPLA SENHA MESTRA — AUTORIZAÇÃO DE VENDA FIADA (Primária + Secundária) */}
       <AnimatePresence>
         {confirmandoFiado && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -2478,7 +2484,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                 </div>
                 <div>
                   <p className="font-black text-sm uppercase tracking-tight text-slate-900">Autorizar Venda Fiada</p>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Senha Mestra obrigatória</p>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Dupla senha obrigatória (Primária + Secundária)</p>
                 </div>
               </div>
               {selectedCustomerAccount && (
@@ -2487,13 +2493,28 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                   <span style={{ color: corPrincipal }}>+R$ {formatarMoeda(totalCarrinho)}</span>
                 </div>
               )}
-              <input
-                type="password" autoFocus placeholder="••••••••"
-                className="w-full bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 p-4 rounded-2xl font-black text-center text-lg outline-none transition-colors"
-                value={senhaFiado}
-                onChange={e => { setSenhaFiado(e.target.value); setSenhaFiadoErro(''); }}
-                onKeyDown={e => { if (e.key === 'Enter') executarVendaFiado(); }}
-              />
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1">Senha Primária (Admin Principal)</label>
+                  <input
+                    type="password" autoFocus placeholder="••••••••"
+                    className="w-full bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 p-4 rounded-2xl font-black text-center text-lg outline-none transition-colors"
+                    value={senhaFiadoPrimaria}
+                    onChange={e => { setSenhaFiadoPrimaria(e.target.value); setSenhaFiadoErro(''); }}
+                    onKeyDown={e => { if (e.key === 'Enter') executarVendaFiado(); }}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1">Senha Secundária (Admin Secundário / Mestra)</label>
+                  <input
+                    type="password" placeholder="••••••••"
+                    className="w-full bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 p-4 rounded-2xl font-black text-center text-lg outline-none transition-colors"
+                    value={senhaFiadoSecundaria}
+                    onChange={e => { setSenhaFiadoSecundaria(e.target.value); setSenhaFiadoErro(''); }}
+                    onKeyDown={e => { if (e.key === 'Enter') executarVendaFiado(); }}
+                  />
+                </div>
+              </div>
               {senhaFiadoErro && (
                 <p className="text-[10px] font-black text-red-600 uppercase tracking-wider flex items-center gap-1.5">
                   <AlertTriangle size={13} /> {senhaFiadoErro}
@@ -2501,7 +2522,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
               )}
               <div className="flex gap-2 pt-1">
                 <button type="button"
-                  onClick={() => { setConfirmandoFiado(false); setSenhaFiado(''); setSenhaFiadoErro(''); }}
+                  onClick={() => { setConfirmandoFiado(false); setSenhaFiadoPrimaria(''); setSenhaFiadoSecundaria(''); setSenhaFiadoErro(''); }}
                   className="flex-1 py-3.5 rounded-2xl bg-white border-2 border-slate-200 hover:bg-slate-100 font-black text-[10px] uppercase tracking-[0.2em] text-slate-600 transition-all active:scale-95">
                   Cancelar
                 </button>

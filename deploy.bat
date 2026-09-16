@@ -1,85 +1,88 @@
 @echo off
-setlocal EnableExtensions
-title Mercado Facil - Deploy Completo
-cd /d "%~dp0"
+chcp 65001 >nul
+title Deploy Mercado Facil PDV
 
-set "PROJ=mercado-facil-mt"
-
-echo.
-echo  ==================================================
-echo     MERCADO FACIL - DEPLOY COMPLETO
-echo     Projeto: %PROJ%
-echo  ==================================================
+echo ============================================================
+echo  DEPLOY MERCADO FACIL PDV - Producao
+echo  Projeto: mercado-facil-mt
+echo  URL: https://mercado-facil-mt.web.app
+echo ============================================================
 echo.
 
-if not exist node_modules goto :instala
-if not exist functions\node_modules goto :instala
+REM 1. Validacao local
+echo [1/5] Lint (TypeScript)...
+npm run lint
+if errorlevel 1 (
+    echo.
+    echo ERRO: Lint falhou. Corrija os erros acima antes de deployar.
+    pause
+    exit /b 1
+)
+echo OK
+echo.
 
-goto :prepara
+echo [2/5] Testes (Web)...
+npm test
+if errorlevel 1 (
+    echo.
+    echo ERRO: Testes web falharam.
+    pause
+    exit /b 1
+)
+echo OK
+echo.
 
-:instala
-echo  [1/7] Instalando dependencias...
-call npm install
-call npm --prefix functions install
-if errorlevel 1 goto :falha
+echo [3/5] Testes (Functions)...
+npm --prefix functions test
+if errorlevel 1 (
+    echo.
+    echo ERRO: Testes functions falharam.
+    pause
+    exit /b 1
+)
+echo OK
+echo.
 
-:prepara
-echo  [2/7] Checagem de tipos...
-call npm run lint
-if errorlevel 1 goto :falha
+echo [4/5] Build de producao...
+npm run build
+if errorlevel 1 (
+    echo.
+    echo ERRO: Build falhou.
+    pause
+    exit /b 1
+)
+echo OK
+echo.
 
-echo  [3/7] Testes unitarios...
-call npm test
-if errorlevel 1 goto :falha
-call npm --prefix functions test
-if errorlevel 1 goto :falha
-
-echo  [4/7] Sintaxe das Cloud Functions...
-node -c functions\index.js
-if errorlevel 1 goto :falha
-
-echo  [5/7] Build de producao...
-call npm run build
-if errorlevel 1 goto :falha
-
-echo  [6/7] Publicando Cloud Functions...
+REM 4. Deploy Firebase
+echo [5/5] Deploy Firebase (Functions + Firestore + Storage + Hosting)...
+echo.
+echo Deployando Functions...
 firebase deploy --only functions
-if errorlevel 1 goto :falha
+if errorlevel 1 (
+    echo.
+    echo ERRO: Deploy Functions falhou.
+    pause
+    exit /b 1
+)
+echo OK
+echo.
 
-echo  [7/7] Publicando Regras + Storage + Hosting...
-firebase deploy --only firestore,storage:main,hosting
-if errorlevel 1 goto :falha
+echo Deployando Firestore, Storage e Hosting...
+firebase deploy --only "firestore,storage:main,hosting"
+if errorlevel 1 (
+    echo.
+    echo ERRO: Deploy Firestore/Storage/Hosting falhou.
+    pause
+    exit /b 1
+)
+echo OK
+echo.
 
-echo.
-echo  ==================================================
-echo     DEPLOY CONCLUIDO COM SUCESSO!
-echo  ==================================================
-echo.
-echo  PASSO OBRIGATORIO A POS-DEPLOY:
-echo  - Roteie as 2 senhas expostas no historico do repositorio.
-echo  - Teste no PDV real: PIX / MISTA / CASH / FIADO.
-echo  - Teste estorno (F9 e aba Ordens), ambos com senha.
-echo.
-echo  Se alguma venda ainda falhar, a mensagem que aparece
-echo  agora revela a causa exata. Me mande o texto dela.
+echo ============================================================
+echo  DEPLOY CONCLUIDO COM SUCESSO!
+echo  Producao: https://mercado-facil-mt.web.app
+echo  Console:  https://console.firebase.google.com/project/mercado-facil-mt
+echo ============================================================
 echo.
 pause
-goto :fim
-
-:falha
-echo.
-echo  ==================================================
-echo    DEPLOY INTERROMPIDO - veja o erro acima
-echo  ==================================================
-echo.
-echo  Dica: se o erro for sobre "cloudresourcemanager" ou
-echo  "Failed to make request", habilite a API no navegador:
-echo    start https://console.cloud.google.com/apis/library/cloudresourcemanager.googleapis.com?project=%PROJ%
-echo.
-echo  Comando manual equivalente se este arquivo fechar:
-echo    npm run lint ^&^& npm test ^&^& npm --prefix functions test ^&^& npm run build ^&^& firebase deploy --only functions ^&^& firebase deploy --only hosting
-echo.
-pause
-
-:fim
-endlocal

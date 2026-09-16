@@ -102,10 +102,9 @@ export function montarPagamentoPdv(input: MontagemPagamentoInput): MontagemPagam
     if (!conta) {
       throw new Error('Selecione um cliente de fiado.');
     }
-    const novaDivida = (conta.currentDebt || 0) + totalArredondado;
-    if ((novaDivida || 0) > (conta.creditLimit || 0)) {
-      throw new Error('Sem saldo no momento - Limite de crédito excedido.');
-    }
+    // FIADO: venda a prazo 30 dias — NÃO bloqueia por limite de crédito no frontend.
+    // O servidor registra a dívida sem validar limite; o limite serve só como referência visual.
+    // O admin gerencia cobrança/abate no painel Contas a Receber.
     return { ok: true, paymentsArray: undefined, changeValue: undefined, jointWalletPayload: undefined };
   }
 

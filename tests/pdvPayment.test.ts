@@ -244,11 +244,12 @@ describe("FIADO (conta)", () => {
       .toThrow("Selecione um cliente de fiado");
   });
 
-  it("dívida + venda acima do limite de crédito: rejeita", () => {
-    expect(() => montarPagamentoPdv(base({
+  it("dívida + venda acima do limite de crédito: ACEITA (sem bloqueio por limite)", () => {
+    const r = montarPagamentoPdv(base({
       formaPagamento: "FIADO", total: 90, clienteSelecionado: "u1",
       contaFiadoSelecionada: { currentDebt: 20, creditLimit: 100 },
-    }))).toThrow("Limite de crédito excedido");
+    }));
+    expect(r).toEqual({ ok: true, paymentsArray: undefined, changeValue: undefined, jointWalletPayload: undefined });
   });
 });
 

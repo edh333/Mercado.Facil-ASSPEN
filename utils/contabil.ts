@@ -372,3 +372,152 @@ export const buildExtratoIndividual = (user: any, orders: any[], transactions: a
     saldoPeriodo: totalEntradas - totalSaidas
   };
 };
+
+/**
+ * 9) CONTAS A RECEBER — FIADO
+ * Lista todos os usuários com currentDebt > 0, com detalhes de dívida,
+ * limite, data de início, vencimento e status.
+ */
+export const buildContasReceberFiado = (users: any[]) => {
+  const now = new Date();
+  const contas = (users || [])
+    .filter(u => Number(u.currentDebt || 0) > 0)
+    .map(u => {
+      const divida = Number(u.currentDebt || 0);
+      const limite = Number(u.creditLimit || 0);
+      const debtStartedAt = u.debtStartedAt ? toDateContabil(u.debtStartedAt) : null;
+      const debtDueAt = u.debtDueAt ? toDateContabil(u.debtDueAt) : null;
+      const diasAtraso = debtDueAt ? Math.ceil((now.getTime() - debtDueAt.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+      const vencido = debtDueAt && debtDueAt < now;
+      const venceHoje = debtDueAt && debtDueAt.toDateString() === now.toDateString();
+      const venceEmDias = debtDueAt ? Math.ceil((debtDueAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : null;
+
+      let status: 'vencido' | 'vence_hoje' | 'a_vencer' | 'sem_vencimento' = 'sem_vencimento';
+      if (vencido) status = 'vencido';
+      else if (venceHoje) status = 'vence_hoje';
+      else if (debtDueAt) status = 'a_vencer';
+
+      return {
+        usuarioId: u.id,
+        nome: u.name || u.inmateName || u.nome || 'Usuário',
+        cpf: sanitizarCpf(u.cpf || ''),
+        telefone: u.phone || u.telefone || '',
+        divida,
+        limite,
+        disponivel: Math.max(0, limite - divida),
+        pctLimite: limite > 0 ? Math.round((divida / limite) * 100) : 0,
+        debtStartedAt: debtStartedAt ? formatarDataContabil(debtStartedAt) : '—',
+        debtDueAt: debtDueAt ? formatarDataContabil(debtDueAt) : '—',
+        diasAtraso: Math.max(0, diasAtraso),
+        status,
+        venceEmDias,
+        allowCredit: u.allowCredit || u.autorizacaoExcepcional,
+        blocked: String(u.status || '').toLowerCase() === 'blocked',
+      };
+    })
+    .sort((a, b) => {
+      // Ordenar: vencidos primeiro, depois vence hoje, depois a vencer, depois sem vencimento
+      const order = { vencido: 0, vence_hoje: 1, a_vencer: 2, sem_vencimento: 3 };
+      if (order[a.status] !== order[b.status]) return order[a.status] - order[b.status];
+      return b.divida - a.divida;
+    });
+
+  const totalDivida = contas.reduce((s, c) => s + c.divida, 0);
+  const totalLimite = contas.reduce((s, c) => s + c.limite, 0);
+  const vencidos = contas.filter(c => c.status === 'vencido').length;
+  const vencemHoje = contas.filter(c => c.status === 'vence_hoje').length;
+
+  return {
+    contas,
+    resumo: {
+      totalClientes: contas.length,
+      totalDivida,
+      totalLimite,
+      totalDisponivel: totalLimite - totalDivida,
+      vencidos,
+      vencemHoje,
+    }
+  };
+};
+
+/**
+ * 10) VENCIMENTOS DE FIADO — Agrupados por faixa de dias
+ * Para visão rápida do que vence esta semana, este mês, etc.
+ */
+export const buildFiadoVencimentos = (users: any[]) => {
+  const now = new Date();
+  const faixas = [
+    { label: 'Vencidos', min: -Infinity, max: -1, color: 'red' },
+    { label: 'Vence hoje', min: 0, max: 0, color: 'amber' },
+    { label: '1 a 7 dias', min: 1, max: 7, color: 'amber' },
+    { label: '8 a 15 dias', min: 8, max: 15, color: 'blue' },
+    { label: '16 a 30 dias', min: 16, max: 30, color: 'blue' },
+    { label: '31 a 60 dias', min: 31, max: 60, color: 'green' },
+    { label: '60+ dias / Sem vencimento', min: 61, max: Infinity, color: 'green' },
+  ];
+
+  const usuariosComDivida = (users || []).filter(u => Number(u.currentDebt || 0) > 0);
+
+  const agrupado = faixas.map(faixa => {
+    const itens = usuariosComDivida
+      .filter(u => {
+        const due = u.debtDueAt ? toDateContabil(u.debtDueAt) : null;
+        if (!due) return faixa.label === '60+ dias / Sem vencimento';
+        const dias = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        return dias >= faixa.min && dias <= faixa.max;
+      })
+      .map(u => {
+        const due = u.debtDueAt ? toDateContabil(u.debtDueAt) : null;
+        return {
+          usuarioId: u.id,
+          nome: u.name || u.inmateName || u.nome || 'Usuário',
+          divida: Number(u.currentDebt || 0),
+          debtDueAt: u.debtDueAt ? formatarDataContabil(u.debtDueAt) : '—',
+          diasAtraso: due ? Math.ceil((now.getTime() - due.getTime()) / (1000 * 60 * 60 * 24)) : 0,
+        };
+      });
+
+    return {
+      faixa: faixa.label,
+      color: faixa.color,
+      count: itens.length,
+      totalDivida: itens.reduce((s, i) => s + i.divida, 0),
+      itens,
+    };
+  });
+
+  return { faixas: agrupado };
+};
+
+/**
+ * 11) VENDAS FIADO NO PERÍODO
+ * Lista todas as vendas com paymentMethod FIADO ou FIADO_30 no período.
+ */
+export const buildFiadoVendas = (orders: any[], startDate: string, endDate: string) => {
+  const vendas = (orders || [])
+    .filter(o => {
+      const pm = String(o.paymentMethod || '').toUpperCase();
+      return (pm === 'FIADO' || pm === 'FIADO_30') &&
+        inRangeContabil(o.date || o.createdAt, startDate, endDate);
+    })
+    .map(o => ({
+      id: o.id,
+      data: formatarDataContabil(o.date || o.createdAt),
+      cliente: o.userName || o.inmateName || 'Consumidor',
+      cpf: sanitizarCpf(o.userCpf || o.inmateCpf || ''),
+      total: Number(o.total) || 0,
+      forma: o.paymentMethod,
+      status: o.status,
+      items: (o.items || []).map((i: any) => ({
+        nome: i.name || i.productName || 'Item',
+        qtd: Number(i.quantity) || 1,
+        preco: Number(i.priceAtPurchase || i.price) || 0,
+      })),
+    }))
+    .sort((a, b) => (toDateContabil(b.data)?.getTime() || 0) - (toDateContabil(a.data)?.getTime() || 0));
+
+  const total = vendas.reduce((s, v) => s + v.total, 0);
+  const count = vendas.length;
+
+  return { vendas, total, count };
+};

@@ -1628,9 +1628,32 @@ exports.processarVendaAdmin = onCall(async (request) => {
   const customerAccountId = request.data?.customerAccountId ? String(request.data.customerAccountId) : null;
 
   const isConsumer = targetUserId === "consumidor_geral" || targetUserId === "balcao_anonimo";
-  const metodosValidos = ["PIX", "WALLET", "CASH", "CARD", "FIADO", "MIXED"];
+  const metodosValidos = ["PIX", "WALLET", "CASH", "CARD", "FIADO", "FIADO_30", "MIXED"];
   if (!metodosValidos.includes(paymentMethod)) {
     throw new HttpsError("invalid-argument", "Forma de pagamento inválida.");
+  }
+
+  // Gate de segurança: venda FIADA (FIADO e FIADO_30) exige a DUPLA senha mestra
+  // validada AQUI no servidor (primária + secundária). O front já valida, mas
+  // revalidar no backend impede que uma sessão autenticada pule a etapa via
+  // chamada direta. Vendas sincronizadas de fila offline são isentas porque a
+  // senha não pode ser validada sem rede. A isenção SÓ vale para a fila real:
+  // clientToken com o prefixo OFFLINE_ (padrão do offlineQueue) + flag
+  // origemOffline=true — evita que a flag sozinha seja forjada por um cliente.
+  const ehOfflineFiado =
+    request.data?.origemOffline === true &&
+    String(request.data?.clientToken || "").startsWith("OFFLINE_");
+  if ((paymentMethod === "FIADO" || paymentMethod === "FIADO_30") && !ehOfflineFiado) {
+    const senhaPrimaria = String(request.data?.senhaPrimaria || "");
+    const senhaSecundaria = String(request.data?.senhaSecundaria || "");
+    const apiKey = String(request.data?.apiKey || "") || process.env.FIREBASE_API_KEY || "";
+    if (!senhaPrimaria || !senhaSecundaria) {
+      throw new HttpsError("invalid-argument", "Venda fiada exige a senha primária e a secundária do administrador.");
+    }
+    const dupla = await validarDuplaSenhaServidor(caller, senhaPrimaria, senhaSecundaria, apiKey);
+    if (!dupla.ok) {
+      throw new HttpsError("permission-denied", "Uma das senhas está incorreta. Tente novamente.");
+    }
   }
 
   // Partes de carteira/dinheiro são calculadas DENTRO da transação (total
@@ -1736,12 +1759,6 @@ exports.processarVendaAdmin = onCall(async (request) => {
       if (!userData.allowCredit && !userData.autorizacaoExcepcional) {
         throw new Error("Usuário sem permissão para venda fiada.");
       }
-      const dividaAtual = Number(userData.currentDebt || 0);
-      const limiteCredito = Number(userData.creditLimit || 0);
-      if (limiteCredito <= 0) throw new Error("Usuário de fiado não possui limite de crédito definido.");
-      if (dividaAtual + total > limiteCredito) {
-        throw new Error("Venda bloqueada: ultrapassa o limite de crédito total do usuário.");
-      }
       // Grava o INÍCIO da dívida (debtStartedAt) apenas quando o cliente parte de
       // dívida zero — base para o PDV marcar "nota vencida após 30 dias" em Contas
       // a Receber. Mantém a data original enquanto houver débito em aberto.
@@ -1773,12 +1790,6 @@ exports.processarVendaAdmin = onCall(async (request) => {
       }
       if (!fiado30UserData.allowCredit && !fiado30UserData.autorizacaoExcepcional) {
         throw new Error("Usuário sem permissão para fiado 30 dias.");
-      }
-      const dividaAtual = Number(fiado30UserData.currentDebt || 0);
-      const limiteCredito = Number(fiado30UserData.creditLimit || 0);
-      if (limiteCredito <= 0) throw new Error("Usuário não possui limite de crédito definido.");
-      if (dividaAtual + total > limiteCredito) {
-        throw new Error("Venda bloqueada: ultrapassa o limite de crédito total do usuário.");
       }
       // debtDueAt = agora + 30 dias para controle de vencimento no painel Contas a Receber
       const debtDueAt = admin.firestore.Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
@@ -1885,7 +1896,7 @@ exports.processarVendaAdmin = onCall(async (request) => {
       ...(walletBalanceBefore !== undefined ? { walletBalanceBefore } : {}),
       ...(walletBalanceAfter !== undefined ? { walletBalanceAfter } : {}),
       ...(jointWalletSnapshot ? { jointWallet: jointWalletSnapshot } : {}),
-      ...(paymentMethod === "FIADO" && customerAccountId ? { customerAccountId } : {}),
+      ...((paymentMethod === "FIADO" || paymentMethod === "FIADO_30") && customerAccountId ? { customerAccountId } : {}),
     };
 
     t.set(db.collection("orders").doc(orderId), novoPedido);
@@ -1909,7 +1920,7 @@ exports.processarVendaAdmin = onCall(async (request) => {
     if (e && e.code && String(e.code).startsWith("functions/")) throw e;
     const msg = (e && e.message) || "Falha ao processar a venda. Tente novamente.";
     // Whitelist de erros de negócio já amigáveis (escritos em PT-BR no backend).
-    if (/produto não encontrado|estoque insuficiente|saldo insuficiente|limite semanal|consumidor final não pode|2º devedor|não confere com o total|nenhuma sessão de caixa|caixa antes|cai?a foi fechada|reabra o caixa|cliente bloqueado|cliente de fiado (não )?encontrado|exige cliente cadastrado|pagamento misto sem valores|método inválido|valor inválido|fiado e card não são suportados|carteira|duplicada|troco/i.test(msg)) {
+    if (/produto não encontrado|estoque insuficiente|saldo insuficiente|limite semanal|consumidor final não pode|2º devedor|não confere com o total|nenhuma sessão de caixa|caixa antes|cai?a foi fechada|reabra o caixa|cliente bloqueado|cliente de fiado (não )?encontrado|exige cliente cadastrado|pagamento misto sem valores|método inválido|valor inválido|fiado e card não são suportados|carteira|duplicada|troco|senha|fiado 30|entrada de mercadoria/i.test(msg)) {
       throw new HttpsError("invalid-argument", msg);
     }
     throw new HttpsError("internal", "Falha ao processar a venda. Tente novamente.");
@@ -2418,7 +2429,7 @@ exports.estornarVenda = onCall(async (request) => {
       const uSnap = uRef ? await t.get(uRef) : null;
       const caixaRef = caixaAlvo ? caixaAlvo.ref : null;
       const caixaSnap = caixaRef ? await t.get(caixaRef) : null;
-      const ehFiado = pedido.paymentMethod === "FIADO";
+      const ehFiado = pedido.paymentMethod === "FIADO" || pedido.paymentMethod === "FIADO_30";
       // UNIFICADO: a dívida fiada mora no doc do USUÁRIO (users/<customerAccountId>),
       // então o estorno reverte lá — nada de chunk paralelo customer_accounts.
       const caRef = ehFiado && pedido.customerAccountId
@@ -2498,8 +2509,9 @@ exports.estornarVenda = onCall(async (request) => {
       if (caRef && caSnap && caSnap.exists) {
         const conta = caSnap.data();
         const valorTotal = Number(pedido.total) || 0;
-        t.update(caRef, {
-          currentDebt: Math.max(0, arredondar((Number(conta.currentDebt) || 0) - valorTotal)),
+        const novoDebt = Math.max(0, arredondar((Number(conta.currentDebt) || 0) - valorTotal));
+        const updateReversao = {
+          currentDebt: novoDebt,
           weeklySpent: Math.max(0, arredondar((Number(conta.weeklySpent) || 0) - valorTotal)),
           transactions: admin.firestore.FieldValue.arrayUnion({
             type: "reversal",
@@ -2507,7 +2519,13 @@ exports.estornarVenda = onCall(async (request) => {
             orderId,
             timestamp: admin.firestore.Timestamp.now(),
           }),
-        });
+        };
+        // Dívida zerada: limpa marcos de vencimento (base para "Contas a Receber").
+        if (novoDebt <= 0) {
+          updateReversao.debtStartedAt = admin.firestore.FieldValue.delete();
+          updateReversao.debtDueAt = admin.firestore.FieldValue.delete();
+        }
+        t.update(caRef, updateReversao);
       }
 
       if (caixaRef && caixaSnap && caixaSnap.exists) {
@@ -2587,7 +2605,7 @@ exports.registrarPagamentoConta = onCall({
 
       const novoDebito = arredondar(dividaAtual - amount);
 
-      t.update(clienteRef, {
+      const updateConta = {
         currentDebt: novoDebito,
         transactions: admin.firestore.FieldValue.arrayUnion({
           type: "payment",
@@ -2597,7 +2615,13 @@ exports.registrarPagamentoConta = onCall({
           by: caller.id,
           byName: caller.name || "Administrador",
         }),
-      });
+      };
+      // Dívida zerada: limpa marcos de vencimento (base para "Contas a Receber").
+      if (novoDebito <= 0) {
+        updateConta.debtStartedAt = admin.firestore.FieldValue.delete();
+        updateConta.debtDueAt = admin.firestore.FieldValue.delete();
+      }
+      t.update(clienteRef, updateConta);
 
       // Credita na sessão de caixa aberta do operador (se houver)
       if (sessaoCaixaPgt) {
@@ -2630,6 +2654,65 @@ exports.registrarPagamentoConta = onCall({
 });
 
 /**
+ * Admin — abate dívida fiada de um usuário cadastrado (universo UNIFICADO).
+ * Diferente do registrarPagamentoConta, NÃO credita dinheiro em caixa: apenas
+ * reduz o débito (ajuste/abono/conciliação). Atômico, clamp ≥ 0 e limpa os
+ * marcos de vencimento quando a dívida zera.
+ */
+exports.abaterDividaFiado = onCall(async (request) => {
+  const caller = await exigirAdminPermissao(request, "finance");
+  const userId = String(request.data?.userId || "").trim();
+  const amount = arredondar(Number(request.data?.amount) || 0);
+  const note = String(request.data?.note || "").trim().slice(0, 120);
+
+  if (!userId) throw new HttpsError("invalid-argument", "Usuário não informado.");
+  if (!(amount > 0)) throw new HttpsError("invalid-argument", "Valor do abatimento deve ser maior que zero.");
+
+  verificarRateLimit("abaterDividaFiado:" + caller.id, 30);
+
+  const userRef = db.collection("users").doc(userId);
+  let resultado;
+  try {
+    resultado = await db.runTransaction(async (t) => {
+      const snap = await t.get(userRef);
+      if (!snap.exists) throw new Error("Usuário não encontrado.");
+      const dados = snap.data();
+      const dividaAtual = arredondar(Number(dados.currentDebt || 0));
+      if (dividaAtual <= 0) throw new Error("Este usuário não possui dívida em aberto.");
+
+      const aAbater = arredondar(Math.min(amount, dividaAtual));
+      if (aAbater <= 0) throw new Error("Valor de abatimento inválido.");
+
+      const novoDebito = arredondar(dividaAtual - aAbater);
+      const update = {
+        currentDebt: novoDebito,
+        transactions: admin.firestore.FieldValue.arrayUnion({
+          type: "adjustment",
+          amount: -aAbater,
+          note,
+          timestamp: admin.firestore.Timestamp.now(),
+          by: caller.id,
+          byName: caller.name || "Administrador",
+        }),
+      };
+      if (novoDebito <= 0) {
+        update.debtStartedAt = admin.firestore.FieldValue.delete();
+        update.debtDueAt = admin.firestore.FieldValue.delete();
+      }
+      t.update(userRef, update);
+      return { dividaAnterior: dividaAtual, novoDebito, abatido: aAbater };
+    });
+  } catch (e) {
+    if (e && e.code && String(e.code).startsWith("functions/")) throw e;
+    throw new HttpsError("invalid-argument", (e && e.message) || "Falha ao abater a dívida. Tente novamente.");
+  }
+
+  await registrarAudit(caller.id, "ABATER_DIVIDA_FIADO", { userId, amount, note }, resultado);
+
+  return { ok: true, ...resultado };
+});
+
+/**
  * Admin — cria um cliente de fiado no universo UNIFICADO (fiado = usuário).
  * Grava users/<id> com allowCredit, SEM criar credenciais de login (o cliente
  * pode ser vinculado depois pelo fluxo "provisionar" do registrarUsuario).
@@ -2646,7 +2729,6 @@ exports.criarClienteFiado = onCall(async (request) => {
   verificarRateLimit("criarClienteFiado:" + caller.id, 20);
 
   if (nome.length < 3) throw new HttpsError("invalid-argument", "Informe o nome completo do cliente.");
-  if (!(creditLimit > 0)) throw new HttpsError("invalid-argument", "Informe um limite de crédito maior que zero.");
   if (cpf && cpf.length !== 11) throw new HttpsError("invalid-argument", "CPF inválido.");
 
   if (cpf.length === 11) {
@@ -2911,6 +2993,103 @@ exports.validarSenhaMestra = onCall(async (request) => {
   }
   return { ok, definida: true };
 });
+
+/**
+ * Admin │ valida AMBAS as senhas antes de autorizar uma venda fiada:
+ *  - primária  = senha de login do admin no Firebase Auth (re-auth via REST)
+ *  - secundária= senha mestra / master password (bcrypt em settings/private)
+ * Usado como gate no servidor para FIADO e FIADO_30, além da validação no front.
+ */
+exports.validarDuplaSenhaMestra = onCall(async (request) => {
+  const user = await exigirAutenticado(request);
+  verificarRateLimit("validarDuplaSenhaMestra:" + user.id, 10);
+  const roleLower = String(user.role || "").toLowerCase();
+  if (roleLower !== "admin" && roleLower !== "master") {
+    throw new HttpsError("permission-denied", "Apenas administradores podem validar a dupla senha mestra.");
+  }
+  const senhaPrimaria = String(request.data?.senhaPrimaria || "");
+  const senhaSecundaria = String(request.data?.senhaSecundaria || "");
+  const apiKey = String(request.data?.apiKey || "") || process.env.FIREBASE_API_KEY || "";
+
+  if (!senhaPrimaria || !senhaSecundaria) {
+    throw new HttpsError("invalid-argument", "Digite a senha primária e a secundária.");
+  }
+
+  const resultado = await validarDuplaSenhaServidor(user, senhaPrimaria, senhaSecundaria, apiKey);
+  return { ok: !!resultado.ok, definida: true };
+});
+
+/**
+ * Valida a dupla senha mestra no servidor:
+ *  - primária   = senha de login do admin no Firebase Auth (re-auth via REST)
+ *  - secundária = senha mestra (bcrypt em settings/private, com migração da legada)
+ * Reutilizado pelo endpoint validarDuplaSenhaMestra e pelo gate de venda fiada.
+ */
+async function validarDuplaSenhaServidor(user, senhaPrimaria, senhaSecundaria, apiKey) {
+  const sPrimaria = String(senhaPrimaria || "");
+  const sSecundaria = String(senhaSecundaria || "");
+  if (!sPrimaria || !sSecundaria) return { ok: false, motivo: "incompleta" };
+
+  // Secundária ─ senha mestra (bcrypt), mesmo fluxo de validarSenhaMestra.
+  const privSnap = await db.collection("settings").doc("private").get();
+  const priv = privSnap.exists ? privSnap.data() : {};
+  let secundariaOk = false;
+  if (priv.masterPasswordHash) {
+    secundariaOk = await bcrypt.compare(sSecundaria, priv.masterPasswordHash);
+  } else {
+    const genSnap = await db.collection("settings").doc("general").get();
+    const gen = genSnap.exists ? genSnap.data() : {};
+    const legada = String(gen.secondaryPassword || gen.adminPassword || "");
+    if (legada) {
+      secundariaOk = sSecundaria === legada;
+      if (secundariaOk) {
+        const hash = await bcrypt.hash(legada, 12);
+        await db.collection("settings").doc("private").set({ masterPasswordHash: hash }, { merge: true });
+        await db.collection("settings").doc("general").update({
+          secondaryPassword: admin.firestore.FieldValue.delete(),
+          adminPassword: admin.firestore.FieldValue.delete(),
+        }).catch(() => {});
+      }
+    }
+  }
+
+  // Primária ─ senha de login do admin no Firebase Auth.
+  // Fonte da verdade: re-auth REST com o email do próprio usuário logado.
+  // Fallback tolerante: hash legado bcrypt em auth_secrets/{uid}.password
+  // (mesmo usado no login do app) — cobre divergência de e-mail entre o
+  // doc users e o Auth e a ausência de API key no payload/env.
+  let primariaOk = false;
+  const hashLegado = await obterHashLegado(user && user.id);
+  if (hashLegado) {
+    try {
+      primariaOk = await bcrypt.compare(sPrimaria, hashLegado);
+    } catch (e) {
+      logger.warn("[validarDuplaSenhaServidor] Falha ao comparar hash legado:", e.message);
+    }
+  }
+  if (!primariaOk && apiKey && user && user.email) {
+    try {
+      const resp = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${encodeURIComponent(apiKey)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: user.email, password: sPrimaria, returnSecureToken: true }),
+        }
+      );
+      primariaOk = resp.status === 200;
+      if (!primariaOk) {
+        logger.info("[validarDuplaSenhaServidor] Primária negada via REST (status " + resp.status + ").");
+      }
+    } catch (e) {
+      logger.warn("[validarDuplaSenhaServidor] Falha ao validar primária via REST:", e.message);
+    }
+  } else if (!primariaOk) {
+    logger.warn("[validarDuplaSenhaServidor] Primária validada somente pelo hash legado (sem API key/email).");
+  }
+
+  return { ok: primariaOk && secundariaOk, primariaOk, secundariaOk, definida: true };
+}
 
 /** Autenticado ─ hora confiável do servidor (substitui APIs externas de horário). */
 exports.obterHoraServidor = onCall(async (request) => {
