@@ -108,6 +108,14 @@ export interface User {
   lastSpentReset?: string; // New: ISO date of last limit reset
   autorizacaoExcepcional?: boolean; // Admin override for weekly limit
   allowCredit?: boolean; // New: Master toggle for UI/UX credit buttons
+  // Campos de fiado (adicionados dinamicamente no Firestore)
+  creditLimit?: number;
+  currentDebt?: number;
+  debtStartedAt?: string;
+  debtDueAt?: string;
+  // Aliases para compatibilidade
+  nome?: string;
+  telefone?: string;
 }
 
 

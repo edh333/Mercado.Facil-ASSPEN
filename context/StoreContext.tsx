@@ -182,7 +182,7 @@ interface StoreContextType {
     estornarPedido: (orderId: string, motivo: string) => Promise<void>;
     resetCredits: () => Promise<void>;
     mergeDuplicateProducts: () => Promise<void>;
-    adminDirectSale: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO', total: number, payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO'; amount: number }[], change?: number, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string) => Promise<Order | null>;
+    adminDirectSale: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30', total: number, payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30'; amount: number }[], change?: number, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string) => Promise<Order | null>;
     loadMoreOrders: () => void;
     loadMoreExpenses: () => void;
     ordersLimit: number;
@@ -200,7 +200,7 @@ interface StoreContextType {
     expandUsersLimit: (limite: number) => void;
     importInmatesCsv: (file: File) => Promise<void>;
     addWalletCreditDirectly: (userId: string, amount: number, reason: string, senhaMestra?: string) => Promise<void>;
-    registrarVendaOffline: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO', total: number, payments?: { method: string; amount: number }[], change?: number, customerAccountId?: string, cardBrand?: string) => Promise<Order | null>;
+    registrarVendaOffline: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30', total: number, payments?: { method: string; amount: number }[], change?: number, customerAccountId?: string, cardBrand?: string) => Promise<Order | null>;
     sincronizarVendasOffline: (incluirErros?: boolean) => Promise<{ ok: boolean; sincronizadas: number; comErro: number; total: number; offline?: boolean }>;
     vendasOfflinePendentes: number;
     vendasOfflineComErro: number;
@@ -2479,7 +2479,7 @@ return false;
     const registrarVendaOffline = useCallback(async (
         targetUserId: string,
         items: any[],
-        paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO',
+        paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30',
         total: number,
         payments?: { method: string; amount: number }[],
         change?: number,
@@ -2879,7 +2879,7 @@ if (currentUser?.role !== UserRole.ADMIN && currentUser) {
                     setIsLoading(false);
                 }
             },
-            adminDirectSale: async (targetUserId, items, paymentMethod, total, payments: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO'; amount: number }[] | undefined, change, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string) => {
+            adminDirectSale: async (targetUserId, items, paymentMethod, total, payments: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30'; amount: number }[] | undefined, change, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string) => {
                 if (!currentUser || currentUser.role !== UserRole.ADMIN) {
                     throw new Error("Acesso restrito a administradores.");
                 }

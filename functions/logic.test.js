@@ -142,6 +142,23 @@ describe("calcularPartesPagamento", () => {
       { method: "BITCOIN", amount: 10 },
     ], 10, false)).toThrow("Método inválido no pagamento misto");
   });
+
+  it("PIX/CARD/FIADO: nenhuma parte local (só registro no servidor)", () => {
+    for (const pm of ["PIX", "CARD", "FIADO"]) {
+      expect(calcularPartesPagamento(pm, undefined, 33.3, true)).toEqual({ walletPortion: 0, cashPortion: 0 });
+      expect(calcularPartesPagamento(pm, undefined, 33.3, false)).toEqual({ walletPortion: 0, cashPortion: 0 });
+    }
+  });
+
+  it("MIXED: PIX puro é permitido como pagamento misto de 1 componente", () => {
+    expect(calcularPartesPagamento("MIXED", [{ method: "PIX", amount: 25.75 }], 25.75, true))
+      .toEqual({ walletPortion: 0, cashPortion: 0 });
+  });
+
+  it("MIXED: valor acima do total (excedente sem cash) é rejeitado", () => {
+    expect(() => calcularPartesPagamento("MIXED", [{ method: "PIX", amount: 120 }], 100, false))
+      .toThrow("A soma dos pagamentos não confere com o total");
+  });
 });
 
 describe("validarTroco", () => {
@@ -162,6 +179,17 @@ describe("validarTroco", () => {
     // comparado contra o valor líquido, e não contra o dinheiro realmente entregue.
     expect(() => validarTroco(120, 80)).not.toThrow();
     expect(() => validarTroco(150, 100)).not.toThrow();
+  });
+
+  it("troco igual ao valor entregue (venda de 0 após troco) é aceito", () => {
+    expect(() => validarTroco(120, 0)).not.toThrow();
+  });
+
+  it("DADOS CORROMPIDOS: troco maior que o dinheiro entregue é rejeitado", () => {
+    // cashPortion negativo só aparece com payload adulterado (o servidor nunca
+    // envia isso). O contrato usa cashPortion = entregue − troco, então entregue
+    // = troco − |negativo| → troco supera o entregue REAL.
+    expect(() => validarTroco(121, -1)).toThrow("Troco inválido");
   });
 });
 

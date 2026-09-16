@@ -9,7 +9,7 @@ export interface VendaOffline {
   createdAt: string;
   targetUserId: string;
   items: { productId: string; name: string; price: number; quantity: number }[];
-  paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO';
+  paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30';
   payments?: { method: string; amount: number }[];
   change?: number;
   cardBrand?: string;

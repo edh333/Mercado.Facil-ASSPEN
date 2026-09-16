@@ -1756,6 +1756,44 @@ exports.processarVendaAdmin = onCall(async (request) => {
       t.update(db.collection("users").doc(targetUserId), updateParcial);
     }
 
+    // FIADO 30 DIAS: usa usuário cadastrado diretamente com vencimento em 30 dias.
+    // Diferente do FIADO tradicional (que usa customerAccountId como conta separada),
+    // o FIADO_30 usa o próprio targetUserId (usuário selecionado) e registra
+    // debtDueAt = now + 30 dias para controle de vencimento.
+    if (paymentMethod === "FIADO_30") {
+      if (isConsumer) throw new Error("Fiado 30 Dias exige usuário cadastrado.");
+      if (!customerAccountId) throw new Error("Selecione o usuário para o fiado 30 dias.");
+      const fiado30UserId = customerAccountId;
+      const fiado30UserSnap = await t.get(db.collection("users").doc(fiado30UserId));
+      if (!fiado30UserSnap.exists) throw new Error("Usuário para fiado 30 dias não encontrado.");
+      const fiado30UserData = { ...fiado30UserSnap.data(), id: fiado30UserSnap.id };
+      clienteFiadoNome = String(fiado30UserData.name || fiado30UserData.nome || "Fiado 30").slice(0, 80);
+      if (String(fiado30UserData.status || "").toLowerCase() === "blocked") {
+        throw new Error("Usuário bloqueado para fiado 30 dias.");
+      }
+      if (!fiado30UserData.allowCredit && !fiado30UserData.autorizacaoExcepcional) {
+        throw new Error("Usuário sem permissão para fiado 30 dias.");
+      }
+      const dividaAtual = Number(fiado30UserData.currentDebt || 0);
+      const limiteCredito = Number(fiado30UserData.creditLimit || 0);
+      if (limiteCredito <= 0) throw new Error("Usuário não possui limite de crédito definido.");
+      if (dividaAtual + total > limiteCredito) {
+        throw new Error("Venda bloqueada: ultrapassa o limite de crédito total do usuário.");
+      }
+      // debtDueAt = agora + 30 dias para controle de vencimento no painel Contas a Receber
+      const debtDueAt = admin.firestore.Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
+      const updateParcial30 = {
+        currentDebt: admin.firestore.FieldValue.increment(total),
+        weeklySpent: admin.firestore.FieldValue.increment(total),
+        debtDueAt,
+      };
+      const dividaAntes = Number(fiado30UserData?.currentDebt || 0);
+      if (!(dividaAntes > 0)) {
+        updateParcial30.debtStartedAt = admin.firestore.Timestamp.now();
+      }
+      t.update(db.collection("users").doc(fiado30UserId), updateParcial30);
+    }
+
     debitarEstoque(t, itensComPreco);
 
     let walletBalanceBefore, walletBalanceAfter;

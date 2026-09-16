@@ -13,6 +13,7 @@ import { getActiveSession, openCashSession, addSupplement, addWithdrawal, closeC
 import { imprimirSilenciosoFiscal, imprimirComPrioridadeFiscal } from '../../utils/printUtils';
 import ConfirmacaoDestrutiva from './ConfirmacaoDestrutiva';
 import RefundSaleModal from './RefundSaleModal';
+import { montarPagamentoPdv, calcularDenominacoes, arredondarCentavos } from '../../utils/pdvPayment';
 import { useApp } from '../../context/StoreContext';
 
 interface AdminSalesModalProps {
@@ -21,8 +22,8 @@ interface AdminSalesModalProps {
   users: User[];
   products: Product[];
   orders?: Order[];
-  onConfirm: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO', total: number, payments?: {method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO', amount: number}[], change?: number, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string) => Promise<any>;
-  onConfirmOffline?: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO', total: number, payments?: {method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO', amount: number}[], change?: number, customerAccountId?: string, cardBrand?: string) => Promise<any>;
+  onConfirm: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30', total: number, payments?: {method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30', amount: number}[], change?: number, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string, fiado30UserId?: string) => Promise<any>;
+  onConfirmOffline?: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30', total: number, payments?: {method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30', amount: number}[], change?: number, customerAccountId?: string, cardBrand?: string, fiado30UserId?: string) => Promise<any>;
   setPrintOrder?: (order: any) => void;
   settings?: AppConfig;
   currentUser?: User;
@@ -39,7 +40,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
   const [buscaCliente, setBuscaCliente] = useState('');
   const [codigoProduto, setCodigoProduto] = useState('');
   const [mostrarListaClientes, setMostrarListaClientes] = useState(false);
-  const [formaPagamento, setFormaPagamento] = useState<'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO'>('PIX');
+  const [formaPagamento, setFormaPagamento] = useState<'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30'>('PIX');
   const [valorMisto, setValorMisto] = useState({ PIX: '', WALLET: '', CASH: '' });
   const [valorRecebido, setValorRecebido] = useState('');
   const [processando, setProcessando] = useState(false);
@@ -98,6 +99,14 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
   const [senhaFiadoErro, setSenhaFiadoErro] = useState('');
   const [senhaFiadoProcessando, setSenhaFiadoProcessando] = useState(false);
 
+  // ── Fiado 30 dias: seleção de usuário + senha mestra ──
+  const [fiado30UserId, setFiado30UserId] = useState<string>('');
+  const [fiado30Search, setFiado30Search] = useState('');
+  const [confirmandoFiado30, setConfirmandoFiado30] = useState(false);
+  const [senhaFiado30, setSenhaFiado30] = useState('');
+  const [senhaFiado30Erro, setSenhaFiado30Erro] = useState('');
+  const [senhaFiado30Processando, setSenhaFiado30Processando] = useState(false);
+
   // Token de idempotência da venda: gerado UMA vez por venda lógica (muda quando
   // o carrinho/cliente/pagamento mudam). Reenvios da MESMA venda (timeout/retry
   // após resposta perdida) reutilizam o token e o servidor devolve o pedido já
@@ -105,7 +114,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
   const [saleToken, setSaleToken] = useState<string>(() => crypto.randomUUID());
   useEffect(() => {
     setSaleToken(crypto.randomUUID());
-  }, [carrinho, clienteSelecionado, formaPagamento, selectedCustomerAccount?.id]);
+  }, [carrinho, clienteSelecionado, formaPagamento, selectedCustomerAccount?.id, fiado30UserId]);
 
   // Load customer accounts when modal opens
   useEffect(() => {
@@ -428,7 +437,18 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
       const porNome = customerAccounts.find(a => (a.nome || '').trim().toLowerCase() === nome);
       if (porNome) return porNome;
     }
-    return null;
+    // Fallback: usa o próprio usuário como conta de fiado (evita busca duplicada)
+    return {
+      id: cliente.id,
+      nome: cliente.name || cliente.inmateName || 'Cliente',
+      cpf: cliente.cpf,
+      telefone: cliente.phone || cliente.telefone,
+      currentDebt: Number(cliente.currentDebt || 0),
+      creditLimit: Number(cliente.creditLimit || 0),
+      status: cliente.status,
+      allowCredit: cliente.allowCredit || cliente.autorizacaoExcepcional,
+      _virtual: true,
+    } as any;
   }, [cliente, customerAccounts]);
 
   // Vínculo automático da venda fiada com o cliente JÁ escolhido no PDV.
@@ -483,6 +503,22 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
       (a.telefone || '').includes(term)
     );
   }, [customerAccounts, customerAccountSearch]);
+
+  const filteredFiado30Users = useMemo(() => {
+    const term = fiado30Search.toLowerCase().trim();
+    const eligibleUsers = users.filter(u => {
+      const creditLimit = Number(u.creditLimit || 0);
+      const isBlocked = String(u.status || '').toLowerCase() === 'blocked';
+      const allowCredit = u.allowCredit || u.autorizacaoExcepcional;
+      return creditLimit > 0 && !isBlocked && allowCredit;
+    });
+    if (!term) return eligibleUsers;
+    return eligibleUsers.filter(u =>
+      (u.name || u.inmateName || u.nome || '').toLowerCase().includes(term) ||
+      (u.telefone || u.phone || '').includes(term) ||
+      (u.cpf || '').includes(term)
+    );
+  }, [users, fiado30Search]);
 
   const estaCancelado = (o: Order) => {
     const s = String(o?.status || '').toUpperCase();
@@ -682,7 +718,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
     }).filter(Boolean) as any[]);
   };
 
-  const totalCarrinho = useMemo(() => carrinho.reduce((soma, item) => soma + item.price * item.quantity, 0), [carrinho]);
+  const totalCarrinho = useMemo(() => carrinho.reduce((soma, item) => arredondarCentavos(soma + item.price * item.quantity), 0), [carrinho]);
 
   // Preço efetivo na vitrine = MESMA regra do servidor e do carrinho
   // (promoPrice ativo substitui o price) — evita exibir um valor e cobrar outro.
@@ -787,21 +823,6 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
 
   const descartarVendaSuspensa = (id: string) => {
     setConfirmandoDescartarId(id);
-  };
-
-  const DENOMINACOES = [200, 100, 50, 20, 10, 5, 2, 1, 0.5, 0.25, 0.1, 0.05, 0.01];
-  const calcularDenominacoes = (valor: number): { valor: number; qtd: number }[] => {
-    const result: { valor: number; qtd: number }[] = [];
-    let centavos = Math.round((Math.abs(valor) + Number.EPSILON) * 100);
-    for (const d of DENOMINACOES) {
-      const dc = Math.round(d * 100);
-      if (dc <= centavos) {
-        const qtd = Math.floor(centavos / dc);
-        centavos -= qtd * dc;
-        if (qtd > 0) result.push({ valor: d, qtd });
-      }
-    }
-    return result;
   };
 
   // ── Cash Actions ──
@@ -934,29 +955,36 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
     let paymentsArray: {method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO', amount: number}[] | undefined = undefined;
     let changeValue: number | undefined = undefined;
     try {
-      // ── Venda em Dupla: monta o payload do débito compartilhado (só WALLET) ──
-      let jointWalletPayload: { secondUserId: string; secondWalletAmount: number } | undefined = undefined;
-      if (formaPagamento === 'WALLET') {
-        const segundaParcela = parseMoeda(secondWalletAmountInput);
-        if (isJointWalletMode && jointAdminAuthorized && secondUserId && segundaParcela > 0) {
-          if (secondUserId === targetId) throw new Error('O 2º devedor deve ser diferente do cliente principal.');
-          const clienteObj = users.find(u => u.id === targetId);
-          const saldo1 = Math.max(0, clienteObj?.walletBalance || 0);
-          if (saldo1 + segundaParcela < totalCarrinho - 0.009) {
-            throw new Error(`Saldo combinado insuficiente: R$ ${(saldo1 + segundaParcela).toFixed(2).replace('.', ',')} não cobre o total de R$ ${totalCarrinho.toFixed(2).replace('.', ',')}.`);
-          }
-          jointWalletPayload = { secondUserId, secondWalletAmount: Math.round(segundaParcela * 100) / 100 };
-        }
+      // Composição de pagamento 100% delegada à lógica pura testável
+      // (utils/pdvPayment.ts): monta payments/change/split de dupla com as
+      // MESMAS regras de antes — arredondamento a centavos e tolerâncias.
+      const montagem = montarPagamentoPdv({
+        formaPagamento,
+        total: totalCarrinho,
+        valorMisto,
+        valorRecebido,
+        clienteSelecionado,
+        targetId,
+        clienteEhConsumidor,
+        contaFiadoSelecionada: selectedCustomerAccount,
+        fiado30UserId,
+        saldoCarteiraCliente: cliente?.walletBalance,
+        weeklySpentCliente: (cliente as any)?.weeklySpent,
+        weeklyWalletLimit: settings?.weeklyWalletLimit,
+        isJointWalletMode,
+        jointAdminAuthorized,
+        secondUserId,
+        secondWalletAmountInput,
+      });
+      if (montagem.ok === false) {
+        showNotification(montagem.message, 'error');
+        return;
       }
+      paymentsArray = montagem.paymentsArray;
+      changeValue = montagem.changeValue;
+      const jointWalletPayload = montagem.jointWalletPayload;
 
       if (formaPagamento === 'FIADO') {
-        if (!clienteSelecionado) throw new Error('Selecione um cliente para venda fiada.');
-        if (clienteEhConsumidor) throw new Error('Venda fiada exige cliente cadastrado — escolha o cliente no início da venda (não o Consumidor Final).');
-        if (!selectedCustomerAccount) throw new Error('Selecione um cliente de fiado.');
-        const novaDivida = (selectedCustomerAccount.currentDebt || 0) + totalCarrinho;
-        if ((novaDivida || 0) > (selectedCustomerAccount.creditLimit || 0)) {
-          throw new Error('Sem saldo no momento - Limite de crédito excedido.');
-        }
         // BUGFIX: venda fiada exige Senha Mestra ANTES de criar a dívida.
         // A porta existia como código morto (executarVendaFiado nunca era chamada).
         // Offline: segue permitido (operador é admin autenticado e o servidor
@@ -976,67 +1004,19 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
         return;
       }
 
-      if (formaPagamento === 'MIXED') {
-        const pPix = parseMoeda(valorMisto.PIX);
-        const pWallet = parseMoeda(valorMisto.WALLET);
-        const pCash = parseMoeda(valorMisto.CASH);
-
-        paymentsArray = [];
-        if (pPix > 0) paymentsArray.push({ method: 'PIX', amount: pPix });
-        if (pWallet > 0) paymentsArray.push({ method: 'WALLET', amount: pWallet });
-        if (pCash > 0) paymentsArray.push({ method: 'CASH', amount: pCash });
-
-        if (pWallet > 0) {
-          if (clienteEhConsumidor) throw new Error('Venda para consumidor final não pode usar créditos internos (WALLET).');
-          const saldoCarteira = Math.max(0, cliente?.walletBalance || 0);
-          const limiteSemanalDisponivel = Math.max(0, (settings?.weeklyWalletLimit || 300) - ((cliente as any)?.weeklySpent || 0));
-          if (pWallet > saldoCarteira + 0.009) {
-            throw new Error(`Saldo insuficiente na carteira para a parte em créditos. Disponível: R$ ${formatarMoeda(saldoCarteira)}.`);
-          }
-          if (pWallet > limiteSemanalDisponivel + 0.009) {
-            throw new Error(`Limite semanal de créditos excedido para a parte em créditos. Disponível: R$ ${formatarMoeda(limiteSemanalDisponivel)}.`);
-          }
+      if (formaPagamento === 'FIADO_30') {
+        // Fiado 30 dias: usa usuário cadastrado diretamente + exige senha mestra
+        if (!navigator.onLine) {
+          // Offline não suportado para FIADO_30 (requer validação de senha mestra no servidor)
+          showNotification('Fiado 30 Dias requer conexão com a internet para validação da senha mestra.', 'error');
+          return;
         }
-
-        const totalRecebido = pPix + pWallet + pCash;
-        if (totalRecebido < totalCarrinho - 0.009) {
-           const faltam = (totalCarrinho - totalRecebido).toFixed(2);
-           showNotification(`Valor recebido insuficiente. Faltam R$ ${faltam}. Verifique os valores informados.`, 'error');
-           return;
-        }
-        // Excedente SÓ é aceito se houver dinheiro em caixa para devolver o troco.
-        // Caso contrário o pagamento seria registrado com soma maior que o total
-        // e o excedente sumiria silenciosamente do array de pagamentos.
-        if (totalRecebido > totalCarrinho + 0.009 && pCash <= 0) {
-           const excedente = (totalRecebido - totalCarrinho).toFixed(2).replace('.', ',');
-           showNotification(`Excedente de R$ ${excedente} sem dinheiro em caixa para devolver o troco. Ajuste os valores informados.`, 'error');
-           return;
-        }
-if (totalRecebido > totalCarrinho && pCash > 0) {
-           changeValue = Math.round((totalRecebido - totalCarrinho) * 100) / 100;
-           const cashIndex = paymentsArray.findIndex(p => p.method === 'CASH');
-           if (cashIndex >= 0) {
- if (changeValue > pCash + 0.009) {
-                   showNotification(`O troco (R$ ${changeValue.toFixed(2).replace('.', ',')}) é maior que o valor recebido em dinheiro (R$ ${pCash.toFixed(2).replace('.', ',')}). Aumente o valor em dinheiro ou reduza o excedente.`, 'error');
-                   return;
-                }
-               paymentsArray[cashIndex].amount = Math.max(0, Math.round((paymentsArray[cashIndex].amount - changeValue) * 100) / 100);
-           }
-           paymentsArray = paymentsArray.filter(p => p.amount > 0);
-        }
-      } else if (formaPagamento === 'CASH') {
-        const recebido = parseMoeda(valorRecebido);
-        if (recebido < totalCarrinho - 0.009) {
-           const faltam = (totalCarrinho - recebido).toFixed(2);
-           showNotification(`Valor recebido insuficiente. Faltam R$ ${faltam}. Receba ao menos o total da venda em dinheiro.`, 'error');
-           return;
-        }
-        if (recebido > totalCarrinho) {
-          changeValue = Math.round((recebido - totalCarrinho) * 100) / 100;
-        }
+        setProcessando(false);
+        setConfirmandoFiado30(true);
+        return;
       }
 
-      const pedido = await onConfirm(targetId, carrinho, formaPagamento, totalCarrinho, paymentsArray, changeValue, undefined, saleToken, jointWalletPayload, bandeiraCartao || undefined);
+      const pedido = await onConfirm(targetId, carrinho, formaPagamento, totalCarrinho, paymentsArray, changeValue, undefined, saleToken, jointWalletPayload, bandeiraCartao || undefined, fiado30UserId);
       if (pedido) {
         setUltimoPedido(pedido);
         setUltimaVenda(pedido);
@@ -1108,6 +1088,44 @@ if (totalRecebido > totalCarrinho && pCash > 0) {
       }
     } finally {
       setSenhaFiadoProcessando(false);
+    }
+  };
+
+  // Confirma a venda FIADO 30 DIAS após validar a senha mestra no servidor.
+  const executarVendaFiado30 = async () => {
+    if (senhaFiado30Processando) return;
+    setSenhaFiado30Processando(true);
+    setSenhaFiado30Erro('');
+    try {
+      const senha = (senhaFiado30 || '').trim();
+      if (!senha) {
+        setSenhaFiado30Erro('Digite a senha mestra para finalizar.');
+        return;
+      }
+      if (!fiado30UserId) throw new Error('Selecione um usuário para o fiado 30 dias.');
+      const ok = await validateMasterPassword(senha);
+      if (!ok) {
+        setSenhaFiado30Erro('Senha mestra incorreta. Tente novamente.');
+        return;
+      }
+      const pedido = await onConfirm(fiado30UserId, carrinho, 'FIADO_30', totalCarrinho, undefined, undefined, undefined, saleToken, undefined, undefined, fiado30UserId);
+      if (pedido) {
+        setUltimoPedido(pedido);
+        setUltimaVenda(pedido);
+        resetPdvFields();
+      }
+    } catch (e: any) {
+      if (!navigator.onLine) {
+        showNotification('Fiado 30 Dias não suporta modo offline.', 'error');
+        return;
+      }
+      if (/senha|password/i.test(String(e?.message || ''))) {
+        setSenhaFiado30Erro(e.message);
+      } else {
+        setSenhaFiado30Erro(e.message || 'Erro ao finalizar venda.');
+      }
+    } finally {
+      setSenhaFiado30Processando(false);
     }
   };
 

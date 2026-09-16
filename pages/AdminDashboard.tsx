@@ -407,9 +407,9 @@ export function AdminDashboard() {
   const handleConfirmOfflineSale = async (
     targetUserId: string,
     items: any[],
-    paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'MIXED' | 'FIADO',
+    paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'MIXED' | 'FIADO' | 'FIADO_30',
     total: number,
-    payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO'; amount: number }[],
+    payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30'; amount: number }[],
     change?: number,
     customerAccountId?: string,
     cardBrand?: string
