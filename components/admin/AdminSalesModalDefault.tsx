@@ -444,7 +444,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
     // Fallback: usa o próprio usuário como conta de fiado (evita busca duplicada)
     return {
       id: cliente.id,
-      nome: cliente.name || cliente.inmateName || 'Cliente',
+      nome: cliente.inmateName || cliente.prisonerName || cliente.name || 'Cliente',
       cpf: cliente.cpf,
       telefone: cliente.phone || cliente.telefone,
       currentDebt: Number(cliente.currentDebt || 0),
@@ -1448,11 +1448,11 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                 <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
                   <div className="flex items-center gap-4 min-w-0">
                     <div className="w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xl text-white shrink-0" style={{ backgroundColor: corPrincipal }}>
-                      {(cliente?.name || '?').charAt(0).toUpperCase()}
+                      {(cliente?.inmateName || cliente?.prisonerName || cliente?.name || '?').charAt(0).toUpperCase()}
                     </div>
                     <div className="min-w-0">
-                      <p className="font-black text-sm text-slate-900 uppercase truncate">{cliente?.name || 'Cliente'}</p>
-                      <p className="text-[10px] font-bold text-slate-400 mt-0.5">Interno: {cliente?.inmateName || cliente?.prisonerName || 'N/A'}</p>
+                      <p className="font-black text-sm text-slate-900 uppercase truncate">{cliente?.inmateName || cliente?.prisonerName || cliente?.name || 'Cliente'}</p>
+                      <p className="text-[10px] font-bold text-slate-400 mt-0.5">Familiar: {cliente?.name || '—'}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
@@ -1494,7 +1494,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                       {clientesFiltrados.map(u => (
                         <button
                           key={u.id}
-                          onClick={() => { setClienteSelecionado(u.id); setBuscaCliente(u.name); setMostrarListaClientes(false); setTimeout(() => produtoInputRef.current?.focus(), 50); }}
+                          onClick={() => { setClienteSelecionado(u.id); setBuscaCliente(u.inmateName || u.prisonerName || u.name); setMostrarListaClientes(false); setTimeout(() => produtoInputRef.current?.focus(), 50); }}
                           className="w-full p-4 flex items-center justify-between hover:bg-emerald-50 border-b border-slate-100 last:border-0 transition-colors cursor-pointer"
                         >
                           <div className="flex items-center gap-3">
