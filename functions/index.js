@@ -3412,15 +3412,15 @@ async function gerarBackupCompleto(caminho, motivo, por) {
   return { arquivo: caminho, bytes, totalDocs, porColecao };
 }
 
-/** Apaga backups diários com mais de `dias` (mantém no mínimo `minimo`). */
-async function limparBackupsAntigos(dias = 30, minimo = 3) {
+/** Apaga backups com mais de `dias` (mantém no mínimo `minimo` mais recentes). */
+async function limparBackupsAntigos(dias = 30, minimo = 3, prefixo = "backups/diario-", padrao = /diario-(\d+)\.json$/) {
   try {
     const bucket = admin.storage().bucket(FUNC_BUCKET);
-    const [files] = await bucket.getFiles({ prefix: "backups/diario-" });
+    const [files] = await bucket.getFiles({ prefix: prefixo });
     const corte = Date.now() - dias * 24 * 60 * 60 * 1000;
     const paraApagar = files
       .filter((f) => {
-        const m = f.name.match(/diario-(\d+)\.json$/);
+        const m = f.name.match(padrao);
         if (!m) return false;
         return Number(m[1]) < corte;
       })
@@ -3428,7 +3428,7 @@ async function limparBackupsAntigos(dias = 30, minimo = 3) {
     // Mantém sempre os `minimo` mais recentes, mesmo que antigos.
     const sobrantes = Math.max(0, paraApagar.length - minimo);
     await Promise.all(paraApagar.slice(0, sobrantes).map((f) => f.delete().catch(() => {})));
-    if (sobrantes > 0) logger.info(`[Backup] ${sobrantes} backup(s) antigo(s) removido(s) (retenção de ${dias} dias).`);
+    if (sobrantes > 0) logger.info(`[Backup] ${sobrantes} backup(s) antigo(s) removido(s) (${prefixo}, retenção de ${dias} dias).`);
   } catch (e) {
     logger.warn("[Backup] Falha ao limpar backups antigos:", e.message);
   }
@@ -3463,6 +3463,38 @@ exports.backupAutomaticoDiario = onSchedule({
       lastBackupStatus: "error",
       lastBackupError: String((e && e.message) || e).slice(0, 500),
       lastBackupDurationMs: Date.now() - inicio,
+    }, { merge: true }).catch(() => {});
+  }
+});
+
+/** Agendado — backup de COMPLETUDE semanal (quarta-feira 03:30 MT), retenção longa (180 dias). */
+exports.backupSemanalAutomatico = onSchedule({
+  schedule: "30 3 * * 3",
+  timeZone: "America/Cuiaba",
+  timeoutSeconds: 540,
+  memory: "1GiB",
+}, async () => {
+  const inicio = Date.now();
+  try {
+    const nome = `backups/semanal-${Date.now()}.json`;
+    const r = await gerarBackupCompleto(nome, "semanal", "sistema");
+    // Retenção longa: 180 dias, mantendo no mínimo 2 backups semanais.
+    await limparBackupsAntigos(180, 2, "backups/semanal-", /semanal-(\d+)\.json$/);
+    await db.collection("settings").doc("maintenance").set({
+      lastWeeklyBackup: new Date().toISOString(),
+      lastWeeklyBackupFile: r.arquivo,
+      lastWeeklyBackupDocs: r.totalDocs,
+      lastWeeklyBackupBytes: r.bytes,
+      lastWeeklyBackupStatus: "ok",
+      lastWeeklyBackupDurationMs: Date.now() - inicio,
+    }, { merge: true });
+  } catch (e) {
+    console.error("[backupSemanalAutomatico] falha:", e);
+    await db.collection("settings").doc("maintenance").set({
+      lastWeeklyBackup: new Date().toISOString(),
+      lastWeeklyBackupStatus: "error",
+      lastWeeklyBackupError: String((e && e.message) || e).slice(0, 500),
+      lastWeeklyBackupDurationMs: Date.now() - inicio,
     }, { merge: true }).catch(() => {});
   }
 });
@@ -3525,8 +3557,8 @@ exports.restaurarBackup = onCall({
   const senhaMestra = String(request.data?.senhaMestra || "");
 
   if (!confirmar) throw new HttpsError("failed-precondition", "Confirmação obrigatória para restaurar.");
-  if (!/^backups\/diario-[\d]+\.json$/.test(nome)) {
-    throw new HttpsError("invalid-argument", "Selecione um backup diário válido.");
+  if (!/^backups\/(diario|semanal)-[\d]+\.json$/.test(nome)) {
+    throw new HttpsError("invalid-argument", "Selecione um backup diário ou semanal válido.");
   }
 
   await verificarSenhaMestra(senhaMestra);

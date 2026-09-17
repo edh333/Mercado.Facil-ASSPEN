@@ -9,6 +9,7 @@ import {
   computeChecklist,
   computeMaintenanceAlerts,
   contagemPendencias,
+  alertasParaBanner,
   AlertaManutencao,
   ChecagemChecklist,
   DocManutencao,
@@ -183,17 +184,25 @@ export const MaintenanceCenter: React.FC<Props> = ({
     }
   };
 
-  // ---- BANNER compacto (topo do painel, visivel enquanto houver aviso) ----
+  // ---- BANNER compacto (topo do painel, apenas quando REALMENTE necessário) ----
   if (variant === 'banner') {
-    const ativos = alerts.filter((a) => a.nivel === 'critical' || a.nivel === 'warning');
-    if (ativos.length === 0 && pendenciasChecklist === 0) return null;
-    const pendenciaAtual = ativos.length + pendenciasChecklist;
+    // Só alertas críticos + falhas de infraestrutura (backup/cota) ativam o banner.
+    const bannerAlerts = alertasParaBanner(alerts);
+    const ativos = bannerAlerts.filter((a) => a.nivel === 'critical' || a.nivel === 'warning');
+    if (ativos.length === 0) return null;
+    const pendenciaAtual = bannerAlerts.length;
     if (bannerDispensadoEm !== null && pendenciaAtual <= bannerDispensadoEm) return null;
     const dispensarBanner = () => {
       try { sessionStorage.setItem('mf-maintenance-banner-dispensado-contagem', String(pendenciaAtual)); } catch { /* noop */ }
       setBannerDispensadoEm(pendenciaAtual);
     };
-    const temCritico = criticos > 0;
+    const temCritico = bannerAlerts.some((a) => a.nivel === 'critical');
+    // Resolve a manutenção mais grave diretamente (na maioria: executar backup).
+    const alvo1 = bannerAlerts[0];
+    const resolvendoBackup = alvo1?.alvo === 'backup' && backupando;
+    const executarResolucao = () => {
+      if (alvo1) acaoAlerta(alvo1);
+    };
     return (
       <motion.div
         initial={{ opacity: 0, y: -12 }}
@@ -212,12 +221,19 @@ export const MaintenanceCenter: React.FC<Props> = ({
               Manutencao necessaria
             </p>
             <p className="text-[10px] font-bold text-amber-200/80 leading-relaxed mt-0.5">
-              {criticos > 0 && <span><strong>{criticos} critico(s). </strong></span>}
-              {avisos > 0 && <span><strong>{avisos} aviso(s). </strong></span>}
-              {pendenciasChecklist > 0 && <span>Checklist com <strong>{pendenciasChecklist} pendencia(s)</strong>. </span>}
-              Abra o centro de manutencao para resolver.
+              {bannerAlerts[0]?.titulo && <span><strong>{bannerAlerts[0].titulo}. </strong></span>}
+              {bannerAlerts.length > 1 && <span>+{bannerAlerts.length - 1} outro(s). </span>}
+              Resolva abaixo ou abra o centro de manutencao.
             </p>
           </div>
+          <button
+            onClick={executarResolucao}
+            disabled={resolvendoBackup}
+            className="shrink-0 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-wider flex items-center gap-2 hover:brightness-110 active:scale-95 transition-all disabled:opacity-60"
+          >
+            {resolvendoBackup ? <Loader2 size={14} className="animate-spin" /> : <Settings2 size={14} />}
+            {resolvendoBackup ? 'Gerando...' : 'Resolver'}
+          </button>
           <button
             onClick={() => onNavigate?.('maintenance')}
             className="shrink-0 px-4 py-2 bg-white text-red-900 rounded-xl font-black text-[10px] uppercase tracking-wider flex items-center gap-2 hover:bg-red-50 active:scale-95 transition-all"
@@ -233,6 +249,11 @@ export const MaintenanceCenter: React.FC<Props> = ({
             <X size={16} />
           </button>
         </div>
+        {feedback && (
+          <p className={'text-[9px] font-black uppercase tracking-wider ' + (feedback.indexOf('Falha') === 0 ? 'text-red-300' : 'text-emerald-300')}>
+            {feedback}
+          </p>
+        )}
       </motion.div>
     );
   }

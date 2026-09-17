@@ -6,6 +6,7 @@ import {
   diasDesde,
   LIMIARES,
   CHECKLIST_PADRAO,
+  alertasParaBanner,
 } from '../utils/maintenanceAlerts';
 
 const FIXO = new Date('2026-09-10T12:00:00Z');
@@ -200,5 +201,52 @@ describe('checklist', () => {
     expect(ids).toContain('cota-plano');
     expect(ids).toContain('limpeza-dados');
     expect(ids).toContain('auditoria-seguranca');
+  });
+});
+
+describe('alertasParaBanner — só mostra quando realmente necessário', () => {
+  const base = {
+    cotaCritica: false,
+    monitoramentoAtivo: true,
+    esgotados: 0,
+    estoqueBaixo: 0,
+    pedidosPendentes: 0,
+    depositosPendentes: 0,
+    usuariosPendentes: 0,
+    now: new Date('2026-09-10T12:00:00Z'),
+  };
+
+  it('mantém críticos (ex.: backup nunca feito)', () => {
+    const alerts = computeMaintenanceAlerts({ ...base, maintenance: null });
+    const b = alertasParaBanner(alerts);
+    expect(b.some((a) => a.id === 'backup-nunca')).toBe(true);
+    expect(b.every((a) => a.nivel === 'critical')).toBe(true);
+  });
+
+  it('mantém aviso de backup atrasado (infraestrutura)', () => {
+    const alerts = computeMaintenanceAlerts({
+      ...base,
+      maintenance: { lastBackup: '2026-09-08T03:15:00Z' },
+    });
+    const b = alertasParaBanner(alerts);
+    expect(b.some((a) => a.id === 'backup-atencao')).toBe(true);
+  });
+
+  it('exclui rotina (estoque/pedidos/depósitos/usuários) do banner', () => {
+    const alerts = computeMaintenanceAlerts({
+      ...base,
+      maintenance: { lastBackup: '2026-09-09T03:15:00Z' },
+      estoqueBaixo: 3,
+      pedidosPendentes: 5,
+      depositosPendentes: 1,
+      usuariosPendentes: 4,
+    });
+    expect(alerts.length).toBeGreaterThan(0);
+    expect(alertasParaBanner(alerts)).toEqual([]);
+  });
+
+  it('mantém cota crítica no banner', () => {
+    const alerts = computeMaintenanceAlerts({ ...base, cotaCritica: true, maintenance: {} });
+    expect(alertasParaBanner(alerts).some((a) => a.id === 'cota')).toBe(true);
   });
 });

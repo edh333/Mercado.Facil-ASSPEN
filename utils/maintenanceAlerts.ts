@@ -72,6 +72,19 @@ export function ordenarAlertas(alerts: AlertaManutencao[]): AlertaManutencao[] {
 }
 
 /**
+ * Alertas que JUSTIFICAM a faixa (banner) no topo do painel. Regra:
+ * só o que exige ação URGENTE e não é rotina operacional — críticos
+ * (backup ausente/falho, cota atingida) e avisos de INFRAESTRUTURA
+ * (backup atrasado/cota/firebase). Rotina (estoque, pedidos, depósitos,
+ * usuários, checklist) permanece apenas no Centro de Manutenção, sem
+ * "gritar" no banner diário.
+ */
+const ALVOS_INFRA = new Set(['backup', 'cota']);
+export function alertasParaBanner(alerts: AlertaManutencao[]): AlertaManutencao[] {
+  return alerts.filter((a) => a.nivel === 'critical' || (a.nivel === 'warning' && ALVOS_INFRA.has(a.alvo)));
+}
+
+/**
  * Sinais automaticos de manutencao. Regras:
  * - Backup: inexistente → critico; falhou → critico; >= 7 dias → critico; >= 2 dias → aviso.
  * - Cota do Firebase atingida → critico.
