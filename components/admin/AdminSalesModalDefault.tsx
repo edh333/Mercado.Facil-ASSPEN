@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { X, Search, ShoppingCart, UserCircle2, Scan, CreditCard, 
 DollarSign, Wallet, Package, ChevronLeft, Plus, Minus, Check, Volume2, VolumeX, Box, 
 Trash2, RefreshCw, Landmark, Lock, LogIn, LogOut, AlertTriangle, CheckCircle, 
-BookOpen, Printer, BarChart3, Calendar, Users2, Clock, Undo2, RotateCcw, PauseCircle, History, Tag } from 'lucide-react';
+BookOpen, Printer, BarChart3, Calendar, Users2, Clock, Undo2, RotateCcw, PauseCircle, History, Tag, Eye, EyeOff } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Product, User, UserRole, Order, AppConfig, CustomerAccount } from '../../types';
 import { getCustomerAccounts } from '../../utils/customerUtils';
@@ -100,6 +100,8 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
   const [senhaFiadoSecundaria, setSenhaFiadoSecundaria] = useState('');
   const [senhaFiadoErro, setSenhaFiadoErro] = useState('');
   const [senhaFiadoProcessando, setSenhaFiadoProcessando] = useState(false);
+  const [mostrarSenhaFiadoPrim, setMostrarSenhaFiadoPrim] = useState(false);
+  const [mostrarSenhaFiadoSec, setMostrarSenhaFiadoSec] = useState(false);
 
   // ── Fiado 30 dias: seleção de usuário + DUPLA senha mestra ──
   const [fiado30UserId, setFiado30UserId] = useState<string>('');
@@ -135,6 +137,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
   const [confirmandoJointSenha, setConfirmandoJointSenha] = useState(false);
   const [jointSenhaAdmin, setJointSenhaAdmin] = useState('');
   const [jointSenhaAdminErro, setJointSenhaAdminErro] = useState('');
+  const [mostrarSenhaJoint, setMostrarSenhaJoint] = useState(false);
   const [jointSenhaProcessando, setJointSenhaProcessando] = useState(false);
   const [jointAdminAuthorized, setJointAdminAuthorized] = useState(false);
 
@@ -1911,15 +1914,25 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                           <Lock size={16} className="text-slate-500 shrink-0" />
                           <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.2em]">Senha Mestra necessária para débito em dupla</p>
                         </div>
-                        <input
-                          type="password"
+                        <div className="relative">
+                          <input
+                          type={mostrarSenhaJoint ? 'text' : 'password'}
                           autoFocus
                           placeholder="••••••••"
-                          className="w-full bg-white border-2 border-slate-200 focus:border-emerald-500 p-4 rounded-2xl font-black text-center text-lg outline-none transition-colors"
+                          className="w-full bg-white border-2 border-slate-200 focus:border-emerald-500 px-14 py-4 rounded-2xl font-black text-center text-lg outline-none transition-colors"
                           value={jointSenhaAdmin}
                           onChange={e => { setJointSenhaAdmin(e.target.value); setJointSenhaAdminErro(''); }}
                           onKeyDown={e => { if (e.key === 'Enter') handleAutorizarJointWallet(); }}
                         />
+                        <button
+                          type="button"
+                          onClick={() => setMostrarSenhaJoint(v => !v)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-xl text-slate-400 hover:text-emerald-600 transition-colors"
+                          aria-label={mostrarSenhaJoint ? 'Ocultar senha' : 'Mostrar senha'}
+                        >
+                          {mostrarSenhaJoint ? <EyeOff size={18}/> : <Eye size={18}/>}
+                        </button>
+                        </div>
                         {jointSenhaAdminErro && (
                           <p className="text-[10px] font-black text-red-600 uppercase tracking-wider flex items-center gap-1.5">
                             <AlertTriangle size={13} /> {jointSenhaAdminErro}
@@ -2506,23 +2519,43 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
           <div className="space-y-3">
             <div>
               <label className="block text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1">Senha Primária (Admin Principal)</label>
-              <input
-                type="password" autoFocus placeholder="••••••••"
-                className="w-full bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 p-4 rounded-2xl font-black text-center text-lg outline-none transition-colors"
-                value={senhaFiadoPrimaria}
-                onChange={e => { setSenhaFiadoPrimaria(e.target.value); setSenhaFiadoErro(''); }}
-                onKeyDown={e => { if (e.key === 'Enter') executarVendaFiado(); }}
-              />
+              <div className="relative">
+                <input
+                  type={mostrarSenhaFiadoPrim ? 'text' : 'password'} autoFocus placeholder="••••••••"
+                  className="w-full bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 px-14 py-4 rounded-2xl font-black text-center text-lg outline-none transition-colors"
+                  value={senhaFiadoPrimaria}
+                  onChange={e => { setSenhaFiadoPrimaria(e.target.value); setSenhaFiadoErro(''); }}
+                  onKeyDown={e => { if (e.key === 'Enter') executarVendaFiado(); }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setMostrarSenhaFiadoPrim(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-xl text-slate-400 hover:text-emerald-600 transition-colors"
+                  aria-label={mostrarSenhaFiadoPrim ? 'Ocultar senha' : 'Mostrar senha'}
+                >
+                  {mostrarSenhaFiadoPrim ? <EyeOff size={18}/> : <Eye size={18}/>}
+                </button>
+              </div>
             </div>
             <div>
               <label className="block text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1">Senha Secundária (Admin Secundário / Mestra)</label>
-              <input
-                type="password" placeholder="••••••••"
-                className="w-full bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 p-4 rounded-2xl font-black text-center text-lg outline-none transition-colors"
-                value={senhaFiadoSecundaria}
-                onChange={e => { setSenhaFiadoSecundaria(e.target.value); setSenhaFiadoErro(''); }}
-                onKeyDown={e => { if (e.key === 'Enter') executarVendaFiado(); }}
-              />
+              <div className="relative">
+                <input
+                  type={mostrarSenhaFiadoSec ? 'text' : 'password'} placeholder="••••••••"
+                  className="w-full bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 px-14 py-4 rounded-2xl font-black text-center text-lg outline-none transition-colors"
+                  value={senhaFiadoSecundaria}
+                  onChange={e => { setSenhaFiadoSecundaria(e.target.value); setSenhaFiadoErro(''); }}
+                  onKeyDown={e => { if (e.key === 'Enter') executarVendaFiado(); }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setMostrarSenhaFiadoSec(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-xl text-slate-400 hover:text-emerald-600 transition-colors"
+                  aria-label={mostrarSenhaFiadoSec ? 'Ocultar senha' : 'Mostrar senha'}
+                >
+                  {mostrarSenhaFiadoSec ? <EyeOff size={18}/> : <Eye size={18}/>}
+                </button>
+              </div>
             </div>
           </div>
           {senhaFiadoErro && (

@@ -2,7 +2,7 @@ import React, { Fragment } from 'react';
 import { createPortal } from 'react-dom';
 import {
   X, Check, Upload, ImageIcon, Barcode,
-  MinusCircle, RefreshCw, Loader2, Lock, Package, Key, PlusCircle, Printer, KeyRound, ShieldCheck, Edit, Shield, AlertTriangle, Save, Globe, Store, ShoppingCart
+  MinusCircle, RefreshCw, Loader2, Lock, Package, Key, PlusCircle, Printer, KeyRound, ShieldCheck, Edit, Shield, AlertTriangle, Save, Globe, Store, ShoppingCart, Eye, EyeOff
 } from 'lucide-react';
 import { Product, Expense, Order } from '../../types';
 import { compressImageFile, fileToBase64, normalizeName } from '../../utils';
@@ -70,6 +70,9 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
   const [isProductLoading, setIsProductLoading] = React.useState(false);
   const [isAuthLoading, setIsAuthLoading] = React.useState(false);
   const [confirmarDuplicata, setConfirmarDuplicata] = React.useState(false);
+  const [mostrarSenhaWithdrawal, setMostrarSenhaWithdrawal] = React.useState(false);
+  const [mostrarSenhaAuth, setMostrarSenhaAuth] = React.useState(false);
+  const [mostrarSenhaStock, setMostrarSenhaStock] = React.useState(false);
   const confirmarDuplicataStorage = React.useRef<null | { productData: Product }>(null);
 
   const executarSalvarDuplicata = async () => {
@@ -697,17 +700,31 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                                 <div className="relative group">
                                   <KeyRound size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-amber-500"/>
                                   <input
-                                    type="password"
-                                    className="w-full px-12 py-5 bg-slate-100 border-2 border-slate-200 group-focus-within:border-amber-500 group-focus-within:ring-4 group-focus-within:ring-amber-500/20 rounded-2xl font-black text-lg text-slate-900 outline-none transition-all placeholder:text-slate-400"
+                                    type={mostrarSenhaWithdrawal ? 'text' : 'password'}
+                                    className="w-full pl-14 pr-14 py-5 bg-slate-100 border-2 border-slate-200 group-focus-within:border-amber-500 group-focus-within:ring-4 group-focus-within:ring-amber-500/20 rounded-2xl font-black text-lg text-slate-900 outline-none transition-all placeholder:text-slate-400"
                                     placeholder="••••••••"
                                     value={withdrawalPassword}
                                     onChange={e => setWithdrawalPassword(e.target.value)}
+                                    onKeyDown={e => {
+                                      if (e.key === 'Enter' && withdrawalPassword.trim().length >= 8 && withdrawalAmount && (parseFloat(String(withdrawalAmount).replace(',', '.')) || 0) > 0) handleWithdrawal();
+                                    }}
                                     autoComplete="off"
                                   />
+                                  <button
+                                    type="button"
+                                    onClick={() => setMostrarSenhaWithdrawal(v => !v)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-xl text-slate-400 hover:text-slate-600 transition-colors"
+                                    aria-label={mostrarSenhaWithdrawal ? 'Ocultar senha' : 'Mostrar senha'}
+                                  >
+                                    {mostrarSenhaWithdrawal ? <EyeOff size={18}/> : <Eye size={18}/>}
+                                  </button>
                                 </div>
                                 <p className="mt-2 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
                                   <ShieldCheck size={12}/> Validada no servidor — exigida por segurança em movimentação de saldo
                                 </p>
+                                {withdrawalPassword.trim() && withdrawalPassword.trim().length < 8 && (
+                                  <p className="mt-1 text-[10px] font-black text-red-500 uppercase">Mínimo de 8 caracteres</p>
+                                )}
                             </div>
                             )}
                         </div>
@@ -805,9 +822,9 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                             <Key size={18}/>
                         </div>
                         <input
-                            type="password"
+                            type={mostrarSenhaAuth ? 'text' : 'password'}
                             autoCapitalize="none" autoCorrect="off" autoComplete="off" spellCheck={false}
-                            className="w-full pl-11 pr-4 py-3.5 bg-slate-50/70 border border-slate-200 focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/15 rounded-xl font-bold text-lg tracking-[0.35em] text-slate-900 outline-none transition-all placeholder:text-slate-300 relative z-10"
+                            className="w-full pl-11 pr-12 py-3.5 bg-slate-50/70 border border-slate-200 focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/15 rounded-xl font-bold text-lg tracking-[0.35em] text-slate-900 outline-none transition-all placeholder:text-slate-300 relative z-10"
                             placeholder="••••"
                             value={authPass}
                             onChange={e => setAuthPass(e.target.value)}
@@ -815,6 +832,15 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                             required
                             disabled={isAuthLoading}
                         />
+                        <button
+                            type="button"
+                            onClick={() => setMostrarSenhaAuth(v => !v)}
+                            disabled={isAuthLoading}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 z-20 p-2 rounded-xl text-slate-400 hover:text-emerald-600 transition-colors"
+                            aria-label={mostrarSenhaAuth ? 'Ocultar senha' : 'Mostrar senha'}
+                        >
+                            {mostrarSenhaAuth ? <EyeOff size={18}/> : <Eye size={18}/>}
+                        </button>
                     </div>
 
                     <div className="flex flex-col gap-3">
@@ -1031,18 +1057,28 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
 
               <div>
                 <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Senha Mestra (obrigatória para admins secundários)</label>
-                <input
-                  type="password"
-                  value={stockEditPassword}
-                  onChange={(e) => {
-                    setStockEditPassword(e.target.value);
-                    setStockEditError('');
-                  }}
-                  onKeyDown={(e) => e.key === 'Enter' && handleStockEditSubmit()}
-                  className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 rounded-xl font-black text-lg outline-none transition-colors placeholder:text-slate-400"
-                  placeholder="••••••••"
-                  autoComplete="off"
-                />
+                <div className="relative">
+                  <input
+                    type={mostrarSenhaStock ? 'text' : 'password'}
+                    value={stockEditPassword}
+                    onChange={(e) => {
+                      setStockEditPassword(e.target.value);
+                      setStockEditError('');
+                    }}
+                    onKeyDown={(e) => e.key === 'Enter' && handleStockEditSubmit()}
+                    className="w-full pl-4 pr-14 py-3 bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 rounded-xl font-black text-lg outline-none transition-colors placeholder:text-slate-400"
+                    placeholder="••••••••"
+                    autoComplete="off"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setMostrarSenhaStock(v => !v)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-2 rounded-xl text-slate-400 hover:text-slate-600 transition-colors"
+                    aria-label={mostrarSenhaStock ? 'Ocultar senha' : 'Mostrar senha'}
+                  >
+                    {mostrarSenhaStock ? <EyeOff size={18}/> : <Eye size={18}/>}
+                  </button>
+                </div>
                 {stockEditError && <p className="mt-2 text-red-600 font-black text-sm">{stockEditError}</p>}
               </div>
 

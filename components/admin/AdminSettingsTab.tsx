@@ -3,7 +3,7 @@ import {
   Settings, KeyRound, Database, HardDrive, Download, AlertTriangle,
   Trash2, RefreshCw, Smartphone, Palette, Shield, Lock, Save, DollarSign, Check,
   FileText, CreditCard, Building, Info, Printer, Wrench, Truck, ShoppingBag, Search, Loader2, Zap, Users,
-  History, RotateCcw, Upload, Archive, Power, CalendarClock, CloudUpload, CloudDownload, FileJson, Receipt, Pencil, Moon
+  History, RotateCcw, Upload, Archive, Power, CalendarClock, CloudUpload, CloudDownload, FileJson, Receipt, Pencil, Moon, Eye, EyeOff
 } from 'lucide-react';
 import { ModalShell } from '../ui/ModalShell';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -160,6 +160,12 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
   const [secondaryPassword, setSecondaryPassword] = React.useState('');
   const [confirmSecondaryPassword, setConfirmSecondaryPassword] = React.useState('');
   const [isSavingSecondaryPass, setIsSavingSecondaryPass] = React.useState(false);
+  const [mostrarSenhaMasterNova, setMostrarSenhaMasterNova] = React.useState(false);
+  const [mostrarSenhaMasterConf, setMostrarSenhaMasterConf] = React.useState(false);
+  const [mostrarSenhaSecNova, setMostrarSenhaSecNova] = React.useState(false);
+  const [mostrarSenhaSecConf, setMostrarSenhaSecConf] = React.useState(false);
+  const [mostrarSenhaAdminForm, setMostrarSenhaAdminForm] = React.useState(false);
+  const [mostrarSenhaRestore, setMostrarSenhaRestore] = React.useState(false);
 
   // ── Ponto de Restauração ──
         const [pontosRestauracao, setPontosRestauracao] = React.useState<PontoRestauracao[]>([]);
@@ -621,7 +627,12 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                       </div>
                       <div>
                         <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Senha</label>
-                        <input className="w-full p-3 text-xs border bg-white rounded-xl font-black text-slate-900" placeholder="SENHA" type="password" autoComplete="new-password" value={adminForm.password} onChange={e => { setAdminForm({ ...adminForm, password: e.target.value }); setAdminFormError(null); }} />
+                        <div className="relative">
+                          <input className="w-full pl-3 pr-10 p-3 text-xs border bg-white rounded-xl font-black text-slate-900" placeholder="SENHA" type={mostrarSenhaAdminForm ? 'text' : 'password'} autoComplete="new-password" value={adminForm.password} onChange={e => { setAdminForm({ ...adminForm, password: e.target.value }); setAdminFormError(null); }} />
+                          <button type="button" onClick={() => setMostrarSenhaAdminForm(v => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-slate-400 hover:text-slate-600 transition-colors" aria-label={mostrarSenhaAdminForm ? 'Ocultar senha' : 'Mostrar senha'}>
+                            {mostrarSenhaAdminForm ? <EyeOff size={14}/> : <Eye size={14}/>}
+                          </button>
+                        </div>
                       </div>
                       <div>
                         <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">CPF (opcional)</label>
@@ -723,29 +734,39 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                 <div className="grid grid-cols-1 gap-4 mb-4">
                   <div>
                     <label className="text-[10px] font-black text-slate-700 uppercase mb-1 block">Nova Senha</label>
-                    <input
-                      className="w-full p-4 bg-white border-2 border-slate-200 focus:border-blue-500 rounded-2xl font-black text-sm text-slate-900 outline-none transition-all"
-                      type="password"
-                      value={newAdminPassword}
-                      onChange={e => setNewAdminPassword(e.target.value)}
-                      placeholder="••••••••"
-                      autoComplete="new-password"
-                    />
+                    <div className="relative">
+                      <input
+                        className="w-full pl-4 pr-14 p-4 bg-white border-2 border-slate-200 focus:border-blue-500 rounded-2xl font-black text-sm text-slate-900 outline-none transition-all"
+                        type={mostrarSenhaMasterNova ? 'text' : 'password'}
+                        value={newAdminPassword}
+                        onChange={e => setNewAdminPassword(e.target.value)}
+                        placeholder="••••••••"
+                        autoComplete="new-password"
+                      />
+                      <button type="button" onClick={() => setMostrarSenhaMasterNova(v => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-2 rounded-xl text-slate-400 hover:text-blue-600 transition-colors" aria-label={mostrarSenhaMasterNova ? 'Ocultar senha' : 'Mostrar senha'}>
+                        {mostrarSenhaMasterNova ? <EyeOff size={16}/> : <Eye size={16}/>}
+                      </button>
+                    </div>
                   </div>
                   <div>
                     <label className="text-[10px] font-black text-slate-700 uppercase mb-1 block">Confirmar Nova Senha</label>
-                    <input
-                      className={`w-full p-4 bg-white border-2 rounded-2xl font-black text-sm text-slate-900 outline-none transition-all ${
-                        confirmAdminPassword && confirmAdminPassword.trim() !== newAdminPassword.trim()
-                          ? 'border-red-400 focus:border-red-500'
-                          : 'border-slate-200 focus:border-blue-500'
-                      }`}
-                      type="password"
-                      value={confirmAdminPassword}
-                      onChange={e => setConfirmAdminPassword(e.target.value)}
-                      placeholder="••••••••"
-                      autoComplete="new-password"
-                    />
+                    <div className="relative">
+                      <input
+                        className={`w-full pl-4 pr-14 p-4 bg-white border-2 rounded-2xl font-black text-sm text-slate-900 outline-none transition-all ${
+                          confirmAdminPassword && confirmAdminPassword.trim() !== newAdminPassword.trim()
+                            ? 'border-red-400 focus:border-red-500'
+                            : 'border-slate-200 focus:border-blue-500'
+                        }`}
+                        type={mostrarSenhaMasterConf ? 'text' : 'password'}
+                        value={confirmAdminPassword}
+                        onChange={e => setConfirmAdminPassword(e.target.value)}
+                        placeholder="••••••••"
+                        autoComplete="new-password"
+                      />
+                      <button type="button" onClick={() => setMostrarSenhaMasterConf(v => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-2 rounded-xl text-slate-400 hover:text-blue-600 transition-colors" aria-label={mostrarSenhaMasterConf ? 'Ocultar senha' : 'Mostrar senha'}>
+                        {mostrarSenhaMasterConf ? <EyeOff size={16}/> : <Eye size={16}/>}
+                      </button>
+                    </div>
                     {confirmAdminPassword && confirmAdminPassword.trim() !== newAdminPassword.trim() && (
                       <p className="text-[10px] text-red-500 font-black mt-1 uppercase">As senhas não coincidem</p>
                     )}
@@ -775,29 +796,39 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                 <div className="grid grid-cols-1 gap-4 mb-4">
                   <div>
                     <label className="text-[10px] font-black text-slate-700 uppercase mb-1 block">Nova Senha Secundária</label>
-                    <input
-                      className="w-full p-4 bg-white border-2 border-slate-200 focus:border-amber-500 rounded-2xl font-black text-sm text-slate-900 outline-none transition-all"
-                      type="password"
-                      value={secondaryPassword}
-                      onChange={e => setSecondaryPassword(e.target.value)}
-                      placeholder="••••••••"
-                      autoComplete="new-password"
-                    />
+                    <div className="relative">
+                      <input
+                        className="w-full pl-4 pr-14 p-4 bg-white border-2 border-slate-200 focus:border-amber-500 rounded-2xl font-black text-sm text-slate-900 outline-none transition-all"
+                        type={mostrarSenhaSecNova ? 'text' : 'password'}
+                        value={secondaryPassword}
+                        onChange={e => setSecondaryPassword(e.target.value)}
+                        placeholder="••••••••"
+                        autoComplete="new-password"
+                      />
+                      <button type="button" onClick={() => setMostrarSenhaSecNova(v => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-2 rounded-xl text-slate-400 hover:text-amber-600 transition-colors" aria-label={mostrarSenhaSecNova ? 'Ocultar senha' : 'Mostrar senha'}>
+                        {mostrarSenhaSecNova ? <EyeOff size={16}/> : <Eye size={16}/>}
+                      </button>
+                    </div>
                   </div>
                   <div>
                     <label className="text-[10px] font-black text-slate-700 uppercase mb-1 block">Confirmar Senha Secundária</label>
-                    <input
-                      className={`w-full p-4 bg-white border-2 rounded-2xl font-black text-sm text-slate-900 outline-none transition-all ${
-                        confirmSecondaryPassword && confirmSecondaryPassword.trim() !== secondaryPassword.trim()
-                          ? 'border-red-400 focus:border-red-500'
-                          : 'border-slate-200 focus:border-amber-500'
-                      }`}
-                      type="password"
-                      value={confirmSecondaryPassword}
-                      onChange={e => setConfirmSecondaryPassword(e.target.value)}
-                      placeholder="••••••••"
-                      autoComplete="new-password"
-                    />
+                    <div className="relative">
+                      <input
+                        className={`w-full pl-4 pr-14 p-4 bg-white border-2 rounded-2xl font-black text-sm text-slate-900 outline-none transition-all ${
+                          confirmSecondaryPassword && confirmSecondaryPassword.trim() !== secondaryPassword.trim()
+                            ? 'border-red-400 focus:border-red-500'
+                            : 'border-slate-200 focus:border-amber-500'
+                        }`}
+                        type={mostrarSenhaSecConf ? 'text' : 'password'}
+                        value={confirmSecondaryPassword}
+                        onChange={e => setConfirmSecondaryPassword(e.target.value)}
+                        placeholder="••••••••"
+                        autoComplete="new-password"
+                      />
+                      <button type="button" onClick={() => setMostrarSenhaSecConf(v => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-2 rounded-xl text-slate-400 hover:text-amber-600 transition-colors" aria-label={mostrarSenhaSecConf ? 'Ocultar senha' : 'Mostrar senha'}>
+                        {mostrarSenhaSecConf ? <EyeOff size={16}/> : <Eye size={16}/>}
+                      </button>
+                    </div>
                     {confirmSecondaryPassword && confirmSecondaryPassword.trim() !== secondaryPassword.trim() && (
                       <p className="text-[10px] text-red-500 font-black mt-1 uppercase">As senhas não coincidem</p>
                     )}
@@ -1822,14 +1853,20 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
           </p>
 
           <label className="text-[10px] font-black text-slate-900 uppercase mb-1 block text-left">Senha mestra</label>
-          <input
-            type="password"
-            className="w-full p-4 bg-slate-50 border-2 border-slate-200 focus:border-amber-400 rounded-2xl font-black text-sm text-slate-900 outline-none transition-all mb-2"
-            value={restoreNuvemPassword}
-            onChange={e => setRestoreNuvemPassword(e.target.value)}
-            placeholder="••••••••"
-            autoComplete="off"
-          />
+          <div className="relative">
+            <input
+              type={mostrarSenhaRestore ? 'text' : 'password'}
+              className="w-full pl-4 pr-14 p-4 bg-slate-50 border-2 border-slate-200 focus:border-amber-400 rounded-2xl font-black text-sm text-slate-900 outline-none transition-all mb-2"
+              value={restoreNuvemPassword}
+              onChange={e => setRestoreNuvemPassword(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && !restoreNuvemLoading && restoreNuvemConfirm) handleRestaurarBackup(); }}
+              placeholder="••••••••"
+              autoComplete="off"
+            />
+            <button type="button" onClick={() => setMostrarSenhaRestore(v => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-2 rounded-xl text-slate-400 hover:text-amber-600 transition-colors" aria-label={mostrarSenhaRestore ? 'Ocultar senha' : 'Mostrar senha'}>
+              {mostrarSenhaRestore ? <EyeOff size={16}/> : <Eye size={16}/>}
+            </button>
+          </div>
 
           <label className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4 cursor-pointer">
             <input

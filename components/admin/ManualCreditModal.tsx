@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { PlusCircle, Check, Wallet, ShieldCheck, AlertTriangle, Lock, KeyRound } from 'lucide-react';
+import { PlusCircle, Check, Wallet, ShieldCheck, AlertTriangle, Lock, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { ModalShell } from '../ui/ModalShell';
 import { User } from '../../types';
 import { formatarMoeda, isAdminRole } from '../../utils';
@@ -16,6 +16,7 @@ export const ManualCreditModal: React.FC<ManualCreditModalProps> = ({ user, onCl
   const [senhaMestra, setSenhaMestra] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [mostrarSenha, setMostrarSenha] = useState(false);
 
   const QUICK_VALUES = [10, 20, 50, 100];
 
@@ -26,6 +27,7 @@ export const ManualCreditModal: React.FC<ManualCreditModalProps> = ({ user, onCl
       setSenhaMestra('');
       setError('');
       setLoading(false);
+      setMostrarSenha(false);
     }
   }, [user?.id]);
 
@@ -137,13 +139,23 @@ export const ManualCreditModal: React.FC<ManualCreditModalProps> = ({ user, onCl
             <div className="relative group">
               <KeyRound size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-amber-500"/>
               <input
-                type="password"
-                className="w-full pl-13 px-12 py-5 bg-slate-100 border-2 border-slate-200 group-focus-within:border-amber-500 group-focus-within:ring-4 group-focus-within:ring-amber-500/20 rounded-2xl font-black text-lg text-slate-900 outline-none transition-all placeholder:text-slate-400"
+                type={mostrarSenha ? 'text' : 'password'}
+                className="w-full pl-14 pr-14 py-5 bg-slate-100 border-2 border-slate-200 group-focus-within:border-amber-500 group-focus-within:ring-4 group-focus-within:ring-amber-500/20 rounded-2xl font-black text-lg text-slate-900 outline-none transition-all placeholder:text-slate-400"
                 placeholder="••••••••"
                 value={senhaMestra}
                 onChange={e => setSenhaMestra(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && isValido && temSenha && !loading) handleConfirm(); }}
                 autoComplete="current-password"
               />
+              <button
+                type="button"
+                onClick={() => setMostrarSenha(v => !v)}
+                disabled={loading}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-xl text-slate-400 hover:text-slate-600 transition-colors"
+                aria-label={mostrarSenha ? 'Ocultar senha' : 'Mostrar senha'}
+              >
+                {mostrarSenha ? <EyeOff size={18}/> : <Eye size={18}/>}
+              </button>
             </div>
             <p className="mt-2 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
               <ShieldCheck size={12}/> Validada no servidor — exigida por segurança em aportes de crédito
