@@ -147,7 +147,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             <button onClick={logout} disabled={isLoggingOut} className="w-full flex items-center gap-2 px-3 py-2 text-slate-400 hover:bg-red-500/10 hover:text-red-400 rounded-lg transition-colors text-[13px] disabled:opacity-50 disabled:cursor-not-allowed">
                 {isLoggingOut ? <Loader2 className="animate-spin" size={16} /> : <LogOut size={16} />} {isLoggingOut ? 'Saindo...' : 'Sair do Painel'}
             </button>
-            <p className="mt-1 px-2 text-center text-[9px] text-slate-600">Desenvolvido por Edevaldo de Lima Almeida</p>
+            <p className="mt-1 px-2 text-center text-[9px] text-slate-600">Desenvolvido por Edevaldo de Lima Almeida {new Date().getFullYear()}</p>
         </div>
       </aside>
     </>

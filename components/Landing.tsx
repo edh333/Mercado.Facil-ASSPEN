@@ -6,6 +6,7 @@ import {
     Lock, HeartHandshake, Loader2, Menu, X
 } from 'lucide-react';
 import { Login } from '../pages/Login';
+import { AppFooter } from './ui';
 
 const fadeUp = {
     initial: { opacity: 0, y: 28 },
@@ -266,18 +267,12 @@ export const Landing: React.FC<{ skipLanding?: boolean }> = ({ skipLanding }) =>
             </section>
 
             {/* ── FOOTER ── */}
-            <footer className="py-10 bg-[#0a1120] border-t border-white/5">
-                <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col items-center gap-3 text-center">
-                    <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-xl bg-[#0e7a4d] flex items-center justify-center"><Store size={16} className="text-white" /></div>
-                        <p className="text-white font-extrabold tracking-tight">ASSPEN <span className="text-slate-500 font-semibold">· Peixoto de Azevedo/MT</span></p>
-                    </div>
-                    <p className="text-[11px] text-slate-500 font-semibold tracking-wide">
-                        Desenvolvido por <span className="text-slate-300 font-bold">Edevaldo de Lima Almeida</span> · edh333@hotmail.com
-                    </p>
-                    <p className="text-[10px] text-slate-600 font-medium">© 2026 ASSPEN — Todos os direitos reservados</p>
-                </div>
-            </footer>
+            <AppFooter
+                appName="ASSPEN"
+                institutionName="Peixoto de Azevedo/MT"
+                developerName="Edevaldo de Lima Almeida"
+                developerEmail="edh333@hotmail.com"
+            />
         </div>
     );
 };

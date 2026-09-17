@@ -21,6 +21,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { OnlineStatusIndicator } from '../components/OnlineStatusIndicator';
 import { InstallButton } from '../components/InstallButton';
 import { UninstallModal } from '../components/UninstallModal';
+import { PageHeader, UiButton, ModalShell } from '../components/ui';
 
 export const UserDashboard: React.FC = () => {
     const { 
@@ -1090,51 +1091,49 @@ export const UserDashboard: React.FC = () => {
                 </div>
             )}
 
-            <header className="sticky top-0 z-[100] border-b border-slate-200 bg-white/90 backdrop-blur">
-                <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 flex-wrap">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[var(--primary-color)] text-white shadow-sm">
-                            <ShoppingBag size={18} />
-                        </div>
-                        <div className="min-w-0 leading-tight">
-                            <h1 className="text-sm font-bold tracking-tight text-slate-900 truncate">{settings?.appName || 'Mercado Fácil'}</h1>
-                            <p className="text-[10px] text-slate-500 truncate">{currentUser?.name || 'Visitante'}</p>
-                        </div>
-                    </div>
-
-                    {(settings?.enablePrisonerWallet ?? true) && !isAdmin && (
-                        <div className="hidden sm:flex items-center gap-3 rounded-full border border-slate-200 bg-slate-50 px-4 py-2">
-                            <div className="text-right leading-tight">
-                                <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">Saldo Disponível</p>
-                                <p className="text-base font-bold tracking-tight text-[var(--primary-color)]">R$ {formatarMoeda(currentUser?.walletBalance || 0)}</p>
+            <PageHeader
+                zClass="z-[100]"
+                icon={<ShoppingBag size={18} />}
+                title={settings?.appName || 'Mercado Fácil'}
+                subtitle={currentUser?.name || 'Visitante'}
+                center={
+                    (settings?.enablePrisonerWallet ?? true) && !isAdmin && (
+                        <>
+                            <div className="hidden sm:flex items-center gap-3 rounded-full border border-slate-200 bg-slate-50 px-4 py-2">
+                                <div className="text-right leading-tight">
+                                    <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">Saldo Disponível</p>
+                                    <p className="text-sm font-bold tracking-tight text-[var(--primary-color)]">R$ {formatarMoeda(currentUser?.walletBalance || 0)}</p>
+                                </div>
+                                <UiButton
+                                    size="sm"
+                                    icon={<Plus size={15} />}
+                                    onClick={() => { setIsDepositOpen(true); setStage('pay'); }}
+                                >
+                                    Enviar Crédito
+                                </UiButton>
                             </div>
-                            <button
-                                onClick={() => { setIsDepositOpen(true); setStage('pay'); }}
-                                className="bg-[var(--primary-color)] text-white px-4 py-2 rounded-lg flex items-center gap-1.5 hover:brightness-110 active:scale-95 transition-all text-xs font-semibold shadow-sm"
-                            >
-                                <Plus size={15} />
-                                <span>Enviar Crédito</span>
-                            </button>
-                        </div>
-                    )}
-
-                    <div className={`hidden md:flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1`}>
-                        <button
-                            onClick={() => setActiveTab('store')}
-                            className={`flex items-center gap-2 rounded-md px-4 py-2 text-xs font-semibold transition-colors ${activeTab === 'store' ? 'bg-[var(--primary-color)] text-white shadow-sm' : 'text-slate-500 hover:bg-white hover:text-slate-900'}`}
-                        >
-                            <ShoppingBag size={14} /> Loja
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('orders')}
-                            className={`flex items-center gap-2 rounded-md px-4 py-2 text-xs font-semibold transition-colors ${activeTab === 'orders' ? 'bg-[var(--primary-color)] text-white shadow-sm' : 'text-slate-500 hover:bg-white hover:text-slate-900'}`}
-                        >
-                            <Clock size={14} /> Pedidos
-                        </button>
-                    </div>
-
+                            <div className="hidden md:flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1">
+                                <button
+                                    onClick={() => setActiveTab('store')}
+                                    className={`flex items-center gap-2 rounded-md px-4 py-2 text-xs font-semibold transition-colors ${activeTab === 'store' ? 'bg-[var(--primary-color)] text-white shadow-sm' : 'text-slate-500 hover:bg-white hover:text-slate-900'}`}
+                                >
+                                    <ShoppingBag size={14} /> Loja
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('orders')}
+                                    className={`flex items-center gap-2 rounded-md px-4 py-2 text-xs font-semibold transition-colors ${activeTab === 'orders' ? 'bg-[var(--primary-color)] text-white shadow-sm' : 'text-slate-500 hover:bg-white hover:text-slate-900'}`}
+                                >
+                                    <Clock size={14} /> Pedidos
+                                </button>
+                            </div>
+                        </>
+                    )
+                }
+                actions={
                     <div className="flex gap-1.5 relative z-10">
-                        <button
+                        <UiButton
+                            size="sm"
+                            icon={<Printer size={17} />}
                             onClick={() => {
                                 if (myOrders.length > 0) {
                                     setViewingOrderCupom(myOrders[0]);
@@ -1143,31 +1142,42 @@ export const UserDashboard: React.FC = () => {
                                 }
                             }}
                             disabled={myOrders.length === 0}
-                            className="hidden sm:flex size-10 border border-slate-200 bg-white text-slate-500 rounded-lg items-center justify-center hover:border-[var(--primary-color)]/40 hover:text-[var(--primary-color)] transition-all active:scale-90 disabled:opacity-30"
                             title="Reimprimir Último Cupom"
                             aria-label="Reimprimir último cupom"
+                            className="hidden sm:flex size-10 border border-slate-200 bg-white text-slate-500 items-center justify-center hover:border-[var(--primary-color)]/40 hover:text-[var(--primary-color)]"
+                        />
+                        <UiButton
+                            size="sm"
+                            icon={<MessageSquare size={17} />}
+                            onClick={() => setIsMsgOpen(!isMsgOpen)}
+                            aria-label="Mensagens"
+                            aria-expanded={isMsgOpen}
+                            className={`relative hidden sm:flex size-11 border border-slate-200 bg-white text-slate-500 items-center justify-center hover:border-[var(--primary-color)]/40 hover:text-[var(--primary-color)] ${isMsgOpen ? 'border-[var(--primary-color)] text-[var(--primary-color)]' : ''}`}
                         >
-                            <Printer size={17} />
-                        </button>
-                        <button onClick={() => setIsMsgOpen(!isMsgOpen)} aria-label="Mensagens" aria-expanded={isMsgOpen} className="hidden sm:flex size-11 border border-slate-200 bg-white text-slate-500 rounded-lg items-center justify-center hover:border-[var(--primary-color)]/40 hover:text-[var(--primary-color)] transition-all active:scale-90 relative">
-                            <MessageSquare size={17} />
                             {unreadMsg > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center font-bold border-2 border-white">{unreadMsg}</span>}
-                        </button>
+                        </UiButton>
                         {!isAdmin && !isStandalone && (
                             <span className="hidden sm:inline-flex"><InstallButton role="user" /></span>
                         )}
-                        <button onClick={() => setShowUninstallModal(true)} title="Desinstalar aplicativo" aria-label="Desinstalar aplicativo" className="size-11 border border-slate-200 bg-white text-slate-400 rounded-lg hidden sm:flex items-center justify-center hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all active:scale-90"><Trash2 size={17} /></button>
-                        <button
+                        <UiButton
+                            size="sm"
+                            icon={<Trash2 size={17} />}
+                            onClick={() => setShowUninstallModal(true)}
+                            title="Desinstalar aplicativo"
+                            aria-label="Desinstalar aplicativo"
+                            className="size-11 border border-slate-200 bg-white text-slate-400 hidden sm:flex items-center justify-center hover:bg-red-50 hover:text-red-500 hover:border-red-200"
+                        />
+                        <UiButton
+                            size="sm"
+                            icon={<LogOut size={17} />}
                             onClick={handleLogout}
                             title={confirmarSair ? 'Toque de novo para confirmar' : 'Sair'}
                             aria-label={confirmarSair ? 'Confirmar saída: toque novamente' : 'Sair'}
-                            className={`size-11 border border-red-200 bg-white text-red-500 rounded-lg flex items-center justify-center hover:bg-red-500 hover:text-white hover:border-red-500 transition-all active:scale-90 ${confirmarSair ? 'ring-4 ring-red-200 animate-pulse bg-red-500 text-white border-red-500' : ''}`}
-                        >
-                            <LogOut size={17} />
-                        </button>
+                            className={`size-11 border border-red-200 bg-white text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white hover:border-red-500 ${confirmarSair ? 'ring-4 ring-red-200 animate-pulse bg-red-500 text-white border-red-500' : ''}`}
+                        />
                     </div>
-                </div>
-            </header>
+                }
+            />
 
             {/* Painel de Mensagens (Sino) */}
             <AnimatePresence>
@@ -1695,87 +1705,110 @@ export const UserDashboard: React.FC = () => {
             )}
 
             {/* DEPOSIT MODAL — 2 etapas */}
-            {isDepositOpen && (
-                <div className="fixed inset-0 z-[999] bg-black/60 backdrop-blur-sm" onClick={() => { setIsDepositOpen(false); setDepositStage('amount'); setProofFile(null); }}>
-                    <div className="fixed inset-x-3 sm:inset-x-4 top-1/2 -translate-y-1/2 md:max-w-md md:mx-auto bg-slate-900 rounded-2xl shadow-2xl p-5 max-h-[85vh] overflow-y-auto flex flex-col space-y-4 z-50 border border-slate-700" onClick={e => e.stopPropagation()}>
-                        <div className="flex justify-between items-center shrink-0">
-                            <h3 className="font-black text-base uppercase tracking-tight text-white">Enviar Crédito</h3>
-                            <button onClick={() => { setIsDepositOpen(false); setDepositStage('amount'); setProofFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="w-7 h-7 bg-slate-700 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-600"><X size={16}/></button>
-                        </div>
-
-                        {depositStage === 'amount' && (
-                            <div className="flex flex-col space-y-4">
-                                <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
-                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Valor do Crédito (R$)</p>
-                                    <input type="number" className="w-full bg-transparent font-black text-2xl text-center outline-none text-white" value={depositAmount || ''} onChange={e => setDepositAmount(Number(e.target.value))} placeholder="0,00" />
-                                </div>
-                                {depositAmount > 0 && (
-                                    <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 flex flex-col items-center">
-                                        {pixPayload ? (
-                                            <QRCodeSVG value={pixPayload} size={144} className="w-36 h-36 bg-white p-2 rounded-lg" />
-                                        ) : (
-                                            <div className="w-36 h-36 flex items-center justify-center text-center p-2 bg-slate-900 rounded-lg border border-red-500/40">
-                                                <p className="text-[10px] font-bold text-red-400 uppercase">PIX indisponível. Fale com a administração.</p>
-                                            </div>
-                                        )}
-                                        <button onClick={() => { copiarTextoComFallback(pixPayload || ''); setPixCopied(true); setTimeout(() => setPixCopied(false), 2000); }} className={`w-full mt-3 py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${pixCopied ? 'bg-emerald-600 text-white' : 'bg-blue-500 text-white'}`}>
-                                            {pixCopied ? <><CheckCircle size={12} /> COPIADO!</> : <><RefreshCcw size={12} /> Copiar PIX</>}
-                                        </button>
-                                    </div>
-                                )}
-                                <button onClick={() => { if (depositAmount <= 0) { showNotification('DIGITE O VALOR DO CRÉDITO.', 'error'); return; } if (depositAmount > 100000) { showNotification('VALOR ACIMA DO LIMITE POR DEPÓSITO (R$ 100.000,00).', 'error'); return; } setDepositStage('proof'); if (fileInputRef.current) fileInputRef.current.value = ''; }} disabled={depositAmount <= 0} className="w-full py-3 bg-emerald-600 text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg disabled:opacity-50">
-                                    <Sparkles size={14} /> Já fiz o PIX do Crédito
-                                </button>
+            <ModalShell
+                open={isDepositOpen}
+                onClose={() => { setIsDepositOpen(false); setDepositStage('amount'); setProofFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                title="Enviar Crédito"
+                subtitle="Depósito via PIX para a carteira do interno"
+                icon={<Wallet size={20} />}
+                size="sm"
+                tone="success"
+            >
+                <div className="flex flex-col space-y-4">
+                    {depositStage === 'amount' && (
+                        <>
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Valor do Crédito (R$)</p>
+                                <input type="number" className="w-full bg-transparent font-black text-2xl text-center outline-none text-[var(--text-main)]" value={depositAmount || ''} onChange={e => setDepositAmount(Number(e.target.value))} placeholder="0,00" />
                             </div>
-                        )}
-
-                        {depositStage === 'proof' && (
-                            <div className="flex flex-col space-y-4">
-                                <div className="bg-blue-900/30 p-4 rounded-xl border border-blue-800 text-center">
-                                    <p className="font-black text-xs text-blue-300 uppercase tracking-wider mb-1">Comprovante de Pagamento</p>
-                                    <p className="text-[10px] text-blue-400 font-bold">Anexe a foto do comprovante PIX para confirmar o crédito</p>
-                                </div>
-                                <div onClick={() => fileInputRef.current?.click()} className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${proofFile ? 'border-emerald-500 bg-emerald-500/10' : 'border-blue-700 bg-slate-800 hover:border-blue-500 hover:bg-slate-700'}`}>
-                                    <input type="file" ref={fileInputRef} className="hidden" accept="image/*,.pdf" onChange={async e => {
-                                        const f = e.target.files?.[0]; if (!f) return;
-                                        if (f.size > 10 * 1024 * 1024) { showNotification('Arquivo muito grande. Máximo 10MB.', 'error'); e.target.value = ''; return; }
-                                        try {
-                                            if (f.type.startsWith('image/')) {
-                                                const compressed = await compressImageFile(f, 0.3, 600);
-                                                if (compressed.size > 300 * 1024) {
-                                                    const recompress = await compressImageFile(new File([compressed], f.name, { type: 'image/jpeg' }), 0.2, 500);
-                                                    setProofFile(new File([recompress], f.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
-                                                } else {
-                                                    setProofFile(new File([compressed], f.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
-                                                }
-                                            } else {
-                                                setProofFile(f);
-                                            }
-                                                        } catch { console.warn("compress fallback (fileInput 3)"); setProofFile(f); }
-                                        e.target.value = '';
-                                    }} />
-                                    {proofFile ? (
-                                        <div>
-                                            <Upload size={28} className="mx-auto text-emerald-400 mb-2" />
-                                            <p className="font-black text-[10px] text-emerald-300">{proofFile.name}</p>
-                                            <p className="text-[9px] text-emerald-400 font-bold mt-1 uppercase">Arquivo anexado</p>
-                                        </div>
+                            {depositAmount > 0 && (
+                                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col items-center">
+                                    {pixPayload ? (
+                                        <QRCodeSVG value={pixPayload} size={144} className="w-36 h-36 bg-white p-2 rounded-lg" />
                                     ) : (
-                                        <div>
-                                            <Upload size={32} className="mx-auto mb-2 text-blue-400" />
-                                            <p className="font-black text-[11px] text-blue-300 uppercase tracking-wider"><Paperclip size={12} className="inline-block mr-1" /> Clique aqui para selecionar o Comprovante</p>
+                                        <div className="w-36 h-36 flex items-center justify-center text-center p-2 bg-slate-100 rounded-lg border border-red-500/40">
+                                            <p className="text-[10px] font-bold text-red-500 uppercase">PIX indisponível. Fale com a administração.</p>
                                         </div>
                                     )}
+                                    <UiButton
+                                        size="sm"
+                                        icon={pixCopied ? <CheckCircle size={12} /> : <RefreshCcw size={12} />}
+                                        onClick={() => { copiarTextoComFallback(pixPayload || ''); setPixCopied(true); setTimeout(() => setPixCopied(false), 2000); }}
+                                        className={`w-full mt-3 ${pixCopied ? 'bg-emerald-600' : 'bg-blue-500'}`}
+                                    >
+                                        {pixCopied ? 'COPIADO!' : 'Copiar PIX'}
+                                    </UiButton>
                                 </div>
-<div className="mt-3 p-2.5 bg-red-500/10 border-2 border-red-500/40 rounded-xl flex items-start gap-2"><AlertCircle size={12} className="inline-block shrink-0 mt-0.5" /><p className="text-[11px] font-black text-red-400 text-left leading-snug">Enviar comprovantes falsos ou adulterados configura CRIME — Art. 171 (estelionato) e Art. 298 (falsificação de documento) do Código Penal. Ao prosseguir, você assume total responsabilidade civil e criminal.</p></div>
-                                <button onClick={async () => { if (!proofFile) { showNotification('ANEXE O COMPROVANTE.', 'error'); return; } await depositToWalletAction(); setDepositStage('amount'); }} disabled={isSubmitting || !proofFile} className="w-full py-3 bg-blue-500 text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg disabled:opacity-50">
-                                    {isSubmitting ? <><Loader2 size={14} className="animate-spin" /> Enviando...</> : <><Upload size={14} /> Enviar Comprovante</>}
-                                </button>
+                            )}
+                            <UiButton
+                                size="md"
+                                icon={<Sparkles size={14} />}
+                                onClick={() => {
+                                    if (depositAmount <= 0) { showNotification('DIGITE O VALOR DO CRÉDITO.', 'error'); return; }
+                                    if (depositAmount > 100000) { showNotification('VALOR ACIMA DO LIMITE POR DEPÓSITO (R$ 100.000,00).', 'error'); return; }
+                                    setDepositStage('proof'); if (fileInputRef.current) fileInputRef.current.value = '';
+                                }}
+                                disabled={depositAmount <= 0}
+                                className="w-full bg-emerald-600 hover:bg-emerald-700"
+                            >
+                                Já fiz o PIX do Crédito
+                            </UiButton>
+                        </>
+                    )}
+
+                    {depositStage === 'proof' && (
+                        <>
+                            <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-center">
+                                <p className="font-black text-xs text-blue-700 uppercase tracking-wider mb-1">Comprovante de Pagamento</p>
+                                <p className="text-[10px] text-blue-500 font-bold">Anexe a foto do comprovante PIX para confirmar o crédito</p>
                             </div>
-                        )}
-                    </div>
+                            <div onClick={() => fileInputRef.current?.click()} className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${proofFile ? 'border-emerald-500 bg-emerald-500/10' : 'border-blue-300 bg-slate-50 hover:border-blue-500 hover:bg-slate-100'}`}>
+                                <input type="file" ref={fileInputRef} className="hidden" accept="image/*,.pdf" onChange={async e => {
+                                    const f = e.target.files?.[0]; if (!f) return;
+                                    if (f.size > 10 * 1024 * 1024) { showNotification('Arquivo muito grande. Máximo 10MB.', 'error'); e.target.value = ''; return; }
+                                    try {
+                                        if (f.type.startsWith('image/')) {
+                                            const compressed = await compressImageFile(f, 0.3, 600);
+                                            if (compressed.size > 300 * 1024) {
+                                                const recompress = await compressImageFile(new File([compressed], f.name, { type: 'image/jpeg' }), 0.2, 500);
+                                                setProofFile(new File([recompress], f.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
+                                            } else {
+                                                setProofFile(new File([compressed], f.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
+                                            }
+                                        } else {
+                                            setProofFile(f);
+                                        }
+                                                    } catch { console.warn("compress fallback (fileInput 3)"); setProofFile(f); }
+                                    e.target.value = '';
+                                }} />
+                                {proofFile ? (
+                                    <div>
+                                        <Upload size={28} className="mx-auto text-emerald-500 mb-2" />
+                                        <p className="font-black text-[10px] text-emerald-700">{proofFile.name}</p>
+                                        <p className="text-[9px] text-emerald-600 font-bold mt-1 uppercase">Arquivo anexado</p>
+                                    </div>
+                                ) : (
+                                    <div>
+                                        <Upload size={32} className="mx-auto mb-2 text-blue-400" />
+                                        <p className="font-black text-[11px] text-blue-600 uppercase tracking-wider"><Paperclip size={12} className="inline-block mr-1" /> Clique aqui para selecionar o Comprovante</p>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="p-2.5 bg-red-50 border-2 border-red-200 rounded-xl flex items-start gap-2"><AlertCircle size={12} className="inline-block shrink-0 mt-0.5" /><p className="text-[11px] font-black text-red-500 text-left leading-snug">Enviar comprovantes falsos ou adulterados configura CRIME — Art. 171 (estelionato) e Art. 298 (falsificação de documento) do Código Penal. Ao prosseguir, você assume total responsabilidade civil e criminal.</p></div>
+                            <UiButton
+                                size="md"
+                                icon={isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                                onClick={async () => { if (!proofFile) { showNotification('ANEXE O COMPROVANTE.', 'error'); return; } await depositToWalletAction(); setDepositStage('amount'); }}
+                                disabled={isSubmitting || !proofFile}
+                                loading={isSubmitting}
+                                className="w-full bg-blue-500 hover:bg-blue-600"
+                            >
+                                {isSubmitting ? 'Enviando...' : 'Enviar Comprovante'}
+                            </UiButton>
+                        </>
+                    )}
                 </div>
-            )}
+            </ModalShell>
 
             {isCheckoutModalOpen && (
             <div className="fixed inset-0 z-[999] bg-black/60 backdrop-blur-sm" onClick={() => { setIsCheckoutModalOpen(false); setProofFile(null); }}>

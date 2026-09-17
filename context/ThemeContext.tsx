@@ -83,6 +83,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       root.style.setProperty('--bg-main', '#09090b');              // zinc-950
       root.style.setProperty('--bg-card', '#18181b');              // zinc-900
       root.style.setProperty('--bg-input', 'rgba(255,255,255,0.06)');
+      root.style.setProperty('--bg-muted', 'rgba(255,255,255,0.08)');
       root.style.setProperty('--text-main', '#fafafa');            // zinc-50
       root.style.setProperty('--text-muted', '#a1a1aa');           // zinc-400
       root.style.setProperty('--border-color', '#27272a');         // zinc-800
@@ -92,6 +93,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       root.style.setProperty('--bg-main', '#f8fafc');              // slate-50
       root.style.setProperty('--bg-card', '#ffffff');              // white
       root.style.setProperty('--bg-input', 'rgba(0,0,0,0.03)');
+      root.style.setProperty('--bg-muted', 'rgba(15,23,42,0.05)');
       root.style.setProperty('--text-main', '#0f172a');            // slate-900
       root.style.setProperty('--text-muted', '#64748b');           // slate-500
       root.style.setProperty('--border-color', '#e2e8f0');         // slate-200

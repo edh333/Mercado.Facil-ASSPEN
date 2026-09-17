@@ -138,6 +138,7 @@
   --text-muted: #64748b;
   --border-color: #e2e8f0;
   --bg-input: rgba(0, 0, 0, 0.03);
+  --bg-muted: rgba(15, 23, 42, 0.05);
   
   --overlay-bg: rgba(0, 0, 0, 0.5);
   --overlay-blur: 16px;
@@ -1345,8 +1346,18 @@ body {
   table tbody td {
     vertical-align: middle;
   }
+  table thead th,
+  table tbody td {
+    padding: 10px 14px;
+  }
   table tbody tr {
     transition: background-color 0.15s ease;
+  }
+  table tbody tr:nth-child(even) {
+    background-color: rgba(15, 23, 42, 0.025);
+  }
+  .dark table tbody tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.035);
   }
   table tbody tr:hover {
     background-color: rgba(16, 185, 129, 0.05);

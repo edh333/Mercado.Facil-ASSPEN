@@ -8,6 +8,7 @@ import { db } from '../firebase';
 import { useTheme } from '../context/ThemeContext';
 import { OnlineStatusIndicator } from '../components/OnlineStatusIndicator';
 import { OfflineSalesBanner } from '../components/admin/OfflineSalesBanner';
+import { PageHeader, UiButton } from '../components/ui';
 
 import { AppDownloadButton } from '../components/AppDownloadModal';
 import { UninstallModal } from '../components/UninstallModal';
@@ -837,44 +838,44 @@ export function AdminDashboard() {
         </div>
 
         {/* Dynamic Header */}
-        <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 px-4 sm:px-6 py-3 flex items-center justify-between backdrop-blur transition-all duration-300">
-          <div className="flex items-center gap-3">
+        <PageHeader
+          menuButton={
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="lg:hidden text-slate-500 hover:bg-slate-100 p-2 rounded-lg border border-slate-200 touch-target"
             >
               {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
-            <div>
-              <h2 className="text-base font-bold tracking-tight leading-tight text-slate-900">
-                {activeTab === 'home' && 'Painel Geral'}
-                {activeTab === 'orders' && 'Gerenciamento de Pedidos'}
-                {activeTab === 'messages' && 'Comunicados & Mensagens'}
-                {activeTab === 'products' && 'Catálogo de Produtos'}
-                {activeTab === 'cash' && 'Controle de Caixa / Gaveta'}
-                {activeTab === 'inmates' && 'Cadastro de Internos'}
-                {activeTab === 'users' && 'Gestão de Familiares'}
-                {activeTab === 'finance' && 'Fluxo de Caixa & Despesas'}
-                {activeTab === 'wallet' && 'Depósitos & Saldos'}
-                {activeTab === 'reports' && 'Relatórios do Sistema'}
-                {activeTab === 'bi' && 'Dashboard de Business Intelligence'}
-                {activeTab === 'stock_alerts' && 'Alertas de Reposição'}
-                {activeTab === 'customers' && 'Conta de Clientes (Fiado / Crédito)'}
-                {activeTab === 'settings' && 'Parâmetros Administrativos'}
-                {activeTab === 'maintenance' && 'Centro de Manutenção'}
-              </h2>
-              <p className="text-xs text-slate-500">
-                {(settings as any)?.institutionName || 'Mercado Fácil ASSPEN'} • Sistema de Gestão Penitenciária
-              </p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-3 flex-wrap justify-end">
-            {!isStandalone && <span><AppDownloadButton variant="full" label="Baixar App" /></span>}
-            <button onClick={() => setShowUninstallModal(true)} title="Desinstalar aplicativo" className="w-9 h-9 text-slate-500 border border-slate-200 rounded-lg flex items-center justify-center hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all active:scale-90"><Trash2 size={17} /></button>
-            <OnlineStatusIndicator />
-          </div>
-        </header>
+          }
+          icon={<Banknote size={18} />}
+          title={
+            <>
+              {activeTab === 'home' && 'Painel Geral'}
+              {activeTab === 'orders' && 'Gerenciamento de Pedidos'}
+              {activeTab === 'messages' && 'Comunicados & Mensagens'}
+              {activeTab === 'products' && 'Catálogo de Produtos'}
+              {activeTab === 'cash' && 'Controle de Caixa / Gaveta'}
+              {activeTab === 'inmates' && 'Cadastro de Internos'}
+              {activeTab === 'users' && 'Gestão de Familiares'}
+              {activeTab === 'finance' && 'Fluxo de Caixa & Despesas'}
+              {activeTab === 'wallet' && 'Depósitos & Saldos'}
+              {activeTab === 'reports' && 'Relatórios do Sistema'}
+              {activeTab === 'bi' && 'Dashboard de Business Intelligence'}
+              {activeTab === 'stock_alerts' && 'Alertas de Reposição'}
+              {activeTab === 'customers' && 'Conta de Clientes (Fiado / Crédito)'}
+              {activeTab === 'settings' && 'Parâmetros Administrativos'}
+              {activeTab === 'maintenance' && 'Centro de Manutenção'}
+            </>
+          }
+          subtitle={((settings as any)?.institutionName || 'Mercado Fácil ASSPEN') + ' • Sistema de Gestão Penitenciária'}
+          actions={
+            <>
+              {!isStandalone && <span><AppDownloadButton variant="full" label="Baixar App" /></span>}
+              <UiButton variant="ghost" size="sm" icon={<Trash2 size={17} />} onClick={() => setShowUninstallModal(true)} title="Desinstalar aplicativo" aria-label="Desinstalar aplicativo" className="w-9 h-9 text-slate-500 border border-slate-200 rounded-lg hover:bg-red-50 hover:text-red-500 hover:border-red-200" />
+              <OnlineStatusIndicator />
+            </>
+          }
+        />
 
         {/* Dynamic Page/Tab Content Switcher */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-6xl w-full mx-auto pb-24">

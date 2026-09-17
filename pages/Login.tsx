@@ -557,7 +557,7 @@ const [recoveryName, setRecoveryName] = useState('');
                     {/* Rodapé */}
                 <div className="mt-6 text-center px-4">
                     <p className="text-[11px] text-slate-400 font-medium tracking-wide leading-relaxed">
-                        © 2026 {settings?.appName || 'ASSPEN'} · Todos os direitos reservados<br />
+                        © {new Date().getFullYear()} {settings?.appName || 'ASSPEN'} · Todos os direitos reservados<br />
                         Desenvolvido por {settings?.dev_name || settings?.developerName || 'Edevaldo de Lima Almeida'}{settings?.dev_email || settings?.developerEmail ? ` · ${settings?.dev_email || settings?.developerEmail}` : ''}{settings?.dev_phone || settings?.developerPhone ? ` · Suporte: ${settings?.dev_phone || settings?.developerPhone}` : ''}
                     </p>
                 </div>

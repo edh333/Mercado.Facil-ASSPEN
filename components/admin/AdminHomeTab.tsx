@@ -1,5 +1,4 @@
 import React from 'react';
-import { StatCard } from './AdminCommon';
 import { ehReceita } from './adminUtils';
 import {
   Users, Package, ShoppingCart, DollarSign, ArrowDownCircle,
