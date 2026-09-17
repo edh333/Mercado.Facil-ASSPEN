@@ -52,7 +52,6 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
   const [pixConfirmado, setPixConfirmado] = useState(false);
   const [bandeiraCartao, setBandeiraCartao] = useState('');
   const [cardConfirmado, setCardConfirmado] = useState(false);
-  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 1024 : true);
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
   const [showProductModal, setShowProductModal] = useState(false);
   const [productModalSearch, setProductModalSearch] = useState('');
@@ -241,12 +240,6 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
   };
 
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 1024);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  useEffect(() => {
     if (isOpen) {
       setCarrinho([]);
       setClienteSelecionado('');
@@ -393,13 +386,13 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
     return `•••${c.slice(-4)}`;
   };
 
-  const gerarPixPayload = (valor: number): string => {
+  const gerarPixPayload = React.useCallback((valor: number): string => {
     const chave = pixChaveDisponivel();
     if (!chave) return '';
     const merchantName = settings?.appName || 'ASSOCIACAO ASSPEN MT';
     const city = 'PEIXOTO DE AZEVEDO';
     return generatePix(chave, merchantName, city, valor, 'MERCFACIL');
-  };
+  }, [settings]);
 
   const filteredProductsForModal = useMemo(() => {
     const term = (productModalSearch || '').trim().toLowerCase();
@@ -2083,7 +2076,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                   </motion.div>
                 )}
 
-{formaPagamento === 'CASH' && (
+                {formaPagamento === 'CASH' && (
                   <motion.div initial={{opacity:0}} animate={{opacity:1}} className="space-y-4">
                     {!cashLoading && !cashSession && (
                       <div className="bg-red-50 border-2 border-red-200 rounded-[2rem] p-6 text-center">
@@ -2132,18 +2125,21 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                       <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-[2rem] p-6 text-center animate-fadeIn">
                         <p className="text-[10px] text-emerald-500 font-black uppercase tracking-[0.4em] mb-2">Troco a Devolver</p>
                         <p className="text-3xl font-black text-emerald-600">R$ {formatarMoeda(trocoCashPdv)}</p>
-                        {calcularDenominacoes(trocoCashPdv).length > 0 && (
-                          <div className="mt-4 pt-4 border-t border-emerald-500/20">
-                            <p className="text-[9px] font-black text-emerald-600 uppercase tracking-[0.3em] mb-3">Sugestão de Notas e Moedas</p>
-                            <div className="flex flex-wrap justify-center gap-2">
-                              {calcularDenominacoes(trocoCashPdv).map(d => (
-                                <span key={d.valor} className="px-3 py-1.5 bg-white border border-emerald-200 rounded-xl text-[10px] font-black text-emerald-700">
-                                  R$ {d.valor.toFixed(2).replace('.', ',')} × {d.qtd}
-                                </span>
-                              ))}
+                        {(() => {
+                          const denominacoes = calcularDenominacoes(trocoCashPdv);
+                          return denominacoes.length > 0 && (
+                            <div className="mt-4 pt-4 border-t border-emerald-500/20">
+                              <p className="text-[9px] font-black text-emerald-600 uppercase tracking-[0.3em] mb-3">Sugestão de Notas e Moedas</p>
+                              <div className="flex flex-wrap justify-center gap-2">
+                                {denominacoes.map(d => (
+                                  <span key={d.valor} className="px-3 py-1.5 bg-white border border-emerald-200 rounded-xl text-[10px] font-black text-emerald-700">
+                                    R$ {d.valor.toFixed(2).replace('.', ',')} × {d.qtd}
+                                  </span>
+                                ))}
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          );
+                        })()}
                       </div>
                     )}
                   </motion.div>
@@ -2732,9 +2728,10 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
               ) : filteredProductsForModal.map((p, idx) => {
                 const isOutOfStock = (p?.stock || 0) <= 0;
                 return (
-                  <div
+                  <button
                     key={p?.id || `modal-prod-${idx}`}
-                    className={`bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 p-4 flex flex-col justify-between h-full relative cursor-pointer ${isOutOfStock ? 'opacity-60 grayscale' : ''}`}
+                    type="button"
+                    className={`bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 p-4 flex flex-col justify-between h-full relative text-left ${isOutOfStock ? 'opacity-60 grayscale cursor-not-allowed' : 'cursor-pointer'}`}
                     onClick={() => {
                       if (!isOutOfStock) {
                         adicionarAoCarrinho(p);
@@ -2767,19 +2764,21 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                           )}
                           R$ {formatarMoeda(precoEfetivoProduto(p))}
                         </span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (!isOutOfStock) adicionarAoCarrinho(p);
-                          }}
-                          disabled={isOutOfStock}
-                          className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg p-2 transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-                        >
-                          <Plus size={16} />
-                        </button>
+                        {!isOutOfStock && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              adicionarAoCarrinho(p);
+                            }}
+                            className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg p-2 transition-all active:scale-95 cursor-pointer"
+                          >
+                            <Plus size={16} />
+                          </button>
+                        )}
                       </div>
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -2826,7 +2825,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
               <input type="number" min="0" step="0.01" value={cashAmount}
                 onChange={e => setCashAmount(e.target.value)}
                 placeholder="Ex: 100,00"
-                className="w-full border border-slate-300 rounded-xl px-4 py-3 text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-400 mb-4" />
+                className="w-full border border-slate-300 rounded-xl px-4 py-3 text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 mb-4" />
             </>
           )}
 
@@ -2836,12 +2835,12 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
               <input type="number" min="0.01" step="0.01" value={cashAmount}
                 onChange={e => setCashAmount(e.target.value)}
                 placeholder="0,00"
-                className="w-full border border-slate-300 rounded-xl px-4 py-3 text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 mb-3" />
+                className="w-full border border-slate-300 rounded-xl px-4 py-3 text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 mb-3" />
               <label className="block text-xs font-semibold text-slate-600 mb-1">Motivo</label>
               <input type="text" value={cashReason}
                 onChange={e => setCashReason(e.target.value)}
                 placeholder="Ex: Troco inicial, Retirada p/ cofre..."
-                className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 mb-4" />
+                className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 mb-4" />
             </>
           )}
 
