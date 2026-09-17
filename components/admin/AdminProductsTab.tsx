@@ -1,6 +1,7 @@
 import React from 'react';
 import {
-  Package, Search, Grid, List, Plus, Upload, Trash2, Edit, ImageIcon, Printer, AlertTriangle, Check, RefreshCw, Download, Package as PackageIcon, Globe, Store, ShoppingCart
+  Package, Search, Grid, List, Plus, Upload, Trash2, Edit, ImageIcon, Printer, AlertTriangle, Check, RefreshCw, Download, Globe, Store, ShoppingCart,
+  CheckCircle2, PackageX, Wrench, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { formatarMoeda, normalizeName } from '../../utils';
 import { toDate } from '../../utils/dateUtils';
@@ -49,6 +50,7 @@ export const AdminProductsTab: React.FC<AdminProductsTabProps> = ({
   const [confirmarSanitizar, setConfirmarSanitizar] = React.useState(false);
   const [mesclando, setMesclando] = React.useState(false);
   const [modoListaSimples, setModoListaSimples] = React.useState(false);
+  const [utilOpen, setUtilOpen] = React.useState(true);
 
   // Ao selecionar um XML, lê a NFe e mostra o CUSTO de cada item.
   // O preço de venda é calculado AO VIVO com a margem digitada:
@@ -119,6 +121,18 @@ export const AdminProductsTab: React.FC<AdminProductsTabProps> = ({
       return matchSearch && matchCategory && matchSupplier && matchChannel;
     }).sort((a,b) => (a.name || '').localeCompare(b.name || ''));
   }, [products, searchTerm, categoryFilter, supplierFilter, channelFilter]);
+
+  // Janela de impressão única: abre, injeta o HTML e chama print() com atraso
+  // curto — print() síncrono logo após document.write() imprime PÁGINA EM BRANCO
+  // no Chromium (snapshot antes de o layout terminar).
+  const abrirJanelaImpressaoHtml = (html: string) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { try { printWindow.print(); } catch { /* janela fechou */ } }, 350);
+  };
 
   const printProductList = () => {
     const items = (products || [])
@@ -197,16 +211,7 @@ export const AdminProductsTab: React.FC<AdminProductsTabProps> = ({
     <p class="rodape">Documento gerado pelo sistema Mercado Fácil — lista de preços</p>
 </body>
 </html>`;
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(html);
-      printWindow.document.close();
-      printWindow.focus();
-      // print() síncrono logo após document.write() imprime PÁGINA EM BRANCO
-      // no Chromium (snapshot antes de o layout terminar). O atraso curto
-      // espera a renderização sem abrir diálogo duplicado.
-      setTimeout(() => { try { printWindow.print(); } catch { /* janela fechou */ } }, 350);
-    }
+    abrirJanelaImpressaoHtml(html);
   };
 
   const agrupadosSimples = React.useMemo(() => {
@@ -279,56 +284,41 @@ export const AdminProductsTab: React.FC<AdminProductsTabProps> = ({
     <p class="rodape">Documento gerado pelo sistema Mercado Fácil — lista de preços</p>
 </body>
 </html>`;
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(html);
-      printWindow.document.close();
-      printWindow.focus();
-      // print() síncrono logo após document.write() imprime PÁGINA EM BRANCO
-      // no Chromium (snapshot antes de o layout terminar). O atraso curto
-      // espera a renderização sem abrir diálogo duplicado.
-      setTimeout(() => { try { printWindow.print(); } catch { /* janela fechou */ } }, 350);
-    }
+    abrirJanelaImpressaoHtml(html);
   };
 
 return (
     <div className="space-y-6 animate-slideUp pb-20">
       {/* Stats Board */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-[var(--bg-card)] p-5 rounded-[2rem] border border-[var(--border-color)] shadow-sm">
-              <p className="text-[10px] font-black uppercase text-slate-700 tracking-widest mb-1">Total de Itens</p>
+      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-4">
+          <div className="bg-[var(--bg-card)] p-4 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-slate-500">
+              <p className="text-[10px] font-black uppercase text-slate-700 tracking-widest mb-1 flex items-center gap-2"><Package size={14}/> Total de Itens</p>
               <p className="text-2xl font-black text-[var(--text-main)] tracking-tighter">{stats.total}</p>
           </div>
-          <div className="bg-[var(--bg-card)] p-5 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-emerald-500">
-              <p className="text-[10px] font-black uppercase text-slate-700 tracking-widest mb-1">Disponíveis</p>
+          <div className="bg-[var(--bg-card)] p-4 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-emerald-500">
+              <p className="text-[10px] font-black uppercase text-slate-700 tracking-widest mb-1 flex items-center gap-2"><CheckCircle2 size={14}/> Disponíveis</p>
               <p className="text-2xl font-black text-emerald-600 tracking-tighter">{stats.available}</p>
           </div>
-          <div className="bg-[var(--bg-card)] p-5 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-blue-500">
-              <p className="text-[10px] font-black uppercase text-slate-700 tracking-widest mb-1 flex items-center gap-2"><Store size={14}/> Só Usuário</p>
+          <div className="bg-[var(--bg-card)] p-4 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-blue-500">
+              <p className="text-[10px] font-black uppercase text-slate-700 tracking-widest mb-1 flex items-center gap-2"><Globe size={14}/> Só Usuário</p>
               <p className="text-2xl font-black text-blue-600 tracking-tighter">{stats.channelUser}</p>
           </div>
-          <div className="bg-[var(--bg-card)] p-5 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-purple-500">
-              <p className="text-[10px] font-black uppercase text-slate-700 tracking-widest mb-1 flex items-center gap-2"><ShoppingCart size={14}/> Só PDV Admin</p>
+          <div className="bg-[var(--bg-card)] p-4 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-purple-500">
+              <p className="text-[10px] font-black uppercase text-slate-700 tracking-widest mb-1 flex items-center gap-2"><Store size={14}/> Só PDV Admin</p>
               <p className="text-2xl font-black text-purple-600 tracking-tighter">{stats.channelAdmin}</p>
           </div>
-          <div className="bg-[var(--bg-card)] p-5 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-amber-500">
-              <p className="text-[10px] font-black uppercase text-slate-700 tracking-widest mb-1 flex items-center gap-2">
-                <AlertTriangle size={14}/> Estoque Baixo
-              </p>
-              <p className="text-2xl font-black text-amber-700 tracking-tighter">{stats.lowStock}</p>
-              <p className="text-[10px] font-black text-slate-800 mt-1 uppercase">Produtos precisam reposição</p>
+          <div className="bg-[var(--bg-card)] p-4 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-teal-500">
+              <p className="text-[10px] font-black uppercase text-slate-700 tracking-widest mb-1 flex items-center gap-2"><ShoppingCart size={14}/> Ambos</p>
+              <p className="text-2xl font-black text-teal-600 tracking-tighter">{stats.channelBoth}</p>
           </div>
-      </div>
-      {/* Canal de Vendas - 2ª linha */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-[var(--bg-card)] p-4 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-emerald-500">
-          <p className="text-[10px] font-black uppercase text-slate-700 tracking-widest mb-1 flex items-center gap-2"><Globe size={14}/> Ambos (Usuário + PDV)</p>
-          <p className="text-2xl font-black text-emerald-600 tracking-tighter">{stats.channelBoth}</p>
-        </div>
-        <div className="bg-[var(--bg-card)] p-4 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-red-500">
-          <p className="text-[10px] font-black uppercase text-slate-700 tracking-widest mb-1 flex items-center gap-2">Esgotados</p>
-          <p className="text-2xl font-black text-red-600 tracking-tighter">{stats.stockOut}</p>
-        </div>
+          <div className="bg-[var(--bg-card)] p-4 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-amber-500">
+              <p className="text-[10px] font-black uppercase text-slate-700 tracking-widest mb-1 flex items-center gap-2"><AlertTriangle size={14}/> Estoque Baixo</p>
+              <p className="text-2xl font-black text-amber-700 tracking-tighter">{stats.lowStock}</p>
+          </div>
+          <div className="bg-[var(--bg-card)] p-4 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-red-500">
+              <p className="text-[10px] font-black uppercase text-slate-700 tracking-widest mb-1 flex items-center gap-2"><PackageX size={14}/> Esgotados</p>
+              <p className="text-2xl font-black text-red-600 tracking-tighter">{stats.stockOut}</p>
+          </div>
       </div>
 
       {/* Main Header & Search */}
@@ -355,7 +345,7 @@ return (
               <Search size={18} className="text-[var(--text-muted)]" />
             </div>
             <input
-              className="flex-1 py-4.5 pr-6 bg-transparent border-none outline-none font-black text-xs text-[var(--text-main)] placeholder:text-[var(--text-muted)] uppercase tracking-widest"
+              className="flex-1 py-4 pr-6 bg-transparent border-none outline-none font-black text-xs text-[var(--text-main)] placeholder:text-[var(--text-muted)] uppercase tracking-widest"
               placeholder="PESQUISAR NO CATÁLOGO..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
@@ -402,8 +392,18 @@ return (
         </div>
       </div>
 
-      {/* Admin Utilities */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {/* Admin Utilities (retraível) */}
+      <div className="bg-[var(--bg-card)] rounded-[2.5rem] border border-[var(--border-color)] shadow-sm overflow-hidden">
+        <button type="button" onClick={() => setUtilOpen(o => !o)} className="w-full px-6 py-4 flex items-center justify-between gap-3 hover:bg-[var(--bg-main)] transition-colors" aria-expanded={utilOpen}>
+          <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-main)] flex items-center gap-2">
+            <Wrench size={14} className="text-emerald-500"/> Ferramentas de Administração
+          </span>
+          <span className="hidden md:flex text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Importar XML · Imprimir · Mesclar · Zerar estoque</span>
+          <span className="text-[var(--text-muted)]">{utilOpen ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}</span>
+        </button>
+        {utilOpen && (
+        <div className="px-6 pb-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* XML Import */}
           <div className="lg:col-span-8 bg-[var(--bg-card)] p-6 rounded-[2.5rem] border-2 border-dashed border-[var(--border-color)] shadow-sm">
             <h3 className="text-[10px] font-black uppercase text-[var(--text-main)] tracking-widest mb-4 flex items-center gap-2 opacity-60"><Upload size={16}/> Importação via XML (NFe)</h3>
@@ -424,14 +424,14 @@ return (
                   placeholder="0"
                 />
               </div>
-<button onClick={handleImportXML} disabled={!xmlFile || xmlPreviewLoading} className={`w-full md:w-auto px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-2 ${(!xmlFile || xmlPreviewLoading) ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-emerald-600 text-white hover:opacity-90 active:scale-95'}`}>
-                   {xmlPreviewLoading ? <RefreshCw size={18} className="animate-spin"/> : <Check size={18}/>} {xmlPreviewLoading ? 'Lendo Nota...' : 'Processar NFe'}
-               </button>
-               {margin.trim() !== '' && margemPct !== parseFloat(margin) && (
-                 <p className="mt-2 text-[10px] font-black uppercase tracking-wider text-amber-600">
-                   Margem inválida — será usada 30% na importação.
-                 </p>
-               )}
+              <button onClick={handleImportXML} disabled={!xmlFile || xmlPreviewLoading} className={`w-full md:w-auto px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-2 ${(!xmlFile || xmlPreviewLoading) ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-emerald-600 text-white hover:opacity-90 active:scale-95'}`}>
+                {xmlPreviewLoading ? <RefreshCw size={18} className="animate-spin"/> : <Check size={18}/>} {xmlPreviewLoading ? 'Lendo Nota...' : 'Processar NFe'}
+              </button>
+              {margin.trim() !== '' && margemPct !== parseFloat(margin) && (
+                <p className="mt-2 text-[10px] font-black uppercase tracking-wider text-amber-600">
+                  Margem inválida — será usada 30% na importação.
+                </p>
+              )}
             </div>
 
             {/* PRÉVIA: custo detectado no XML → preço de venda com a margem digitada */}
@@ -462,7 +462,7 @@ return (
                     </thead>
                     <tbody>
                       {xmlPreview.slice(0, 100).map((it, i) => {
-const existente = ehExistente(it);
+                        const existente = ehExistente(it);
                         return (
                         <tr key={i} className="border-b border-[var(--border-color)]/50 last:border-0">
                           <td className="py-1.5 pr-2 font-bold text-[var(--text-main)] truncate max-w-[220px]">{it.name}</td>
@@ -511,6 +511,9 @@ const existente = ehExistente(it);
                   <span className="text-[10px] font-black uppercase tracking-widest">Zerar Estoque Geral</span>
               </button>
           </div>
+          </div>
+        </div>
+        )}
       </div>
 
       <ConfirmacaoDestrutiva
@@ -603,10 +606,10 @@ const existente = ehExistente(it);
           <div key={product.id} className={`transition-all overflow-hidden ${viewMode === 'grid' ? 'bg-[var(--bg-card)] rounded-[2.5rem] shadow-sm border border-[var(--border-color)] hover:shadow-2xl hover:-translate-y-2 group flex flex-col relative' : 'flex flex-col sm:flex-row sm:items-center p-6 gap-6 border-b border-[var(--border-color)] last:border-0 hover:bg-[var(--bg-main)]'}`}>
 {/* Estoque Crítico - Borda de alerta */}
               {product?.stock > 0 && product?.stock <= (product.minStock || 5) && (
-                <div className="absolute inset-0 rounded-[2.5rem] border-2 border-amber-400 pointer-events-none z-11 opacity-50"></div>
+                <div className="absolute inset-0 rounded-[2.5rem] border-2 border-amber-400 pointer-events-none z-10 opacity-50"></div>
               )}
               {(product?.stock || 0) <= 0 && (
-                <div className="absolute inset-0 rounded-[2.5rem] border-2 border-red-500 pointer-events-none z-10 opacity-50"></div>
+                <div className="absolute inset-0 rounded-[2.5rem] border-2 border-red-500 pointer-events-none z-20 opacity-50"></div>
               )}
 
              {/* Thumbnail */}
@@ -676,7 +679,7 @@ const existente = ehExistente(it);
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => { setEditingProduct(product); setShowProductModal(true); }} aria-label="Editar produto" className="p-3 bg-[var(--bg-main)] text-[var(--text-muted)] hover:text-emerald-500 rounded-2xl border border-[var(--border-color)] shadow-sm active:scale-95 transition-all"><Edit size={18}/></button>
-                      <button onClick={() => { setShowStockEditModal(product); }} aria-label="Editar estoque" className="p-3 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-2xl border border-blue-200 shadow-sm active:scale-95 transition-all"><PackageIcon size={18}/></button>
+                      <button onClick={() => { setShowStockEditModal(product); }} aria-label="Editar estoque" className="p-3 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-2xl border border-blue-200 shadow-sm active:scale-95 transition-all"><Package size={18}/></button>
                       <button onClick={() => setProdutoParaExcluir(product)} aria-label="Excluir produto" className="p-3 bg-red-500/5 text-red-500 hover:bg-red-600 hover:text-white rounded-2xl border border-red-500/20 shadow-sm active:scale-95 transition-all"><Trash2 size={18}/></button>
                     </div>
                 </div>
