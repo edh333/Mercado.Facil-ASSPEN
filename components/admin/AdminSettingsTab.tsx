@@ -3,8 +3,9 @@ import {
   Settings, KeyRound, Database, HardDrive, Download, AlertTriangle,
   Trash2, RefreshCw, Smartphone, Palette, Shield, Lock, Save, DollarSign, Check,
   FileText, CreditCard, Building, Info, Printer, Wrench, Truck, ShoppingBag, Search, Loader2, Zap, Users,
-  History, RotateCcw, Upload, Archive, Power, CalendarClock, CloudUpload, CloudDownload, FileJson, Receipt, Pencil, Moon, X
+  History, RotateCcw, Upload, Archive, Power, CalendarClock, CloudUpload, CloudDownload, FileJson, Receipt, Pencil, Moon
 } from 'lucide-react';
+import { ModalShell } from '../ui/ModalShell';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { ThemeOption } from '../../types';
 import { useTheme } from '../../context/ThemeContext';
@@ -1741,22 +1742,18 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
 
       </div>
 
-      {/* CONFIRMAÇÃO DE RESTAURAÇÃO (ponto local) */}
-      {restoreTarget && (
-        <div className="fixed inset-0 z-[5000] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center animate-fadeIn">
-            <div className="w-16 h-16 mx-auto mb-5 bg-amber-100 rounded-2xl flex items-center justify-center">
-              <RotateCcw size={28} className="text-amber-600" />
-            </div>
-            <h3 className="text-lg font-bold tracking-wide text-slate-900 mb-2">Restaurar Sistema?</h3>
-            <p className="text-sm font-semibold text-slate-500 leading-relaxed mb-2">
-              O sistema voltará para o ponto: <span className="text-slate-900 font-black uppercase">{restoreTarget.label}</span>
-            </p>
-            <p className="text-[11px] font-bold text-slate-400 leading-relaxed mb-6">
-              ({formatarDataPonto(restoreTarget.createdAt)}) — as configurações e dados locais serão revertidos para essa data.
-              Recomenda-se baixar um backup antes. Os dados da nuvem (Firestore) não são alterados.
-            </p>
-            <div className="flex gap-3">
+{/* CONFIRMAÇÃO DE RESTAURAÇÃO (ponto local) */}
+      <ModalShell
+        open={restoreTarget !== null}
+        onClose={() => setRestoreTarget(null)}
+        title="Restaurar Sistema?"
+        subtitle={restoreTarget ? `${formatarDataPonto(restoreTarget.createdAt)}` : undefined}
+        tone="warning"
+        size="sm"
+        icon={<RotateCcw size={20} />}
+        footer={
+          restoreTarget && (
+            <div className="flex gap-3 w-full">
               <button
                 onClick={() => setRestoreTarget(null)}
                 className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-black uppercase text-xs tracking-widest transition-all"
@@ -1770,149 +1767,163 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                 <RotateCcw size={15} /> Restaurar
               </button>
             </div>
-          </div>
-        </div>
-      )}
-      {/* CONFIRMAÇÃO DE RESTAURAÇÃO (backup na nuvem) */}
-      {restoreNuvemTarget && (
-        <div className="fixed inset-0 z-[5000] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center animate-fadeIn">
+          )
+        }
+      >
+        {restoreTarget && (
+          <div className="text-center py-8">
             <div className="w-16 h-16 mx-auto mb-5 bg-amber-100 rounded-2xl flex items-center justify-center">
-              <CloudDownload size={28} className="text-amber-600" />
+              <RotateCcw size={28} className="text-amber-600" />
             </div>
-            <h3 className="text-lg font-bold tracking-wide text-slate-900 mb-2">Restaurar Backup?</h3>
             <p className="text-sm font-semibold text-slate-500 leading-relaxed mb-2">
-              Todos os dados voltarão para: <span className="text-slate-900 font-black uppercase">{restoreNuvemTarget.nome.replace('backups/', '')}</span>
+              O sistema voltará para o ponto: <span className="text-slate-900 font-black uppercase">{restoreTarget.label}</span>
             </p>
-            <p className="text-[11px] font-bold text-slate-400 leading-relaxed mb-5">
-              Antes de restaurar, o sistema salva um snapshot de segurança do estado atual.
-              Esta ação substitui os dados atuais no banco. Requer senha mestra.
+            <p className="text-[11px] font-bold text-slate-400 leading-relaxed mb-2">
+              ({formatarDataPonto(restoreTarget.createdAt)}) — as configurações e dados locais serão revertidos para essa data.
+              Recomenda-se baixar um backup antes. Os dados da nuvem (Firestore) não são alterados.
             </p>
+          </div>
+        )}
+      </ModalShell>
+      {/* CONFIRMAÇÃO DE RESTAURAÇÃO (backup na nuvem) */}
+      <ModalShell
+        open={restoreNuvemTarget !== null}
+        onClose={() => setRestoreNuvemTarget(null)}
+        title="Restaurar Backup?"
+        subtitle={restoreNuvemTarget ? restoreNuvemTarget.nome.replace('backups/', '') : undefined}
+        tone="warning"
+        size="sm"
+        icon={<CloudDownload size={20} />}
+        closeOnBackdrop={!restoreNuvemLoading}
+        footer={
+          <div className="flex gap-3 w-full">
+            <button
+              onClick={() => setRestoreNuvemTarget(null)}
+              disabled={restoreNuvemLoading}
+              className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-black uppercase text-xs tracking-widest transition-all"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleRestaurarBackup}
+              disabled={restoreNuvemLoading || !restoreNuvemConfirm}
+              className="flex-1 py-4 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white rounded-2xl font-black uppercase text-xs tracking-widest transition-all flex items-center justify-center gap-2"
+            >
+              {restoreNuvemLoading ? <Loader2 size={15} className="animate-spin" /> : <CloudDownload size={15} />}
+              {restoreNuvemLoading ? 'Restaurando...' : 'Restaurar'}
+            </button>
+          </div>
+        }
+      >
+        <div className="p-6 space-y-4">
+          <p className="text-sm font-semibold text-slate-500 leading-relaxed">
+            Antes de restaurar, o sistema salva um snapshot de segurança do estado atual.
+            Esta ação substitui os dados atuais no banco. Requer senha mestra.
+          </p>
 
-            <label className="text-[10px] font-black text-slate-900 uppercase mb-1 block text-left">Senha mestra</label>
+          <label className="text-[10px] font-black text-slate-900 uppercase mb-1 block text-left">Senha mestra</label>
+          <input
+            type="password"
+            className="w-full p-4 bg-slate-50 border-2 border-slate-200 focus:border-amber-400 rounded-2xl font-black text-sm text-slate-900 outline-none transition-all mb-2"
+            value={restoreNuvemPassword}
+            onChange={e => setRestoreNuvemPassword(e.target.value)}
+            placeholder="••••••••"
+            autoComplete="off"
+          />
+
+          <label className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4 cursor-pointer">
             <input
-              type="password"
-              className="w-full p-4 bg-slate-50 border-2 border-slate-200 focus:border-amber-400 rounded-2xl font-black text-sm text-slate-900 outline-none transition-all mb-4"
-              value={restoreNuvemPassword}
-              onChange={e => setRestoreNuvemPassword(e.target.value)}
-              placeholder="••••••••"
-              autoComplete="off"
+              type="checkbox"
+              checked={restoreNuvemConfirm}
+              onChange={e => setRestoreNuvemConfirm(e.target.checked)}
+              className="w-4 h-4 accent-amber-500"
             />
-
-            <label className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4 cursor-pointer mb-6">
-              <input
-                type="checkbox"
-                checked={restoreNuvemConfirm}
-                onChange={e => setRestoreNuvemConfirm(e.target.checked)}
-                className="w-4 h-4 accent-amber-500"
-              />
-              <span className="text-[11px] font-black text-amber-700 uppercase tracking-wide">
-                Entendi: os dados atuais serão substituídos
-              </span>
-            </label>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setRestoreNuvemTarget(null)}
-                disabled={restoreNuvemLoading}
-                className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-black uppercase text-xs tracking-widest transition-all"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleRestaurarBackup}
-                disabled={restoreNuvemLoading || !restoreNuvemConfirm}
-                className="flex-1 py-4 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white rounded-2xl font-black uppercase text-xs tracking-widest transition-all flex items-center justify-center gap-2"
-              >
-                {restoreNuvemLoading ? <Loader2 size={15} className="animate-spin" /> : <CloudDownload size={15} />}
-                {restoreNuvemLoading ? 'Restaurando...' : 'Restaurar'}
-              </button>
+            <span className="text-[11px] font-black text-amber-700 uppercase tracking-wide">
+              Entendi: os dados atuais serão substituídos
+            </span>
+          </label>
+        </div>
+      </ModalShell>
+      <ModalShell
+        open={showScaleModal}
+        onClose={() => setShowScaleModal(false)}
+        title="Escalar / Migrar Sistema"
+        subtitle="Escala atual e próximos passos"
+        tone="info"
+        size="lg"
+        icon={<Zap size={20} />}
+        footer={
+          <div className="flex gap-4 w-full justify-end">
+            <button
+              onClick={() => setShowScaleModal(false)}
+              className="px-6 py-3 bg-slate-100 text-slate-700 rounded-xl font-black uppercase hover:bg-slate-200"
+            >
+              Entendi, Fechar
+            </button>
+          </div>
+        }
+      >
+      <div className="p-6 space-y-6">
+        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6">
+          <h3 className="font-black text-slate-900 mb-2 flex items-center gap-2">
+            <Zap size={20} className="text-blue-600" /> Escala Atual (Plano Spark)
+          </h3>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="bg-white p-3 rounded-xl">
+              <p className="text-slate-500 font-bold">Leituras/dia</p>
+              <p className="font-black text-slate-900">~3.600 / 50.000 (7%)</p>
+            </div>
+            <div className="bg-white p-3 rounded-xl">
+              <p className="text-slate-500 font-bold">Escritas/dia</p>
+              <p className="font-black text-slate-900">~500 / 20.000 (2.5%)</p>
+            </div>
+            <div className="bg-white p-3 rounded-xl">
+              <p className="text-slate-500 font-bold">Functions/mês</p>
+              <p className="font-black text-slate-900">~15.000 / 125.000 (12%)</p>
+            </div>
+            <div className="bg-white p-3 rounded-xl">
+              <p className="text-slate-500 font-bold">Storage (R2)</p>
+              <p className="font-black text-slate-900">~2-3 GB / 10 GB (25%)</p>
             </div>
           </div>
         </div>
-      )}
-      {showScaleModal && (
-       <div className="fixed inset-0 z-[9999] bg-black/70 flex items-center justify-center p-4">
-         <div className="bg-white rounded-3xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-           <div className="flex items-center justify-between mb-6 pb-4 border-b">
-             <h2 className="text-xl font-black text-slate-900">Escalar / Migrar Sistema</h2>
-<button onClick={() => setShowScaleModal(false)} aria-label="Fechar modal" className="p-2 text-slate-400 hover:text-red-500">
-                <X size={24} />
-              </button>
-           </div>
 
-           <div className="space-y-6">
-             <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6">
-               <h3 className="font-black text-slate-900 mb-2 flex items-center gap-2">
-                 <Zap size={20} className="text-blue-600" /> Escala Atual (Plano Spark)
-               </h3>
-               <div className="grid grid-cols-2 gap-4 text-sm">
-                 <div className="bg-white p-3 rounded-xl">
-                   <p className="text-slate-500 font-bold">Leituras/dia</p>
-                   <p className="font-black text-slate-900">~3.600 / 50.000 (7%)</p>
-                 </div>
-                 <div className="bg-white p-3 rounded-xl">
-                   <p className="text-slate-500 font-bold">Escritas/dia</p>
-                   <p className="font-black text-slate-900">~500 / 20.000 (2.5%)</p>
-                 </div>
-                 <div className="bg-white p-3 rounded-xl">
-                   <p className="text-slate-500 font-bold">Functions/mês</p>
-                   <p className="font-black text-slate-900">~15.000 / 125.000 (12%)</p>
-                 </div>
-                 <div className="bg-white p-3 rounded-xl">
-                   <p className="text-slate-500 font-bold">Storage (R2)</p>
-                   <p className="font-black text-slate-900">~2-3 GB / 10 GB (25%)</p>
-                 </div>
-               </div>
-             </div>
-
-             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6">
-               <h3 className="font-black text-slate-900 mb-4 flex items-center gap-2">
-                 <AlertTriangle size={20} className="text-amber-600" /> Próximos Passos para Escalar
-               </h3>
-               <div className="space-y-3 text-sm">
-                 <div className="bg-white p-4 rounded-xl border-l-4 border-blue-500">
-                   <p className="font-black text-slate-900">1. Atingir 80% da cota de leituras (40k/dia)</p>
-                   <p className="text-slate-600">→ Ativar plano Blaze (pay-as-you-go) no Firebase Console</p>
-                 </div>
-                 <div className="bg-white p-4 rounded-xl border-l-4 border-green-500">
-                   <p className="font-black text-slate-900">2. Storage R2 {'>'} 8 GB</p>
-                   <p className="text-slate-600">→ Habilitar TTL 60 dias no Cloudflare Workers (grátis)</p>
-                 </div>
-                 <div className="bg-white p-4 rounded-xl border-l-4 border-purple-500">
-                   <p className="font-black text-slate-900">3. 5.000+ usuários</p>
-                   <p className="text-slate-600">→ Implementar busca server-side + virtualização listas</p>
-                 </div>
-                 <div className="bg-white p-4 rounded-xl border-l-4 border-orange-500">
-                   <p className="font-black text-slate-900">4. 10.000+ usuários</p>
-                   <p className="text-slate-600">→ Split StoreContext + sharding orders por mês</p>
-                 </div>
-               </div>
-             </div>
-
-             <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6">
-               <h3 className="font-black text-slate-900 mb-4">Migração para Blaze (Quando Necessário)</h3>
-               <ol className="space-y-2 text-sm text-slate-600 list-decimal list-inside">
-                 <li>Acesse <a href="https://console.firebase.google.com" target="_blank" className="text-blue-600 underline">Firebase Console</a> → Projeto "mercado-facil-mt"</li>
-                 <li>Menu lateral → <b>Faturamento</b> → <b>Atualizar plano</b> → Selecione <b>Blaze</b></li>
-                 <li>Adicione cartão de crédito válido</li>
-                 <li>Configure alertas de orçamento (ex: alerta em $5, $10, $20)</li>
-                 <li>O sistema continua funcionando igual — apenas paga pelo uso excedente</li>
-               </ol>
-             </div>
-
-             <div className="flex gap-4 pt-4">
-               <button
-                 onClick={() => setShowScaleModal(false)}
-                 className="flex-1 py-3 bg-slate-100 text-slate-700 rounded-xl font-black uppercase hover:bg-slate-200"
-               >
-                 Entendi, Fechar
-               </button>
-             </div>
-</div>
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6">
+          <h3 className="font-black text-slate-900 mb-4 flex items-center gap-2">
+            <AlertTriangle size={20} className="text-amber-600" /> Próximos Passos para Escalar
+          </h3>
+          <div className="space-y-3 text-sm">
+            <div className="bg-white p-4 rounded-xl border-l-4 border-blue-500">
+              <p className="font-black text-slate-900">1. Atingir 80% da cota de leituras (40k/dia)</p>
+              <p className="text-slate-600">→ Ativar plano Blaze (pay-as-you-go) no Firebase Console</p>
+            </div>
+            <div className="bg-white p-4 rounded-xl border-l-4 border-green-500">
+              <p className="font-black text-slate-900">2. Storage R2 {'>'} 8 GB</p>
+              <p className="text-slate-600">→ Habilitar TTL 60 dias no Cloudflare Workers (grátis)</p>
+            </div>
+            <div className="bg-white p-4 rounded-xl border-l-4 border-purple-500">
+              <p className="font-black text-slate-900">3. 5.000+ usuários</p>
+              <p className="text-slate-600">→ Implementar busca server-side + virtualização listas</p>
+            </div>
+            <div className="bg-white p-4 rounded-xl border-l-4 border-orange-500">
+              <p className="font-black text-slate-900">4. 10.000+ usuários</p>
+              <p className="text-slate-600">→ Split StoreContext + sharding orders por mês</p>
+            </div>
           </div>
-</div>
-      )}
+        </div>
+
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6">
+          <h3 className="font-black text-slate-900 mb-4">Migração para Blaze (Quando Necessário)</h3>
+          <ol className="space-y-2 text-sm text-slate-600 list-decimal list-inside">
+            <li>Acesse <a href="https://console.firebase.google.com" target="_blank" className="text-blue-600 underline">Firebase Console</a> → Projeto "mercado-facil-mt"</li>
+            <li>Menu lateral → <b>Faturamento</b> → <b>Atualizar plano</b> → Selecione <b>Blaze</b></li>
+            <li>Adicione cartão de crédito válido</li>
+            <li>Configure alertas de orçamento (ex: alerta em $5, $10, $20)</li>
+            <li>O sistema continua funcionando igual — apenas paga pelo uso excedente</li>
+          </ol>
+        </div>
+      </div>
+      </ModalShell>
 
       {/* CONFIRMAÇÃO: REMOVER ADMINISTRADOR */}
       <ConfirmacaoDestrutiva

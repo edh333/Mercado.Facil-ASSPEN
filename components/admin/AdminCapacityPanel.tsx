@@ -3,7 +3,8 @@ import { db } from '../../firebase';
 import { collection, query, where, getCountFromServer } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { useApp } from '../../context/StoreContext';
-import { Activity, Users, ShoppingBag, AlertTriangle, Loader2, Gauge, Trash2, Download, ShieldCheck, X, Plus } from 'lucide-react';
+import { Activity, Users, ShoppingBag, AlertTriangle, Loader2, Gauge, Trash2, Download, ShieldCheck, Plus } from 'lucide-react';
+import { ModalShell } from '../ui/ModalShell';
 
 interface Capacidade {
   hoje: number | null;
@@ -234,208 +235,204 @@ export const AdminCapacityPanel: React.FC = () => {
       )}
 
       {/* Modal de limpeza */}
-      {showCleanupModal && (
-        <div className="fixed inset-0 z-[999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => { if (!cleanupRunning) setShowCleanupModal(false); }}>
-          <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl p-6 space-y-4" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between items-center">
-              <h4 className="font-black text-sm uppercase tracking-wider text-slate-900 flex items-center gap-2">
-                <ShieldCheck size={18} className="text-emerald-600" /> Backup + Limpeza de Dados Antigos
-              </h4>
-              <button onClick={() => { if (!cleanupRunning) setShowCleanupModal(false); }} className="w-7 h-7 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200">
-                <X size={16} />
-              </button>
-            </div>
-
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-[11px] font-bold text-slate-600 leading-relaxed space-y-2">
-              <p className="flex items-start gap-2"><Download size={14} className="text-emerald-600 shrink-0 mt-0.5" /> <span>1º — O sistema cria uma <b>cópia de segurança completa</b> (arquivo JSON no Storage com link de download válido por 7 dias).</span></p>
-              <p className="flex items-start gap-2"><ShieldCheck size={14} className="text-emerald-600 shrink-0 mt-0.5" /> <span>2º — Grava uma <b>cópia permanente em historico_geral</b> (trilha de auditoria, nunca se perde).</span></p>
-              <p className="flex items-start gap-2"><Trash2 size={14} className="text-red-500 shrink-0 mt-0.5" /> <span>3º — Remove da operação os <b>pedidos, depósitos e despesas mais antigos</b> do que o período escolhido. Pedidos pendentes de análise <b>nunca</b> são removidos.</span></p>
-              <p className="flex items-start gap-2"><Download size={14} className="text-amber-500 shrink-0 mt-0.5" /> <span>4º — Quando marcada a opção abaixo, <b>os comprovantes (arquivos) dos registros arquivados são apagados do armazenamento</b>, liberando a cota do plano. A trilha de auditoria no histórico preserva os dados; documentos de identidade <b>nunca</b> são apagados.</span></p>
-            </div>
-
-            <div>
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-2 block">Remover dados mais antigos que (dias)</label>
-              <select
-                value={diasLimpeza}
-                onChange={e => setDiasLimpeza(Number(e.target.value))}
-                disabled={cleanupRunning}
-                className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-slate-50 font-black text-sm outline-none focus:border-emerald-500 disabled:opacity-50"
-              >
-                <option value={30}>30 dias (agressivo)</option>
-                <option value={60}>60 dias</option>
-                <option value={90}>90 dias (recomendado)</option>
-                <option value={180}>180 dias (conservador)</option>
-                <option value={365}>365 dias (mínima limpeza)</option>
-              </select>
-            </div>
-
-            {cleanupErro && (
-              <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 rounded-xl px-4 py-3 text-xs font-bold">
-                <AlertTriangle size={16} /> {cleanupErro}
-              </div>
-            )}
-
-            {cleanupResult && (
-              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-xs font-bold text-emerald-700 space-y-2">
-                {cleanupResult.total === 0 ? (
-                  <p className="flex items-center gap-2"><ShieldCheck size={16} /> {cleanupResult.mensagem || 'Nenhum dado antigo encontrado dentro do período.'}</p>
-                ) : (
-                  <>
-                    <p className="flex items-center gap-2"><ShieldCheck size={16} /> Limpeza concluída com sucesso! <b>{fmt(cleanupResult.total)}</b> registros arquivados:</p>
-                    <div className="grid grid-cols-3 gap-2 text-center">
-                      <div className="bg-white rounded-xl py-2 px-1 border border-emerald-200">
-                        <p className="text-[9px] text-emerald-600 uppercase font-black">Pedidos</p>
-                        <p className="font-black">{fmt(cleanupResult.porColecao?.orders || 0)}</p>
-                      </div>
-                      <div className="bg-white rounded-xl py-2 px-1 border border-emerald-200">
-                        <p className="text-[9px] text-emerald-600 uppercase font-black">Depósitos</p>
-                        <p className="font-black">{fmt(cleanupResult.porColecao?.wallet_transactions || 0)}</p>
-                      </div>
-                      <div className="bg-white rounded-xl py-2 px-1 border border-emerald-200">
-                        <p className="text-[9px] text-emerald-600 uppercase font-black">Despesas</p>
-                        <p className="font-black">{fmt(cleanupResult.porColecao?.expenses || 0)}</p>
-                      </div>
-                    </div>
-                    <p className="text-[10px] text-emerald-600 leading-relaxed">Cópia de segurança salva em <b>historico_geral</b> (permanente) e, quando disponível, arquivo JSON no Storage.</p>
-                    {(cleanupResult.arquivosApagados > 0 || cleanupResult.arquivosFalha > 0) && (
-                      <p className="text-[10px] text-slate-600 leading-relaxed bg-white rounded-xl py-2 px-3 border border-emerald-200">
-                        Arquivos de comprovante apagados do armazenamento: <b>{fmt(cleanupResult.arquivosApagados || 0)}</b>
-                        {cleanupResult.arquivosFalha > 0 && <> ({fmt(cleanupResult.arquivosFalha)} com falha — espaço não liberado nesses; serão apagados na próxima limpeza)</>}.
-                      </p>
-                    )}
-                    {cleanupResult.backupUrl ? (
-                      <a
-                        href={cleanupResult.backupUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-full flex items-center justify-center gap-2 py-3 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-wider hover:bg-slate-700 transition-all"
-                      >
-                        <Download size={14} /> Baixar Cópia de Segurança (JSON)
-                      </a>
-                    ) : (
-                      <p className="text-[10px] text-amber-600 font-black uppercase flex items-center gap-2">
-                        <AlertTriangle size={14} /> Backup em Storage indisponível no momento — o histórico no Firestore já preserva todos os dados.
-                      </p>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-
-            {!cleanupResult && (
-              <>
-                <label className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={apagarArquivos}
-                    onChange={e => setApagarArquivos(e.target.checked)}
-                    disabled={cleanupRunning}
-                    className="mt-0.5 w-4 h-4 accent-red-600 shrink-0"
-                  />
-                  <span className="text-[11px] font-bold text-red-700 leading-relaxed">
-                    Apagar também os <b>comprovantes (arquivos)</b> dos registros arquivados — libera o armazenamento do plano (é o que evita encher a cota). Documentos de identidade <b>nunca</b> são apagados.
-                  </span>
-                </label>
-                <div className="flex flex-col sm:flex-row gap-3">
-                <button
-                  onClick={() => setShowCleanupModal(false)}
-                  disabled={cleanupRunning}
-                  className="flex-1 py-3.5 bg-slate-100 text-slate-600 rounded-xl font-black text-[11px] uppercase tracking-wider hover:bg-slate-200 active:scale-95 transition-all disabled:opacity-50 border border-slate-200"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={executarLimpeza}
-                  disabled={cleanupRunning}
-                  className="flex-[1.5] py-3.5 bg-red-600 text-white rounded-xl font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2 hover:brightness-110 active:scale-95 transition-all disabled:opacity-60"
-                >
-                  {cleanupRunning ? <><Loader2 size={16} className="animate-spin" /> Backup + Limpando...</> : <><ShieldCheck size={16} /> Confirmar Backup + Limpeza</>}
-                </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Modal de aumento de capacidade */}
-      {showCapacityModal && (
-        <div className="fixed inset-0 z-[999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowCapacityModal(false)}>
-          <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl p-6 space-y-4" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between items-center">
-              <h4 className="font-black text-sm uppercase tracking-wider text-slate-900 flex items-center gap-2">
-                <Plus size={18} className="text-emerald-600" /> Aumentar Capacidade do Sistema
-              </h4>
-              <button onClick={() => setShowCapacityModal(false)} className="w-7 h-7 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200">
-                <X size={16} />
-              </button>
-            </div>
-
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-[11px] font-bold text-slate-600 leading-relaxed space-y-2">
-              <p className="flex items-start gap-2"><Gauge size={14} className="text-emerald-600 shrink-0 mt-0.5" /> <span>Aumenta a capacidade de <b>cadastro</b> e o <b>histórico carregado na tela</b>. Os valores são mantidos automaticamente de um jeito seguro — os dados antigos continuam sendo arquivados com cópia de segurança, então o plano gratuito atende por anos.</span></p>
-            </div>
-
-            <div>
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-2 block">Produtos no catálogo</label>
-              <select
-                value={capProdutos}
-                onChange={e => setCapProdutos(Number(e.target.value))}
-                className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-slate-50 font-black text-sm outline-none focus:border-emerald-500"
-              >
-                {opcoes(productsLimit, [500, 1000, 2000, 5000]).map(v => <option key={v} value={v}>{v.toLocaleString('pt-BR')}</option>)}
-              </select>
-              <p className="text-[9px] text-slate-400 font-bold mt-1">Atual: {productsLimit.toLocaleString('pt-BR')}</p>
-            </div>
-
-            <div>
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-2 block">Membros (famílias) com login</label>
-              <select
-                value={capMembros}
-                onChange={e => setCapMembros(Number(e.target.value))}
-                className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-slate-50 font-black text-sm outline-none focus:border-emerald-500"
-              >
-                {opcoes(usersLimit, [2000, 5000, 10000]).map(v => <option key={v} value={v}>{v.toLocaleString('pt-BR')}</option>)}
-              </select>
-              <p className="text-[9px] text-slate-400 font-bold mt-1">Atual: {usersLimit.toLocaleString('pt-BR')}</p>
-              <p className="text-[9px] text-slate-400 font-bold">Uso atual estimado da cota diária de leituras do plano gratuito (50.000/dia): {pctLeituras}%.</p>
-            </div>
-
-            <div>
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-2 block">Histórico de vendas/despesas carregado nas telas</label>
-              <select
-                value={capHistorico}
-                onChange={e => setCapHistorico(Number(e.target.value))}
-                className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-slate-50 font-black text-sm outline-none focus:border-emerald-500"
-              >
-                {opcoes(Math.max(ordersLimit, expensesLimit), [50, 100, 200, 500, 1000]).map(v => <option key={v} value={v}>{v.toLocaleString('pt-BR')} últimos</option>)}
-              </select>
-              <p className="text-[9px] text-slate-400 font-bold mt-1">Atual (vendas/despesas): {ordersLimit.toLocaleString('pt-BR')} / {expensesLimit.toLocaleString('pt-BR')}</p>
-            </div>
-
-            <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
-              <AlertTriangle size={16} className="text-blue-600 shrink-0 mt-0.5" />
-              <p className="text-[9px] text-blue-700 font-bold leading-relaxed">
-                O aumento vale para <b>este aparelho/navegador</b> (onde o botão for confirmado). Se houver outros computadores/PDVs, abra este painel neles e confirme a mesma escolha. Limites maiores sincronizam <b>mais registros na tela</b> — a limpeza automática mantém o sistema rápido mesmo na capacidade máxima.
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-3">
+      <ModalShell
+        open={showCleanupModal}
+        onClose={() => { if (!cleanupRunning) setShowCleanupModal(false); }}
+        title="Backup + Limpeza de Dados Antigos"
+        tone="danger"
+        size="lg"
+        icon={<ShieldCheck size={20} />}
+        closeOnBackdrop={!cleanupRunning}
+        footer={
+          !cleanupResult && (
+            <div className="flex flex-col sm:flex-row gap-3 w-full">
               <button
-                onClick={() => setShowCapacityModal(false)}
-                className="flex-1 py-3.5 bg-slate-100 text-slate-600 rounded-xl font-black text-[11px] uppercase tracking-wider hover:bg-slate-200 active:scale-95 transition-all border border-slate-200"
+                onClick={() => setShowCleanupModal(false)}
+                disabled={cleanupRunning}
+                className="flex-1 py-3.5 bg-slate-100 text-slate-600 rounded-xl font-black text-[11px] uppercase tracking-wider hover:bg-slate-200 active:scale-95 transition-all disabled:opacity-50 border border-slate-200"
               >
                 Cancelar
               </button>
               <button
-                onClick={aplicarCapacidade}
-                className="flex-[1.5] py-3.5 bg-emerald-600 text-white rounded-xl font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-emerald-700 active:scale-95 transition-all"
+                onClick={executarLimpeza}
+                disabled={cleanupRunning}
+                className="flex-[1.5] py-3.5 bg-red-600 text-white rounded-xl font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2 hover:brightness-110 active:scale-95 transition-all disabled:opacity-60"
               >
-                <ShieldCheck size={16} /> Confirmar Aumento
+                {cleanupRunning ? <><Loader2 size={16} className="animate-spin" /> Backup + Limpando...</> : <><ShieldCheck size={16} /> Confirmar Backup + Limpeza</>}
               </button>
             </div>
+          )
+        }
+      >
+        <div className="p-6 space-y-4">
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-[11px] font-bold text-slate-600 leading-relaxed space-y-2">
+            <p className="flex items-start gap-2"><Download size={14} className="text-emerald-600 shrink-0 mt-0.5" /> <span>1º — O sistema cria uma <b>cópia de segurança completa</b> (arquivo JSON no Storage com link de download válido por 7 dias).</span></p>
+            <p className="flex items-start gap-2"><ShieldCheck size={14} className="text-emerald-600 shrink-0 mt-0.5" /> <span>2º — Grava uma <b>cópia permanente em historico_geral</b> (trilha de auditoria, nunca se perde).</span></p>
+            <p className="flex items-start gap-2"><Trash2 size={14} className="text-red-500 shrink-0 mt-0.5" /> <span>3º — Remove da operação os <b>pedidos, depósitos e despesas mais antigos</b> do que o período escolhido. Pedidos pendentes de análise <b>nunca</b> são removidos.</span></p>
+            <p className="flex items-start gap-2"><Download size={14} className="text-amber-500 shrink-0 mt-0.5" /> <span>4º — Quando marcada a opção abaixo, <b>os comprovantes (arquivos) dos registros arquivados são apagados do armazenamento</b>, liberando a cota do plano. A trilha de auditoria no histórico preserva os dados; documentos de identidade <b>nunca</b> são apagados.</span></p>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-2 block">Remover dados mais antigos que (dias)</label>
+            <select
+              value={diasLimpeza}
+              onChange={e => setDiasLimpeza(Number(e.target.value))}
+              disabled={cleanupRunning}
+              className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-slate-50 font-black text-sm outline-none focus:border-emerald-500 disabled:opacity-50"
+            >
+              <option value={30}>30 dias (agressivo)</option>
+              <option value={60}>60 dias</option>
+              <option value={90}>90 dias (recomendado)</option>
+              <option value={180}>180 dias (conservador)</option>
+              <option value={365}>365 dias (mínima limpeza)</option>
+            </select>
+          </div>
+
+          {cleanupErro && (
+            <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 rounded-xl px-4 py-3 text-xs font-bold">
+              <AlertTriangle size={16} /> {cleanupErro}
+            </div>
+          )}
+
+          {cleanupResult && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-xs font-bold text-emerald-700 space-y-2">
+              {cleanupResult.total === 0 ? (
+                <p className="flex items-center gap-2"><ShieldCheck size={16} /> {cleanupResult.mensagem || 'Nenhum dado antigo encontrado dentro do período.'}</p>
+              ) : (
+                <>
+                  <p className="flex items-center gap-2"><ShieldCheck size={16} /> Limpeza concluída com sucesso! <b>{fmt(cleanupResult.total)}</b> registros arquivados:</p>
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className="bg-white rounded-xl py-2 px-1 border border-emerald-200">
+                      <p className="text-[9px] text-emerald-600 uppercase font-black">Pedidos</p>
+                      <p className="font-black">{fmt(cleanupResult.porColecao?.orders || 0)}</p>
+                    </div>
+                    <div className="bg-white rounded-xl py-2 px-1 border border-emerald-200">
+                      <p className="text-[9px] text-emerald-600 uppercase font-black">Depósitos</p>
+                      <p className="font-black">{fmt(cleanupResult.porColecao?.wallet_transactions || 0)}</p>
+                    </div>
+                    <div className="bg-white rounded-xl py-2 px-1 border border-emerald-200">
+                      <p className="text-[9px] text-emerald-600 uppercase font-black">Despesas</p>
+                      <p className="font-black">{fmt(cleanupResult.porColecao?.expenses || 0)}</p>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-emerald-600 leading-relaxed">Cópia de segurança salva em <b>historico_geral</b> (permanente) e, quando disponível, arquivo JSON no Storage.</p>
+                  {(cleanupResult.arquivosApagados > 0 || cleanupResult.arquivosFalha > 0) && (
+                    <p className="text-[10px] text-slate-600 leading-relaxed bg-white rounded-xl py-2 px-3 border border-emerald-200">
+                      Arquivos de comprovante apagados do armazenamento: <b>{fmt(cleanupResult.arquivosApagados || 0)}</b>
+                      {cleanupResult.arquivosFalha > 0 && <> ({fmt(cleanupResult.arquivosFalha)} com falha — espaço não liberado nesses; serão apagados na próxima limpeza)</>}.
+                    </p>
+                  )}
+                  {cleanupResult.backupUrl ? (
+                    <a
+                      href={cleanupResult.backupUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full flex items-center justify-center gap-2 py-3 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-wider hover:bg-slate-700 transition-all"
+                    >
+                      <Download size={14} /> Baixar Cópia de Segurança (JSON)
+                    </a>
+                  ) : (
+                    <p className="text-[10px] text-amber-600 font-black uppercase flex items-center gap-2">
+                      <AlertTriangle size={14} /> Backup em Storage indisponível no momento — o histórico no Firestore já preserva todos os dados.
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {!cleanupResult && (
+            <label className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={apagarArquivos}
+                onChange={e => setApagarArquivos(e.target.checked)}
+                disabled={cleanupRunning}
+                className="mt-0.5 w-4 h-4 accent-red-600 shrink-0"
+              />
+              <span className="text-[11px] font-bold text-red-700 leading-relaxed">
+                Apagar também os <b>comprovantes (arquivos)</b> dos registros arquivados — libera o armazenamento do plano (é o que evita encher a cota). Documentos de identidade <b>nunca</b> são apagados.
+              </span>
+            </label>
+          )}
+        </div>
+      </ModalShell>
+
+      {/* Modal de aumento de capacidade */}
+      <ModalShell
+        open={showCapacityModal}
+        onClose={() => setShowCapacityModal(false)}
+        title="Aumentar Capacidade do Sistema"
+        tone="primary"
+        size="lg"
+        icon={<Plus size={20} />}
+        footer={
+          <div className="flex flex-col sm:flex-row gap-3 w-full">
+            <button
+              onClick={() => setShowCapacityModal(false)}
+              className="flex-1 py-3.5 bg-slate-100 text-slate-600 rounded-xl font-black text-[11px] uppercase tracking-wider hover:bg-slate-200 active:scale-95 transition-all border border-slate-200"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={aplicarCapacidade}
+              className="flex-[1.5] py-3.5 bg-emerald-600 text-white rounded-xl font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-emerald-700 active:scale-95 transition-all"
+            >
+              <ShieldCheck size={16} /> Confirmar Aumento
+            </button>
+          </div>
+        }
+      >
+        <div className="p-6 space-y-4">
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-[11px] font-bold text-slate-600 leading-relaxed space-y-2">
+            <p className="flex items-start gap-2"><Gauge size={14} className="text-emerald-600 shrink-0 mt-0.5" /> <span>Aumenta a capacidade de <b>cadastro</b> e o <b>histórico carregado na tela</b>. Os valores são mantidos automaticamente de um jeito seguro — os dados antigos continuam sendo arquivados com cópia de segurança, então o plano gratuito atende por anos.</span></p>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-2 block">Produtos no catálogo</label>
+            <select
+              value={capProdutos}
+              onChange={e => setCapProdutos(Number(e.target.value))}
+              className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-slate-50 font-black text-sm outline-none focus:border-emerald-500"
+            >
+              {opcoes(productsLimit, [500, 1000, 2000, 5000]).map(v => <option key={v} value={v}>{v.toLocaleString('pt-BR')}</option>)}
+            </select>
+            <p className="text-[9px] text-slate-400 font-bold mt-1">Atual: {productsLimit.toLocaleString('pt-BR')}</p>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-2 block">Membros (famílias) com login</label>
+            <select
+              value={capMembros}
+              onChange={e => setCapMembros(Number(e.target.value))}
+              className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-slate-50 font-black text-sm outline-none focus:border-emerald-500"
+            >
+              {opcoes(usersLimit, [2000, 5000, 10000]).map(v => <option key={v} value={v}>{v.toLocaleString('pt-BR')}</option>)}
+            </select>
+            <p className="text-[9px] text-slate-400 font-bold mt-1">Atual: {usersLimit.toLocaleString('pt-BR')}</p>
+            <p className="text-[9px] text-slate-400 font-bold">Uso atual estimado da cota diária de leituras do plano gratuito (50.000/dia): {pctLeituras}%.</p>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-2 block">Histórico de vendas/despesas carregado nas telas</label>
+            <select
+              value={capHistorico}
+              onChange={e => setCapHistorico(Number(e.target.value))}
+              className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-slate-50 font-black text-sm outline-none focus:border-emerald-500"
+            >
+              {opcoes(Math.max(ordersLimit, expensesLimit), [50, 100, 200, 500, 1000]).map(v => <option key={v} value={v}>{v.toLocaleString('pt-BR')} últimos</option>)}
+            </select>
+            <p className="text-[9px] text-slate-400 font-bold mt-1">Atual (vendas/despesas): {ordersLimit.toLocaleString('pt-BR')} / {expensesLimit.toLocaleString('pt-BR')}</p>
+          </div>
+
+          <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+            <AlertTriangle size={16} className="text-blue-600 shrink-0 mt-0.5" />
+            <p className="text-[9px] text-blue-700 font-bold leading-relaxed">
+              O aumento vale para <b>este aparelho/navegador</b> (onde o botão for confirmado). Se houver outros computadores/PDVs, abra este painel neles e confirme a mesma escolha. Limites maiores sincronizam <b>mais registros na tela</b> — a limpeza automática mantém o sistema rápido mesmo na capacidade máxima.
+            </p>
           </div>
         </div>
-      )}
+      </ModalShell>
     </div>
   );
 };

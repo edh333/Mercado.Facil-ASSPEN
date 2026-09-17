@@ -13,10 +13,11 @@ import { Timestamp } from 'firebase/firestore';
 import {
   LogIn, LogOut, Plus, Minus, Lock, Unlock, RefreshCw,
   Clock, DollarSign, TrendingUp, TrendingDown, AlertTriangle,
-  CheckCircle, ChevronDown, ChevronUp, Printer, ClipboardList, Download, X
+  CheckCircle, ChevronDown, ChevronUp, Printer, ClipboardList, Download
 } from 'lucide-react';
 import { gerarCupomFechamento, imprimirCupom, gerarBoletimDiario, baixarCupomTxt } from '../../utils/printUtils';
 import { formatBRL } from '../../utils/money';
+import { ModalShell } from '../ui/ModalShell';
 
 // ──────────────────────────────────────────────
 // Helpers
@@ -462,30 +463,43 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
       )}
 
       {/* ══════════════ MODALS ══════════════ */}
-      {modal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-4 pb-4 sm:pb-0" onClick={() => setModal(null)}>
-          <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
-
+      <ModalShell
+        open={!!modal}
+        onClose={() => { setModal(null); setAmount(''); setReason(''); }}
+        title={modal === 'open' ? 'Abrir Caixa' : modal === 'supplement' ? 'Suprimento' : modal === 'withdrawal' ? 'Sangria de Segurança' : 'Fechar Caixa'}
+        subtitle={modal === 'open' ? 'Informe o fundo de troco inicial' : modal === 'supplement' ? 'Entrada de dinheiro no caixa' : modal === 'withdrawal' ? 'Retirada de dinheiro do caixa' : 'Valor esperado no caixa'}
+        size="sm"
+        tone={modal === 'withdrawal' || modal === 'close' ? 'danger' : modal === 'supplement' ? 'success' : 'primary'}
+        icon={modal === 'open' ? <LogIn size={20} /> : modal === 'supplement' ? <Plus size={20} /> : modal === 'withdrawal' ? <Minus size={20} /> : <LogOut size={20} />}
+        footer={
+          <div className="flex gap-3 w-full">
+            <button onClick={() => { setModal(null); setAmount(''); setReason(''); }}
+              className="flex-1 py-3 rounded-2xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-all">
+              Cancelar
+            </button>
+            <button
+              onClick={
+                modal === 'open' ? handleOpen
+                  : modal === 'supplement' ? handleSupplement
+                  : modal === 'withdrawal' ? handleWithdrawal
+                  : handleClose
+              }
+              disabled={actionLoading}
+              className="flex-1 py-3 rounded-2xl text-white font-bold text-sm shadow-md hover:brightness-110 transition-all active:scale-95 disabled:opacity-60"
+              style={{ backgroundColor: modal === 'close' ? '#ef4444' : modal === 'withdrawal' ? '#ef4444' : primaryColor }}
+            >
+              {actionLoading ? '...' : modal === 'open' ? 'Abrir Caixa' : modal === 'supplement' ? 'Registrar' : modal === 'withdrawal' ? 'Registrar Sangria' : 'Confirmar Fechamento'}
+            </button>
+          </div>
+        }
+      >
+        {modal && (
+          <div className="p-6">
             {modal === 'open' && (
-              <>
-                <h3 className="text-lg font-bold text-slate-900 mb-1">Abrir Caixa</h3>
-                <p className="text-sm text-slate-500 mb-4">Informe o valor inicial (fundo de troco) na gaveta.</p>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Valor Inicial (R$)</label>
-                <input type="number" min="0" step="0.01" value={initialBalance}
-                  onChange={e => setInitialBalance(e.target.value)}
-                  placeholder="Ex: 100,00"
-                  className="w-full border border-slate-300 rounded-xl px-4 py-3 text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-400 mb-4" />
-              </>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Valor Inicial (R$)</label>
             )}
-
             {(modal === 'supplement' || modal === 'withdrawal') && (
               <>
-                <h3 className="text-lg font-bold text-slate-900 mb-1">
-                  {modal === 'supplement' ? <><Plus size={16} className="text-emerald-500" /> Suprimento</> : <><Minus size={16} className="text-red-500" /> Sangria de Segurança</>}
-                </h3>
-                <p className="text-sm text-slate-500 mb-4">
-                  {modal === 'supplement' ? 'Entrada de dinheiro no caixa.' : 'Retirada de dinheiro do caixa.'}
-                </p>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Valor (R$)</label>
                 <input type="number" min="0.01" step="0.01" value={amount}
                   onChange={e => setAmount(e.target.value)}
@@ -498,11 +512,15 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
                   className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 mb-4" />
               </>
             )}
+            {modal === 'open' && (
+              <input type="number" min="0" step="0.01" value={initialBalance}
+                onChange={e => setInitialBalance(e.target.value)}
+                placeholder="Ex: 100,00"
+                className="w-full border border-slate-300 rounded-xl px-4 py-3 text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-400 mb-4" />
+            )}
 
             {modal === 'close' && (
               <>
-                <h3 className="text-lg font-bold text-slate-900 mb-1">Fechar Caixa</h3>
-                <p className="text-sm text-slate-500 mb-1">Valor esperado no caixa:</p>
                 <p className="text-2xl font-black text-slate-800 mb-4">{session ? fmt(session.currentBalance) : '—'}</p>
                 <div className="mb-4 max-h-44 overflow-y-auto rounded-xl border border-slate-200 p-2 bg-slate-50/60">
                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Conferência por cédulas/moedas</p>
@@ -529,42 +547,32 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
                   className="w-full border border-slate-300 rounded-xl px-4 py-3 text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-400 mb-4" />
               </>
             )}
-
-            <div className="flex gap-3">
-              <button onClick={() => { setModal(null); setAmount(''); setReason(''); }}
-                className="flex-1 py-3 rounded-2xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-all">
-                Cancelar
-              </button>
-              <button
-                onClick={
-                  modal === 'open' ? handleOpen
-                    : modal === 'supplement' ? handleSupplement
-                    : modal === 'withdrawal' ? handleWithdrawal
-                    : handleClose
-                }
-                disabled={actionLoading}
-                className="flex-1 py-3 rounded-2xl text-white font-bold text-sm shadow-md hover:brightness-110 transition-all active:scale-95 disabled:opacity-60"
-                style={{ backgroundColor: modal === 'close' ? '#ef4444' : modal === 'withdrawal' ? '#ef4444' : primaryColor }}
-              >
-                {actionLoading ? '...' : modal === 'open' ? 'Abrir Caixa' : modal === 'supplement' ? 'Registrar' : modal === 'withdrawal' ? 'Registrar Sangria' : 'Confirmar Fechamento'}
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+        )}
+      </ModalShell>
 
       {/* ══════════════ BOLETIM DO DIA (Prestação de Contas) ══════════════ */}
-      {showBoletim && boletim && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-4 pb-4 sm:pb-0" onClick={() => setShowBoletim(false)}>
-          <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-lg font-bold text-slate-900">Boletim do Dia</h3>
-              <button onClick={() => setShowBoletim(false)} className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all" title="Fechar">
-                <X size={18} />
-              </button>
-            </div>
-            <p className="text-sm text-slate-500 mb-4">{boletim.data} — resumo de prestação de contas.</p>
-
+      <ModalShell
+        open={showBoletim && !!boletim}
+        onClose={() => setShowBoletim(false)}
+        title="Boletim do Dia"
+        subtitle={boletim?.data ? `${boletim.data} — resumo de prestação de contas` : undefined}
+        size="sm"
+        tone="success"
+        icon={<ClipboardList size={20} />}
+        footer={
+          <div className="flex gap-2 w-full">
+            <button onClick={handleBoletimDownload} className="flex-1 py-2.5 rounded-2xl border border-slate-200 text-slate-600 font-semibold text-xs hover:bg-slate-50 transition-all flex items-center justify-center gap-1.5">
+              <Download size={14} /> TXT
+            </button>
+            <button onClick={handleBoletimPrint} className="flex-1 py-2.5 rounded-2xl text-white font-bold text-xs flex items-center justify-center gap-1.5 hover:brightness-110 transition-all active:scale-95" style={{ backgroundColor: primaryColor }}>
+              <Printer size={14} /> Imprimir
+            </button>
+          </div>
+        }
+      >
+        {boletim && (
+          <div className="p-6">
             <div className="space-y-1 max-h-60 overflow-y-auto mb-4">
               {boletim.formas.length === 0 && (
                 <p className="text-xs text-slate-400 text-center py-4">Nenhuma venda registrada hoje.</p>
@@ -599,18 +607,9 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
                 </div>
               )}
             </div>
-
-            <div className="flex gap-2">
-              <button onClick={handleBoletimDownload} className="flex-1 py-2.5 rounded-2xl border border-slate-200 text-slate-600 font-semibold text-xs hover:bg-slate-50 transition-all flex items-center justify-center gap-1.5">
-                <Download size={14} /> TXT
-              </button>
-              <button onClick={handleBoletimPrint} className="flex-1 py-2.5 rounded-2xl text-white font-bold text-xs flex items-center justify-center gap-1.5 hover:brightness-110 transition-all active:scale-95" style={{ backgroundColor: primaryColor }}>
-                <Printer size={14} /> Imprimir
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+        )}
+      </ModalShell>
     </div>
   );
 };

@@ -1,5 +1,6 @@
 import React from 'react';
-import { X, Printer, Keyboard, Home, ShoppingCart, Package, BarChart3, DollarSign, Wallet, Users, LayoutDashboard, Settings, Banknote, UserCheck, HelpCircle } from 'lucide-react';
+import { Printer, Keyboard, Home, ShoppingCart, Package, BarChart3, DollarSign, Wallet, Users, LayoutDashboard, Settings, Banknote, UserCheck, HelpCircle } from 'lucide-react';
+import { ModalShell } from '../ui/ModalShell';
 
 interface Shortcut {
   key: string;
@@ -30,14 +31,6 @@ interface AdminShortcutsModalProps {
 }
 
 export const AdminShortcutsModal: React.FC<AdminShortcutsModalProps> = ({ isOpen, onClose }) => {
-  React.useEffect(() => {
-    if (!isOpen) return;
-    const escHandler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', escHandler);
-    return () => window.removeEventListener('keydown', escHandler);
-  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -75,55 +68,38 @@ export const AdminShortcutsModal: React.FC<AdminShortcutsModalProps> = ({ isOpen
   };
 
   return (
-    <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 animate-fadeIn" style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }} onClick={onClose}>
-      <div className="bg-[var(--bg-card)] w-full max-w-2xl rounded-3xl shadow-2xl flex flex-col max-h-[90vh] border border-[var(--border-color)] animate-slideUp" style={{ overflow: 'hidden' }} onClick={(e) => e.stopPropagation()}>
-        <div className="w-full flex items-center justify-between shrink-0 px-5 py-4" style={{ backgroundColor: '#0f172a', color: '#ffffff', borderTopLeftRadius: '24px', borderTopRightRadius: '24px' }}>
-          <div className="flex items-center gap-3">
-            <Keyboard size={20} className="text-emerald-400"/>
-            <span className="font-black text-sm uppercase tracking-tight text-white">Atalhos de Teclado</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <button onClick={handlePrint} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border flex items-center gap-1.5" style={{ color: '#ffffff', backgroundColor: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.2)' }}>
-              <Printer size={14}/> Imprimir
-            </button>
-            <button onClick={onClose} className="p-2 rounded-lg transition-all active:scale-90" style={{ color: '#ffffff', backgroundColor: 'rgba(255,255,255,0.15)' }} title="Fechar">
-              <X size={22}/>
-            </button>
-          </div>
-        </div>
-
-        <div className="p-6 bg-[var(--text-main)] text-[var(--bg-card)] flex items-center gap-4 shrink-0">
-          <div className="p-3 bg-[var(--bg-card)] text-[var(--text-main)] rounded-2xl shadow-xl">
-            <Keyboard size={24}/>
-          </div>
-          <div>
-            <h3 className="text-lg font-bold tracking-tight leading-none">Navegação Global F1–F12</h3>
-            <div className="flex items-center gap-3 mt-1">
-              <span className="px-2.5 py-0.5 bg-[var(--primary-color)]/20 text-[var(--primary-color)] rounded-full text-[10px] font-black uppercase tracking-widest">Funciona em qualquer tela</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-2">
-          {SHORTCUTS.map(s => (
-            <div key={s.key} className="flex items-center justify-between gap-4 p-4 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-main)]/30 hover:bg-[var(--bg-main)]/60 transition-colors">
-              <div className="flex items-center gap-3">
-                <span className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-black text-xs font-mono shadow-md">{s.key}</span>
-                <div className="flex items-center gap-2 text-[var(--text-main)]">
-                  <span className="opacity-60">{s.icon}</span>
-                  <span className="font-black text-xs uppercase tracking-tight">{s.label}</span>
-                </div>
+    <ModalShell
+      open={isOpen}
+      onClose={onClose}
+      title="Atalhos de Teclado"
+      subtitle="Navegação global F1–F12"
+      icon={<Keyboard size={20} />}
+      size="lg"
+      actions={
+        <button onClick={handlePrint} className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border flex items-center gap-1.5" style={{ color: '#ffffff', backgroundColor: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.2)' }}>
+          <Printer size={14}/> Imprimir
+        </button>
+      }
+    >
+      <div className="p-6 space-y-2">
+        {SHORTCUTS.map(s => (
+          <div key={s.key} className="flex items-center justify-between gap-4 p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors">
+            <div className="flex items-center gap-3">
+              <span className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-black text-xs font-mono shadow-md">{s.key}</span>
+              <div className="flex items-center gap-2 text-slate-700">
+                <span className="opacity-60">{s.icon}</span>
+                <span className="font-black text-xs uppercase tracking-tight">{s.label}</span>
               </div>
-              {s.note && <span className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest hidden sm:block">{s.note}</span>}
             </div>
-          ))}
-          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 mt-4">
-            <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest leading-relaxed">
-              Obs: Com uma janela aberta (venda, relatório, produto), os atalhos ficam suspensos. Dentro de campos de texto, nenhum atalho é disparado — apenas a digitação.
-            </p>
+            {s.note && <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest hidden sm:block">{s.note}</span>}
           </div>
+        ))}
+        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 mt-4">
+          <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest leading-relaxed">
+            Obs: Com uma janela aberta (venda, relatório, produto), os atalhos ficam suspensos. Dentro de campos de texto, nenhum atalho é disparado — apenas a digitação.
+          </p>
         </div>
       </div>
-    </div>
+    </ModalShell>
   );
 };

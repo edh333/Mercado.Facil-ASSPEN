@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Users, Search, Plus, X, Check, DollarSign, CreditCard,
+  Users, Search, Check, DollarSign, CreditCard, Plus,
   RefreshCw, Trash2, Save, CheckCircle, Printer, ShieldAlert,
   Download, AlertTriangle, Filter
 } from 'lucide-react';
+import { ModalShell } from '../ui/ModalShell';
 
 import { CustomerAccount } from '../../types';
 import {
@@ -328,152 +329,154 @@ export function AdminCustomersTab() {
       )}
 
       {/* Add/Edit Modal */}
-      {showModal && editData && (
-        <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl animate-scaleIn">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="font-black text-slate-900 uppercase tracking-tight text-sm">
-                {editData.id ? 'Editar Cliente' : 'Novo Cliente'}
-              </h3>
-              <button onClick={() => { setShowModal(false); setEditData(null); }} aria-label="Fechar modal" className="p-2 hover:bg-slate-100 rounded-xl transition-all">
-                <X size={20} />
-              </button>
+      <ModalShell
+        open={showModal && !!editData}
+        onClose={() => { setShowModal(false); setEditData(null); }}
+        title={editData?.id ? 'Editar Cliente' : 'Novo Cliente'}
+        tone="primary"
+        size="sm"
+        icon={<Users size={20} />}
+        footer={
+          <div className="flex gap-3 w-full">
+            <button onClick={() => { setShowModal(false); setEditData(null); }} className="flex-1 py-3 rounded-2xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all">
+              Cancelar
+            </button>
+            <button onClick={handleSave} disabled={saving || !editData?.nome?.trim()} className="flex-1 py-3 rounded-2xl bg-emerald-500 text-white font-bold text-sm shadow-md hover:bg-emerald-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+              {saving ? <RefreshCw className="animate-spin" size={16} /> : <Check size={16} />}
+              {editData?.id ? 'Salvar' : 'Cadastrar'}
+            </button>
+          </div>
+        }
+      >
+        {editData && (
+        <div className="p-6">
+          <div className="space-y-4">
+            <div>
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Nome do Cliente</label>
+              <input
+                type="text"
+                value={editData.nome || ''}
+                onChange={e => setEditData({ ...editData, nome: e.target.value.toUpperCase() })}
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-900 font-semibold outline-none focus:border-emerald-500 transition-all"
+                placeholder="NOME COMPLETO"
+              />
             </div>
-            <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Nome do Cliente</label>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">CPF</label>
                 <input
                   type="text"
-                  value={editData.nome || ''}
-                  onChange={e => setEditData({ ...editData, nome: e.target.value.toUpperCase() })}
+                  inputMode="numeric"
+                  value={formatCPF(editData.cpf || '')}
+                  onChange={e => setEditData({ ...editData, cpf: formatCPF(e.target.value) })}
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-900 font-semibold outline-none focus:border-emerald-500 transition-all"
-                  placeholder="NOME COMPLETO"
+                  placeholder="000.000.000-00"
                 />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">CPF</label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={formatCPF(editData.cpf || '')}
-                    onChange={e => setEditData({ ...editData, cpf: formatCPF(e.target.value) })}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-900 font-semibold outline-none focus:border-emerald-500 transition-all"
-                    placeholder="000.000.000-00"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Telefone</label>
-                  <input
-                    type="text"
-                    inputMode="tel"
-                    value={formatPhone(editData.telefone || '')}
-                    onChange={e => setEditData({ ...editData, telefone: formatPhone(e.target.value) })}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-900 font-semibold outline-none focus:border-emerald-500 transition-all"
-                    placeholder="(65) 99999-9999"
-                  />
-                </div>
               </div>
               <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Limite de Crédito (R$)</label>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Telefone</label>
                 <input
-                  type="number"
-                  value={editData.creditLimit || 0}
-                  onChange={e => setEditData({ ...editData, creditLimit: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-900 font-black outline-none focus:border-emerald-500 transition-all"
+                  type="text"
+                  inputMode="tel"
+                  value={formatPhone(editData.telefone || '')}
+                  onChange={e => setEditData({ ...editData, telefone: formatPhone(e.target.value) })}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-900 font-semibold outline-none focus:border-emerald-500 transition-all"
+                  placeholder="(65) 99999-9999"
                 />
               </div>
-              {editData.id && (
-                <div className="flex items-center gap-3">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Status</label>
-                  <button
-                    onClick={() => setEditData({ ...editData, status: editData.status === 'active' ? 'blocked' : 'active' })}
-                    className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${editData.status === 'active' ? 'bg-emerald-100 text-emerald-700 border border-emerald-300' : 'bg-red-100 text-red-700 border border-red-300'}`}
-                  >
-                    {editData.status === 'active' ? 'Ativo' : 'Bloqueado'}
-                  </button>
-                </div>
-              )}
-              {editData.id && (
-                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Saldo Devedor Atual</p>
-                  <p className="text-xl font-black text-red-600">R$ {formatarMoeda(accounts.find(a => a.id === editData.id)?.currentDebt || 0)}</p>
-                </div>
-              )}
             </div>
-            <div className="flex gap-3 mt-8">
-              <button onClick={() => { setShowModal(false); setEditData(null); }} className="flex-1 py-3 rounded-2xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all">
-                Cancelar
-              </button>
-              <button onClick={handleSave} disabled={saving || !editData.nome?.trim()} className="flex-1 py-3 rounded-2xl bg-emerald-500 text-white font-bold text-sm shadow-md hover:bg-emerald-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
-                {saving ? <RefreshCw className="animate-spin" size={16} /> : <Check size={16} />}
-                {editData.id ? 'Salvar' : 'Cadastrar'}
-              </button>
+            <div>
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Limite de Crédito (R$)</label>
+              <input
+                type="number"
+                value={editData.creditLimit || 0}
+                onChange={e => setEditData({ ...editData, creditLimit: parseFloat(e.target.value) || 0 })}
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-900 font-black outline-none focus:border-emerald-500 transition-all"
+              />
             </div>
+            {editData.id && (
+              <div className="flex items-center gap-3">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Status</label>
+                <button
+                  onClick={() => setEditData({ ...editData, status: editData.status === 'active' ? 'blocked' : 'active' })}
+                  className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${editData.status === 'active' ? 'bg-emerald-100 text-emerald-700 border border-emerald-300' : 'bg-red-100 text-red-700 border border-red-300'}`}
+                >
+                  {editData.status === 'active' ? 'Ativo' : 'Bloqueado'}
+                </button>
+              </div>
+            )}
+            {editData.id && (
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Saldo Devedor Atual</p>
+                <p className="text-xl font-black text-red-600">R$ {formatarMoeda(accounts.find(a => a.id === editData.id)?.currentDebt || 0)}</p>
+              </div>
+            )}
           </div>
         </div>
-      )}
+        )}
+      </ModalShell>
 
       {/* Receive Payment Modal */}
-      {payModal && (
-        <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-scaleIn">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="font-black text-slate-900 uppercase tracking-tight text-sm flex items-center gap-2">
-                <DollarSign size={18} className="text-emerald-500" /> Receber Pagamento
-              </h3>
-              <button onClick={() => setPayModal(null)} className="p-2 hover:bg-slate-100 rounded-xl transition-all">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Cliente</p>
-                <p className="font-bold text-slate-900">{payModal.customer.nome}</p>
-                <p className="text-[10px] text-slate-500 mt-1">Telefone: {payModal.customer.telefone || '—'}</p>
-                <div className="mt-3 pt-3 border-t border-slate-200 flex justify-between">
-                  <span className="text-xs font-black text-slate-500 uppercase">Dívida Atual</span>
-                  <span className="text-lg font-black text-red-600">R$ {formatarMoeda(payModal.customer.currentDebt || 0)}</span>
-                </div>
+      <ModalShell
+        open={payModal !== null}
+        onClose={() => setPayModal(null)}
+        title="Receber Pagamento"
+        tone="success"
+        size="sm"
+        icon={<DollarSign size={20} />}
+        footer={
+          <div className="flex gap-3 w-full">
+            <button onClick={() => setPayModal(null)} className="flex-1 py-3 rounded-2xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all">
+              Cancelar
+            </button>
+            <button
+              onClick={handleReceivePayment}
+              disabled={paying || !payAmount || parseFloat(payAmount) <= 0}
+              className="flex-1 py-3 rounded-2xl bg-emerald-500 text-white font-bold text-sm shadow-md hover:bg-emerald-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {paying ? <RefreshCw className="animate-spin" size={16} /> : <CheckCircle size={16} />}
+              Confirmar Pagamento
+            </button>
+          </div>
+        }
+      >
+        {payModal && (
+        <div className="p-6">
+          <div className="space-y-4">
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Cliente</p>
+              <p className="font-bold text-slate-900">{payModal.customer.nome}</p>
+              <p className="text-[10px] text-slate-500 mt-1">Telefone: {payModal.customer.telefone || '—'}</p>
+              <div className="mt-3 pt-3 border-t border-slate-200 flex justify-between">
+                <span className="text-xs font-black text-slate-500 uppercase">Dívida Atual</span>
+                <span className="text-lg font-black text-red-600">R$ {formatarMoeda(payModal.customer.currentDebt || 0)}</span>
               </div>
-              <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Valor Recebido (R$)</label>
-                <input
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  value={payAmount}
-                  onChange={e => setPayAmount(e.target.value)}
-                  className="w-full px-4 py-4 rounded-xl border border-emerald-200 text-slate-900 font-black text-2xl outline-none focus:border-emerald-500 transition-all text-center"
-                  placeholder="0,00"
-                  autoFocus
-                />
+            </div>
+            <div>
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Valor Recebido (R$)</label>
+              <input
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={payAmount}
+                onChange={e => setPayAmount(e.target.value)}
+                className="w-full px-4 py-4 rounded-xl border border-emerald-200 text-slate-900 font-black text-2xl outline-none focus:border-emerald-500 transition-all text-center"
+                placeholder="0,00"
+                autoFocus
+              />
+            </div>
+            {payAmount && parseFloat(payAmount) > 0 && (
+              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-center">
+                <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Nova Dívida</p>
+                <p className="text-xl font-black text-emerald-700">
+                  R$ {formatarMoeda(Math.max(0, (payModal.customer.currentDebt || 0) - parseFloat(payAmount)))}
+                </p>
               </div>
-              {payAmount && parseFloat(payAmount) > 0 && (
-                <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-center">
-                  <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Nova Dívida</p>
-                  <p className="text-xl font-black text-emerald-700">
-                    R$ {formatarMoeda(Math.max(0, (payModal.customer.currentDebt || 0) - parseFloat(payAmount)))}
-                  </p>
-                </div>
-              )}
-            </div>
-            <div className="flex gap-3 mt-8">
-              <button onClick={() => setPayModal(null)} className="flex-1 py-3 rounded-2xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all">
-                Cancelar
-              </button>
-              <button
-                onClick={handleReceivePayment}
-                disabled={paying || !payAmount || parseFloat(payAmount) <= 0}
-                className="flex-1 py-3 rounded-2xl bg-emerald-500 text-white font-bold text-sm shadow-md hover:bg-emerald-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {paying ? <RefreshCw className="animate-spin" size={16} /> : <CheckCircle size={16} />}
-                Confirmar Pagamento
-              </button>
-            </div>
+            )}
           </div>
         </div>
-      )}
+        )}
+      </ModalShell>
       <ConfirmacaoDestrutiva
         isOpen={contaParaExcluir !== null}
         titulo="Excluir Conta"

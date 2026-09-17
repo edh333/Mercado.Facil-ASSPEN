@@ -905,63 +905,63 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
       )}
 
       {/* MODAL: CUPOM PDV */}
-      {printOrder && (
-        <div className="fixed inset-0 z-[5000] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}>
-          <div className="w-full max-w-md mx-auto bg-white rounded-2xl shadow-xl flex flex-col overflow-hidden max-h-[90vh]">
-            <div className="toolbar-recibo-superior flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-white">
-              <div className="flex items-center gap-3">
-                <Printer size={20} className="text-emerald-600"/>
-                <span className="font-black text-sm uppercase tracking-tight text-slate-900">Cupom PDV</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <button onClick={handleRawPrint} className="px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-90 bg-emerald-600 text-white hover:bg-emerald-500 shadow-sm">
-                  <Printer size={14}/> Imprimir na Fiscal
-                </button>
-                <button onClick={handleBaixarTxt} className="px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-90 bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 shadow-sm" title="Baixar .txt para impressão externa">
-                  TXT
-                </button>
-                <button onClick={async () => {
-                    const api = (window as any).electronAPI;
-                    if (api?.printHtmlSilent) {
-                        const ok = await imprimirHtmlSilencioso(gerarCupomEntregaRaw(printOrder, settings), settings);
-                        if (ok) return;
-                    }
-                    requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => window.print(), 150)));
-                  }} className="px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-90 bg-slate-900 text-white hover:bg-slate-700 shadow-sm" title="Imprimir nesta janela">
-                  <Printer size={14}/> Imprimir
-                </button>
-                <button onClick={() => setPrintOrder(null)} className="p-2 rounded-lg transition-all active:scale-90 bg-slate-100 text-slate-700 hover:bg-red-50 hover:text-red-600 border border-slate-200 shadow-sm" title="Fechar">
-                  <X size={22}/>
-                </button>
-              </div>
+      <ModalShell
+        open={printOrder !== null}
+        onClose={() => setPrintOrder(null)}
+        title="Cupom PDV"
+        subtitle="Imprimir na fiscal, baixar TXT ou imprimir nesta janela"
+        size="sm"
+        icon={<Printer size={20} />}
+        actions={
+          <>
+            <button onClick={handleRawPrint} className="px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-90 bg-emerald-600 text-white hover:bg-emerald-500 shadow-sm">
+              <Printer size={14}/> Imprimir na Fiscal
+            </button>
+            <button onClick={handleBaixarTxt} className="px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-90 bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 shadow-sm" title="Baixar .txt para impressão externa">
+              TXT
+            </button>
+            <button onClick={async () => {
+                const api = (window as any).electronAPI;
+                if (api?.printHtmlSilent) {
+                    const ok = await imprimirHtmlSilencioso(gerarCupomEntregaRaw(printOrder, settings), settings);
+                    if (ok) return;
+                }
+                requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => window.print(), 150)));
+              }} className="px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-90 bg-slate-900 text-white hover:bg-slate-700 shadow-sm" title="Imprimir nesta janela">
+              <Printer size={14}/> Imprimir
+            </button>
+          </>
+        }
+      >
+        {printOrder && (
+        <>
+          <div className="w-full bg-white flex-1 overflow-y-auto p-4 md:p-6 flex justify-center shadow-inner" style={{ minHeight: '200px' }}>
+            <div className="bg-white shadow-xl origin-top" style={{ width: '76mm' }}>
+              <CupomEntrega order={printOrder} remainingBalance={printOrder.walletBalanceAfter} config={(settings as any)} />
             </div>
-            <div className="w-full mx-auto bg-white flex-1 overflow-y-auto p-4 md:p-6 flex justify-center shadow-inner" style={{ minHeight: '200px' }}>
-              <div className="bg-white shadow-xl origin-top" style={{ width: '76mm' }}>
+            {createPortal(
+              <div id="print-root-modal" style={{ position: 'fixed', left: '-9999px', top: 0 }}>
                 <CupomEntrega order={printOrder} remainingBalance={printOrder.walletBalanceAfter} config={(settings as any)} />
-              </div>
-              {printOrder && createPortal(
-                <div id="print-root-modal" style={{ position: 'fixed', left: '-9999px', top: 0 }}>
-                  <CupomEntrega order={printOrder} remainingBalance={printOrder.walletBalanceAfter} config={(settings as any)} />
-                </div>,
-                document.body
-              )}
-            </div>
-            <style>{`
-              @media screen {
-                .toolbar-recibo-superior { display: flex !important; }
-              }
-              @media print {
-                .toolbar-recibo-superior { display: none !important; }
-                body { background: white !important; }
-                body * { visibility: hidden !important; }
-                #print-root-modal, #print-root-modal * { visibility: visible !important; }
-                #print-root-modal { position: absolute !important; left: 0 !important; top: 0 !important; width: 76mm !important; max-width: 76mm !important; margin: 0 !important; padding: 0 1mm !important; box-sizing: border-box !important; }
-                @page { size: 76mm auto; margin: 0 !important; }
-              }
-            `}</style>
+              </div>,
+              document.body
+            )}
           </div>
-        </div>
-)}
+          <style>{`
+            @media screen {
+              .toolbar-recibo-superior { display: flex !important; }
+            }
+            @media print {
+              .toolbar-recibo-superior { display: none !important; }
+              body { background: white !important; }
+              body * { visibility: hidden !important; }
+              #print-root-modal, #print-root-modal * { visibility: visible !important; }
+              #print-root-modal { position: absolute !important; left: 0 !important; top: 0 !important; width: 76mm !important; max-width: 76mm !important; margin: 0 !important; padding: 0 1mm !important; box-sizing: border-box !important; }
+              @page { size: 76mm auto; margin: 0 !important; }
+            }
+          `}</style>
+        </>
+        )}
+      </ModalShell>
 
       {/* ── MODAL: EDITAR ESTOQUE (COM SENHA MESTRA PARA ADMIN SECUNDÁRIO) ── */}
       {showStockEditModal && (
