@@ -1,15 +1,25 @@
 import { mascararCpf } from '../utils';
 
 export function formatarLinhaDupla(esquerda: string, direita: string, larguraTotal = 40): string {
-  const espacosNecessarios = larguraTotal - (esquerda.length + direita.length);
-  if (espacosNecessarios <= 0) return `${esquerda} ${direita}`;
+  if (esquerda.length + direita.length > larguraTotal) {
+    // NUNCA estoura a coluna da bobina: rótulos longos são truncados à esquerda
+    // (o valor à direita é mantido inteiro). Sem isso a térmica quebrava a linha
+    // no meio e desalinhavam o cupom inteiro a partir daquela linha.
+    const espacoMax = Math.max(1, larguraTotal - 1 - direita.length);
+    esquerda = esquerda.slice(0, espacoMax);
+  }
+  const espacosNecessarios = Math.max(0, larguraTotal - (esquerda.length + direita.length));
   return esquerda + " ".repeat(espacosNecessarios) + direita;
 }
 
 /** Linha com pontilhado entre rótulo e valor (padrão de cupom fiscal). */
 export function formatarLinhaPontilhada(esquerda: string, direita: string, larguraTotal = 40): string {
-  const base = `${esquerda} ${direita}`;
-  if (base.length >= larguraTotal) return base;
+  if (esquerda.length + direita.length > larguraTotal - 1) {
+    // Rótulo longo (ex.: nome do 2º devedor em venda em dupla) não pode empurrar
+    // a linha além da largura — trunca à esquerda, mantendo o valor inteiro.
+    const espacoMax = Math.max(1, larguraTotal - 1 - direita.length);
+    esquerda = esquerda.slice(0, espacoMax);
+  }
   // dois espaços (um de cada lado dos pontos) — nunca estoura a largura
   const pontos = Math.max(1, larguraTotal - esquerda.length - direita.length - 2);
   return esquerda + " " + ".".repeat(pontos) + " " + direita;
@@ -550,8 +560,15 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
     const qtd = Number(item.quantity) || 1;
     const precoUnit = Number(item.priceAtPurchase || item.price || 0);
     const valor = (precoUnit * qtd).toFixed(2).replace('.', ',');
-    const nomeLinha = nome.length > 22 ? nome.substring(0, 19) + '...' : nome;
-    cupom += `${nomeLinha.padEnd(22)}${String(`${qtd} X ${precoUnit.toFixed(2).replace('.', ',')}`).padStart(12)}${String("R$ " + valor).padStart(14)}\n`;
+    const pontoQtd = String(`${qtd} X ${precoUnit.toFixed(2).replace('.', ',')}`).padStart(12);
+    const pontoTotal = String("R$ " + valor).padStart(14);
+    // Espaço para o nome = largura total menos as colunas de qtd/total.
+    // Preços longos (ex.: 1.000,00) antes empurravam a linha além da 48ª coluna.
+    const espacoNome = Math.max(1, 48 - (pontoQtd.length + pontoTotal.length));
+    const nomeLinha = nome.length > espacoNome
+      ? (espacoNome > 3 ? nome.substring(0, espacoNome - 3) + '...' : nome.substring(0, espacoNome))
+      : nome.padEnd(espacoNome);
+    cupom += `${nomeLinha}${pontoQtd}${pontoTotal}\n`;
   }
   cupom += `${divisor}\n`;
   if (itens.length > 0) {

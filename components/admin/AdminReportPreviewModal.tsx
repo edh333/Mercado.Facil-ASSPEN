@@ -769,7 +769,11 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
 </html>`;
         printWindow.document.write(html);
         printWindow.document.close();
-        printWindow.print();
+        printWindow.focus();
+        // print() síncrono logo após document.write() imprime PÁGINA EM BRANCO
+        // no Chromium (snapshot antes de o layout terminar). O atraso curto
+        // espera a renderização sem abrir diálogo duplicado.
+        setTimeout(() => { try { printWindow.print(); } catch { /* janela fechou */ } }, 350);
     };
 
     const renderDailyClosing = () => {
@@ -888,7 +892,11 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
         if (printWindow) {
             printWindow.document.write(html);
             printWindow.document.close();
-            printWindow.print();
+            printWindow.focus();
+            // print() síncrono logo após document.write() imprime PÁGINA EM BRANCO
+            // no Chromium (snapshot antes de o layout terminar). O atraso curto
+            // espera a renderização sem abrir diálogo duplicado.
+            setTimeout(() => { try { printWindow.print(); } catch { /* janela fechou */ } }, 350);
         }
     };
 
@@ -1270,7 +1278,11 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
         if (printWindow) {
             printWindow.document.write(html);
             printWindow.document.close();
-            printWindow.print();
+            printWindow.focus();
+            // print() síncrono logo após document.write() imprime PÁGINA EM BRANCO
+            // no Chromium (snapshot antes de o layout terminar). O atraso curto
+            // espera a renderização sem abrir diálogo duplicado.
+            setTimeout(() => { try { printWindow.print(); } catch { /* janela fechou */ } }, 350);
         }
     };
 
@@ -1390,7 +1402,10 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                                 const html = `<html><head><title>${report.title}</title><style>body{${bodyFont};padding:40px;${thermalClass}}h1{font-size:24px;text-transform:uppercase;letter-spacing:1px;border-bottom:3px solid #059669;padding-bottom:12px}h2{font-size:14px;margin-bottom:8px}.sub{color:#64748b;font-size:13px;margin-bottom:20px}table{width:100%;border-collapse:collapse;margin-top:20px}th{padding:10px;text-align:left;background:#0f172a;color:#fff;font-size:10px;text-transform:uppercase;letter-spacing:1px}td{padding:12px;text-align:left;border-bottom:1px solid #e2e8f0}.entry{color:#059669;font-weight:700}.exit{color:#ef4444;font-weight:700}.summary{margin-top:30px;padding:20px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0}.assinatura{margin-top:60px;display:flex;justify-content:space-between;font-size:13px;color:#475569}.assinatura div{width:40%;border-top:1px solid #64748b;padding-top:8px;font-size:10px;text-transform:uppercase;text-align:center}.rodape{margin-top:24px;text-align:center;color:#94a3b8;font-size:10px;text-transform:uppercase;letter-spacing:1px}@media print{@page{size:A4;margin:15mm 12mm}body{background:white!important;padding:20px!important}}</style></head><body><h1>${report.title}</h1><p class="sub">Período: ${report.period} · Emitido em: ${new Date().toLocaleDateString('pt-BR')}</p><table>${report.items.map((i: any) => `<tr><td>${toDate(i.date)?.toLocaleDateString('pt-BR') || ''}</td><td class="${i.type === 'ENTRY' ? 'entry' : 'exit'}">${i.type === 'ENTRY' ? 'Entrada' : 'Saída'}</td><td>${esc(i.description)}</td><td class="${i.type === 'ENTRY' ? 'entry' : 'exit'}">${i.type === 'ENTRY' ? '+' : '-'} R$ ${i.amount.toFixed(2)}</td></tr>`).join('')}</table><div class="summary"><h2>Resumo do Período</h2><p>Total de Entradas: <b>R$ ${report.summary.totalEntries.toFixed(2)}</b></p><p>Total de Saídas: <b>R$ ${report.summary.totalExits.toFixed(2)}</b></p><p>Resultado Líquido: <b style="color:${report.summary.net >= 0 ? '#059669' : '#ef4444'}">R$ ${report.summary.net.toFixed(2)}</b></p></div><div class="assinatura"><div>Emitido por: ${(settings as any)?.adminName || 'Administração'}</div><div>Assinatura / Carimbo</div></div><p class="rodape">Documento gerado pelo sistema Mercado Fácil — uso interno</p></body></html>`;
                                 printWindow.document.write(html);
                                 printWindow.document.close();
-                                printWindow.print();
+                                printWindow.focus();
+                                // print() síncrono logo após document.write() imprime PÁGINA
+                                // EM BRANCO no Chromium. O atraso curto espera a renderização.
+                                setTimeout(() => { try { printWindow.print(); } catch { /* janela fechou */ } }, 350);
                             }
                         }} className="flex-1 sm:flex-none px-8 py-3 bg-[var(--text-main)] text-[var(--bg-card)] font-black rounded-2xl shadow-xl hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2 text-[9px] uppercase tracking-[0.2em]">
                             <Printer size={18}/> IMPRIMIR / SALVAR PDF

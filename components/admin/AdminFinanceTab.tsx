@@ -302,7 +302,11 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
     if (printWindow) {
       printWindow.document.write(html);
       printWindow.document.close();
-      printWindow.print();
+      printWindow.focus();
+      // print() síncrono logo após document.write() imprime PÁGINA EM BRANCO
+      // no Chromium (snapshot antes de o layout terminar). O atraso curto
+      // espera a renderização sem abrir diálogo duplicado.
+      setTimeout(() => { try { printWindow.print(); } catch { /* janela fechou */ } }, 350);
     }
   };
 
