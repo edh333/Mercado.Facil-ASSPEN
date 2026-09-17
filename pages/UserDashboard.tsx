@@ -1475,98 +1475,93 @@ export const UserDashboard: React.FC = () => {
             </main>
 
             {/* F6 SERVICES MODAL */}
-            {showServicesModal && (
-                <div className="fixed inset-0 z-[999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowServicesModal(false)}>
-                    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 border border-slate-200" onClick={e => e.stopPropagation()}>
-                        <div className="flex justify-between items-center mb-5">
-                            <h3 className="font-black text-base uppercase tracking-tight text-slate-900"><Wrench size={16} className="inline-block mr-1.5 -mt-0.5 text-amber-500" />Outros Serviços</h3>
-                            <button onClick={() => setShowServicesModal(false)} className="w-8 h-8 bg-slate-100 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-all"><X size={18}/></button>
-                        </div>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1.5 block">Nome do Serviço</label>
-                                <input
-                                    className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-amber-500 outline-none bg-slate-50 text-sm font-bold"
-                                    placeholder="Ex: Taxa ASSPEN, Entrega"
-                                    value={serviceName}
-                                    onChange={e => setServiceName(e.target.value)}
-                                    autoFocus
-                                />
-                            </div>
-                            <div>
-                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1.5 block">Valor (R$)</label>
-                                <input
-                                    type="number"
-                                    step="0.01"
-                                    className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-amber-500 outline-none bg-slate-50 text-sm font-bold"
-                                    placeholder="0,00"
-                                    value={serviceValue}
-                                    onChange={e => setServiceValue(e.target.value)}
-                                />
-                            </div>
-                        </div>
-                        <div className="flex gap-3 mt-6">
-                            <button onClick={addServiceItem} disabled={!serviceName.trim() || !serviceValue} className="flex-[2] py-3.5 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-black rounded-xl text-xs uppercase tracking-wider transition-all active:scale-[0.98] flex items-center justify-center gap-2 shadow-sm cursor-pointer">
-                                <Plus size={16} /> Adicionar ao Cupom
-                            </button>
-                            <button onClick={() => setShowServicesModal(false)} className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black rounded-xl text-xs uppercase tracking-wider transition-all active:scale-[0.98] cursor-pointer">
-                                Cancelar
-                            </button>
+            <ModalShell
+                open={showServicesModal}
+                onClose={() => setShowServicesModal(false)}
+                title="Outros Serviços"
+                subtitle="Adicione um serviço avulso ao cupom"
+                size="sm"
+                tone="warning"
+                icon={<Wrench size={20} />}
+                footer={
+                    <div className="flex gap-3 w-full">
+                        <button onClick={addServiceItem} disabled={!serviceName.trim() || !serviceValue} className="flex-[2] py-3.5 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-black rounded-xl text-xs uppercase tracking-wider transition-all active:scale-[0.98] flex items-center justify-center gap-2 shadow-sm cursor-pointer">
+                            <Plus size={16} /> Adicionar ao Cupom
+                        </button>
+                        <button onClick={() => setShowServicesModal(false)} className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black rounded-xl text-xs uppercase tracking-wider transition-all active:scale-[0.98] cursor-pointer">
+                            Cancelar
+                        </button>
+                    </div>
+                }
+            >
+                <div className="p-6 space-y-4">
+                    <div>
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1.5 block">Nome do Serviço</label>
+                        <input
+                            className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-amber-500 outline-none bg-slate-50 text-sm font-bold"
+                            placeholder="Ex: Taxa ASSPEN, Entrega"
+                            value={serviceName}
+                            onChange={e => setServiceName(e.target.value)}
+                            autoFocus
+                        />
+                    </div>
+                    <div>
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1.5 block">Valor (R$)</label>
+                        <input
+                            type="number"
+                            step="0.01"
+                            className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-amber-500 outline-none bg-slate-50 text-sm font-bold"
+                            placeholder="0,00"
+                            value={serviceValue}
+                            onChange={e => setServiceValue(e.target.value)}
+                        />
+                    </div>
+                </div>
+            </ModalShell>
+
+            {/* ADMIN PRODUCT CATALOG MODAL (F4) */}
+            <ModalShell
+                open={isAdmin && isProductsModalOpen}
+                onClose={() => setIsProductsModalOpen(false)}
+                title="Catálogo de Produtos"
+                subtitle="Selecione para adicionar ao carrinho (F4 para fechar)"
+                size="xl"
+                icon={<Search size={20} />}
+            >
+                <div className="p-6 flex flex-col h-full" style={{ maxHeight: 'calc(90vh - 90px)' }}>
+                    <div className="relative mb-4 shrink-0">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"><Search size={18} /></div>
+                        <input className="w-full pl-12 pr-6 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-600 outline-none bg-slate-50 text-sm font-bold shadow-inner" placeholder="Filtrar produtos..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                    </div>
+                    <div className="flex-1 overflow-y-auto pr-1">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                            {filteredProducts.length === 0 ? (
+                                <div className="col-span-full text-center py-20 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                                    <ShoppingBag size={40} className="mx-auto mb-4 opacity-25 text-slate-400" />
+                                    <p className="font-black uppercase tracking-wider text-xs text-slate-400">Nenhum produto cadastrado</p>
+                                </div>
+                            ) : filteredProducts.map((p: any, idx: number) => {
+                                const isOutOfStock = (p?.stock || 0) <= 0;
+                                return (
+                                    <div key={p?.id || `cat-${idx}`} className={`bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 p-4 flex flex-col justify-between h-full relative ${isOutOfStock ? 'opacity-60 grayscale' : ''}`}>
+                                        <div className="w-full aspect-square rounded-xl overflow-hidden bg-slate-50 mb-3 relative">
+                                            <img src={p.imageUrl || 'https://placehold.co/200'} className="w-full h-full object-contain" alt={p.name} loading="lazy" />
+                                            {isOutOfStock && <div className="absolute inset-0 bg-black/60 flex items-center justify-center"><span className="text-[10px] font-black bg-white text-black px-3 py-1 rounded-lg uppercase">Esgotado</span></div>}
+                                        </div>
+                                        <div className="flex-1 flex flex-col justify-between font-mono">
+                                            <h4 className="text-slate-800 font-bold text-xs tracking-wide line-clamp-2 uppercase mb-2">{p.name}</h4>
+                                            <div className="flex items-center justify-between gap-2">
+                                                <span className="text-[var(--primary-color)] font-extrabold text-xs">R$ {formatarMoeda(p.price)}</span>
+                                                <button onClick={() => addToCart(p)} disabled={isOutOfStock} className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg p-2 transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"><Plus size={16} /></button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 </div>
-            )}
-
-            {/* ADMIN PRODUCT CATALOG MODAL (F4) */}
-            {isAdmin && isProductsModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn" onClick={() => setIsProductsModalOpen(false)}>
-                    <motion.div 
-                        initial={{ opacity: 0, scale: 0.95 }} 
-                        animate={{ opacity: 1, scale: 1 }} 
-                        className="bg-white rounded-3xl p-6 shadow-2xl max-w-5xl w-full max-h-[85vh] overflow-hidden flex flex-col border border-slate-200"
-                        onClick={e => e.stopPropagation()}
-                    >
-                        <div className="flex justify-between items-center pb-4 border-b border-slate-100 mb-4 shrink-0">
-                            <div>
-                                <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight"><Search size={18} className="inline-block mr-1.5 -mt-0.5 text-[var(--primary-color)]" />Catálogo de Produtos</h3>
-                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Selecione para adicionar ao carrinho (F4 para fechar)</p>
-                            </div>
-                            <button onClick={() => setIsProductsModalOpen(false)} className="p-2 text-slate-400 hover:text-red-500 rounded-xl transition-all"><X size={24} /></button>
-                        </div>
-                        <div className="relative mb-4 shrink-0">
-                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"><Search size={18} /></div>
-                            <input className="w-full pl-12 pr-6 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-600 outline-none bg-slate-50 text-sm font-bold shadow-inner" placeholder="Filtrar produtos..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-                        </div>
-                        <div className="flex-1 overflow-y-auto pr-1">
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                                {filteredProducts.length === 0 ? (
-                                    <div className="col-span-full text-center py-20 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                                        <ShoppingBag size={40} className="mx-auto mb-4 opacity-25 text-slate-400" />
-                                        <p className="font-black uppercase tracking-wider text-xs text-slate-400">Nenhum produto cadastrado</p>
-                                    </div>
-                                ) : filteredProducts.map((p: any, idx: number) => {
-                                    const isOutOfStock = (p?.stock || 0) <= 0;
-                                    return (
-                                        <div key={p?.id || `cat-${idx}`} className={`bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 p-4 flex flex-col justify-between h-full relative ${isOutOfStock ? 'opacity-60 grayscale' : ''}`}>
-                                            <div className="w-full aspect-square rounded-xl overflow-hidden bg-slate-50 mb-3 relative">
-                                                <img src={p.imageUrl || 'https://placehold.co/200'} className="w-full h-full object-contain" alt={p.name} loading="lazy" />
-                                                {isOutOfStock && <div className="absolute inset-0 bg-black/60 flex items-center justify-center"><span className="text-[10px] font-black bg-white text-black px-3 py-1 rounded-lg uppercase">Esgotado</span></div>}
-                                            </div>
-                                            <div className="flex-1 flex flex-col justify-between font-mono">
-                                                <h4 className="text-slate-800 font-bold text-xs tracking-wide line-clamp-2 uppercase mb-2">{p.name}</h4>
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <span className="text-[var(--primary-color)] font-extrabold text-xs">R$ {formatarMoeda(p.price)}</span>
-                                                    <button onClick={() => addToCart(p)} disabled={isOutOfStock} className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg p-2 transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"><Plus size={16} /></button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    </motion.div>
-                </div>
-            )}
+            </ModalShell>
 
             {/* MOBILE BOTTOM NAV */}
             <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 flex justify-around items-center h-16 z-50 shadow-lg modal-bottom-sheet" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
@@ -1605,57 +1600,59 @@ export const UserDashboard: React.FC = () => {
             </nav>
 
             {/* CART REVIEW MODAL — PC e Mobile */}
-            {isCartReviewOpen && (
-                <div className="fixed inset-0 z-[999] bg-black/60 backdrop-blur-sm" onClick={() => { setMobileView('catalog'); setIsCartReviewOpen(false); }}>
-                    <div className="fixed inset-x-3 sm:inset-x-4 top-1/2 -translate-y-1/2 md:max-w-md md:mx-auto bg-white rounded-2xl shadow-2xl p-5 max-h-[80vh] overflow-y-auto flex flex-col space-y-4 z-50 border border-slate-100" onClick={e => e.stopPropagation()}>
-                        <div className="flex justify-between items-center shrink-0">
-                            <h3 className="font-black text-base uppercase tracking-tight"><ShoppingCart size={16} className="inline-block mr-1.5 -mt-0.5 text-[var(--primary-color)]" />Revisão do Carrinho</h3>
-                            <button onClick={() => { setMobileView('catalog'); setIsCartReviewOpen(false); }} className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200"><X size={16}/></button>
-                        </div>
-
-                        {cart.length === 0 ? (
-                            <p className="text-center text-slate-400 font-bold text-xs uppercase py-8">Carrinho vazio</p>
-                        ) : (
-                            <div className="flex flex-col space-y-3">
-                                {(cart || []).map(item => {
-                                    const prod = safeProducts.find(p => String(p.id) === String(item.productId));
-                                    const displayName = prod ? prod.name : (item.name || 'Item');
-                                    const displayPrice = item.priceAtPurchase ?? (prod ? prod.price : (item.price || 0));
-                                    if (!prod && !item.name) return null;
-                                    const subtotal = displayPrice * item.quantity;
-                                    return (
-                                        <div key={item.productId} className="flex items-center gap-3 bg-slate-50 rounded-xl p-3 border border-slate-100">
-                                            {prod && <img src={prod.imageUrl || 'https://placehold.co/40x48'} className="w-10 h-12 object-cover rounded-md border border-slate-200 shrink-0" alt={displayName} />}
-                                            <div className="flex-1 min-w-0">
-                                                <p className="font-bold text-xs uppercase text-slate-800 truncate">{displayName}</p>
-                                                <p className="font-black text-sm text-slate-900">R$ {formatarMoeda(subtotal)}</p>
-                                            </div>
-                                            <div className="flex items-center gap-1 shrink-0">
-                                                <button onClick={() => updateQty(item.productId, -1)} className="w-9 h-9 rounded-full border bg-white flex items-center justify-center font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer hover:bg-red-50 hover:text-red-500 hover:border-red-300">−</button>
-                                                <span className="font-black text-xs text-slate-900 min-w-[22px] text-center">{item.quantity}</span>
-                                                <button onClick={() => updateQty(item.productId, 1)} className="w-9 h-9 rounded-full border bg-white flex items-center justify-center font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer hover:bg-emerald-50 hover:text-[var(--primary-color)] hover:border-emerald-300">+</button>
-                                            </div>
-                                            <button onClick={() => removeFromCart(item.productId)} className="text-red-600 bg-red-50 hover:bg-red-100 px-3 min-h-[44px] py-2 rounded-lg text-[11px] font-black flex items-center gap-1 transition-all active:scale-95 shrink-0"><Trash2 size={12} /> RETIRAR</button>
-                                        </div>
-                                    );
-                                })}
+            <ModalShell
+                open={isCartReviewOpen}
+                onClose={() => { setMobileView('catalog'); setIsCartReviewOpen(false); }}
+                title="Revisão do Carrinho"
+                subtitle="Confira os itens antes de pagar"
+                size="md"
+                icon={<ShoppingCart size={20} />}
+                bodyClassName="bg-white"
+                footer={
+                    cart.length > 0 ? (
+                        <div className="w-full space-y-3">
+                            <div className="flex justify-between items-center py-1 border-t border-slate-100">
+                                <span className="text-xs font-black text-slate-400 uppercase">Total Geral</span>
+                                <span className="text-xl font-black text-slate-900">R$ {formatarMoeda(cartTotal)}</span>
                             </div>
-                        )}
-
-                        {cart.length > 0 && (
-                            <>
-                                <div className="flex justify-between items-center py-3 border-t border-slate-100">
-                                    <span className="text-xs font-black text-slate-400 uppercase">Total Geral</span>
-                                    <span className="text-xl font-black text-slate-900">R$ {formatarMoeda(cartTotal)}</span>
-                                </div>
-                                <button onClick={() => { setIsCartReviewOpen(false); setIsCheckoutModalOpen(true); }} className="w-full py-3 bg-emerald-600 text-white font-black rounded-2xl uppercase text-xs shadow-lg active:scale-95 flex items-center justify-center gap-2 shrink-0">
-                                    <Banknote size={14} className="inline-block mr-1.5 -mt-0.5" /> AVANÇAR PARA PAGAMENTO
-                                </button>
-                            </>
-                        )}
-                    </div>
+                            <button onClick={() => { setIsCartReviewOpen(false); setIsCheckoutModalOpen(true); }} className="w-full py-3 bg-emerald-600 text-white font-black rounded-2xl uppercase text-xs shadow-lg active:scale-95 flex items-center justify-center gap-2 shrink-0">
+                                <Banknote size={14} className="inline-block mr-1.5 -mt-0.5" /> AVANÇAR PARA PAGAMENTO
+                            </button>
+                        </div>
+                    ) : undefined
+                }
+            >
+                <div className="p-5">
+                    {cart.length === 0 ? (
+                        <p className="text-center text-slate-400 font-bold text-xs uppercase py-8">Carrinho vazio</p>
+                    ) : (
+                        <div className="flex flex-col space-y-3">
+                            {(cart || []).map(item => {
+                                const prod = safeProducts.find(p => String(p.id) === String(item.productId));
+                                const displayName = prod ? prod.name : (item.name || 'Item');
+                                const displayPrice = item.priceAtPurchase ?? (prod ? prod.price : (item.price || 0));
+                                if (!prod && !item.name) return null;
+                                const subtotal = displayPrice * item.quantity;
+                                return (
+                                    <div key={item.productId} className="flex items-center gap-3 bg-slate-50 rounded-xl p-3 border border-slate-100">
+                                        {prod && <img src={prod.imageUrl || 'https://placehold.co/40x48'} className="w-10 h-12 object-cover rounded-md border border-slate-200 shrink-0" alt={displayName} />}
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-bold text-xs uppercase text-slate-800 truncate">{displayName}</p>
+                                            <p className="font-black text-sm text-slate-900">R$ {formatarMoeda(subtotal)}</p>
+                                        </div>
+                                        <div className="flex items-center gap-1 shrink-0">
+                                            <button onClick={() => updateQty(item.productId, -1)} className="w-9 h-9 rounded-full border bg-white flex items-center justify-center font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer hover:bg-red-50 hover:text-red-500 hover:border-red-300">−</button>
+                                            <span className="font-black text-xs text-slate-900 min-w-[22px] text-center">{item.quantity}</span>
+                                            <button onClick={() => updateQty(item.productId, 1)} className="w-9 h-9 rounded-full border bg-white flex items-center justify-center font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer hover:bg-emerald-50 hover:text-[var(--primary-color)] hover:border-emerald-300">+</button>
+                                        </div>
+                                        <button onClick={() => removeFromCart(item.productId)} className="text-red-600 bg-red-50 hover:bg-red-100 px-3 min-h-[44px] py-2 rounded-lg text-[11px] font-black flex items-center gap-1 transition-all active:scale-95 shrink-0"><Trash2 size={12} /> RETIRAR</button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
-            )}
+            </ModalShell>
 
             {/* MOBILE PAYMENT VIEW */}
             {mobileView === 'payment' && (
@@ -1810,15 +1807,21 @@ export const UserDashboard: React.FC = () => {
                 </div>
             </ModalShell>
 
-            {isCheckoutModalOpen && (
-            <div className="fixed inset-0 z-[999] bg-black/60 backdrop-blur-sm" onClick={() => { setIsCheckoutModalOpen(false); setProofFile(null); }}>
-                    <div className="fixed inset-x-3 sm:inset-x-4 top-1/2 -translate-y-1/2 md:max-w-lg md:mx-auto bg-white rounded-2xl shadow-2xl p-4 sm:p-5 max-h-[85vh] overflow-y-auto overflow-x-hidden flex flex-col space-y-3 z-50 border border-slate-100 font-sans" onClick={e => e.stopPropagation()}>
-                        <div className="flex justify-between items-center shrink-0">
-                            <h3 className="font-black text-base uppercase tracking-tight">Finalizar Venda</h3>
-                            <button onClick={() => { setIsCheckoutModalOpen(false); setProofFile(null); }} className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200"><X size={16}/></button>
-                        </div>
-
-                        <div className="flex flex-col space-y-3">
+            <ModalShell
+                open={isCheckoutModalOpen}
+                onClose={() => { setIsCheckoutModalOpen(false); setProofFile(null); }}
+                title="Finalizar Venda"
+                subtitle="Confirme entrega e forma de pagamento"
+                size="md"
+                icon={<CreditCard size={20} />}
+                bodyClassName="bg-white"
+                footer={
+                    <button onClick={handleFinish} disabled={isSubmitting || (cartPaymentMethod === 'PIX' && !proofFile)} className="w-full py-3 bg-slate-900 text-white font-black rounded-2xl uppercase text-xs shadow-xl active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shrink-0">
+                        {isSubmitting ? <><Loader2 size={14} className="animate-spin" /> Processando...</> : (cartPaymentMethod === 'PIX' && !proofFile) ? <><Paperclip size={14} className="inline-block mr-1 -mt-0.5" /> Anexe o Comprovante para Confirmar</> : 'Confirmar Pedido'}
+                    </button>
+                }
+            >
+                <div className="p-4 sm:p-5 flex flex-col space-y-3">
                             <div>
                                 <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Local de Entrega</p>
                                 <div className="flex gap-2 mb-2">
@@ -1928,14 +1931,8 @@ export const UserDashboard: React.FC = () => {
                                 <span className="text-xs font-black text-slate-400 uppercase">Total</span>
                                 <span className="text-xl font-black text-slate-900">R$ {formatarMoeda(cartTotal)}</span>
                             </div>
-
-                            <button onClick={handleFinish} disabled={isSubmitting || (cartPaymentMethod === 'PIX' && !proofFile)} className="w-full py-3 bg-slate-900 text-white font-black rounded-2xl uppercase text-xs shadow-xl active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shrink-0">
-                                {isSubmitting ? <><Loader2 size={14} className="animate-spin" /> Processando...</> : (cartPaymentMethod === 'PIX' && !proofFile) ? <><Paperclip size={14} className="inline-block mr-1 -mt-0.5" /> Anexe o Comprovante para Confirmar</> : 'Confirmar Pedido'}
-                            </button>
-                        </div>
-                    </div>
                 </div>
-            )}
+            </ModalShell>
 
             {viewingOrderCupom && (
                 <div className="fixed inset-0 z-[5000] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 print:p-0 print:bg-white" onClick={() => setViewingOrderCupom(null)}>

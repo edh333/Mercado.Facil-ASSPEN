@@ -13,6 +13,7 @@ import { getActiveSession, openCashSession, addSupplement, addWithdrawal, closeC
 import { imprimirSilenciosoFiscal, imprimirComPrioridadeFiscal } from '../../utils/printUtils';
 import ConfirmacaoDestrutiva from './ConfirmacaoDestrutiva';
 import RefundSaleModal from './RefundSaleModal';
+import { ModalShell } from '../ui/ModalShell';
 import { montarPagamentoPdv, calcularDenominacoes, arredondarCentavos } from '../../utils/pdvPayment';
 import { useApp } from '../../context/StoreContext';
 
@@ -2472,70 +2473,65 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
       </AnimatePresence>
 
       {/* DUPLA SENHA MESTRA — AUTORIZAÇÃO DE VENDA FIADA (Primária + Secundária) */}
-      <AnimatePresence>
-        {confirmandoFiado && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[1001] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4">
-            <motion.div initial={{ scale: 0.95, y: 16 }} animate={{ scale: 1, y: 0 }}
-              className="w-full max-w-sm bg-white rounded-[2rem] p-8 shadow-[0_40px_100px_rgba(0,0,0,0.5)] border border-slate-200 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center shrink-0">
-                  <Lock size={18} className="text-white" />
-                </div>
-                <div>
-                  <p className="font-black text-sm uppercase tracking-tight text-slate-900">Autorizar Venda Fiada</p>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Dupla senha obrigatória (Primária + Secundária)</p>
-                </div>
-              </div>
-              {selectedCustomerAccount && (
-                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex justify-between items-center font-black text-xs tnum">
-                  <span className="uppercase text-slate-600 truncate max-w-[55%]">{selectedCustomerAccount.nome || 'Cliente Fiado'}</span>
-                  <span style={{ color: corPrincipal }}>+R$ {formatarMoeda(totalCarrinho)}</span>
-                </div>
-              )}
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1">Senha Primária (Admin Principal)</label>
-                  <input
-                    type="password" autoFocus placeholder="••••••••"
-                    className="w-full bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 p-4 rounded-2xl font-black text-center text-lg outline-none transition-colors"
-                    value={senhaFiadoPrimaria}
-                    onChange={e => { setSenhaFiadoPrimaria(e.target.value); setSenhaFiadoErro(''); }}
-                    onKeyDown={e => { if (e.key === 'Enter') executarVendaFiado(); }}
-                  />
-                </div>
-                <div>
-                  <label className="block text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1">Senha Secundária (Admin Secundário / Mestra)</label>
-                  <input
-                    type="password" placeholder="••••••••"
-                    className="w-full bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 p-4 rounded-2xl font-black text-center text-lg outline-none transition-colors"
-                    value={senhaFiadoSecundaria}
-                    onChange={e => { setSenhaFiadoSecundaria(e.target.value); setSenhaFiadoErro(''); }}
-                    onKeyDown={e => { if (e.key === 'Enter') executarVendaFiado(); }}
-                  />
-                </div>
-              </div>
-              {senhaFiadoErro && (
-                <p className="text-[10px] font-black text-red-600 uppercase tracking-wider flex items-center gap-1.5">
-                  <AlertTriangle size={13} /> {senhaFiadoErro}
-                </p>
-              )}
-              <div className="flex gap-2 pt-1">
-                <button type="button"
-                  onClick={() => { setConfirmandoFiado(false); setSenhaFiadoPrimaria(''); setSenhaFiadoSecundaria(''); setSenhaFiadoErro(''); }}
-                  className="flex-1 py-3.5 rounded-2xl bg-white border-2 border-slate-200 hover:bg-slate-100 font-black text-[10px] uppercase tracking-[0.2em] text-slate-600 transition-all active:scale-95">
-                  Cancelar
-                </button>
-                <button type="button" onClick={executarVendaFiado} disabled={senhaFiadoProcessando}
-                  className="flex-1 py-3.5 rounded-2xl text-white font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 shadow-md"
-                  style={{ backgroundColor: corPrincipal }}>
-                  {senhaFiadoProcessando ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle size={14} />} Confirmar
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <ModalShell
+        open={confirmandoFiado}
+        onClose={() => { setConfirmandoFiado(false); setSenhaFiadoPrimaria(''); setSenhaFiadoSecundaria(''); setSenhaFiadoErro(''); }}
+        title="Autorizar Venda Fiada"
+        subtitle="Dupla senha obrigatória (Primária + Secundária)"
+        tone="warning"
+        size="sm"
+        icon={<Lock size={20} />}
+        footer={
+          <div className="flex gap-2 w-full">
+            <button type="button"
+              onClick={() => { setConfirmandoFiado(false); setSenhaFiadoPrimaria(''); setSenhaFiadoSecundaria(''); setSenhaFiadoErro(''); }}
+              className="flex-1 py-3.5 rounded-2xl bg-white border-2 border-slate-200 hover:bg-slate-100 font-black text-[10px] uppercase tracking-[0.2em] text-slate-600 transition-all active:scale-95">
+              Cancelar
+            </button>
+            <button type="button" onClick={executarVendaFiado} disabled={senhaFiadoProcessando}
+              className="flex-1 py-3.5 rounded-2xl text-white font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 shadow-md"
+              style={{ backgroundColor: corPrincipal }}>
+              {senhaFiadoProcessando ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle size={14} />} Confirmar
+            </button>
+          </div>
+        }
+      >
+        <div className="p-6 space-y-4">
+          {selectedCustomerAccount && (
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex justify-between items-center font-black text-xs tnum">
+              <span className="uppercase text-slate-600 truncate max-w-[55%]">{selectedCustomerAccount.nome || 'Cliente Fiado'}</span>
+              <span style={{ color: corPrincipal }}>+R$ {formatarMoeda(totalCarrinho)}</span>
+            </div>
+          )}
+          <div className="space-y-3">
+            <div>
+              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1">Senha Primária (Admin Principal)</label>
+              <input
+                type="password" autoFocus placeholder="••••••••"
+                className="w-full bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 p-4 rounded-2xl font-black text-center text-lg outline-none transition-colors"
+                value={senhaFiadoPrimaria}
+                onChange={e => { setSenhaFiadoPrimaria(e.target.value); setSenhaFiadoErro(''); }}
+                onKeyDown={e => { if (e.key === 'Enter') executarVendaFiado(); }}
+              />
+            </div>
+            <div>
+              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1">Senha Secundária (Admin Secundário / Mestra)</label>
+              <input
+                type="password" placeholder="••••••••"
+                className="w-full bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 p-4 rounded-2xl font-black text-center text-lg outline-none transition-colors"
+                value={senhaFiadoSecundaria}
+                onChange={e => { setSenhaFiadoSecundaria(e.target.value); setSenhaFiadoErro(''); }}
+                onKeyDown={e => { if (e.key === 'Enter') executarVendaFiado(); }}
+              />
+            </div>
+          </div>
+          {senhaFiadoErro && (
+            <p className="text-[10px] font-black text-red-600 uppercase tracking-wider flex items-center gap-1.5">
+              <AlertTriangle size={13} /> {senhaFiadoErro}
+            </p>
+          )}
+        </div>
+      </ModalShell>
 
       {/* SUCESSO MODAL - RECIBO PROFISSIONAL */}
       <AnimatePresence>
@@ -2671,205 +2667,180 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
       </AnimatePresence>
 
       {/* F4 PRODUCT CATALOG MODAL - VITRINE DE FOTOS */}
-      {showProductModal && (
-        <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-3xl p-6 shadow-2xl max-w-5xl w-full max-h-[85vh] overflow-hidden flex flex-col border border-slate-200"
-          >
-            <div className="flex justify-between items-center pb-4 border-b border-slate-100 mb-4 shrink-0">
-              <div>
-                <h3 className="text-lg font-bold text-slate-800 tracking-tight"><Search size={18} className="inline-block mr-1.5 -mt-0.5 text-emerald-600" />Catálogo de Produtos</h3>
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Selecione os produtos para adicionar ao carrinho (F4 para fechar)</p>
-              </div>
-              <button
-                onClick={() => setShowProductModal(false)}
-                className="p-2 text-slate-400 hover:text-red-500 rounded-xl transition-all"
-              >
-                <X size={24} />
-              </button>
+      <ModalShell
+        open={showProductModal}
+        onClose={() => setShowProductModal(false)}
+        title="Catálogo de Produtos"
+        subtitle="Selecione os produtos para adicionar ao carrinho (F4 para fechar)"
+        size="xl"
+        icon={<Package size={20} />}
+      >
+        <div className="p-6 flex flex-col h-full" style={{ maxHeight: 'calc(90vh - 90px)' }}>
+          <div className="relative mb-4 shrink-0">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+              <Search size={18} />
             </div>
+            <input
+              className="w-full pl-12 pr-6 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none bg-slate-50 text-sm font-bold shadow-inner"
+              placeholder="Filtrar produtos no catálogo..."
+              value={productModalSearch}
+              onChange={e => setProductModalSearch(e.target.value)}
+              autoFocus
+            />
+          </div>
 
-            <div className="relative mb-4 shrink-0">
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
-                <Search size={18} />
-              </div>
-              <input
-                className="w-full pl-12 pr-6 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none bg-slate-50 text-sm font-bold shadow-inner"
-                placeholder="Filtrar produtos no catálogo..."
-                value={productModalSearch}
-                onChange={e => setProductModalSearch(e.target.value)}
-                autoFocus
-              />
-            </div>
-
-            <div className="flex-1 overflow-y-auto pr-1">
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {filteredProductsForModal.length === 0 ? (
-                  <div className="col-span-full text-center py-20 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                    <Package size={40} className="mx-auto mb-4 opacity-25 text-slate-400" />
-                    <p className="font-black uppercase tracking-wider text-xs text-slate-400">Nenhum produto encontrado</p>
-                  </div>
-                ) : filteredProductsForModal.map((p, idx) => {
-                  const isOutOfStock = (p?.stock || 0) <= 0;
-                  return (
-                    <div
-                      key={p?.id || `modal-prod-${idx}`}
-                      className={`bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 p-4 flex flex-col justify-between h-full relative cursor-pointer ${isOutOfStock ? 'opacity-60 grayscale' : ''}`}
-                      onClick={() => {
-                        if (!isOutOfStock) {
-                          adicionarAoCarrinho(p);
-                        }
-                      }}
-                    >
-                      <div className="w-full aspect-square rounded-xl overflow-hidden bg-slate-50 mb-3 relative">
-                        {p.imageUrl ? (
-                          <img src={p.imageUrl} className="w-full h-full object-contain" alt={p.name} />
-                        ) : (
-                          <div className="w-full h-full flex flex-col items-center justify-center bg-slate-100">
-                            <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center mb-2 border border-slate-200/60">
-                              <Package size={20} className="text-slate-300" />
-                            </div>
-                            <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Sem Foto</span>
+          <div className="flex-1 overflow-y-auto pr-1">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {filteredProductsForModal.length === 0 ? (
+                <div className="col-span-full text-center py-20 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                  <Package size={40} className="mx-auto mb-4 opacity-25 text-slate-400" />
+                  <p className="font-black uppercase tracking-wider text-xs text-slate-400">Nenhum produto encontrado</p>
+                </div>
+              ) : filteredProductsForModal.map((p, idx) => {
+                const isOutOfStock = (p?.stock || 0) <= 0;
+                return (
+                  <div
+                    key={p?.id || `modal-prod-${idx}`}
+                    className={`bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 p-4 flex flex-col justify-between h-full relative cursor-pointer ${isOutOfStock ? 'opacity-60 grayscale' : ''}`}
+                    onClick={() => {
+                      if (!isOutOfStock) {
+                        adicionarAoCarrinho(p);
+                      }
+                    }}
+                  >
+                    <div className="w-full aspect-square rounded-xl overflow-hidden bg-slate-50 mb-3 relative">
+                      {p.imageUrl ? (
+                        <img src={p.imageUrl} className="w-full h-full object-contain" alt={p.name} />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center bg-slate-100">
+                          <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center mb-2 border border-slate-200/60">
+                            <Package size={20} className="text-slate-300" />
                           </div>
-                        )}
-                        {isOutOfStock && (
-                          <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                            <span className="text-[10px] font-black bg-white text-black px-3 py-1 rounded-lg uppercase">Esgotado</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 flex flex-col justify-between">
-                        <h4 className="text-slate-800 font-bold text-xs tracking-wide line-clamp-2 uppercase mb-2">{p.name}</h4>
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-emerald-600 font-extrabold text-xs">
-                            {(p as any).promoPrice > 0 && (
-                              <span className="text-[9px] text-slate-300 line-through mr-1 uppercase font-black">R$ {formatarMoeda(p.price)}</span>
-                            )}
-                            R$ {formatarMoeda(precoEfetivoProduto(p))}
-                          </span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (!isOutOfStock) adicionarAoCarrinho(p);
-                            }}
-                            disabled={isOutOfStock}
-                            className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg p-2 transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-                          >
-                            <Plus size={16} />
-                          </button>
+                          <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Sem Foto</span>
                         </div>
+                      )}
+                      {isOutOfStock && (
+                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                          <span className="text-[10px] font-black bg-white text-black px-3 py-1 rounded-lg uppercase">Esgotado</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 flex flex-col justify-between">
+                      <h4 className="text-slate-800 font-bold text-xs tracking-wide line-clamp-2 uppercase mb-2">{p.name}</h4>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-emerald-600 font-extrabold text-xs">
+                          {(p as any).promoPrice > 0 && (
+                            <span className="text-[9px] text-slate-300 line-through mr-1 uppercase font-black">R$ {formatarMoeda(p.price)}</span>
+                          )}
+                          R$ {formatarMoeda(precoEfetivoProduto(p))}
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!isOutOfStock) adicionarAoCarrinho(p);
+                          }}
+                          disabled={isOutOfStock}
+                          className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg p-2 transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          <Plus size={16} />
+                        </button>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      )}
-
-      {/* ── Cash Operation Modals ── */}
-      {showCashModal && (
-        <div className="fixed inset-0 z-[800] flex items-end sm:items-center justify-center bg-black/40 px-4 pb-4 sm:pb-0">
-          <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl">
-
-            {showCashModal === 'open' && (
-              <>
-                <h3 className="text-lg font-bold text-slate-900 mb-1">Abrir Caixa</h3>
-                <p className="text-sm text-slate-500 mb-4">Informe o valor inicial (fundo de troco) na gaveta.</p>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Valor Inicial (R$)</label>
-                <input type="number" min="0" step="0.01" value={cashAmount}
-                  onChange={e => setCashAmount(e.target.value)}
-                  placeholder="Ex: 100,00"
-                  className="w-full border border-slate-300 rounded-xl px-4 py-3 text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-400 mb-4" />
-              </>
-            )}
-
-            {(showCashModal === 'supplement' || showCashModal === 'withdrawal') && (
-              <>
-                <h3 className="text-lg font-bold text-slate-900 mb-1">
-                  {showCashModal === 'supplement' ? 'Suprimento' : 'Sangria de Segurança'}
-                </h3>
-                <p className="text-sm text-slate-500 mb-4">
-                  {showCashModal === 'supplement' ? 'Entrada de dinheiro no caixa.' : 'Retirada de dinheiro do caixa.'}
-                </p>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Valor (R$)</label>
-                <input type="number" min="0.01" step="0.01" value={cashAmount}
-                  onChange={e => setCashAmount(e.target.value)}
-                  placeholder="0,00"
-                  className="w-full border border-slate-300 rounded-xl px-4 py-3 text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 mb-3" />
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Motivo</label>
-                <input type="text" value={cashReason}
-                  onChange={e => setCashReason(e.target.value)}
-                  placeholder="Ex: Troco inicial, Retirada p/ cofre..."
-                  className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 mb-4" />
-              </>
-            )}
-
-            {showCashModal === 'close' && (
-              <>
-                <h3 className="text-lg font-bold text-slate-900 mb-1">Fechar Caixa</h3>
-                <p className="text-sm text-slate-500 mb-1">Valor esperado no caixa:</p>
-                <p className="text-2xl font-black text-slate-800 mb-4">{cashSession ? `R$ ${cashSession.currentBalance.toFixed(2)}` : '—'}</p>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Valor Contado Fisicamente (R$)</label>
-                <input type="number" min="0" step="0.01" value={cashAmount}
-                  onChange={e => setCashAmount(e.target.value)}
-                  placeholder="0,00"
-                  className="w-full border border-slate-300 rounded-xl px-4 py-3 text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-400 mb-4" />
-              </>
-            )}
-
-            <div className="flex gap-3">
-              <button onClick={() => { setShowCashModal(null); setCashAmount(''); setCashReason(''); }}
-                className="flex-1 py-3 rounded-2xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-all">
-                Cancelar
-              </button>
-              <button
-                onClick={
-                  showCashModal === 'open' ? handleCashOpen
-                    : showCashModal === 'supplement' ? handleCashSupplement
-                    : showCashModal === 'withdrawal' ? handleCashWithdrawal
-                    : handleCashClose
-                }
-                disabled={cashActionLoading}
-                className="flex-1 py-3 rounded-2xl text-white font-bold text-sm shadow-md hover:brightness-110 transition-all active:scale-95 disabled:opacity-60"
-                style={{ backgroundColor: showCashModal === 'close' ? '#ef4444' : showCashModal === 'withdrawal' ? '#ef4444' : corPrincipal }}
-              >
-                {cashActionLoading ? '...' : showCashModal === 'open' ? 'Abrir Caixa' : showCashModal === 'supplement' ? 'Registrar' : showCashModal === 'withdrawal' ? 'Registrar Sangria' : 'Confirmar Fechamento'}
-              </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
-      )}
+      </ModalShell>
+
+      {/* ── Cash Operation Modals ── */}
+      <ModalShell
+        open={showCashModal !== null}
+        onClose={() => { setShowCashModal(null); setCashAmount(''); setCashReason(''); }}
+        title={showCashModal === 'open' ? 'Abrir Caixa' : showCashModal === 'supplement' ? 'Suprimento' : showCashModal === 'withdrawal' ? 'Sangria de Segurança' : 'Fechar Caixa'}
+        subtitle={showCashModal === 'open' ? 'Informe o valor inicial (fundo de troco) na gaveta.' : showCashModal === 'supplement' ? 'Entrada de dinheiro no caixa.' : showCashModal === 'withdrawal' ? 'Retirada de dinheiro do caixa.' : `Valor esperado no caixa: ${cashSession ? `R$ ${cashSession.currentBalance.toFixed(2)}` : '—'}`}
+        size="sm"
+        tone={showCashModal === 'close' || showCashModal === 'withdrawal' ? 'danger' : showCashModal === 'supplement' ? 'success' : 'primary'}
+        icon={showCashModal === 'open' ? <LogIn size={20} /> : showCashModal === 'supplement' ? <Plus size={20} /> : showCashModal === 'withdrawal' ? <Minus size={20} /> : <LogOut size={20} />}
+        closeOnBackdrop={!cashActionLoading}
+        footer={
+          <div className="flex gap-3 w-full">
+            <button onClick={() => { setShowCashModal(null); setCashAmount(''); setCashReason(''); }}
+              className="flex-1 py-3 rounded-2xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-all">
+              Cancelar
+            </button>
+            <button
+              onClick={
+                showCashModal === 'open' ? handleCashOpen
+                  : showCashModal === 'supplement' ? handleCashSupplement
+                  : showCashModal === 'withdrawal' ? handleCashWithdrawal
+                  : handleCashClose
+              }
+              disabled={cashActionLoading}
+              className="flex-1 py-3 rounded-2xl text-white font-bold text-sm shadow-md hover:brightness-110 transition-all active:scale-95 disabled:opacity-60"
+              style={{ backgroundColor: showCashModal === 'close' ? '#ef4444' : showCashModal === 'withdrawal' ? '#ef4444' : corPrincipal }}
+            >
+              {cashActionLoading ? '...' : showCashModal === 'open' ? 'Abrir Caixa' : showCashModal === 'supplement' ? 'Registrar' : showCashModal === 'withdrawal' ? 'Registrar Sangria' : 'Confirmar Fechamento'}
+            </button>
+          </div>
+        }
+      >
+        <div className="p-6">
+          {showCashModal === 'open' && (
+            <>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Valor Inicial (R$)</label>
+              <input type="number" min="0" step="0.01" value={cashAmount}
+                onChange={e => setCashAmount(e.target.value)}
+                placeholder="Ex: 100,00"
+                className="w-full border border-slate-300 rounded-xl px-4 py-3 text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-400 mb-4" />
+            </>
+          )}
+
+          {(showCashModal === 'supplement' || showCashModal === 'withdrawal') && (
+            <>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Valor (R$)</label>
+              <input type="number" min="0.01" step="0.01" value={cashAmount}
+                onChange={e => setCashAmount(e.target.value)}
+                placeholder="0,00"
+                className="w-full border border-slate-300 rounded-xl px-4 py-3 text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 mb-3" />
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Motivo</label>
+              <input type="text" value={cashReason}
+                onChange={e => setCashReason(e.target.value)}
+                placeholder="Ex: Troco inicial, Retirada p/ cofre..."
+                className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 mb-4" />
+            </>
+          )}
+
+          {showCashModal === 'close' && (
+            <>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Valor Contado Fisicamente (R$)</label>
+              <input type="number" min="0" step="0.01" value={cashAmount}
+                onChange={e => setCashAmount(e.target.value)}
+                placeholder="0,00"
+                className="w-full border border-slate-300 rounded-xl px-4 py-3 text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-400 mb-4" />
+            </>
+          )}
+        </div>
+      </ModalShell>
 
       {/* ── Painel Resumo de Vendas (por dia / por cliente) ── */}
-      {showSalesPanel && (
-        <div className="fixed inset-0 z-[900] bg-black/50 flex items-center justify-center p-4 sm:p-6 animate-fadeIn">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.96, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="bg-white rounded-[2rem] w-full max-w-3xl shadow-2xl flex flex-col overflow-hidden max-h-[92vh]"
+      <ModalShell
+        open={showSalesPanel}
+        onClose={() => setShowSalesPanel(false)}
+        title="Resumo de Vendas"
+        subtitle="Terminal de Venda Direta"
+        size="lg"
+        icon={<BarChart3 size={20} />}
+        footer={
+          <button
+            onClick={() => setShowSalesPanel(false)}
+            className="px-8 py-3.5 rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95"
           >
-            {/* Header */}
-            <div className="px-6 sm:px-8 py-5 border-b border-slate-100 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
-                  <BarChart3 size={24} />
-                </div>
-                <div>
-                  <h2 className="font-black text-base uppercase tracking-tight leading-none">Resumo de Vendas</h2>
-                  <p className="text-[10px] text-white/50 font-bold uppercase tracking-[0.25em] mt-1.5">Terminal de Venda Direta</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowSalesPanel(false)}
-                className="w-11 h-11 rounded-xl bg-white/10 hover:bg-red-500 text-white flex items-center justify-center transition-all active:scale-90"
-              >
-                <X size={20} />
-              </button>
-            </div>
+            Fechar
+          </button>
+        }
+      >
 
             {/* Filtros + Tabs */}
             <div className="px-6 sm:px-8 py-4 border-b border-slate-100 flex flex-col sm:flex-row gap-4 sm:items-center justify-between shrink-0 bg-slate-50/60">
@@ -2918,7 +2889,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
             </div>
 
             {/* Lista */}
-            <div className="flex-1 overflow-y-auto px-6 sm:px-8 py-4 custom-scrollbar">
+            <div className="px-6 sm:px-8 py-4">
               {salesOrders.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
@@ -3051,17 +3022,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
               })}
             </div>
 
-            <div className="px-6 sm:px-8 py-4 border-t border-slate-100 flex justify-end shrink-0 bg-slate-50/60">
-              <button
-                onClick={() => setShowSalesPanel(false)}
-                className="px-8 py-3.5 rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95"
-              >
-                Fechar
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
+                  </ModalShell>
 
       {/* ── MODAL DE ESTORNO DE VENDA (F9) ── */}
       <RefundSaleModal
@@ -3075,32 +3036,24 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
       />
 
       {/* ── MODAL DE VENDAS SUSPENSAS ── */}
-      {showSuspendedList && (
-        <div className="fixed inset-0 z-[950] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.96, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="bg-white rounded-[2rem] w-full max-w-xl shadow-2xl flex flex-col overflow-hidden max-h-[90vh]"
+      <ModalShell
+        open={showSuspendedList}
+        onClose={() => setShowSuspendedList(false)}
+        title="Vendas Suspensas"
+        subtitle="Retome ou descarte carrinhos salvos"
+        size="md"
+        tone="warning"
+        icon={<PauseCircle size={20} />}
+        footer={
+          <button
+            onClick={() => setShowSuspendedList(false)}
+            className="px-8 py-3.5 rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95"
           >
-            <div className="px-6 sm:px-8 py-5 border-b border-slate-100 bg-gradient-to-br from-amber-500 via-amber-500 to-amber-600 text-white flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-white/15 flex items-center justify-center shadow-lg">
-                  <PauseCircle size={24} />
-                </div>
-                <div>
-                  <h2 className="font-black text-base uppercase tracking-tight leading-none">Vendas Suspensas</h2>
-                  <p className="text-[10px] text-white/60 font-bold uppercase tracking-[0.25em] mt-1.5">Retome ou descarte carrinhos salvos</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowSuspendedList(false)}
-                className="w-11 h-11 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all active:scale-90"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto px-6 sm:px-8 py-5 custom-scrollbar">
+            Fechar
+          </button>
+        }
+      >
+        <div className="px-6 sm:px-8 py-5">
               {suspendedCarts.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
@@ -3148,77 +3101,56 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                   </div>
                 </div>
               ))}
-            </div>
-
-            <div className="px-6 sm:px-8 py-4 border-t border-slate-100 flex justify-end shrink-0 bg-slate-50/60">
-              <button
-                onClick={() => setShowSuspendedList(false)}
-                className="px-8 py-3.5 rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95"
-              >
-                Fechar
-              </button>
-            </div>
-          </motion.div>
         </div>
-      )}
+      </ModalShell>
 
       {/* ── PREÇO DINÂMICO (produto de valor livre) ── */}
-      <AnimatePresence>
-        {produtoPrecoDinamico && (
-          <div className="fixed inset-0 z-[950] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.96, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              className="bg-white rounded-[2rem] w-full max-w-sm shadow-2xl border border-slate-200 overflow-hidden"
+      <ModalShell
+        open={!!produtoPrecoDinamico}
+        onClose={() => setProdutoPrecoDinamico(null)}
+        title="Preço Dinâmico"
+        subtitle="Produto sem valor fixo"
+        size="sm"
+        icon={<Tag size={20} />}
+        footer={
+          <div className="flex gap-2 w-full">
+            <button
+              type="button"
+              onClick={() => setProdutoPrecoDinamico(null)}
+              className="flex-1 py-3.5 rounded-2xl bg-white border-2 border-slate-200 hover:bg-slate-100 font-black text-[10px] uppercase tracking-[0.2em] text-slate-600 transition-all active:scale-95"
             >
-              <div className="px-6 py-5 border-b border-slate-100 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
-                  <Tag size={18} className="text-emerald-400" />
-                </div>
-                <div className="min-w-0">
-                  <h3 className="font-black text-sm uppercase tracking-tight leading-none">Preço Dinâmico</h3>
-                  <p className="text-[9px] text-white/50 font-bold uppercase tracking-[0.2em] mt-1">Produto sem valor fixo</p>
-                </div>
-              </div>
-              <div className="p-6 space-y-4">
-                <p className="font-black text-xs uppercase tracking-widest text-slate-700 truncate">{produtoPrecoDinamico.produto?.name || 'Produto'}</p>
-                <div className="relative">
-                  <span className="absolute left-5 top-1/2 -translate-y-1/2 font-black text-lg text-emerald-600">R$</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    inputMode="decimal"
-                    autoFocus
-                    placeholder="0,00"
-                    className="w-full bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 pl-14 pr-4 py-4 rounded-2xl font-black text-2xl tnum outline-none transition-colors"
-                    value={produtoPrecoDinamico.preco}
-                    onChange={e => setProdutoPrecoDinamico(prev => prev ? { ...prev, preco: e.target.value } : prev)}
-                    onKeyDown={e => { if (e.key === 'Enter') confirmarPrecoDinamico(); }}
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setProdutoPrecoDinamico(null)}
-                    className="flex-1 py-3.5 rounded-2xl bg-white border-2 border-slate-200 hover:bg-slate-100 font-black text-[10px] uppercase tracking-[0.2em] text-slate-600 transition-all active:scale-95"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={confirmarPrecoDinamico}
-                    className="flex-1 py-3.5 rounded-2xl text-white font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 shadow-md"
-                    style={{ backgroundColor: corPrincipal }}
-                  >
-                    <Plus size={14} className="inline-block mr-1" /> Adicionar ao Carrinho
-                  </button>
-                </div>
-              </div>
-            </motion.div>
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={confirmarPrecoDinamico}
+              className="flex-1 py-3.5 rounded-2xl text-white font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 shadow-md"
+              style={{ backgroundColor: corPrincipal }}
+            >
+              <Plus size={14} className="inline-block mr-1" /> Adicionar ao Carrinho
+            </button>
           </div>
-        )}
-      </AnimatePresence>
+        }
+      >
+        <div className="p-6 space-y-4">
+          <p className="font-black text-xs uppercase tracking-widest text-slate-700 truncate">{produtoPrecoDinamico?.produto?.name || 'Produto'}</p>
+          <div className="relative">
+            <span className="absolute left-5 top-1/2 -translate-y-1/2 font-black text-lg text-emerald-600">R$</span>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              inputMode="decimal"
+              autoFocus
+              placeholder="0,00"
+              className="w-full bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 pl-14 pr-4 py-4 rounded-2xl font-black text-2xl tnum outline-none transition-colors"
+              value={produtoPrecoDinamico?.preco || ''}
+              onChange={e => setProdutoPrecoDinamico(prev => prev ? { ...prev, preco: e.target.value } : prev)}
+              onKeyDown={e => { if (e.key === 'Enter') confirmarPrecoDinamico(); }}
+            />
+          </div>
+        </div>
+      </ModalShell>
 
       {/* ── CONFIMAÇÕES DESTRUTIVAS (substituem window.confirm) ── */}
       <ConfirmacaoDestrutiva
