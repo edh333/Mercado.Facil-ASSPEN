@@ -7,6 +7,7 @@ dist
 dist-ssr
 build
 dist-electron
+desktop/app-mode.txt
 portable
 portatil
 release
