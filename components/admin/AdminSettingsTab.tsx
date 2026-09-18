@@ -531,10 +531,19 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                 <div>
                   <label className="text-[10px] font-black text-slate-900 uppercase mb-1 block">Nome do Sistema</label>
                   <input
-                    className="w-full p-4 bg-slate-50 border-2 border-slate-200 focus:border-blue-500 rounded-2xl font-black text-sm text-slate-900 outline-none transition-all"
+                    className="w-full p-4 bg-slate-50 border-2 border-slate-200 focus:border-blue-500 rounded-2xl font-black text-sm text-slate-900 outline-none"
                     value={localSettings?.appName || ''}
                     onChange={e => setLocalSettings({ ...localSettings, appName: e.target.value, systemName: e.target.value })}
                     placeholder="Ex: Mercado Fácil PDV"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-slate-900 uppercase mb-1 block">Slogan (Tela Inicial Landing)</label>
+                  <input
+                    className="w-full p-4 bg-slate-50 border-2 border-slate-200 focus:border-blue-500 rounded-2xl font-black text-sm text-slate-900 outline-none"
+                    value={localSettings?.landingPageTagline || ''}
+                    onChange={e => setLocalSettings({ ...localSettings, landingPageTagline: e.target.value })}
+                    placeholder="Ex: Aproxima você de quem você ama"
                   />
                 </div>
                 <div>
