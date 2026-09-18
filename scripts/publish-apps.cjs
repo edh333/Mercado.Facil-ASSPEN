@@ -1,20 +1,29 @@
 /**
  * Publica os instaladores .exe e o manifest version.json no Firebase Storage.
  *
+ * A pasta apps/ só aceita escrita de ADMINISTRADORES (storage.rules → isAdmin()).
+ * Por isso este script NÃO cria usuário temporário (receberia 403 — Permission
+ * denied). Ele autentica com a CONTA ADMIN real do sistema:
+ *
+ *   - .env deve conter (nunca commitar):
+ *       FIREBASE_ADMIN_EMAIL=email.do.admin@...
+ *       FIREBASE_ADMIN_PASSWORD=senha.da.conta.admin
+ *
  * Fluxo:
- *   1. Cria um usuário temporário via Firebase Auth REST (idToken passa pelas
- *      Storage Rules — não depende de IAM/service account nem de chaves no repo).
+ *   1. Entra com a conta admin via Firebase Auth REST (accounts:signInWithPassword)
+ *      → o idToken carrega o uid que tem doc users/{uid} com role ADMIN/MASTER
+ *      e status active → isAdmin() nas Storage Rules retorna true.
  *   2. Envia os instaladores canônicos (Usuário e Admin) + apps/version.json
  *      (nomes canônicos — a versão antiga é sobrescrita automaticamente).
- *   3. Remove o usuário temporário.
- *   4. Verifica publicamente (GET direto, sem autenticação) cada arquivo:
+ *   3. Verifica publicamente (GET direto, sem autenticação) cada arquivo:
  *      status 200 e tamanho exato. O link de download do usuário é gerado pela
  *      Cloud Function obterLinkDownloadApp (assinado por 7 dias).
  *
  * Requisitos:
- *   - .env com VITE_FIREBASE_API_KEY e VITE_FIREBASE_STORAGE_BUCKET
+ *   - .env com VITE_FIREBASE_API_KEY, VITE_FIREBASE_STORAGE_BUCKET e as
+ *     credenciais FIREBASE_ADMIN_EMAIL / FIREBASE_ADMIN_PASSWORD.
  *   - dist-electron/MercadoFacil-Usuario-Setup-*.exe e Admin no padrão do
- *     electron-builder (artifactName → "MercadoFacil-{Usuario,Admin}-Setup-${version}.exe")
+ *     electron-builder (artifactName → "MercadoFacil-{Usuario,Admin}-Setup-${version}.exe").
  *
  * Uso: node scripts/publish-apps.cjs      (ou npm run publish:apps)
  */
@@ -27,16 +36,23 @@ const envRaw = fs.readFileSync(path.join(ROOT, '.env'), 'utf-8');
 const kv = (k) => envRaw.split(/\r?\n/).find((l) => l.startsWith(k + '='))?.split('=').slice(1).join('=').trim();
 const API_KEY = kv('VITE_FIREBASE_API_KEY');
 const BUCKET = kv('VITE_FIREBASE_STORAGE_BUCKET') || 'mercado-facil-mt.firebasestorage.app';
+const ADMIN_EMAIL = kv('FIREBASE_ADMIN_EMAIL');
+const ADMIN_PASSWORD = kv('FIREBASE_ADMIN_PASSWORD');
 const WEB_URL = 'https://mercado-facil-mt.web.app';
 if (!API_KEY) throw new Error('VITE_FIREBASE_API_KEY ausente no .env.');
+if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+  throw new Error(
+    'Credenciais do administrador ausentes no .env. Adicione:\n' +
+    '  FIREBASE_ADMIN_EMAIL=email.do.admin@...\n' +
+    '  FIREBASE_ADMIN_PASSWORD=senha.da.conta.admin\n' +
+    'A pasta apps/ do Storage só aceita escrita de ADMIN (storage.rules).'
+  );
+}
 
 const VERSION = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf-8')).version;
 const EXE_PATTERN = /^MercadoFacil-(Usuario|Admin)-Setup-(.+)\.exe$/;
 const HOST = 'firebasestorage.googleapis.com';
 const ENC_BUCKET = encodeURIComponent(BUCKET);
-
-const EMAIL = `deploy-${Date.now()}@publish.local`;
-const PASSWORD = 'Aa' + Math.random().toString(36).slice(2) + 'X9!';
 
 function request(host, pathname, method, headers, body) {
   return new Promise((resolve, reject) => {
@@ -58,13 +74,16 @@ function request(host, pathname, method, headers, body) {
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
 async function main() {
-  // 1) Usuário temporário
-  const signup = await request('identitytoolkit.googleapis.com', `/v1/accounts:signUp?key=${encodeURIComponent(API_KEY)}`, 'POST',
+  // 1) Autentica como ADMIN (idToken passa nas Storage Rules — isAdmin()).
+  const login = await request('identitytoolkit.googleapis.com',
+    `/v1/accounts:signInWithPassword?key=${encodeURIComponent(API_KEY)}`, 'POST',
     { 'Content-Type': 'application/json' },
-    JSON.stringify({ email: EMAIL, password: PASSWORD, returnSecureToken: true }));
-  const idToken = signup.body?.idToken;
-  if (!idToken) throw new Error('Falha ao criar usuário temporário: ' + JSON.stringify(signup.body).slice(0, 200));
-  console.log(`[auth] usuário temporário autenticado (publicação v${VERSION})`);
+    JSON.stringify({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD, returnSecureToken: true }));
+  const idToken = login.body?.idToken;
+  if (!idToken) {
+    throw new Error('Falha no login do administrador: ' + JSON.stringify(login.body).slice(0, 200));
+  }
+  console.log(`[auth] administrador autenticado (publicação v${VERSION})`);
 
   const hAuth = { Authorization: `Bearer ${idToken}`, 'X-Firebase-Storage-Version': '2' };
 
@@ -99,14 +118,7 @@ async function main() {
     }
   }
 
-  // 4) Remove o usuário temporário
-  try {
-    await request('identitytoolkit.googleapis.com', `/v1/accounts:delete?key=${encodeURIComponent(API_KEY)}`, 'POST',
-      { 'Content-Type': 'application/json' }, JSON.stringify({ idToken }));
-    console.log('[auth] usuário temporário removido');
-  } catch { /* não crítico */ }
-
-  // 5) Verificação pública (metadados via GET aberto, sem autenticação)
+  // 4) Verificação pública (metadados via GET aberto, sem autenticação)
   await sleep(1500);
   console.log('[verificacao] leitura pública de cada arquivo publicado:');
   let todosOk = !process.exitCode;

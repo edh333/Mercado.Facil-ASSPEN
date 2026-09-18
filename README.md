@@ -88,5 +88,5 @@ O workflow [`.github/workflows/release.yml`](.github/workflows/release.yml) roda
 ## Observações
 
 - `.env` contém chaves públicas do Firebase (projeto web) — **não commitar** (já no `.gitignore`).
-- O upload de instaladores usa um usuário temporário do Firebase Auth (criado e removido pelo script) — nada de chaves de serviço no repositório.
+- O upload de instaladores autentica com a conta ADMIN do sistema (via `.env`: `FIREBASE_ADMIN_EMAIL`/`FIREBASE_ADMIN_PASSWORD`) — as Storage Rules exigem `isAdmin()`. Nada de chaves de serviço no repositório.
 - Para o desktop, o nome e versão do produto vêm do `package.json` (use `npm version` para versionar).

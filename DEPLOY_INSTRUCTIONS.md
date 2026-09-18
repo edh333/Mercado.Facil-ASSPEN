@@ -47,6 +47,6 @@ O workflow `.github/workflows/release.yml` roda em tags `v*` (ou manualmente). R
 ## Observações Importantes
 
 - As regras (`firestore.rules`, `storage.rules`) são publicadas junto no `npm run deploy`.
-- O script de publicação usa um usuário temporário do Firebase Auth — não há chave de serviço no repositório.
+- O script de publicação autentica com a conta ADMIN do sistema (`.env`: `FIREBASE_ADMIN_EMAIL` + `FIREBASE_ADMIN_PASSWORD`) — a pasta `apps/` do Storage só aceita escrita de `isAdmin()` — não há chave de serviço no repositório.
 - Instaladores usam nomes canônicos: `apps/MercadoFacil-Usuario-Setup.exe` e `apps/MercadoFacil-Admin-Setup.exe` — uma nova publicação sobrescreve a versão anterior.
 - O cache do navegador pode exibir versão antiga — use **Ctrl+F5** para forçar atualização.
