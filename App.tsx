@@ -104,6 +104,10 @@ const MainApp: React.FC = () => {
   // frente de caixa do usuário — o admin troca para o painel pelos próprios
   // mecanismos do app (instalação separada do Painel Admin / toggle no site).
   const modoUsuario = urlParams.get('mode') === 'user';
+  // App ADMINISTRADOR (exe/PWA admin, ?mode=admin): nunca passa pela Landing
+  // de marketing — o operador quer o painel (login de admin direto). Antes
+  // abria na página pública e parecia "app quebrado/tela não condizente".
+  const modoAdmin = urlParams.get('mode') === 'admin';
 
   if (isPrint) {
     return (
@@ -119,8 +123,10 @@ const MainApp: React.FC = () => {
   }
 
   if (!currentUser) {
-    // Landing pública estilo ASSPEN; PWA do usuário (/?mode=user) abre direto o login.
-    return <Landing skipLanding={modoUsuario} />;
+    // Landing pública estilo ASSPEN; PWA do usuário (/?mode=user) abre direto o login;
+    // app ADMIN (/?mode=admin) abre direto no LOGIN DO PAINEL ADMIN (nunca na Landing
+    // de marketing — antes o operador via "tela estranha/em branco" e achava quebrado).
+    return <Landing skipLanding={modoUsuario || modoAdmin} initialTab={modoAdmin ? 'admin' : 'login'} />;
   }
 
   if (currentUser.role !== UserRole.ADMIN || modoUsuario) {

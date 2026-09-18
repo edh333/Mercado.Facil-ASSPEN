@@ -6,7 +6,23 @@ const https = require('https');
 // Modo do app definido no momento do build:
 //   APP_MODE=user  → Mercado Fácil - Usuário (compras dos familiares)
 //   APP_MODE=admin → Mercado Fácil - Administrador (painel completo)
-const APP_MODE = process.env.APP_MODE === 'admin' ? 'admin' : 'user';
+//
+// BUGFIX (tela em branco no app admin): o process.env do processo do build
+// NÃO é herdado pelo executável final — no computador do usuário
+// process.env.APP_MODE é sempre indefinido, então o app caía em modo 'user'.
+// O build-exe.mjs agora grava o modo em desktop/app-mode.txt (empacotado no
+// asar) e o ler aqui tem prioridade sobre qualquer variável de ambiente.
+function obterModoApp() {
+  try {
+    const arquivo = path.join(__dirname, 'app-mode.txt');
+    const conteudo = fs.readFileSync(arquivo, 'utf-8').trim();
+    if (conteudo === 'admin') return 'admin';
+    if (conteudo === 'user') return 'user';
+  } catch { /* arquivo ausente — segue para o fallback */ }
+  return process.env.APP_MODE === 'admin' ? 'admin' : 'user';
+}
+
+const APP_MODE = obterModoApp();
 const APP_TITLE = APP_MODE === 'admin'
   ? 'Mercado Fácil - Administrador'
   : 'Mercado Fácil - Usuário';
@@ -24,6 +40,21 @@ const compararVersoes = (a, b) => {
   }
   return 0;
 };
+
+// Página de recuperação (HTML puro, sem JS) exibida quando o app não carrega
+// nem do bundle local nem da internet — o operador vê instruções claras em vez
+// de uma janela em branco (bug reportado: "app do admin abre em branco").
+function paginaDeErro(detalhe) {
+  const detalheLimpo = String(detalhe || '').replace(/</g, '&lt;').replace(/\n/g, '<br/>');
+  return `<meta charset="utf-8"><body style="margin:0;background:#0f172a;color:#f8fafc;font-family:Segoe UI,Arial,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;">
+<div style="max-width:520px;padding:36px;text-align:center;">
+  <div style="width:64px;height:64px;border-radius:20px;background:#334155;margin:0 auto 22px;display:flex;align-items:center;justify-content:center;font-size:30px;">⚠️</div>
+  <h2 style="margin:0 0 10px;font-size:22px;">Mercado Fácil não pôde abrir</h2>
+  <p style="margin:0 0 6px;color:#94a3b8;font-size:14px;line-height:1.6;">O conteúdo local não carregou e este computador não está conectado à internet para usar a versão online.</p>
+  <p style="margin:0 0 24px;color:#64748b;font-size:12px;line-height:1.6;">${detalheLimpo}</p>
+  <button onclick="location.reload()" style="background:#10b981;color:#0f172a;border:0;border-radius:14px;padding:14px 28px;font-size:14px;font-weight:800;cursor:pointer;">Tentar novamente</button>
+</div></body>`;
+}
 
 // Verifica periodicamente se há nova versão publicada (apps/version.json).
 function checarAtualizacao(win) {
@@ -80,6 +111,50 @@ function createWindow() {
     }
   });
 
+  // ── ANTI-TELA-EM-BRANCO ──────────────────────────────────────────────
+  // O SPA pode carregar o HTML mas falhar silenciosamente no JS (CSP, chunk
+  // corrompido, cache velho). Nada disso lança erro no loadFile → capturamos
+  // did-fail-load/did-finish-load e, se o #root não renderizar, caímos para a
+  // versão web; se até ela falhar, mostramos uma tela de recuperação visível.
+  // Assim o operador NUNCA vê uma janela vazia sem saber o que fazer.
+  const carregarWebFallback = () => {
+    if (win.isDestroyed()) return;
+    win.loadURL(`${WEB_URL}/?mode=${APP_MODE}`).catch((e) => {
+      if (win.isDestroyed()) return;
+      const errPage = paginaDeErro(`Não foi possível carregar o aplicativo (local nem internet).\n\nDetalhe técnico: ${e?.message || 'desconhecido'}`);
+      win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(errPage)).catch(() => {});
+    });
+  };
+
+  win.webContents.on('did-fail-load', (_e, code, desc, _url, isMainFrame) => {
+    if (!isMainFrame || win.isDestroyed()) return;
+    // Código -3 (ERR_ABORTED) = navegação cancelada (comum em redirects) — ignora.
+    if (code === -3) return;
+    console.error(`[main] Falha de carga (${code}):`, desc);
+    carregarWebFallback();
+  });
+
+  let localTentado = false;
+  win.webContents.once('did-finish-load', () => {
+    if (win.isDestroyed()) return;
+    // Dá ao React um instante para montar antes de declarar "vazio".
+    setTimeout(() => {
+      if (win.isDestroyed()) return;
+      win.webContents.executeJavaScript(
+        'document.getElementById("root") ? document.getElementById("root").childElementCount : -1'
+      ).then((qtd) => {
+        if (qtd <= 0) {
+          console.error(`[main] Renderer vazio (#root com ${qtd} filhos) — HTML carregou mas o app não montou.`);
+          if (!localTentado) {
+            // Força nova carga limpa; se persistir, pula para a web.
+            localTentado = true;
+            carregarWebFallback();
+          }
+        }
+      }).catch(() => { /* execução indisponível — ignora */ });
+    }, 3500);
+  });
+
   // Em desenvolvimento, carrega do Vite. Em produção, carrega o index.html gerado
   // pelo Vite (dist/) já marcando o modo correto (admin/user).
   const isDev = !app.isPackaged;
@@ -91,11 +166,7 @@ function createWindow() {
     // versão hospedada, que tem as mesmas funções e o software continua usável.
     win.loadFile(path.join(__dirname, '../dist/index.html'), {
       query: { mode: APP_MODE }
-    }).catch(() => {
-      if (!win.isDestroyed()) {
-        win.loadURL(`${WEB_URL}/?mode=${APP_MODE}`).catch(() => { /* último recurso: janela em branco mesmo assim */ });
-      }
-    });
+    }).catch(carregarWebFallback);
   }
 
   // Remove menu padrão para parecer app nativo

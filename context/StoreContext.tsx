@@ -35,6 +35,7 @@ const fnEstornarVenda = httpsCallable(functions, 'estornarVenda');
 const fnBuscarPedidosParaEstorno = httpsCallable(functions, 'buscarPedidosParaEstorno');
 const fnValidarSenhaMestra = httpsCallable(functions, 'validarSenhaMestra');
 const fnValidarDuplaSenhaMestra = httpsCallable(functions, 'validarDuplaSenhaMestra');
+const fnValidarSenhaMestraUnica = httpsCallable(functions, 'validarSenhaMestraUnica');
 const fnDefinirSenhaMestra = httpsCallable(functions, 'definirSenhaMestra');
 const fnResetarSistemaTotal = httpsCallable(functions, 'resetarSistemaTotal');
 const fnZerarCarteiras = httpsCallable(functions, 'zerarCarteiras');
@@ -168,6 +169,7 @@ interface StoreContextType {
     installApp: () => Promise<void>;
     validateMasterPassword: (password: string) => Promise<boolean>;
     validateDualMasterPassword: (senhaPrimaria: string, senhaSecundaria: string) => Promise<boolean>;
+    validateAnyMasterPassword: (senha: string) => Promise<boolean>;
     defineMasterPassword: (password: string) => Promise<boolean>;
     masterPasswordStatus: () => Promise<{ definida: boolean }>;
     updateAdminPassword: (newPassword: string) => Promise<void>;
@@ -2202,6 +2204,16 @@ return false;
         }
     };
 
+    const validateAnyMasterPassword = async (senha: string) => {
+        try {
+            const res = await fnValidarSenhaMestraUnica({ senha: senha || '', apiKey: FIREBASE_API_KEY || '' }) as any;
+            return !!res.data?.ok;
+        } catch (e) {
+            console.warn('[validateAnyMasterPassword]', e);
+            return false;
+        }
+    };
+
     const defineMasterPassword = async (pass: string) => {
         try {
             const res = await fnDefinirSenhaMestra({ senha: pass || '' }) as any;
@@ -2834,7 +2846,7 @@ if (currentUser?.role !== UserRole.ADMIN && currentUser) {
             processInvoiceImport, importXmlProduct, previewXmlImport, sanitizeCatalog, updateAppConfig, updateSettings: updateAppConfig,
             downloadBackup, backupSystem: downloadBackup, resetSystem, resetStock, resetFinance, resetCredits, checkPermission, sendSystemMessage, sendMessage, markMessageRead, showNotification, removeNotification,
             depositToWallet, approveWalletTransaction, rejectWalletTransaction, getWalletTransactions, withdrawWalletCredit, attachAdminProof, reenviarComprovante,
-            validateMasterPassword, validateDualMasterPassword, defineMasterPassword, masterPasswordStatus, addPreRegisteredInmate, updatePreRegisteredInmate, deletePreRegisteredInmate, preRegisteredInmates, refundOrder, estornarPedido, buscarPedidosParaEstorno, importInmatesCsv, updateAdminPassword,
+            validateMasterPassword, validateDualMasterPassword, validateAnyMasterPassword, defineMasterPassword, masterPasswordStatus, addPreRegisteredInmate, updatePreRegisteredInmate, deletePreRegisteredInmate, preRegisteredInmates, refundOrder, estornarPedido, buscarPedidosParaEstorno, importInmatesCsv, updateAdminPassword,
             isInstallable: !!deferredPrompt, installApp,
             isLoggingOut,
             mergeDuplicateProducts: async () => {
@@ -2962,8 +2974,11 @@ if (currentUser?.role !== UserRole.ADMIN && currentUser) {
                     // Exibir o erro aqui também gerava um toast contraditório
                     // ("Erro ao processar venda." seguido de "Venda registrada
                     // OFFLINE") — confundia o operador e incentivava novo clique.
+                    // Quando ONLINE, propaga a mensagem REAL do servidor em vez
+                    // de retornar null: o modal mostra o motivo exato do erro
+                    // (senha incorreta, crédito bloqueado, etc.).
                     if (!(typeof navigator !== 'undefined' && navigator.onLine === false)) {
-                        showNotification(e.message || "Erro ao processar venda.", "error");
+                        throw new Error(mensagemErroChamada(e));
                     }
                     return null;
                 }

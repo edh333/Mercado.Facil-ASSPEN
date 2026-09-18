@@ -208,7 +208,9 @@ export const AppDownloadModal: React.FC<{ onClose: () => void }> = ({ onClose })
 
       {logado && !loading && apps && apps.length > 0 && (
         <div className="space-y-4">
-          {apps.map(app => (
+          {/* Filtro defensivo (além do backend obterLinkDownloadApp): o instalador
+              do painel ADMIN só pode aparecer para administradores/master. */}
+          {apps.filter(app => app.chave !== 'admin' || ehAdmin).map(app => (
             <CardApp key={app.chave} app={app} admin={app.chave === 'admin'} />
           ))}
         </div>

@@ -1644,15 +1644,29 @@ exports.processarVendaAdmin = onCall(async (request) => {
     request.data?.origemOffline === true &&
     String(request.data?.clientToken || "").startsWith("OFFLINE_");
   if ((paymentMethod === "FIADO" || paymentMethod === "FIADO_30") && !ehOfflineFiado) {
-    const senhaPrimaria = String(request.data?.senhaPrimaria || "");
-    const senhaSecundaria = String(request.data?.senhaSecundaria || "");
     const apiKey = String(request.data?.apiKey || "") || process.env.FIREBASE_API_KEY || "";
-    if (!senhaPrimaria || !senhaSecundaria) {
-      throw new HttpsError("invalid-argument", "Venda fiada exige a senha primária e a secundária do administrador.");
-    }
-    const dupla = await validarDuplaSenhaServidor(caller, senhaPrimaria, senhaSecundaria, apiKey);
-    if (!dupla.ok) {
-      throw new HttpsError("permission-denied", "Uma das senhas está incorreta. Tente novamente.");
+    if (paymentMethod === "FIADO_30") {
+      // FIADO_30 NÃO é venda fiada tradicional em "conta" — é uma venda a prazo
+      // (30 dias) contra o usuário cadastrado. Exige apenas UMA senha mestra:
+      // qualquer uma das duas (primária de login OU secundária/master).
+      const senhaUnica = String(request.data?.senhaPrimaria || "");
+      if (!senhaUnica) {
+        throw new HttpsError("invalid-argument", "Venda fiada de 30 dias exige a senha mestra do administrador.");
+      }
+      const unica = await validarSenhaUnicaServidor(caller, senhaUnica, apiKey);
+      if (!unica.ok) {
+        throw new HttpsError("permission-denied", "Uma das senhas está incorreta. Tente novamente.");
+      }
+    } else {
+      const senhaPrimaria = String(request.data?.senhaPrimaria || "");
+      const senhaSecundaria = String(request.data?.senhaSecundaria || "");
+      if (!senhaPrimaria || !senhaSecundaria) {
+        throw new HttpsError("invalid-argument", "Venda fiada exige a senha primária e a secundária do administrador.");
+      }
+      const dupla = await validarDuplaSenhaServidor(caller, senhaPrimaria, senhaSecundaria, apiKey);
+      if (!dupla.ok) {
+        throw new HttpsError("permission-denied", "Uma das senhas está incorreta. Tente novamente.");
+      }
     }
   }
 
@@ -3091,6 +3105,93 @@ async function validarDuplaSenhaServidor(user, senhaPrimaria, senhaSecundaria, a
   return { ok: primariaOk && secundariaOk, primariaOk, secundariaOk, definida: true };
 }
 
+/**
+ * Valida UMA senha mestra no servidor para FIADO_30: a senha informada é
+ * considerada correta se corresponder a QUALQUER uma das duas senhas:
+ *  - secundária = senha mestra (bcrypt em settings/private, com migração legada)
+ *  - primária   = senha de login do admin no Firebase Auth (re-auth via REST ou hash legado)
+ * Usada no endpoint validarSenhaMestraUnica e no gate de venda fiada de 30 dias.
+ */
+async function validarSenhaUnicaServidor(user, senhaInformada, apiKey) {
+  const senha = String(senhaInformada || "");
+  if (!senha) return { ok: false, motivo: "vazia" };
+
+  // Secundária ─ senha mestra (bcrypt), mesmo fluxo de verificarSenhaMestra.
+  const privSnap = await db.collection("settings").doc("private").get();
+  const priv = privSnap.exists ? privSnap.data() : {};
+  let secundariaOk = false;
+  if (priv.masterPasswordHash) {
+    try {
+      secundariaOk = await bcrypt.compare(senha, priv.masterPasswordHash);
+    } catch (e) {
+      logger.warn("[validarSenhaUnicaServidor] Falha ao comparar senha mestra:", e.message);
+    }
+  } else {
+    const genSnap = await db.collection("settings").doc("general").get();
+    const gen = genSnap.exists ? genSnap.data() : {};
+    const legada = String(gen.secondaryPassword || gen.adminPassword || "");
+    if (legada) {
+      secundariaOk = senha === legada;
+      if (secundariaOk) {
+        const hash = await bcrypt.hash(legada, 12);
+        await db.collection("settings").doc("private").set({ masterPasswordHash: hash }, { merge: true });
+        await db.collection("settings").doc("general").update({
+          secondaryPassword: admin.firestore.FieldValue.delete(),
+          adminPassword: admin.firestore.FieldValue.delete(),
+        }).catch(() => {});
+      }
+    }
+  }
+
+  // Primária ─ senha de login do admin no Firebase Auth (re-auth via REST).
+  let primariaOk = false;
+  const hashLegado = await obterHashLegado(user && user.id);
+  if (hashLegado) {
+    try {
+      primariaOk = await bcrypt.compare(senha, hashLegado);
+    } catch (e) {
+      logger.warn("[validarSenhaUnicaServidor] Falha ao comparar hash legado primário:", e.message);
+    }
+  }
+  if (!primariaOk && apiKey && user && user.email) {
+    try {
+      const resp = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${encodeURIComponent(apiKey)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: user.email, password: senha, returnSecureToken: true }),
+        }
+      );
+      primariaOk = resp.status === 200;
+    } catch (e) {
+      logger.warn("[validarSenhaUnicaServidor] Falha ao validar primária via REST:", e.message);
+    }
+  }
+
+  return { ok: secundariaOk || primariaOk, secundariaOk, primariaOk, definida: true };
+}
+
+/**
+ * Admin │ valida UMA senha mestra (primária OU secundária) para autorizar
+ * venda fiada de 30 dias. Usado no front para conferir antes de finalizar.
+ */
+exports.validarSenhaMestraUnica = onCall(async (request) => {
+  const user = await exigirAutenticado(request);
+  verificarRateLimit("validarSenhaMestraUnica:" + user.id, 10);
+  const roleLower = String(user.role || "").toLowerCase();
+  if (roleLower !== "admin" && roleLower !== "master") {
+    throw new HttpsError("permission-denied", "Apenas administradores podem validar a senha mestra.");
+  }
+  const senha = String(request.data?.senha || "");
+  if (!senha) {
+    throw new HttpsError("invalid-argument", "Digite a senha mestra.");
+  }
+  const apiKey = String(request.data?.apiKey || "") || process.env.FIREBASE_API_KEY || "";
+  const resultado = await validarSenhaUnicaServidor(user, senha, apiKey);
+  return { ok: !!resultado.ok, definida: true };
+});
+
 /** Autenticado ─ hora confiável do servidor (substitui APIs externas de horário). */
 exports.obterHoraServidor = onCall(async (request) => {
   await exigirAutenticado(request);
@@ -3468,6 +3569,75 @@ exports.backupAutomaticoDiario = onSchedule({
 });
 
 /** Agendado — backup de COMPLETUDE semanal (quarta-feira 03:30 MT), retenção longa (180 dias). */
+// ============================================================
+// TTL COMPROVANTES (15 dias apos aprovacao do admin): rotina
+// diaria que apaga os arquivos de comprovante do Storage e limpa
+// o campo paymentProofUrl/proofUrl dos pedidos/depositos antigos,
+// liberando espaco no banco. Mantem o doc (trilha de auditoria).
+// ============================================================
+exports.limparComprovantesExpirados = onSchedule({
+  schedule: "30 4 * * *",
+  timeZone: "America/Sao_Paulo",
+  timeoutSeconds: 540,
+  memory: "512MiB"
+}, async () => {
+  const corteMs = 15 * 24 * 60 * 60 * 1000;
+  const corte = new Date(Date.now() - corteMs).toISOString();
+  const bucket = admin.storage().bucket(FUNC_BUCKET);
+  let apagados = 0, docsLimpos = 0;
+
+  const alvos = [
+    { col: "orders", dateField: "approvedAt", urlField: "paymentProofUrl",
+      statusValidos: ["paid","pago","approved","preparing","preparando","out_for_delivery","saiu","delivered","entregue","concluido","finalizado"] },
+    { col: "wallet_transactions", dateField: "approvedAt", urlField: "proofUrl",
+      statusValidos: ["approved"] },
+  ];
+
+  for (const alvo of alvos) {
+    try {
+      let pagina = await db.collection(alvo.col)
+        .where(alvo.dateField, "<=", corte)
+        .limit(200)
+        .get();
+      while (!pagina.empty && docsLimpos < 4000) {
+        const lote = pagina.docs.filter((d) => {
+          const dt = d.data();
+          const st = String(dt.status || "").toLowerCase();
+          if (dt.deleted === true) return false;
+          return alvo.statusValidos.includes(st) || alvo.statusValidos.some((s) => st.includes(s));
+        });
+        const batch = db.batch();
+        for (const d of lote) {
+          const dt = d.data();
+          const url = String(dt[alvo.urlField] || "").trim();
+          if (url && url !== "PENDENTE_UPLOAD_LOCAL_CACHE" && url.startsWith("https://")) {
+            try {
+              const caminho = caminhoStorageDeUrl(url, FUNC_BUCKET);
+              if (caminho) await bucket.file(caminho).delete();
+              apagados++;
+            } catch (eDel) {
+              logger.warn(`[TTL] Falha ao apagar arquivo (${alvo.col}/${d.id}):`, eDel.message);
+            }
+          }
+          batch.update(d.ref, { [alvo.urlField]: "", comprovanteRemovidoEm: new Date().toISOString() });
+          docsLimpos++;
+        }
+        if (lote.length > 0) await batch.commit();
+        const ult = pagina.docs[pagina.docs.length - 1];
+        pagina = await db.collection(alvo.col)
+          .where(alvo.dateField, "<=", corte)
+          .orderBy(alvo.dateField)
+          .startAfter(ult)
+          .limit(200)
+          .get();
+      }
+    } catch (e) {
+      logger.warn(`[TTL] Erro na colecao ${alvo.col}:`, e.message);
+    }
+  }
+  logger.info(`[TTL] Comprovantes apagados=${apagados} | docs limpos=${docsLimpos}`);
+  return { ok: true, apagados, docsLimpos };
+});
 exports.backupSemanalAutomatico = onSchedule({
   schedule: "30 3 * * 3",
   timeZone: "America/Cuiaba",

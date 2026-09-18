@@ -143,6 +143,7 @@ export interface Order {
   date: string; // Alias for createdAt
   deliveryDate?: string;
   paymentProofUrl?: string;
+approvedAt?: string; // Momento em que o admin aprovou (idade do cupom/comprovante; TTL 15d)
   proofHash?: string;
   proofSize?: number;
   proofMime?: string;

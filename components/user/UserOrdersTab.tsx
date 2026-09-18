@@ -5,6 +5,16 @@ import { formatarMoeda } from '../../utils';
 import { toDate } from '../../utils/dateUtils';
 import { ConfirmacaoDestrutiva } from '../admin/ConfirmacaoDestrutiva';
 
+const MS_15_DIAS = 15 * 24 * 60 * 60 * 1000;
+const cupomExpirado = (order: Order): boolean => {
+  const t = order?.approvedAt
+    ? new Date(order.approvedAt).getTime()
+    : order?.createdAt
+      ? new Date(order.createdAt).getTime()
+      : 0;
+  if (!t || isNaN(t)) return false;
+  return Date.now() - t > MS_15_DIAS;
+};
 interface UserOrdersTabProps {
   settings: any;
   viewingWalletHistory: boolean;
@@ -182,7 +192,7 @@ export const UserOrdersTab: React.FC<UserOrdersTabProps> = ({
                           </div>
 
                           <div className="flex flex-wrap gap-2">
-                              {canViewCupom(order.status) && (
+                              {canViewCupom(order.status) && !cupomExpirado(order) && (
                                   <button
                                       onClick={() => setViewingOrderCupom(order)}
                                       className="flex-1 min-w-[140px] py-3 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl hover:bg-black transition-all transform active:scale-95"
@@ -202,7 +212,7 @@ export const UserOrdersTab: React.FC<UserOrdersTabProps> = ({
                                )}
 
                                {/* BOTÃO VER COMPROVANTE */}
-                               {order.paymentProofUrl && (
+                               {order.paymentProofUrl && !cupomExpirado(order) && (
                                    <a
                                        href={order.paymentProofUrl}
                                        target="_blank"

@@ -14,7 +14,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 
 const fnCriarPrimeiroAdmin = httpsCallable(getFunctions(), 'criarPrimeiroAdmin');
 
-export const Login: React.FC<{ initialTab?: 'login' | 'register'; onVolver?: () => void }> = ({ initialTab = 'login', onVolver }) => {
+export const Login: React.FC<{ initialTab?: 'login' | 'register' | 'admin'; onVolver?: () => void }> = ({ initialTab = 'login', onVolver }) => {
     const { loginAdmin, loginFamiliar, registerUser, resetUserPassword, validateRecovery, showNotification, settings, preRegisteredInmates } = useApp();
     const [activeTab, setActiveTab] = useState<'login' | 'register' | 'admin' | 'recovery'>(initialTab);
 

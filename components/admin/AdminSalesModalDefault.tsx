@@ -58,7 +58,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
   const [produtoPrecoDinamico, setProdutoPrecoDinamico] = useState<{ produto: Product; preco: string } | null>(null);
 
   // ── Novas opções PDV: estorno, última venda, suspensas ──
-  const { refundOrder, showNotification, validateMasterPassword, validateDualMasterPassword } = useApp();
+  const { refundOrder, showNotification, validateMasterPassword, validateDualMasterPassword, validateAnyMasterPassword } = useApp();
   const [ultimaVenda, setUltimaVenda] = useState<Order | null>(null);
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [refundSelected, setRefundSelected] = useState<Order | null>(null);
@@ -110,6 +110,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
   const [senhaFiado30Secundaria, setSenhaFiado30Secundaria] = useState('');
   const [senhaFiado30Erro, setSenhaFiado30Erro] = useState('');
   const [senhaFiado30Processando, setSenhaFiado30Processando] = useState(false);
+  const [mostrarSenhaFiado30, setMostrarSenhaFiado30] = useState(false);
 
   // Token de idempotência da venda: gerado UMA vez por venda lógica (muda quando
   // o carrinho/cliente/pagamento mudam). Reenvios da MESMA venda (timeout/retry
@@ -1093,25 +1094,25 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
     }
   };
 
-  // Confirma a venda FIADO 30 DIAS após validar a DUPLA senha mestra no servidor.
+  // Confirma a venda FIADO 30 DIAS após validar UMA senha mestra no servidor
+  // (primária OU secundária — qualquer uma das duas é aceita).
   const executarVendaFiado30 = async () => {
     if (senhaFiado30Processando) return;
     setSenhaFiado30Processando(true);
     setSenhaFiado30Erro('');
     try {
-      const primaria = (senhaFiado30Primaria || '').trim();
-      const secundaria = (senhaFiado30Secundaria || '').trim();
-      if (!primaria || !secundaria) {
-        setSenhaFiado30Erro('Digite ambas as senhas (primária e secundária).');
+      const senha = (senhaFiado30Primaria || '').trim();
+      if (!senha) {
+        setSenhaFiado30Erro('Digite a senha mestra (primária ou secundária).');
         return;
       }
       if (!fiado30UserId) throw new Error('Selecione um usuário para o fiado 30 dias.');
-      const ok = await validateDualMasterPassword(primaria, secundaria);
+      const ok = await validateAnyMasterPassword(senha);
       if (!ok) {
-        setSenhaFiado30Erro('Uma das senhas está incorreta. Tente novamente.');
+        setSenhaFiado30Erro('A senha está incorreta. Tente novamente.');
         return;
       }
-      const pedido = await onConfirm(fiado30UserId, carrinho, 'FIADO_30', totalCarrinho, undefined, undefined, fiado30UserId, saleToken, undefined, undefined, fiado30UserId, primaria, secundaria);
+      const pedido = await onConfirm(fiado30UserId, carrinho, 'FIADO_30', totalCarrinho, undefined, undefined, fiado30UserId, saleToken, undefined, undefined, fiado30UserId, senha);
       if (pedido) {
         setUltimoPedido(pedido);
         setUltimaVenda(pedido);
@@ -1752,24 +1753,46 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
               <div className="flex-1 overflow-y-auto p-8 sm:p-10 space-y-8 custom-scrollbar">
 
                 {/* Payment Method Selector */}
-                <div className="grid grid-cols-2 gap-4">
-                {[
-                  { key: 'PIX', label: 'PIX', icon: CreditCard },
-                  { key: 'WALLET', label: 'Créditos Internos', icon: Wallet },
-                  { key: 'CASH', label: 'Dinheiro', icon: DollarSign },
-                  { key: 'CARD', label: 'Cartão', icon: CreditCard },
-                  { key: 'MIXED', label: 'Pagamento Misto', icon: Box },
-                  { key: 'FIADO', label: 'Fiado / Conta', icon: BookOpen },
-                ].map(({ key, label, icon: Icon }) => (
-                  <button
-                    key={key}
-                    onClick={() => { setFormaPagamento(key as any); setPixConfirmado(false); setBandeiraCartao(''); setCardConfirmado(false); if (key === 'FIADO') setCustomerAccountSearch(''); }}
-                    className={`py-6 rounded-[2rem] font-black text-[11px] sm:text-xs uppercase tracking-[0.2em] flex flex-col items-center justify-center gap-3 transition-all touch-target border ${formaPagamento === key ? 'bg-emerald-500 text-white border-emerald-500 scale-[1.02]' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-emerald-100 hover:text-emerald-700'}`}
-                  >
-                    <Icon size={24} className={formaPagamento === key ? 'animate-pulse' : ''}/>
-                    {label}
-                  </button>
-                ))}
+                <div className="space-y-6">
+                <div>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] mb-2 ml-1">Pagamento à Vista</p>
+                  <div className="grid grid-cols-2 gap-4">
+                  {[
+                    { key: 'PIX', label: 'PIX', icon: CreditCard },
+                    { key: 'WALLET', label: 'Créditos Internos', icon: Wallet },
+                    { key: 'CASH', label: 'Dinheiro', icon: DollarSign },
+                    { key: 'CARD', label: 'Cartão', icon: CreditCard },
+                    { key: 'MIXED', label: 'Pagamento Misto', icon: Box },
+                  ].map(({ key, label, icon: Icon }) => (
+                    <button
+                      key={key}
+                      onClick={() => { setFormaPagamento(key as any); setPixConfirmado(false); setBandeiraCartao(''); setCardConfirmado(false); if (key === 'FIADO') setCustomerAccountSearch(''); }}
+                      className={`py-6 rounded-[2rem] font-black text-[11px] sm:text-xs uppercase tracking-[0.2em] flex flex-col items-center justify-center gap-3 transition-all touch-target border ${formaPagamento === key ? 'bg-emerald-500 text-white border-emerald-500 scale-[1.02]' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-emerald-100 hover:text-emerald-700'}`}
+                    >
+                      <Icon size={24} className={formaPagamento === key ? 'animate-pulse' : ''}/>
+                      {label}
+                    </button>
+                  ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] mb-2 ml-1">Fiado</p>
+                  <div className="grid grid-cols-2 gap-4">
+                  {[
+                    { key: 'FIADO', label: 'Fiado / Conta', icon: BookOpen },
+                    { key: 'FIADO_30', label: 'Fiado 30 Dias', icon: Clock },
+                  ].map(({ key, label, icon: Icon }) => (
+                    <button
+                      key={key}
+                      onClick={() => { setFormaPagamento(key as any); setPixConfirmado(false); setBandeiraCartao(''); setCardConfirmado(false); if (key === 'FIADO') setCustomerAccountSearch(''); }}
+                      className={`py-6 rounded-[2rem] font-black text-[11px] sm:text-xs uppercase tracking-[0.2em] flex flex-col items-center justify-center gap-3 transition-all touch-target border ${formaPagamento === key ? 'bg-emerald-500 text-white border-emerald-500 scale-[1.02]' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-emerald-100 hover:text-emerald-700'}`}
+                    >
+                      <Icon size={24} className={formaPagamento === key ? 'animate-pulse' : ''}/>
+                      {label}
+                    </button>
+                  ))}
+                  </div>
+                </div>
                 </div>
 
                 {formaPagamento === 'PIX' && (
@@ -2387,6 +2410,96 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                     )}
                   </motion.div>
                 )}
+                {formaPagamento === 'FIADO_30' && (
+                  <motion.div initial={{opacity:0}} animate={{opacity:1}} className="space-y-4">
+                    <div className="flex items-center justify-between gap-2 ml-2">
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Cliente para Fiado 30 Dias</p>
+                      {fiado30UserId && (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-xl text-[9px] font-black uppercase tracking-widest">
+                          <CheckCircle size={12} /> Vinculado ao usuário do PDV
+                        </span>
+                      )}
+                    </div>
+
+                    {clienteEhConsumidor && (
+                      <div className="bg-red-50 border-2 border-red-200 rounded-[2rem] p-6 text-center">
+                        <AlertTriangle size={26} className="text-red-500 mx-auto mb-3" />
+                        <p className="text-[11px] font-black text-red-600 uppercase tracking-[0.25em] mb-1">Selecione um cliente cadastrado</p>
+                        <p className="text-[11px] font-bold text-slate-600">Fiado de 30 dias exige usuário cadastrado — escolha o cliente no início da venda (não o Consumidor Final).</p>
+                      </div>
+                    )}
+
+                    {!clienteEhConsumidor && (
+                      <div className="relative">
+                        <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          placeholder="Buscar usuário com crédito disponível..."
+                          value={fiado30Search}
+                          onChange={e => { setFiado30Search(e.target.value); setFiado30UserId(''); }}
+                          className="w-full pl-10 pr-4 py-4 rounded-[1.5rem] bg-slate-50 border border-slate-200 text-slate-900 font-semibold text-sm outline-none focus:border-emerald-500 transition-all"
+                        />
+                      </div>
+                    )}
+                    {!clienteEhConsumidor && fiado30Search && !fiado30UserId && (
+                      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm max-h-48 overflow-y-auto custom-scrollbar">
+                        {filteredFiado30Users.length === 0 ? (
+                          <p className="p-4 text-center text-slate-400 text-xs font-semibold">Nenhum usuário com crédito encontrado</p>
+                        ) : filteredFiado30Users.map(u => {
+                          const limite = Number(u.creditLimit || 0);
+                          const divida = Number((u as any).currentDebt || 0);
+                          const semLimite = limite <= 0 || divida >= limite;
+                          return (
+                            <button
+                              key={u.id}
+                              onClick={() => { setFiado30UserId(u.id); setFiado30Search(u.name || u.inmateName || u.nome || ''); }}
+                              disabled={semLimite}
+                              className={`w-full flex items-center gap-4 p-4 hover:bg-emerald-50 transition-all border-b border-slate-100 last:border-0 text-left ${semLimite ? 'opacity-50' : ''}`}
+                            >
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${semLimite ? 'bg-red-100 text-red-600' : divida > 0 ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                                <BookOpen size={18} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-bold text-slate-900 text-sm truncate">{u.name || u.inmateName || u.nome}</p>
+                                <p className="text-[10px] text-slate-500">Tel: {u.telefone || u.phone || '—'} • Limite: R$ {formatarMoeda(limite)}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-[10px] font-black text-slate-400 uppercase">Dívida</p>
+                                <p className={`font-black text-sm ${semLimite ? 'text-red-600' : 'text-slate-900'}`}>R$ {formatarMoeda(divida)}</p>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {!clienteEhConsumidor && fiado30UserId && (
+                      <div className="bg-slate-50 rounded-2xl border border-slate-200 p-5 space-y-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-black text-slate-900 text-sm truncate">
+                            {users.find(u => u.id === fiado30UserId)?.name || users.find(u => u.id === fiado30UserId)?.inmateName || users.find(u => u.id === fiado30UserId)?.nome || 'Usuário selecionado'}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => { setFiado30UserId(''); setFiado30Search(''); }}
+                            className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-[9px] uppercase tracking-wider transition-all active:scale-95 flex items-center gap-1"
+                          >
+                            <X size={11} /> Trocar
+                          </button>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="font-semibold text-slate-500">Vencimento: em 30 dias</span>
+                          <span className="font-black text-red-600">Prazo: R$ {formatarMoeda(totalCarrinho)}</span>
+                        </div>
+                        <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 flex items-start gap-2">
+                          <Clock size={15} className="text-amber-600 shrink-0 mt-0.5" />
+                          <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wide leading-relaxed">
+                            A venda será lançada como fiado de 30 dias e exige apenas uma senha mestra (qualquer uma).
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
               </div>
 
               <div className="flex gap-4 p-8 border-t border-slate-200 bg-slate-50 shrink-0">
@@ -2557,6 +2670,69 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
           {senhaFiadoErro && (
             <p className="text-[10px] font-black text-red-600 uppercase tracking-wider flex items-center gap-1.5">
               <AlertTriangle size={13} /> {senhaFiadoErro}
+            </p>
+          )}
+        </div>
+      </ModalShell>
+
+      {/* SENHA MESTRA ÚNICA — AUTORIZAÇÃO DE VENDA FIADA 30 DIAS (Primária OU Secundária) */}
+      <ModalShell
+        open={confirmandoFiado30}
+        onClose={() => { setConfirmandoFiado30(false); setSenhaFiado30Primaria(''); setSenhaFiado30Secundaria(''); setSenhaFiado30Erro(''); }}
+        title="Autorizar Venda Fiada 30 Dias"
+        subtitle="Uma senha mestra (Primária OU Secundária)"
+        tone="warning"
+        size="sm"
+        icon={<Lock size={20} />}
+        footer={
+          <div className="flex gap-2 w-full">
+            <button type="button"
+              onClick={() => { setConfirmandoFiado30(false); setSenhaFiado30Primaria(''); setSenhaFiado30Secundaria(''); setSenhaFiado30Erro(''); }}
+              className="flex-1 py-3.5 rounded-2xl bg-white border-2 border-slate-200 hover:bg-slate-100 font-black text-[10px] uppercase tracking-[0.2em] text-slate-600 transition-all active:scale-95">
+              Cancelar
+            </button>
+            <button type="button" onClick={executarVendaFiado30} disabled={senhaFiado30Processando}
+              className="flex-1 py-3.5 rounded-2xl text-white font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 shadow-md"
+              style={{ backgroundColor: corPrincipal }}>
+              {senhaFiado30Processando ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle size={14} />} Confirmar
+            </button>
+          </div>
+        }
+      >
+        <div className="p-6 space-y-4">
+          {fiado30UserId && (
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex justify-between items-center font-black text-xs tnum">
+              <span className="uppercase text-slate-600 truncate max-w-[55%]">
+                {users.find(u => u.id === fiado30UserId)?.name || users.find(u => u.id === fiado30UserId)?.inmateName || users.find(u => u.id === fiado30UserId)?.nome || 'Fiado 30'}
+              </span>
+              <span style={{ color: corPrincipal }}>+R$ {formatarMoeda(totalCarrinho)}</span>
+            </div>
+          )}
+          <div className="space-y-3">
+            <div>
+              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1">Senha Mestra (Primária ou Secundária)</label>
+              <div className="relative">
+                <input
+                  type={mostrarSenhaFiado30 ? 'text' : 'password'} autoFocus placeholder="••••••••"
+                  className="w-full bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 px-14 py-4 rounded-2xl font-black text-center text-lg outline-none transition-colors"
+                  value={senhaFiado30Primaria}
+                  onChange={e => { setSenhaFiado30Primaria(e.target.value); setSenhaFiado30Secundaria(''); setSenhaFiado30Erro(''); }}
+                  onKeyDown={e => { if (e.key === 'Enter') executarVendaFiado30(); }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setMostrarSenhaFiado30(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-xl text-slate-400 hover:text-emerald-600 transition-colors"
+                  aria-label={mostrarSenhaFiado30 ? 'Ocultar senha' : 'Mostrar senha'}
+                >
+                  {mostrarSenhaFiado30 ? <EyeOff size={18}/> : <Eye size={18}/>}
+                </button>
+              </div>
+            </div>
+          </div>
+          {senhaFiado30Erro && (
+            <p className="text-[10px] font-black text-red-600 uppercase tracking-wider flex items-center gap-1.5">
+              <AlertTriangle size={13} /> {senhaFiado30Erro}
             </p>
           )}
         </div>

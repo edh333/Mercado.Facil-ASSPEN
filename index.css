@@ -1641,3 +1641,69 @@ select option {
 .dark .text-slate-400 {
   color: var(--text-muted) !important;
 }
+
+/* ============================================================
+   DESIGN TOKENS v2 - Tipografia + Botoes (aditivo, ASCII puro)
+   Adicionado em 2026 - melhoria de consistencia visual.
+   Nao remove nada do que ja existia: apenas ESTENDE.
+   ============================================================ */
+
+/* --- Tipografia: escala fluida + metricas consistentes --- */
+:root {
+  --type-heading-lineheight: 1.05;
+  --type-body-lineheight: 1.6;
+  --type-letter-tight: -0.025em;
+  --type-letter-normal: -0.01em;
+  --type-scale-h1: clamp(1.5rem, 2.2vw + 1rem, 2rem);
+  --type-scale-h2: clamp(1.25rem, 1.6vw + 0.9rem, 1.6rem);
+  --type-scale-h3: clamp(1.05rem, 1vw + 0.75rem, 1.25rem);
+}
+
+h1, h2, h3 { line-height: var(--type-heading-lineheight); letter-spacing: var(--type-letter-tight); }
+h1 { font-size: var(--type-scale-h1); }
+h2 { font-size: var(--type-scale-h2); }
+h3 { font-size: var(--type-scale-h3); }
+
+p, li, .card-body, .modal-body, td, th {
+  letter-spacing: var(--type-letter-normal);
+  line-height: var(--type-body-lineheight);
+}
+
+/* Numeros com largura tabular: alinha valores em tabelas/resumos (PIX, saldo) */
+.num-tabular { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+
+.font-display { letter-spacing: var(--type-letter-tight); }
+
+/* --- Botao: focus-visible acessivel (teclado apenas) + hover suave --- */
+.btn:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid var(--primary-color);
+  outline-offset: 2px;
+  border-radius: 14px;
+}
+
+.btn { transition: transform 0.18s ease, box-shadow 0.25s ease, filter 0.25s ease; }
+.btn:active { transform: scale(0.98); }
+
+.btn-primary, .btn-success, .btn-error, .btn-warning, .btn-navy {
+  transition: box-shadow 0.25s ease, filter 0.25s ease;
+}
+:is(.btn-primary, .btn-success, .btn-error, .btn-warning, .btn-navy):hover {
+  filter: brightness(1.06);
+}
+
+/* --- Small utility de peso/forca em texto de acao --- */
+.text-action-strong { font-weight: 800; }
+.text-uppercase-small {
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+}
+
+/* --- Consistencia de corte em cartao premium (rede de seguranca) --- */
+.card { border-radius: 20px; }
+.card .card-header { padding: 20px 24px; }
+
+/* ============================================================ */

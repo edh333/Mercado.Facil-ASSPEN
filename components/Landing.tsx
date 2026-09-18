@@ -15,9 +15,9 @@ const fadeUp = {
     transition: { duration: 0.55, ease: [0.16, 1, 0.3, 1] as const }
 };
 
-export const Landing: React.FC<{ skipLanding?: boolean }> = ({ skipLanding }) => {
+export const Landing: React.FC<{ skipLanding?: boolean; initialTab?: 'login' | 'register' | 'admin' }> = ({ skipLanding, initialTab }) => {
     const [authOpen, setAuthOpen] = useState(false);
-    const [initialTab, setInitialTab] = useState<'login' | 'register'>('login');
+    const [activeTab, setActiveTab] = useState<'login' | 'register' | 'admin'>(initialTab || 'login');
     const [installing, setInstalling] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -27,8 +27,8 @@ export const Landing: React.FC<{ skipLanding?: boolean }> = ({ skipLanding }) =>
         if (params.get('auth') === '1') { setAuthOpen(true); return; }
         const applyHash = () => {
             const h = window.location.hash;
-            if (h === '#entrar') { setInitialTab('login'); setAuthOpen(true); }
-            if (h === '#criar-conta') { setInitialTab('register'); setAuthOpen(true); }
+            if (h === '#entrar') { setActiveTab('login'); setAuthOpen(true); }
+            if (h === '#criar-conta') { setActiveTab('register'); setAuthOpen(true); }
         };
         applyHash();
         window.addEventListener('hashchange', applyHash);
@@ -36,7 +36,7 @@ export const Landing: React.FC<{ skipLanding?: boolean }> = ({ skipLanding }) =>
     }, [skipLanding]);
 
     const abrir = (tab: 'login' | 'register') => {
-        setInitialTab(tab);
+        setActiveTab(tab);
         setAuthOpen(true);
         try { window.history.replaceState(null, '', tab === 'register' ? '#criar-conta' : '#entrar'); } catch { /* ignora */ }
     };
@@ -55,7 +55,7 @@ export const Landing: React.FC<{ skipLanding?: boolean }> = ({ skipLanding }) =>
     };
 
     if (authOpen) {
-        return <Login initialTab={initialTab} onVolver={() => { setAuthOpen(false); try { window.history.replaceState(null, '', ' '); } catch { /* ignora */ } }} />;
+        return <Login initialTab={activeTab} onVolver={() => { setAuthOpen(false); try { window.history.replaceState(null, '', ' '); } catch { /* ignora */ } }} />;
     }
 
     return (

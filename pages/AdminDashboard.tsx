@@ -400,7 +400,7 @@ export function AdminDashboard() {
   ) => {
     const res = await adminDirectSale(targetUserId, items, paymentMethod, total, payments, change, customerAccountId, clientToken, jointWallet, cardBrand, fiado30UserId, senhaPrimaria, senhaSecundaria);
     if (!res) {
-      throw new Error('Erro ao processar venda no caixa.');
+      throw new Error('A venda não foi confirmada pelo servidor. Verifique sua internet e tente novamente.');
     }
     showNotification('Venda realizada com sucesso!', 'success');
     return res;
@@ -878,7 +878,7 @@ export function AdminDashboard() {
         />
 
         {/* Dynamic Page/Tab Content Switcher */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-6xl w-full mx-auto pb-24">
+        <main className="flex-1 min-w-0 w-full p-4 sm:p-6 lg:p-8 pb-24">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}

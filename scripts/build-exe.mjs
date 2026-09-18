@@ -19,6 +19,7 @@
 import { spawnSync } from 'node:child_process';
 import { build } from 'electron-builder';
 import path from 'node:path';
+import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -48,6 +49,14 @@ const modos = soUsuario ? ['user'] : soAdmin ? ['admin'] : ['user', 'admin'];
 
 for (const modo of modos) {
   process.env.APP_MODE = modo;
+  // BUGFIX (portátil = tela branca no app ADMIN): o process.env do build NÃO
+  // sobrevive ao empacotamento — no computador do usuário APP_MODE é indefinido
+  // e o desktop/main.js caía sempre em modo 'user' (ou, com dist corrompido,
+  // numa janela em branco). Grava o modo num arquivo que entra no asar
+  // (desktop/**/* está nas duas configs) e o main.js o lê em runtime.
+  const modoFile = path.join(root, 'desktop', 'app-mode.txt');
+  fs.writeFileSync(modoFile, `${modo}\n`, 'utf-8');
+  console.log(`[build-exe] Modo "${modo}" embutido em desktop/app-mode.txt`);
   const config = modo === 'admin' ? 'electron-builder.admin.yml' : 'electron-builder.user.yml';
   console.log(`\n[build-exe] Empacotando versão ${modo.toUpperCase()}...`);
   try {
