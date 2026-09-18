@@ -25,6 +25,8 @@ sem instalar nada (usa só o navegador, que já existe no Windows).
   Eles ficam salvos no cache do navegador da MÁQUINA (não no pendrive).
 - Trocou de computador ou de navegador? Precisa de internet de novo,
   uma única vez, para "ensinar" os dados àquela máquina.
+- Esse primeiro login também "ensina" a MÁQUINA a desbloquear o modo
+  de emergência offline (só a máquina que já logou uma vez consegue).
 
 ## Sem internet (venda offline)
 
@@ -32,6 +34,20 @@ sem instalar nada (usa só o navegador, que já existe no Windows).
 - As vendas ficam numa fila local e aparecem no painel como pendentes.
 - PIX com usuário selecionado funciona; FIADO 30 dias precisa de
   internet (valida a senha mestra no servidor).
+
+## Sem internet E o login não abre (modo de emergência)
+
+- Se a internet cair e o login do administrador não conseguir abrir
+  (sessão não restaurada), a tela de login mostra a caixa amarela
+  "Sem internet — modo de emergência".
+- Digite a MESMA senha de login do administrador e clique em
+  "Desbloquear". O painel abre em EMERGÊNCIA OFFLINE (aviso vermelho
+  no topo) e as vendas vão para a fila local.
+- Funciona só na máquina em que o administrador JÁ FEZ login com
+  internet pelo menos uma vez. A sessão de emergência expira sozinha
+  (3 h) e o aviso fica vermelho enquanto estiver ativa.
+- Quando a internet voltar, clique em "Sair" no aviso vermelho e
+  entre novamente com o login normal (as vendas offline sincronizam).
 
 ## Quando a internet voltar
 

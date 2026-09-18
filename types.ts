@@ -102,6 +102,7 @@ export interface User {
   documentUrl?: string;
   createdAt?: string;
   permissions?: string[]; // New: Granular permissions for secondary admins
+  offlineBypass?: boolean; // Sessão de emergência offline (operador entrou sem Firebase)
   showFinanceEntries?: boolean; // New: Toggle for Principal Admin to hide/show entries
   walletBalance?: number; // New: Dynamic Credit for Inmate
   weeklySpent?: number; // New: Tracks spend against limit

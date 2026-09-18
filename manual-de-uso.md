@@ -39,6 +39,7 @@ O sistema foi projetado para ser resiliente e funcionar mesmo em locais sem qual
 2.  **Copie para o Pendrive:** Você pode levar apenas este arquivo (versão portátil) para qualquer computador Windows.
 3.  **Funcionamento Sem Internet:** Graças à tecnologia de **Cache Inteligente (IndexedDB)**, você pode realizar vendas, cadastrar internos e lançar despesas mesmo se o cabo de rede estiver desconectado.
 4.  **Sincronização Automática:** Assim que o computador detectar internet, o sistema "acorda" e envia todos os dados salvos localmente para as nuvens do Google automaticamente, sem você precisar fazer nada.
+5.  **Modo de Emergência Offline:** Se a internet cair e o login não conseguir abrir, a tela de login mostra a caixa "Sem internet — modo de emergência". Digite a senha de login do administrador e clique em Desbloquear para operar em emergência (faixa vermelha no topo). Funciona na máquina em que o admin já fez login com internet pelo menos uma vez; a sessão expira sozinha (3h) e as vendas vão para a fila local. Ao reconectar, clique em "Sair" no aviso e entre com o login normal para sincronizar.
 
 ### 6.2 Capacidade Técnica e Escalabilidade
 Este sistema utiliza a infraestrutura **Google Cloud (Firestore)**, o que garante:

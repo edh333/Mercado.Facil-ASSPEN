@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/StoreContext';
-import { 
-    Lock, User, Phone, CheckCircle, Upload, Eye, EyeOff, 
-    ArrowLeft, Loader2, Settings, UserCheck, Briefcase, 
+import {
+    Lock, User, Phone, CheckCircle, Upload, Eye, EyeOff,
+    ArrowLeft, Loader2, Settings, UserCheck, Briefcase,
     XCircle, KeyRound, Sparkles, ChevronDown, Store,
-    ShieldCheck, Wallet, ShoppingBag
+    ShieldCheck, Wallet, ShoppingBag, Unlock, WifiOff
 } from 'lucide-react';
 import { validateCPF, formatCPF } from '../utils';
+import { hasOfflineCredential } from '../utils/offlineUnlock';
 import { User as UserType } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { OnlineStatusIndicator } from '../components/OnlineStatusIndicator';
@@ -15,7 +16,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 const fnCriarPrimeiroAdmin = httpsCallable(getFunctions(), 'criarPrimeiroAdmin');
 
 export const Login: React.FC<{ initialTab?: 'login' | 'register' | 'admin'; onVolver?: () => void }> = ({ initialTab = 'login', onVolver }) => {
-    const { loginAdmin, loginFamiliar, registerUser, resetUserPassword, validateRecovery, showNotification, settings, preRegisteredInmates } = useApp();
+    const { loginAdmin, loginFamiliar, registerUser, resetUserPassword, validateRecovery, showNotification, settings, preRegisteredInmates, tryOfflineUnlock } = useApp();
     const [activeTab, setActiveTab] = useState<'login' | 'register' | 'admin' | 'recovery'>(initialTab);
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -29,6 +30,7 @@ export const Login: React.FC<{ initialTab?: 'login' | 'register' | 'admin'; onVo
     const [cpf, setCpf] = useState('');
     const [password, setPassword] = useState('');
     const [adminEmail, setAdminEmail] = useState('');
+    const [offlinePass, setOfflinePass] = useState('');
     const [registerConfirmPassword, setRegisterConfirmPassword] = useState('');
 
     const [recoveryStep, setRecoveryStep] = useState<1 | 2>(1);
@@ -185,6 +187,35 @@ const [recoveryName, setRecoveryName] = useState('');
             if (isAdmin && String(error.message || '').toLowerCase().includes('primeiro acesso')) {
                 setShowFirstAdminSetup(true);
             }
+        } finally {
+            setIsLoading(false);
+            setLoadingMessage('');
+        }
+    };
+
+    // Desbloqueio OFF LINE de emergência: sem internet e sem sessão do Firebase,
+    // o operador que já fez login nesta máquina entra com a senha de login do
+    // admin (guardada como hash). Vendas caem na fila local e sincronizam depois.
+    const podeDesbloquearOffline = isAdmin && !navigator.onLine && hasOfflineCredential();
+
+    const handleOfflineUnlock = async () => {
+        const senha = offlinePass.trim();
+        if (!senha) { setFormError('Digite a senha de login do administrador.'); return; }
+        setFormError(null);
+        setFormSuccess(null);
+        setIsLoading(true);
+        setLoadingMessage('Desbloqueando modo offline...');
+        try {
+            const ok = await tryOfflineUnlock(senha);
+            if (!ok) {
+                setFormError('Senha incorreta para o desbloqueio offline.');
+                showNotification('Senha incorreta para o desbloqueio offline.', 'error');
+                return;
+            }
+            showNotification('Modo de emergência OFFLINE ativado — as vendas vão para a fila local.', 'warning');
+        } catch (err: any) {
+            setFormError(err?.message || 'Falha ao desbloquear o modo offline.');
+            showNotification(err?.message || 'Falha ao desbloquear o modo offline.', 'error');
         } finally {
             setIsLoading(false);
             setLoadingMessage('');
@@ -492,6 +523,49 @@ const [recoveryName, setRecoveryName] = useState('');
                                         </>
                                     )}
                                 </div>
+                            )}
+
+                            {/* Desbloqueio OFFLINE de emergência (sem internet + já logou nesta máquina) */}
+                            {podeDesbloquearOffline && (
+                                <div className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 p-4">
+                                    <div className="flex items-start gap-2.5">
+                                        <WifiOff size={18} className="text-amber-600 shrink-0 mt-0.5" />
+                                        <div>
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-amber-800">
+                                                Sem internet — modo de emergência
+                                            </p>
+                                            <p className="text-[11px] text-amber-700/80 mt-1 leading-relaxed">
+                                                Não é possível autenticar no servidor agora. Se você já fez login neste computador, entra no modo offline com a sua senha de login. As vendas vão para a fila local e sincronizam sozinhas quando a internet voltar.
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="mt-3 flex items-center gap-2">
+                                        <input
+                                            type="password"
+                                            value={offlinePass}
+                                            onChange={(e: any) => setOfflinePass(e.target.value)}
+                                            onKeyDown={(e: any) => { if (e.key === 'Enter') { e.preventDefault(); handleOfflineUnlock(); } }}
+                                            placeholder="Senha de login do administrador"
+                                            autoComplete="current-password"
+                                            className="min-w-0 flex-1 rounded-lg border border-amber-300 bg-white px-3 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-amber-500 focus:outline-none"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={handleOfflineUnlock}
+                                            disabled={isLoading}
+                                            className="flex items-center gap-1.5 rounded-lg bg-amber-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-amber-600 active:scale-95 transition-all cursor-pointer disabled:opacity-60"
+                                        >
+                                            <Unlock size={14} /> Desbloquear
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Dica quando ONLINE: o desbloqueio offline fica disponível se a internet cair */}
+                            {isAdmin && navigator.onLine && hasOfflineCredential() && (
+                                <p className="mt-3 text-[10px] text-slate-400 text-center leading-relaxed">
+                                    Dica: <span className="font-bold">sem internet?</span> dá para entrar no modo de emergência offline usando esta senha de login.
+                                </p>
                             )}
 
                             {/* Main Button */}

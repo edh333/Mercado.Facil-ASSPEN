@@ -2,6 +2,15 @@ import React, { createContext, useContext, useState, useEffect, useMemo, useCall
 import { User, Product, Order, PrisonUnit, UserRole, CartItem, OrderStatus, AppConfig, Supplier, Expense, AuditLog, InmateLocation, SystemMessage, ThemeOption, Message, Notification, WalletTransaction, toUserRole } from '../types';
 import { cleanProductName, normalizeName, stringSimilarity, compressImageFile, fileToBase64, formatarMoeda, getNetworkTime } from '../utils';
 import { listarVendasOffline, salvarVendaOffline, removerVendaOffline, marcarErroVendaOffline, VendaOffline } from '../utils/offlineQueue';
+import {
+    setOfflineCredential as salvarCredencialOffline,
+    verifyOfflinePassword as verificarSenhaOffline,
+    getOfflineCredential as obterCredencialOffline,
+    startOfflineSession as iniciarSessaoOffline,
+    hasActiveOfflineSession as temSessaoOfflineAtiva,
+    getOfflineSession as obterSessaoOffline,
+    clearOfflineSession as limparSessaoOffline,
+} from '../utils/offlineUnlock';
 import { queuePendingUpload, listPendingUploads, removePendingUpload, attachPendingUploadDoc } from '../services/localStorageService';
 import { comprimirImagem } from '../utils/imageCompress';
 import { computeProofMeta, ProofMeta, isProofSuspiciouslySmall } from '../utils/fileHash';
@@ -93,6 +102,9 @@ interface StoreContextType {
     loginFamiliar: (cpf: string, pass: string) => Promise<void>;
     logout: () => Promise<void>;
     isLoggingOut: boolean;
+    tryOfflineUnlock: (pass: string) => Promise<boolean>;
+    isOfflineUnlocked: boolean;
+    logoutOffline: () => void;
     registerUser: (userData: Partial<User>, docFile: File | null) => Promise<{ success: boolean; message: string }>;
     recoverPassword: (identifier: string) => Promise<{ success: boolean; message: string }>;
     validateRecovery: (userCpf: string, prisonerCpf: string, nomeCompleto: string) => Promise<User>;
@@ -259,6 +271,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const [isLoading, setIsLoading] = useState(true);
     const [authReady, setAuthReady] = useState(false);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
+    const [offlineUnlocked, setOfflineUnlocked] = useState(false);
     const [serverTime, setServerTime] = useState<Date>(new Date());
 
     const [users, setUsers] = useState<User[]>([]);
@@ -426,6 +439,8 @@ const [isLoggingOut, setIsLoggingOut] = useState(false);
             setNotifications([]);
             setPreRegisteredInmates([]);
             sessionStorage.clear();
+            limparSessaoOffline();
+            setOfflineUnlocked(false);
             showNotification('Sessão encerrada com segurança.', 'success');
         } catch (error) {
             console.error('Erro ao deslogar:', error);
@@ -434,6 +449,46 @@ const [isLoggingOut, setIsLoggingOut] = useState(false);
             setIsLoggingOut(false);
         }
         if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
+    };
+
+    // ── DESBLOQUEIO OFFLINE DE EMERGÊNCIA ─────────────────────────────────
+    // Sessão sintética de ADMIN usada quando a internet caiu e o Firebase não
+    // pode autenticar: o operador já fez login nesta máquina antes (a senha de
+    // login ficou guardada como hash bcrypt) e desbloqueia o painel com ela.
+    // Vendas caem na fila local (registrarVendaOffline) e sincronizam quando
+    // a rede voltar. Tudo o que exige o servidor simplesmente falha offline.
+    const montarAdminOffline = useCallback((nome: string): User => ({
+        id: 'offline_admin',
+        authUid: 'offline_admin',
+        name: nome || 'Administrador (Offline)',
+        email: '',
+        cpf: '',
+        role: UserRole.ADMIN,
+        status: 'active',
+        approved: true,
+        walletBalance: 0,
+        weeklySpent: 0,
+        permissions: ['all'],
+        offlineBypass: true,
+    }), []);
+
+    const tryOfflineUnlock = async (pass: string): Promise<boolean> => {
+        const ok = await verificarSenhaOffline(pass || '');
+        if (!ok) return false;
+        const cred = obterCredencialOffline();
+        const nome = cred?.name || 'Administrador (Offline)';
+        iniciarSessaoOffline(nome);
+        setOfflineUnlocked(true);
+        setCreditoCliente(0);
+        setCurrentUser(montarAdminOffline(nome));
+        return true;
+    };
+
+    const logoutOffline = () => {
+        limparSessaoOffline();
+        setOfflineUnlocked(false);
+        setCreditoCliente(0);
+        setCurrentUser(null);
     };
 
     const resetInactivityTimer = () => {
@@ -862,6 +917,13 @@ return false;
             } catch (e: any) {
                 throw new Error("E-mail ou senha de administrador incorretos.");
             }
+
+            // Desbloqueio offline de emergência: guarda um hash bcrypt da senha
+            // de LOGIN do admin nesta máquina (nunca a senha em texto). Se a
+            // internet cair depois, o operador entra em modo de emergência.
+            try {
+                await salvarCredencialOffline(info.nome || 'Administrador', pass);
+            } catch (e) { /* sem cache local: segue o login normal */ }
         } catch (e: any) {
             throw new Error(e.message || "Erro ao tentar login administrativo.");
         }
@@ -2388,6 +2450,23 @@ return false;
         const unsub = onAuthStateChanged(auth, async (fbUser) => {
             if (!fbUser) {
                 if (ativo) {
+                    // Desbloqueio offline de emergência: internet caiu e o
+                    // Firebase não tem sessão. Se o operador já desbloqueou o
+                    // modo offline nesta máquina (3h), restaura o ADMIN
+                    // sintético com os DADOS AINDA EM CACHE (produtos, clientes,
+                    // fila de vendas) — o caixa continua vendendo.
+                    if (!navigator.onLine && temSessaoOfflineAtiva()) {
+                        const sessao = obterSessaoOffline();
+                        if (sessao) {
+                            setOfflineUnlocked(true);
+                            setCreditoCliente(0);
+                            setCurrentUser(montarAdminOffline(sessao.name));
+                            setAuthReady(true);
+                            setIsLoading(false);
+                            return;
+                        }
+                    }
+                    setOfflineUnlocked(false);
                     setCurrentUser(null);
                     setCreditoCliente(0);
                     setUsers([]);
@@ -2849,6 +2928,7 @@ if (currentUser?.role !== UserRole.ADMIN && currentUser) {
             validateMasterPassword, validateDualMasterPassword, validateAnyMasterPassword, defineMasterPassword, masterPasswordStatus, addPreRegisteredInmate, updatePreRegisteredInmate, deletePreRegisteredInmate, preRegisteredInmates, refundOrder, estornarPedido, buscarPedidosParaEstorno, importInmatesCsv, updateAdminPassword,
             isInstallable: !!deferredPrompt, installApp,
             isLoggingOut,
+            tryOfflineUnlock, isOfflineUnlocked: offlineUnlocked, logoutOffline,
             mergeDuplicateProducts: async () => {
                 setIsLoading(true);
                 try {
