@@ -8,6 +8,7 @@ dist-ssr
 build
 dist-electron
 portable
+portatil
 release
 *.exe
 *.dll

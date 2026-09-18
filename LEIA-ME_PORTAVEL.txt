@@ -1,23 +1,56 @@
-# INSTRUÇÕES PARA USO VIA PENDRIVE (MODO PORTÁTIL) 🚀
+# INSTRUÇÕES PARA USO VIA PENDRIVE (MODO PORTÁTIL)
 
-Este sistema foi projetado para ser 100% portátil. Para usar em qualquer computador Windows sem instalação:
+Este sistema é 100% portátil: funciona em qualquer computador Windows
+sem instalar nada (usa só o navegador, que já existe no Windows).
 
-1. **Estrutura da Pasta:**
-   - Mantenha a pasta `dist` (que contém o sistema compilado).
-   - O arquivo `start_sistema.bat` deve estar na mesma pasta raiz.
+## Estrutura da pasta
 
-2. **Como Iniciar:**
-   - Dê um clique duplo no arquivo `start_sistema.bat`.
-   - Ele abrirá o navegador automaticamente no sistema Mercado Fácil.
+    portatil\
+      Iniciar-Offline.bat      <- dê DOIS cliques para abrir o sistema
+      servidor-offline.ps1
+      LEIA-ME_PORTAVEL.txt     <- este arquivo
+      dist\                    <- o sistema compilado (não mexa aqui)
 
-3. **Uso Offline:**
-   - Você pode realizar vendas e cadastros mesmo sem internet.
-   - Os dados ficarão salvos no navegador do computador/pendrive.
-   - **IMPORTANTE:** Assim que conectar à internet, abra o sistema para que ele sincronize os dados com a nuvem automaticamente.
+## Como iniciar
 
-4. **Backup:**
-   - Sempre que terminar o dia, vá em **Configurações > Manutenção** e clique em **Backup Completo**.
-   - Salve o arquivo gerado dentro desta pasta no pendrive como garantia extra.
+1. Copie a pasta "portatil" INTEIRA para o pendrive.
+2. No computador da venda, abra o pendrive e dê dois cliques em
+   Iniciar-Offline.bat
+3. O sistema abre no navegador, direto na tela de LOGIN DO ADMIN.
+
+## IMPORTANTE — primeira vez em cada computador
+
+- A PRIMEIRA vez precisa de INTERNET neste computador: entre com o
+  login do administrador e espere os produtos/clientes carregarem.
+  Eles ficam salvos no cache do navegador da MÁQUINA (não no pendrive).
+- Trocou de computador ou de navegador? Precisa de internet de novo,
+  uma única vez, para "ensinar" os dados àquela máquina.
+
+## Sem internet (venda offline)
+
+- Abra pelo Iniciar-Offline.bat e use normalmente.
+- As vendas ficam numa fila local e aparecem no painel como pendentes.
+- PIX com usuário selecionado funciona; FIADO 30 dias precisa de
+  internet (valida a senha mestra no servidor).
+
+## Quando a internet voltar
+
+- O sistema ATUALIZA E SINCRONIZA SOZINHO:
+  * as vendas feitas offline vão para a nuvem (sem duplicar);
+  * produtos, saldos e pedidos novos são baixados automaticamente.
+- Pode deixar o sistema aberto (sincroniza na hora) ou fechar e
+  reabrir depois (sincroniza ao abrir).
+
+## Backup
+
+- Sempre que possível, em Configurações > Manutenção, faça um
+  "Backup Completo" e guarde o arquivo no pendrive como garantia.
+
+## Atualizar o sistema no pendrive
+
+- No computador de origem (onde tem o código), rode criar-portatil.bat
+  e copie a pasta "portatil" de novo para o pendrive, substituindo a
+  antiga. Nunca misture a pasta nova por dentro da antiga no meio.
 
 ---
-*Associação dos Servidores do Sistema Penal de Peixoto de Azevedo / MT - ASSPEN*
+Associação dos Servidores do Sistema Penal de Peixoto de Azevedo / MT - ASSPEN
