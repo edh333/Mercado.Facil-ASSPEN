@@ -126,6 +126,7 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
         { id: 'STOCK_LOW', name: 'Reposição / Inventário', desc: 'Itens abaixo da margem de segurança.', icon: <Package className="text-red-500" size={24}/> },
         { id: 'SALES_BY_CATEGORY', name: 'Vendas por Grupo', desc: 'Desempenho de categorias de produtos.', icon: <RefreshCcw className="text-indigo-500" size={24}/> },
         { id: 'STOCK_ABC', name: 'Curva ABC de Estoque', desc: 'Giro dos produtos e valor do inventário parado para balanço patrimonial.', icon: <PieChart className="text-amber-600" size={24}/> },
+        { id: 'TOP_PRODUCTS', name: 'TOP Produtos (Mais Vendidos)', desc: 'Ranking por quantidade vendida e receita no período — o que mais saiu no caixa.', icon: <TrendingUp className="text-orange-500" size={24}/> },
         { id: 'SALES_CSV', name: 'Movimentação de Vendas', desc: 'CSV/Excel para contador: data, cupom, CPF, pagamento, imposto e valor.', icon: <FileSpreadsheet className="text-green-600" size={24}/> },
       ]
     }

@@ -51,6 +51,7 @@ export {
   buildMonthlyDre,
   buildSalesCsv,
   buildStockAbc,
+  buildTopProducts,
   buildDailySales,
   buildSalesByCategory,
   buildLowStock,

@@ -191,6 +191,57 @@ export const buildStockAbc = (products: any[], orders: any[], startDate: string,
 };
 
 /**
+ * 4.5) RELATÓRIO TOP PRODUTOS — RANKING POR ITEM VENDIDO
+ * Ranking dos produtos mais vendidos (em quantidade de itens) dentro do período,
+ * com receita gerada, participação % e preço médio. Reflete o giro real do item,
+ * vindo dos itens dos pedidos (o mesmo insumo da Curva ABC, só que ranqueado
+ * por qtd vendida ao invés de por receita).
+ * Retorna linhas ordenadas por qtdVendida desc (desempate: receita desc).
+ */
+export const buildTopProducts = (products: any[], orders: any[], startDate: string, endDate: string) => {
+  const validOrders = (orders || [])
+    .filter(o => ehReceita(o.status) &&
+      inRangeContabil(o.date || o.createdAt, startDate, endDate));
+
+  const giroMap = new Map<string, { qtd: number; receita: number }>();
+  for (const o of validOrders) {
+    for (const it of (o.items || [])) {
+      const pid = String(it.productId);
+      const qtd = Number(it.quantity) || 0;
+      const atual = giroMap.get(pid) || { qtd: 0, receita: 0 };
+      atual.qtd += qtd;
+      atual.receita += qtd * (Number(it.price || it.priceAtPurchase) || 0);
+      giroMap.set(pid, atual);
+    }
+  }
+
+  const linhas = (products || [])
+    .map((p: any) => {
+      const giro = giroMap.get(String(p.id)) || { qtd: 0, receita: 0 };
+      return {
+        id: String(p.id),
+        name: p.name || 'Produto',
+        categoria: String(p.category || 'DIVERSOS').toUpperCase(),
+        qtdVendida: giro.qtd,
+        receita: giro.receita,
+        precoMedio: giro.qtd > 0 ? giro.receita / giro.qtd : 0
+      };
+    })
+    .filter(l => l.qtdVendida > 0)
+    .sort((a, b) => b.qtdVendida - a.qtdVendida || b.receita - a.receita);
+
+    const totalItens = linhas.reduce((s, l) => s + l.qtdVendida, 0);
+    const totalReceita = linhas.reduce((s, l) => s + l.receita, 0);
+
+    return {
+        linhas,
+    totalItens,
+    totalReceita,
+    totalProdutos: linhas.length
+  };
+};
+
+/**
  * 4) RELATÓRIO DE VENDAS DIÁRIAS — detalhado, por dia do período
  * consolida, por data, nº de vendas, itens vendidos, faturamento e ticket médio.
  */

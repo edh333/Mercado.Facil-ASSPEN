@@ -6,7 +6,7 @@ import { isAdminRole, formatarMoeda } from '../../utils';
 import { formatBRL } from '../../utils/money';
 import { toDate } from '../../utils/dateUtils';
 import { getLocalDateStr, ehReceita } from './adminUtils';
-import { buildMonthlyDre, buildSalesCsv, buildStockAbc, buildDailySales, buildSalesByCategory, buildLowStock, buildProductsCatalog, buildExtratoIndividual } from '../../context/StoreContext';
+import { buildMonthlyDre, buildSalesCsv, buildStockAbc, buildTopProducts, buildDailySales, buildSalesByCategory, buildLowStock, buildProductsCatalog, buildExtratoIndividual } from '../../context/StoreContext';
 
 const PAYMENT_LABELS: Record<string, string> = {
     PIX: 'PIX',
@@ -174,6 +174,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
             'DRE_MONTHLY': 'Fechamento de Caixa Mensal (DRE Simplificado)',
             'SALES_CSV': 'Arquivo de Movimentação de Vendas (CSV/Excel)',
             'STOCK_ABC': 'Curva ABC de Estoque',
+            'TOP_PRODUCTS': 'TOP Produtos (Mais Vendidos)',
             'DAILY_CLOSING': 'Fechamento do Dia (Conferência de Caixa)',
             'VENDAS_DIARIAS': 'Vendas Diárias Detalhado'
         };
@@ -192,6 +193,10 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
 
         const stockAbc = config?.type === 'STOCK_ABC'
             ? buildStockAbc(products, orders, startDateStr, endDateStr)
+            : null;
+
+        const topProducts = config?.type === 'TOP_PRODUCTS'
+            ? buildTopProducts(products, orders, startDateStr, endDateStr)
             : null;
 
         const dailySales = config?.type === 'VENDAS_DIARIAS'
@@ -226,6 +231,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
             dre,
             salesCsv,
             stockAbc,
+            topProducts,
             dailyClosing,
             dailySales,
             salesByCategory,
@@ -577,6 +583,75 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                 <p className="text-[9px] text-[var(--text-muted)] text-center uppercase font-black tracking-widest opacity-60">
                     Critério: A ≤ 80% do faturamento · B ≤ 95% · C restante. Inventário valorizado a custo para balanço patrimonial.
                 </p>
+            </div>
+        );
+    };
+
+    const renderTopProducts = () => {
+        const tp = report.topProducts;
+        if (!tp) return null;
+        const medalha = (pos: number) =>
+            pos === 1 ? 'bg-amber-500/15 text-amber-600 border-amber-500/40'
+            : pos === 2 ? 'bg-slate-400/15 text-slate-500 border-slate-400/40'
+            : pos === 3 ? 'bg-orange-700/15 text-orange-700 border-orange-700/40'
+            : 'bg-[var(--bg-main)]/50 text-[var(--text-muted)] border-[var(--border-color)]';
+        return (
+            <div className="space-y-6 animate-fadeIn">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="bg-emerald-600 p-5 rounded-2xl border border-emerald-500/20">
+                        <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Receita Gerada (TOP)</p>
+                        <p className="text-xl font-black text-emerald-600">R$ {tp.totalReceita.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                    </div>
+                    <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
+                        <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Itens Vendidos (Total)</p>
+                        <p className="text-xl font-black text-[var(--text-main)]">{tp.totalItens}</p>
+                    </div>
+                    <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
+                        <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Produtos no Ranking</p>
+                        <p className="text-xl font-black text-[var(--text-main)]">{tp.totalProdutos}</p>
+                    </div>
+                </div>
+
+                <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[2.5rem] overflow-hidden shadow-xl">
+                    <div className="p-6 border-b border-[var(--border-color)] bg-[var(--bg-main)]/30 flex items-center justify-between">
+                        <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--text-muted)] flex items-center gap-2">
+                            <TrendingUp size={16} className="text-orange-500"/> Ranking por Quantidade Vendida
+                        </h4>
+                        <span className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest">{tp.linhas.length} posições</span>
+                    </div>
+                    <div className="max-h-[45vh] overflow-y-auto custom-scrollbar">
+                        <table className="w-full text-left">
+                            <thead className="bg-[var(--bg-main)]/50 sticky top-0 z-10">
+                                <tr>
+                                    <th className="p-4 text-[9px] font-black uppercase tracking-widest text-[var(--text-muted)] w-10">#</th>
+                                    <th className="p-4">Produto</th>
+                                    <th className="p-4 text-right">Qtd Vendida</th>
+                                    <th className="p-4 text-right">Receita</th>
+                                    <th className="p-4 text-right">Preço Médio</th>
+                                    <th className="p-4 text-right">Estoque</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-[var(--border-color)] bg-[var(--bg-card)]">
+                                {tp.linhas.length === 0 ? (
+                                    <tr><td colSpan={6} className="p-20 text-center font-black uppercase text-xs opacity-30">Nenhum produto com venda no período.</td></tr>
+                                ) : tp.linhas.map((l: any, idx: number) => (
+                                    <tr key={idx} className="hover:bg-[var(--bg-main)]/30 transition-all">
+                                        <td className="p-4">
+                                            <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-[10px] font-black border ${medalha(idx + 1)}`}>{idx + 1}</span>
+                                        </td>
+                                        <td className="p-4">
+                                            <p className="text-[11px] font-black uppercase text-[var(--text-main)] tracking-tight max-w-[220px] truncate">{l.name}</p>
+                                        </td>
+                                        <td className="p-4 text-right text-[11px] font-black text-[var(--text-main)]">{l.qtdVendida}</td>
+                                        <td className="p-4 text-right text-[11px] font-black text-emerald-600">R$ {l.receita.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                        <td className="p-4 text-right text-[11px] font-black text-[var(--text-main)]">R$ {l.precoMedio.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                        <td className="p-4 text-right text-[11px] font-black text-[var(--text-muted)]">{l.estoque}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         );
     };
@@ -1211,6 +1286,13 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
             cabecalhoRow = '<th>Produto</th><th style="text-align:center;">Qtd Vendida</th><th style="text-align:right;">Receita</th><th style="text-align:right;">% Acum.</th><th style="text-align:center;">Estoque</th><th style="text-align:center;">Classe</th>';
             linhas = abc.linhas.map((l: any) => `<tr><td style="font-weight:700;">${esc(l.name)}</td><td style="text-align:center;">${l.qtdVendida}</td><td style="text-align:right;font-weight:700;color:#059669;">R$ ${l.receita.toFixed(2)}</td><td style="text-align:right;">${l.acumuladoPct.toFixed(1)}%</td><td style="text-align:center;">${l.estoque}</td><td style="text-align:center;font-weight:800;color:${l.classe === 'A' ? '#059669' : l.classe === 'B' ? '#d97706' : '#ef4444'};">${l.classe}</td></tr>`);
             rodapeHtml = `<tr><td style="font-weight:800;">TOTAL (${abc.qtdProdutosTotais} produtos)</td><td></td><td style="text-align:right;font-weight:800;color:#059669;">R$ ${abc.totalReceita.toFixed(2)}</td><td></td><td></td><td></td></tr>`;
+        } else if (report.type === 'TOP_PRODUCTS') {
+            const tp = report.topProducts;
+            if (!tp) return;
+            titulo = 'TOP Produtos (Mais Vendidos)';
+            cabecalhoRow = '<th>#</th><th>Produto</th><th style="text-align:center;">Qtd Vendida</th><th style="text-align:right;">Receita</th><th style="text-align:right;">Preço Médio</th><th style="text-align:right;">Estoque</th>';
+            linhas = tp.linhas.map((l: any, idx: number) => `<tr><td style="text-align:center;font-weight:800;color:#d97706;">${idx + 1}</td><td style="font-weight:700;">${esc(l.name)}</td><td style="text-align:center;">${l.qtdVendida}</td><td style="text-align:right;font-weight:700;color:#059669;">R$ ${l.receita.toFixed(2)}</td><td style="text-align:right;">R$ ${l.precoMedio.toFixed(2)}</td><td style="text-align:right;">${l.estoque}</td></tr>`);
+            rodapeHtml = `<tr><td></td><td style="font-weight:800;">TOTAL (${tp.totalProdutos} produtos)</td><td style="text-align:center;font-weight:800;">${tp.totalItens}</td><td style="text-align:right;font-weight:800;color:#059669;">R$ ${tp.totalReceita.toFixed(2)}</td><td></td><td></td></tr>`;
         } else if (report.type === 'SALES_CSV') {
             const csv = report.salesCsv;
             if (!csv) return;
@@ -1353,6 +1435,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                         {report.type === 'DRE_MONTHLY' && renderDre()}
                         {report.type === 'SALES_CSV' && renderSalesCsv()}
                         {report.type === 'STOCK_ABC' && renderStockAbc()}
+                        {report.type === 'TOP_PRODUCTS' && renderTopProducts()}
                         {report.type === 'DAILY_CLOSING' && renderDailyClosing()}
                     </div>
                 </div>
@@ -1389,7 +1472,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                                 printDailyClosing();
                                 return;
                             }
-                            if (report.type === 'VENDAS_DIARIAS' || report.type === 'COLLECTIVE_PURCHASES' || report.type === 'SALES_BY_CATEGORY' || report.type === 'STOCK_LOW' || report.type === 'PRODUCTS_ALL' || report.type === 'INDIVIDUAL' || report.type === 'DRE_MONTHLY' || report.type === 'STOCK_ABC' || report.type === 'SALES_CSV' || report.type === 'GENERAL' || report.type === 'FINANCIAL' || report.type === 'ACCOUNTABILITY') {
+                            if (report.type === 'VENDAS_DIARIAS' || report.type === 'COLLECTIVE_PURCHASES' || report.type === 'SALES_BY_CATEGORY' || report.type === 'STOCK_LOW' || report.type === 'PRODUCTS_ALL' || report.type === 'INDIVIDUAL' || report.type === 'DRE_MONTHLY' || report.type === 'STOCK_ABC' || report.type === 'TOP_PRODUCTS' || report.type === 'SALES_CSV' || report.type === 'GENERAL' || report.type === 'FINANCIAL' || report.type === 'ACCOUNTABILITY') {
                                 printTabelaProfissional();
                                 return;
                             }
