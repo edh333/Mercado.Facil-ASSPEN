@@ -1,9 +1,9 @@
 import React from 'react';
 import { ehReceita } from './adminUtils';
 import {
-  Users, Package, ShoppingCart, DollarSign, ArrowDownCircle,
-  RefreshCw, MinusCircle, LayoutDashboard, Zap, Phone, ArrowRight,
-  AlertTriangle, BarChart3, TrendingUp, Award, PackageX, Plus, Banknote, Printer
+  Users, ShoppingCart, DollarSign, ArrowDownCircle,
+  Zap, ArrowRight,
+  BarChart3, TrendingUp, Award, PackageX, Plus, Banknote, Printer
 } from 'lucide-react';
 import { OrderStatus, WalletTransaction } from '../../types';
 import { ChartMount } from '../ui/ChartMount';
@@ -18,7 +18,6 @@ interface AdminHomeTabProps {
     totalOut: number;
     pendingOrders: number;
     pendingDeposits: number;
-    activeUsers: number;
     salesTotal: number;
     ordersCount: number;
     pendingUsersCount: number;
@@ -27,21 +26,18 @@ interface AdminHomeTabProps {
   isMaster: boolean;
   setActiveTab: (tab: string) => void;
   setShowProductModal: (show: boolean) => void;
-  setOrderStatusFilter: (filter: string) => void;
   filterType: string;
   orders: any[];
   products?: any[];
   walletTx: WalletTransaction[];
-  approveWalletTransaction: (id: string) => Promise<void>;
-  rejectWalletTransaction: (id: string) => Promise<void>;
   onSelectTransaction: (tx: WalletTransaction) => void;
   onOpenSales: () => void;
   onOpenShortcuts?: () => void;
 }
 
 export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
-  stats, chartData, isMaster, setActiveTab, setShowProductModal, setOrderStatusFilter, filterType, orders,
-  products = [],   walletTx, approveWalletTransaction, rejectWalletTransaction, onSelectTransaction, onOpenSales, onOpenShortcuts
+  stats, chartData, isMaster, setActiveTab, setShowProductModal, filterType, orders,
+  products = [], walletTx, onSelectTransaction, onOpenSales, onOpenShortcuts
 }) => {
   const { colors } = useTheme();
 
@@ -99,10 +95,12 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
     return { rows: Object.entries(map).map(([k, v]) => ({ method: k, ...v })).sort((a, b) => b.amount - a.amount), total };
   }, [orders]);
 
+  const pendingTx = (walletTx || []).filter(tx => tx.status === 'pending');
+
   return (
     <div className="space-y-3.5 animate-slideUp pb-20">
       {/* BARRA DE ATALHOS RÁPIDOS OPERACIONAIS */}
-      <div className="flex flex-wrap items-center gap-2.5 bg-white rounded-2xl border border-slate-200 p-3 shadow-sm">
+      <div className="flex flex-wrap items-center gap-2.5 bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] p-3 shadow-sm">
         <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mr-1"><Zap size={10} className="inline-block mr-1 -mt-0.5 text-amber-500" />Ações Rápidas</span>
         <button
           onClick={onOpenSales}
@@ -133,7 +131,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
       </div>
 
       {/* RESUMO DO DIA — VENDAS POR FORMA DE PAGAMENTO */}
-      <div className="flex flex-wrap items-center gap-2.5 bg-white rounded-2xl border border-slate-200 p-3 shadow-sm">
+      <div className="flex flex-wrap items-center gap-2.5 bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] p-3 shadow-sm">
         <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mr-1"><TrendingUp size={10} className="inline-block mr-1 -mt-0.5 text-emerald-500" />Vendas de Hoje</span>
         {todayPayments.rows.length === 0 ? (
           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Nenhuma venda registrada ainda</span>
@@ -265,9 +263,9 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
                   dataKey="vendas"
                   fill="url(#colorSales)"
                   radius={[4, 4, 0, 0]}
-                  barSize={isMaster ? 60 : 40}
+                  barSize={60}
                 />
-</BarChart>
+              </BarChart>
               </ResponsiveContainer>
             </ChartMount>
           </div>
@@ -275,7 +273,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
 
       {/* Critical Stock Alert - Compact Card */}
       {(criticalStock.length > 0 || zeroStock > 0) && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center gap-4 shadow-sm">
+        <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl p-5 flex items-center gap-4 shadow-sm">
           <div className="p-3 bg-red-50 rounded-xl text-red-600 shrink-0"><PackageX size={20}/></div>
           <div className="flex-1 min-w-0">
             <p className="font-black text-slate-900 text-sm uppercase tracking-tight">Alerta de Estoque</p>
@@ -311,11 +309,11 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
                 <p className="text-sm font-medium text-[var(--text-muted)] mt-1">Aprove ou rejeite aportes de crédito de familiares</p>
             </div>
             <div className="bg-[var(--primary-color)] text-white px-6 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg animate-pulse flex items-center gap-2">
-              <Zap size={14}/> {(walletTx || []).filter(tx => tx.status === 'pending').length} AGUARDANDO
+              <Zap size={14}/> {pendingTx.length} AGUARDANDO
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5 relative z-10">
-            {(walletTx || []).filter(tx => tx.status === 'pending').slice(0, 6).map((tx) => (
+            {pendingTx.slice(0, 6).map((tx) => (
               <div
                 key={tx.id}
                 onClick={() => (onSelectTransaction as any)(tx)}
@@ -340,12 +338,12 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
                     </div>
                   </div>
                 </div>
-                <div className="mt-4 py-3 bg-[var(--primary-color)] rounded-2xl text-white text-[9px] font-black uppercase flex items-center justify-center gap-2 opacity-70 group-hover:opacity-100 translate-y-0 group-hover:translate-y-0 transition-all shadow-lg">
+                <div className="mt-4 py-3 bg-[var(--primary-color)] rounded-2xl text-white text-[9px] font-black uppercase flex items-center justify-center gap-2 opacity-70 group-hover:opacity-100 transition-all shadow-lg">
                    Validar Agora <ArrowRight size={12}/>
                 </div>
               </div>
             ))}
-            {(walletTx || []).filter(tx => tx.status === 'pending').length === 0 && (
+            {pendingTx.length === 0 && (
               <div className="col-span-full py-20 text-center bg-[var(--bg-main)] rounded-[3rem] border-4 border-dashed border-[var(--border-color)]">
                 <div className="w-24 h-24 bg-[var(--bg-card)] rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl text-[var(--text-muted)]">
                     <ArrowDownCircle size={48}/>
@@ -354,7 +352,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
               </div>
             )}
           </div>
-          {(walletTx || []).filter(tx => tx.status === 'pending').length > 6 && (
+          {pendingTx.length > 6 && (
             <button onClick={() => setActiveTab('wallet')} className="w-full mt-10 py-5 bg-[var(--text-main)] text-[var(--bg-card)] rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.3em] hover:opacity-90 transition-all shadow-2xl active:scale-95">
               Ver Todas as Pendências Financeiras
             </button>

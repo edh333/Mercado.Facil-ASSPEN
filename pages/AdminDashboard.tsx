@@ -896,13 +896,10 @@ export function AdminDashboard() {
                     isMaster={isMaster}
                     setActiveTab={setActiveTab}
                     setShowProductModal={setShowProductModal}
-                    setOrderStatusFilter={setOrderStatusFilter}
                     filterType="day"
                     orders={orders}
                     products={products}
                     walletTx={walletTx}
-                    approveWalletTransaction={approveWalletTransaction}
-                    rejectWalletTransaction={rejectWalletTransaction}
                     onSelectTransaction={setSelectedWalletTx}
                     onOpenSales={() => setShowSalesModal(true)}
                     onOpenShortcuts={() => setShowShortcutsModal(true)}
