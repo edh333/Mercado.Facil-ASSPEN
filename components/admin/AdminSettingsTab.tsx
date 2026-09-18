@@ -898,7 +898,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                     <p className="text-[10px] text-slate-500">Habilitar carteira e compras via saldo</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" className="sr-only peer" checked={settings?.allow_balance_purchases !== false} onChange={e => updateSettings({ ...settings, allow_balance_purchases: e.target.checked, enablePrisonerWallet: e.target.checked })} />
+                    <input type="checkbox" className="sr-only peer" aria-label="Carteira do Interno / Saldo" checked={settings?.allow_balance_purchases !== false} onChange={e => updateSettings({ ...settings, allow_balance_purchases: e.target.checked, enablePrisonerWallet: e.target.checked })} />
                     <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
                   </label>
                 </div>
@@ -908,7 +908,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                     <p className="text-[10px] text-slate-500">Exigir pagamento PIX para usuários</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" className="sr-only peer" checked={!!settings?.forcePixOnlyUsers} onChange={e => updateSettings({ ...settings, forcePixOnlyUsers: e.target.checked })} />
+                    <input type="checkbox" className="sr-only peer" aria-label="Forçar PIX para todos os usuários" checked={!!settings?.forcePixOnlyUsers} onChange={e => updateSettings({ ...settings, forcePixOnlyUsers: e.target.checked })} />
                     <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
                   </label>
                 </div>
@@ -918,7 +918,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                     <p className="text-[10px] text-slate-500">Permitir que usuários FAMILY vejam a loja</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" className="sr-only peer" checked={settings?.allow_user_purchases !== false} onChange={e => updateSettings({ ...settings, allow_user_purchases: e.target.checked })} />
+                    <input type="checkbox" className="sr-only peer" aria-label="Permitir compras" checked={settings?.allow_user_purchases !== false} onChange={e => updateSettings({ ...settings, allow_user_purchases: e.target.checked })} />
                     <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
                   </label>
                 </div>
