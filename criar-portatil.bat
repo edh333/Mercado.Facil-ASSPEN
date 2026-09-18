@@ -35,18 +35,29 @@ if errorlevel 1 (
     exit /b 1
 )
 
-rem --- [2] Build de producao (gera a pasta build/) ---
-echo   [1/3] Build de producao...
+rem --- [2] Build de producao (gera a pasta build/ para a web) ---
+echo   [1/3] Build de producao (web)...
+
+rem ATENCAO: o bundle web (build/) usa caminhos ABSOLUTOS (/assets/...) que
+rem sao obrigatorios no FireHosting, porem QUEBRAM o app desktop (Electron
+rem carrega por file:// -> tela em branco). Por isso o pacote portatil usa o
+rem bundle RELATIVO do Electron (dist/), gerado pelo build:electron abaixo.
 call npm run build
 if errorlevel 1 goto :erro
 
+rem --- [2.5] Bundle relativo (file://-safe) para o Electron E o portatil ---
+echo   [2/3] Bundle Electron/carregavel offline (caminhos relativos)...
+call npm run build:electron
+if errorlevel 1 goto :erro
+
 rem --- [3] Monta a pasta portatil ---
-echo   [2/3] Montando a pasta portatil...
+echo   Montando a pasta portatil...
 if exist "portatil" rmdir /s /q "portatil"
 mkdir "portatil" >nul
 
-rem Copia o build atual para a pasta dist (dentro do pacote)
-robocopy "build" "portatil\dist" /MIR /NFL /NDL /NJH /NJS /NC /NS >nul
+rem Copia o bundle relativo do Electron (funciona tanto por file:// quanto
+rem pelo servidor offline em http://localhost:8080)
+robocopy "dist" "portatil\dist" /MIR /NFL /NDL /NJH /NJS /NC /NS >nul
 if errorlevel 8 goto :erro
 
 rem Copia os launchers e as instrucoes
@@ -54,10 +65,8 @@ copy /y "Iniciar-Offline.bat" "portatil\" >nul
 copy /y "servidor-offline.ps1" "portatil\" >nul
 copy /y "LEIA-ME_PORTAVEL.txt" "portatil\" >nul
 
-rem --- [4] Tambem atualiza a pasta dist local (usada pelo Iniciar-Offline.bat daqui) ---
-echo   [3/3] Atualizando a pasta dist local...
-robocopy "build" "dist" /MIR /NFL /NDL /NJH /NJS /NC /NS >nul
-if errorlevel 8 goto :erro
+rem --- [4] Fim ---
+echo   [3/3] Concluido. (A pasta dist local ja e o bundle relativo.)
 
 echo.
 echo   ==================================================

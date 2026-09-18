@@ -134,6 +134,15 @@ function createWindow() {
     carregarWebFallback();
   });
 
+  // Renderer morreu (OOM, crash de GPU, chunk corrompido): nunca deixar a
+  // janela em branco — recarrega pela web. O usuário também pode clicar em
+  // Ctrl+R para tentar de novo o bundle local.
+  win.webContents.on('render-process-gone', (_e, details) => {
+    console.error('[main] Renderer terminou inesperadamente:', details?.reason);
+    if (win.isDestroyed()) return;
+    carregarWebFallback();
+  });
+
   let localTentado = false;
   win.webContents.once('did-finish-load', () => {
     if (win.isDestroyed()) return;

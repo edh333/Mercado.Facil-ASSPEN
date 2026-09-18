@@ -38,12 +38,37 @@ const rodar = (cmd, argsList) => {
   }
 };
 
-console.log('[build-exe] Gerando bundle web em dist/ (para o Electron)...');
+console.log('[build-exe] Gerando bundle Electron em dist/ (caminhos RELATIVOS — obrigatório no file://)...');
 // base='./' é obrigatório no Electron: o app carrega dist/index.html pelo
 // protocolo file:// (win.loadFile). Com o padrão '/', o /assets/index-*.js
 // resolveria para file:///C:/assets/... (raiz do disco) e a janela abre em
 // BRANCO. Caminhos relativos fazem os chunks e o CSS carregarem do asar.
-rodar(process.platform === 'win32' ? 'npx.cmd' : 'npx', ['vite', 'build', '--outDir', 'dist', '--base=./']);
+//
+// Não usar "npm run build" aqui: a pasta build/ (web) usa base '/', que é
+// OBRIGATÓRIO no FireHosting mas QUEBRA o app desktop. O script build:electron
+// garante base './' sem depender do ordem em que as pastas são geradas.
+rodar(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'build:electron']);
+
+// Guarda contra regressão: o "criar-portatil.bat" (e qualquer robocopy de
+// build/ -> dist/) sobrescreve dist/ com o bundle ABSOLUTO da web e o EXE
+// volta a abrir em branco. Verifica aqui e para o build se isso acontecer.
+{
+  const indexPath = path.join(root, 'dist', 'index.html');
+  if (!fs.existsSync(indexPath)) {
+    console.error('[build-exe] ERRO: dist/index.html não foi gerado pelo Vite.');
+    process.exit(1);
+  }
+  const html = fs.readFileSync(indexPath, 'utf-8');
+  // Caminho ABSOLUTO = <src|href>="/assets/... OU /qz-tray.js (sem o "./").
+  // No padrão file:// isso quebra o carregamento e a janela abre em branco.
+  const absolutos = html.match(/(?:src|href)="\/(?:assets|qz-tray)-?[^"]*"/g) || [];
+  if (absolutos.length > 0) {
+    console.error('[build-exe] ERRO: dist/index.html tem caminho(s) ABSOLUTO(S):', absolutos.join(', '));
+    console.error('dist/ foi sobrescrito com o bundle web (build/). O Electron abriria em BRANCO. Rode de novo: npm run build:electron');
+    process.exit(1);
+  }
+  console.log('[build-exe] OK — bundle Electron com caminhos relativos (seguro para o file://).');
+}
 
 const modos = soUsuario ? ['user'] : soAdmin ? ['admin'] : ['user', 'admin'];
 
