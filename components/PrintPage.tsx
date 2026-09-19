@@ -45,17 +45,40 @@ export const PrintPage: React.FC = () => {
         if (timerRef.current) clearTimeout(timerRef.current);
         if (dialogTimerRef.current) clearTimeout(dialogTimerRef.current);
         try {
-            const data = localStorage.getItem('printItem');
-            const settings = localStorage.getItem('appSettings');
-
-            if (!data) {
-                setError('Nenhum dado de impressão encontrado. Feche esta janela e tente novamente.');
-                setStatus('error');
-                return () => { mounted = false; };
+            // Payload veiculado (?d=base64) — preferencial no Electron (file://),
+            // onde o localStorage entre janelas não é confiável.
+            const dadosUrl = new URLSearchParams(window.location.search).get('d') || '';
+            let itemValido: any = null;
+            let configValida: any = {};
+            if (dadosUrl) {
+                try {
+                    const base64 = decodeURIComponent(dadosUrl);
+                    const binario = typeof atob === 'function' ? atob(base64) : '';
+                    const u8 = Uint8Array.from(binario, (c) => c.charCodeAt(0));
+                    const texto = new TextDecoder().decode(u8);
+                    const payload = JSON.parse(texto);
+                    if (payload?.item) {
+                        itemValido = payload.item;
+                        configValida = payload.config || {};
+                    }
+                } catch { /* payload inválido — cai no localStorage */ }
             }
 
-            const parsedItem = JSON.parse(data);
-            const parsedSettings = settings ? JSON.parse(settings) : {};
+            // Fallback: dados publicados no localStorage pelo app (janelas web).
+            if (!itemValido) {
+                const data = localStorage.getItem('printItem');
+                const settings = localStorage.getItem('appSettings');
+                if (!data) {
+                    setError('Nenhum dado de impressão encontrado. Feche esta janela e tente novamente.');
+                    setStatus('error');
+                    return () => { mounted = false; };
+                }
+                itemValido = JSON.parse(data);
+                configValida = settings ? JSON.parse(settings) : {};
+            }
+
+            const parsedItem = itemValido;
+            const parsedSettings = configValida;
 
             if (!parsedItem || !parsedItem.type || !parsedItem.data) {
                 setError('Dados de impressão inválidos ou incompletos.');
@@ -198,7 +221,7 @@ export const PrintPage: React.FC = () => {
     useEffect(() => {
         if (status === 'fiscal' && closeCountdown === 0 && !autoCloseCancelado) {
             closedRef.current = true;
-            try { window.close(); } catch { /* noop */ }
+            fecharJanela();
         }
     }, [status, closeCountdown, autoCloseCancelado]);
 
@@ -247,6 +270,17 @@ export const PrintPage: React.FC = () => {
 
     const handleClose = () => {
         closedRef.current = true;
+        fecharJanela();
+    };
+
+    // Fecha a janela de forma controlada: no Electron, a janela /print é criada
+    // pelo main (deny no window.open), então window.close() do renderer não age —
+    // usa o IPC close-print-window; no navegador usa window.close() normal.
+    const fecharJanela = () => {
+        const api = (window as any).electronAPI;
+        if (api?.closeWindow) {
+            try { api.closeWindow(); return; } catch { /* noop */ }
+        }
         try { window.close(); } catch { /* noop */ }
     };
 
@@ -301,6 +335,11 @@ export const PrintPage: React.FC = () => {
     return (
         <>
             <style>{`
+                /* Tela: documento A4 com aparência de PAPEL (proporção 210x297mm),
+                   centralizado — elimina o "vazio cinza" desproporcional ao redor. */
+                .a4-sheet { width: 794px; max-width: 100%; }
+            `}</style>
+            <style>{`
                 @media print {
                     @page { size: ${isCupom ? '76mm auto' : 'A4'}; margin: ${isCupom ? '0' : '10mm'}; }
                     html, body { height: auto !important; overflow: visible !important; }
@@ -308,7 +347,7 @@ export const PrintPage: React.FC = () => {
                     body { margin: 0; padding: 0; background: white !important; }
                     .print-header, .print-toolbar { display: none !important; }
                     .print-preview { display: block !important; background: white !important; padding: 0 !important; margin: 0 !important; overflow: visible !important; height: auto !important; max-height: none !important; }
-                    .print-preview > div { max-width: none !important; width: 100% !important; padding: 0 !important; margin: 0 !important; box-shadow: none !important; border-radius: 0 !important; --tw-ring-shadow: 0 0 #0000 !important; }
+                    .print-preview > div { max-width: none !important; width: 100% !important; min-height: 0 !important; padding: 0 !important; margin: 0 !important; box-shadow: none !important; border-radius: 0 !important; --tw-ring-shadow: 0 0 #0000 !important; }
                     .thermal-card { width: 76mm !important; max-width: 76mm !important; margin: 0 auto !important; padding: 2mm 1mm !important; box-sizing: border-box !important; box-shadow: none !important; border: none !important; border-radius: 0 !important; }
                     .print-avoid-break { break-inside: avoid !important; page-break-inside: avoid !important; }
                     /* Impressão FIEL às cores: mantém texto branco em caixas escuras
@@ -359,9 +398,9 @@ export const PrintPage: React.FC = () => {
                     </div>
                 )}
 
-                {/* Preview */}
-                <main className="print-preview flex-1 flex items-start justify-center px-4 py-8 overflow-y-auto">
-                    <div className={`${isCupom ? 'thermal-card' : 'w-full max-w-4xl'} bg-white rounded-2xl shadow-2xl ring-1 ring-slate-200/60 p-6`}>
+                {/* Preview — A4 vira "papel" centralizado; cupom térmico fica estreito e limpo */}
+                <main className="print-preview flex-1 flex items-start justify-center px-4 py-8 overflow-y-auto bg-slate-200/40">
+                    <div className={`${isCupom ? 'thermal-card' : 'a4-sheet'} bg-white rounded-2xl shadow-2xl ring-1 ring-slate-200/60 p-6`}>
                         {type === 'RECIBO' && item?.data && (
                             <ReciboA4
                                 data={item.data}

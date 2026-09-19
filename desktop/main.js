@@ -1,7 +1,8 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, screen } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const https = require('https');
+const { pathToFileURL } = require('url');
 
 // Modo do app definido no momento do build:
 //   APP_MODE=user  → Mercado Fácil - Usuário (compras dos familiares)
@@ -96,10 +97,67 @@ if (app.isPackaged) {
   app.setPath('userData', portablePath);
 }
 
+// Cria (ou garante) o atalho do app na Área de Trabalho do Windows.
+// O alvo é PORTABLE — o instalador Windows não usa MSI/NSIS, então NENHUM
+// atalho é criado sozinho (bug reportado: "o app admin não criou ícone").
+// Ícone: tenta o embutido no asar; senão usa o próprio .exe (sempre tem ícone).
+function criarAtalhoDesktop() {
+  const { execFileSync } = require('child_process');
+  const desktopPath = path.join(require('os').homedir(), 'Desktop');
+  const exeDir = path.dirname(process.execPath);
+  const iconEmbarcado = path.join(exeDir, 'resources', 'app.asar.unpacked', 'public', 'logo.png');
+  const iconPath = fs.existsSync(iconEmbarcado) ? iconEmbarcado : process.execPath;
+  const shortcutPath = path.join(desktopPath, `${APP_TITLE}.lnk`);
+  const psScript = `
+    $WS = New-Object -ComObject WScript.Shell;
+    $SC = $WS.CreateShortcut($args[0]);
+    $SC.TargetPath = $args[1];
+    $SC.IconLocation = $args[2];
+    $SC.Save();
+  `;
+  // execFileSync SEM shell: nenhum caractere (aspas, $(), crases) do caminho
+  // é interpretado por um shell — impossível injeção de comando.
+  execFileSync(
+    'powershell.exe',
+    ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', psScript, shortcutPath, process.execPath, iconPath],
+    { timeout: 10000 }
+  );
+  return shortcutPath;
+}
+
+// Atalho automático na PRIMEIRA execução de cada versão instalada: depois de
+// instalar o app, o operador já tem o ícone na Área de Trabalho para abrir.
+// O marcador ("atalho-{versao}.ok") fica na pasta de dados do próprio app:
+// nova versão → novo marcador → atalho recriado apontando para o exe novo.
+function criarAtalhoSeNecessario() {
+  if (!app.isPackaged) return;
+  try {
+    const marcador = path.join(app.getPath('userData'), `atalho-${app.getVersion()}.ok`);
+    if (fs.existsSync(marcador)) return;
+    criarAtalhoDesktop();
+    fs.writeFileSync(marcador, new Date().toISOString());
+  } catch (e) {
+    console.error('[main] Não foi possível criar o atalho automático:', e?.message || e);
+  }
+}
+
 function createWindow() {
+  // Janela bem ajustada ao monitor do PDV: nunca maior que a área de trabalho
+  // disponível, sem estourar telas menores (alguns computadores são 1366x768
+  // ou 1024x768). Tamanho de conteúdo, centralizada e com fundo escuro para
+  // evitar o "flash branco" antes do React montar.
+  const wa = screen.getPrimaryDisplay().workAreaSize;
+  const width = Math.min(1280, Math.max(800, wa.width));
+  const height = Math.min(800, Math.max(620, wa.height));
   const win = new BrowserWindow({
-    width: 1280,
-    height: 800,
+    width,
+    height,
+    minWidth: Math.min(1024, wa.width),
+    minHeight: Math.min(660, wa.height),
+    useContentSize: true,
+    center: true,
+    show: false,
+    backgroundColor: '#0f172a',
     title: APP_TITLE,
     icon: path.join(__dirname, '../public/logo.png'),
     webPreferences: {
@@ -109,6 +167,10 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true
     }
+  });
+
+  win.once('ready-to-show', () => {
+    if (!win.isDestroyed()) win.show();
   });
 
   // ── ANTI-TELA-EM-BRANCO ──────────────────────────────────────────────
@@ -180,11 +242,62 @@ function createWindow() {
 
   // Remove menu padrão para parecer app nativo
   win.setMenuBarVisibility(false);
+
+  // ── POPUPS PROFISSIONAIS ─────────────────────────────────────────────
+  // O que abre em popup dentro do app:
+  //  1) Janela de impressão /print → janela dedicada, do tamanho do papel,
+  //     sem menu, com o bundle real do app (corrige o file:///print.html
+  //     quebrado — resolveria para a RAIZ do disco e abriria "janela
+  //     desorganizada" com o conteúdo inexistente). O payload da impressão
+  //     chega pelo parâmetro ?d= (base64) — não depende do localStorage
+  //     compartilhado dos arquivos file:// (não confiável).
+  //  2) Demais popups (imagens/comprovantes, consoles web) → janela normal,
+  //     redimensionável e sem menu, com tamanho mínimo decente.
+  const resolverJanelaPrint = (url) => {
+    const dados = new URL(url)?.searchParams?.get('d') || '';
+    const printPath = path.join(__dirname, '../dist/print.html');
+    const printWin = new BrowserWindow({
+      width: 880,
+      height: 960,
+      minWidth: 840,
+      minHeight: 600,
+      autoHideMenuBar: true,
+      backgroundColor: '#f8fafc',
+      title: 'Impressão - Mercado Fácil',
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.js'),
+        nodeIntegration: false,
+        contextIsolation: true
+      }
+    });
+    const alvo = pathToFileURL(printPath).toString() + (dados ? `?d=${encodeURIComponent(dados)}` : '');
+    printWin.loadURL(alvo).catch(() => {
+      printWin.loadFile(printPath).catch(() => {});
+    });
+  };
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (app.isPackaged && /\/print\.html($|\?)/.test(url)) {
+      resolverJanelaPrint(url);
+      return { action: 'deny' };
+    }
+    return {
+      action: 'allow',
+      overrideBrowserWindowOptions: {
+        autoHideMenuBar: true,
+        minWidth: 480,
+        minHeight: 400,
+        backgroundColor: '#ffffff',
+      },
+    };
+  });
+
   return win;
 }
 
 app.whenReady().then(() => {
   const win = createWindow();
+  // Ícone automático na Área de Trabalho logo na primeira execução (portable).
+  criarAtalhoSeNecessario();
   setTimeout(() => checarAtualizacao(win), 15000); // primeira checagem após 15s
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -257,29 +370,19 @@ ipcMain.handle('select-folder', async () => {
 });
 
 ipcMain.handle('create-shortcut', async () => {
-  const { execFileSync } = require('child_process');
-  const desktopPath = path.join(require('os').homedir(), 'Desktop');
-  // BUGFIX: process.execPath é o CAMINHO DO EXECUTÁVEL (arquivo), não a pasta.
-  // path.join('C:\\app\\app.exe', '..', ...) gerava C:\app\app.exe\..\...
-  // (inválido). O correto é path.dirname(process.execPath).
-  const exeDir = path.dirname(process.execPath);
-  const iconPath = path.join(exeDir, 'resources', 'app.asar.unpacked', 'public', 'logo.png');
-  const shortcutPath = path.join(desktopPath, `${APP_TITLE}.lnk`);
-  const psScript = `
-    $WS = New-Object -ComObject WScript.Shell;
-    $SC = $WS.CreateShortcut($args[0]);
-    $SC.TargetPath = $args[1];
-    $SC.IconLocation = $args[2];
-    $SC.Save();
-  `;
-  // execFileSync SEM shell: nenhum caractere (aspas, $(), crases) do caminho
-  // é interpretado por um shell — impossível injeção de comando.
-  execFileSync(
-    'powershell.exe',
-    ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', psScript, shortcutPath, process.execPath, iconPath],
-    { timeout: 10000 }
-  );
-  return desktopPath;
+  // Reusa o mesmo criador do atalho automático da primeira execução.
+  try {
+    return criarAtalhoDesktop();
+  } catch {
+    return '';
+  }
+});
+
+// Fecha a janela de impressão /print de forma controlada (o window.close() do
+// renderer não funciona em janelas criadas pelo main — allowScriptsToCloseWindows).
+ipcMain.on('close-print-window', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win) win.close();
 });
 
 // Expõe o modo do app (admin/user) para a interface decidir a URL inicial

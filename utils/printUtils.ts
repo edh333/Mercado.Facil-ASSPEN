@@ -816,6 +816,15 @@ const SERIALIZER_REPLACER = (_key: string, value: any): any => {
   return value;
 };
 
+// Fallback de base64 para ambientes sem `btoa` (vitest/Node). Usado no payload
+// ?d= da janela de impressão — se nada estiver disponível, o localStorage
+// continua funcionando como segunda fonte.
+function basicBase64(str: string): string {
+  const buf = (globalThis as any).Buffer;
+  if (buf && typeof buf.from === 'function') return buf.from(str, 'utf-8').toString('base64');
+  return '';
+}
+
 /**
  * Salva o item de impressão em localStorage e abre a janela de impressão profissional (/print).
  * Retorna a janela criada ou null se o popup foi bloqueado.
@@ -825,6 +834,15 @@ export function abrirJanelaImpressao(
   config?: any
 ): Window | null {
   try {
+    // Payload completo EMBARCADO na URL (?d=base64). No Electron, o main lê este
+    // parâmetro e entrega para a janela /print dedicada — sem depender do
+    // localStorage compartilhado entre "arquivos" file:// (não confiável entre
+    // janelas). No navegador/web o ?d cobre telas frescas; o localStorage
+    // continua servindo de second source (evento 'storage' entre janelas).
+    const dadosBrutos = JSON.stringify({ item, config: config || {} }, SERIALIZER_REPLACER);
+    const dadosCod = typeof btoa === 'function'
+      ? btoa(unescape(encodeURIComponent(dadosBrutos)))
+      : encodeURIComponent(basicBase64(dadosBrutos));
     localStorage.setItem('printItem', JSON.stringify(item, SERIALIZER_REPLACER));
     localStorage.setItem('appSettings', JSON.stringify(config || {}, SERIALIZER_REPLACER));
     // Ticket único: garante que a janela /print existente detecte a NOVA
@@ -832,7 +850,7 @@ export function abrirJanelaImpressao(
     // atualize sozinha — sem precisar recarregar/atualizar a janela.
     localStorage.setItem('printTicket', String(Date.now() + Math.random()));
     const win = window.open(
-      '/print.html',
+      `/print.html?d=${encodeURIComponent(dadosCod)}`,
       'janelaImpressao',
       'width=880,height=960,menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes'
     );

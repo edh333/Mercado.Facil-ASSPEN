@@ -1154,6 +1154,25 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* ═══ ÍCONES NUNCA "SOMEM" ═══
+   Os ícones (Lucide, svg stroke="currentColor") vivem dentro de botões/links.
+   Em combinações de tema/estado o ícone podia herdar opacidade/estilo e ficar
+   com aparência TRANSPARENTE ou apagado (reclamado no app usuário, ex.: botão
+   de sair). Regras: botão habilitado → ícone SEMPRE 100% visível e com cor da
+   própria classe do botão; estado desabilitado continua com fade só no botão. */
+button:not(:disabled) svg,
+a:not(.disabled) svg {
+  opacity: 1 !important;
+}
+button svg,
+a svg {
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+button:disabled svg {
+  opacity: 0.4;
+}
+
 /* Seleção de texto com identidade da marca */
 ::selection {
   background: rgba(16, 185, 129, 0.25);
