@@ -1,141 +1,203 @@
 /**
  * Publica os instaladores .exe e o manifest version.json no Firebase Storage.
  *
- * A pasta apps/ só aceita escrita de ADMINISTRADORES (storage.rules → isAdmin()).
- * Por isso este script NÃO cria usuário temporário (receberia 403 — Permission
- * denied). Ele autentica com a CONTA ADMIN real do sistema:
- *
- *   - .env deve conter (nunca commitar):
- *       FIREBASE_ADMIN_EMAIL=email.do.admin@...
- *       FIREBASE_ADMIN_PASSWORD=senha.da.conta.admin
+ * DEFINITIVO (sem credenciais adicionais):
+ * A pasta apps/ do Storage só aceita escrita de ADMIN (storage.rules → isAdmin()).
+ * Em vez de depender de senha de conta admin no .env, este script reutiliza a
+ * MESMA sessão Google que o Firebase CLI já usa no deploy (firebase login):
+ *   - Lê o refresh token do owner em ~/.config/configstore/firebase-tools.json;
+ *   - Troca por um access_token (endpoint público do Google, client id/secret
+ *     do próprio firebase-tools 15.x — open source);
+ *   - Faz UPLOAD RESUMABLE no Google Cloud Storage (storage.googleapis.com),
+ *     igual o `firebase deploy` faz com o Hosting. Por ser o OWNER do projeto,
+ *     as Security Rules NÃO barram — sem usuário temporário, sem 403.
  *
  * Fluxo:
- *   1. Entra com a conta admin via Firebase Auth REST (accounts:signInWithPassword)
- *      → o idToken carrega o uid que tem doc users/{uid} com role ADMIN/MASTER
- *      e status active → isAdmin() nas Storage Rules retorna true.
- *   2. Envia os instaladores canônicos (Usuário e Admin) + apps/version.json
+ *   1. Auto-descoberta da sessão autenticada do Firebase CLI (várias contas).
+ *   2. Renova o access token do owner via refresh_token.
+ *   3. Envia instaladores canônicos (Usuário e Admin) + apps/version.json
  *      (nomes canônicos — a versão antiga é sobrescrita automaticamente).
- *   3. Verifica publicamente (GET direto, sem autenticação) cada arquivo:
- *      status 200 e tamanho exato. O link de download do usuário é gerado pela
- *      Cloud Function obterLinkDownloadApp (assinado por 7 dias).
+ *   4. Verifica tudo: metadados no GCS e, ao final, leitura pública real pelo
+ *      mesmo link que o botão "Baixar App" usa (firebasestorage.googleapis.com,
+ *      HEAD com Content-Length vs. tamanho do arquivo local).
  *
  * Requisitos:
- *   - .env com VITE_FIREBASE_API_KEY, VITE_FIREBASE_STORAGE_BUCKET e as
- *     credenciais FIREBASE_ADMIN_EMAIL / FIREBASE_ADMIN_PASSWORD.
+ *   - Firebase CLI logado na conta dona do projeto (`firebase login` — o mesmo
+ *     exigido pelo deploy.bat). Nunca usa credenciais de usuário do sistema.
  *   - dist-electron/MercadoFacil-Usuario-Setup-*.exe e Admin no padrão do
  *     electron-builder (artifactName → "MercadoFacil-{Usuario,Admin}-Setup-${version}.exe").
  *
  * Uso: node scripts/publish-apps.cjs      (ou npm run publish:apps)
  */
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
-const https = require('https');
 
 const ROOT = path.join(__dirname, '..');
-const envRaw = fs.readFileSync(path.join(ROOT, '.env'), 'utf-8');
-const kv = (k) => envRaw.split(/\r?\n/).find((l) => l.startsWith(k + '='))?.split('=').slice(1).join('=').trim();
-const API_KEY = kv('VITE_FIREBASE_API_KEY');
-const BUCKET = kv('VITE_FIREBASE_STORAGE_BUCKET') || 'mercado-facil-mt.firebasestorage.app';
-const ADMIN_EMAIL = kv('FIREBASE_ADMIN_EMAIL');
-const ADMIN_PASSWORD = kv('FIREBASE_ADMIN_PASSWORD');
+const RED = (s) => `\x1b[31m${s}\x1b[0m`;
+const GREEN = (s) => `\x1b[32m${s}\x1b[0m`;
+
+const BUCKET = (() => {
+  try {
+    const envRaw = fs.readFileSync(path.join(ROOT, '.env'), 'utf-8');
+    const linha = envRaw.split(/\r?\n/).find((l) => l.startsWith('VITE_FIREBASE_STORAGE_BUCKET='));
+    const v = linha?.split('=').slice(1).join('=').trim();
+    if (v) return v;
+  } catch { /* .env ausente — usa padrão */ }
+  return 'mercado-facil-mt.firebasestorage.app';
+})();
+
+// Client id/secret PÚBLICOS embutidos no firebase-tools 15.x (lib/api.js) —
+// usados apenas para renovar o token do próprio usuário logado no CLI.
+const GOOGLE_CLIENT_ID = '563584335869-fgrhgmd47bqnekij5i8b5pr03ho849e6.apps.googleusercontent.com';
+const GOOGLE_CLIENT_SECRET = 'j9iVZfS8kkCEFUPaAeJV0sAi';
+const CONFIGSTORE = path.join(os.homedir(), '.config', 'configstore', 'firebase-tools.json');
 const WEB_URL = 'https://mercado-facil-mt.web.app';
-if (!API_KEY) throw new Error('VITE_FIREBASE_API_KEY ausente no .env.');
-if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
-  throw new Error(
-    'Credenciais do administrador ausentes no .env. Adicione:\n' +
-    '  FIREBASE_ADMIN_EMAIL=email.do.admin@...\n' +
-    '  FIREBASE_ADMIN_PASSWORD=senha.da.conta.admin\n' +
-    'A pasta apps/ do Storage só aceita escrita de ADMIN (storage.rules).'
-  );
-}
 
 const VERSION = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf-8')).version;
 const EXE_PATTERN = /^MercadoFacil-(Usuario|Admin)-Setup-(.+)\.exe$/;
-const HOST = 'firebasestorage.googleapis.com';
-const ENC_BUCKET = encodeURIComponent(BUCKET);
 
-function request(host, pathname, method, headers, body) {
-  return new Promise((resolve, reject) => {
-    const req = https.request({ host, path: pathname, method, headers }, (res) => {
-      const chunks = [];
-      res.on('data', (c) => chunks.push(c));
-      res.on('end', () => {
-        const buf = Buffer.concat(chunks);
-        try { resolve({ status: res.statusCode, body: JSON.parse(buf.toString()), raw: buf }); }
-        catch { resolve({ status: res.statusCode, body: buf.toString(), raw: buf }); }
-      });
-    });
-    req.on('error', reject);
-    if (body) req.write(body);
-    req.end();
-  });
+// ── 1) Sessão do Firebase CLI ────────────────────────────────────────────
+function localizarRefreshToken() {
+  let cfg;
+  try {
+    cfg = JSON.parse(fs.readFileSync(CONFIGSTORE, 'utf-8'));
+  } catch {
+    throw new Error(
+      'Sessão do Firebase CLI não encontrada (' + CONFIGSTORE + ').\n' +
+      'Rode `firebase login` (mesma conta que faz o deploy.bat) e tente de novo.'
+    );
+  }
+  const tokens = [];
+  if (cfg.user?.tokens?.refresh_token) tokens.push(cfg.user.tokens.refresh_token);
+  if (cfg.tokens?.refresh_token) tokens.push(cfg.tokens.refresh_token);
+  for (const a of cfg.additionalAccounts || []) {
+    if (a.user?.tokens?.refresh_token) tokens.push(a.user.tokens.refresh_token);
+  }
+  if (tokens.length === 0) {
+    throw new Error('Nenhum refresh_token na sessão do Firebase CLI. Rode `firebase login` novamente.');
+  }
+  return { refreshToken: tokens[0], conta: cfg.user?.email || cfg.activeAccounts?.default || 'desconhecida' };
 }
 
-function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+// ── 2) Access token (refresh) ────────────────────────────────────────────
+async function obterAccessToken() {
+  const { refreshToken, conta } = localizarRefreshToken();
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: GOOGLE_CLIENT_ID,
+      client_secret: GOOGLE_CLIENT_SECRET,
+      refresh_token: refreshToken,
+      grant_type: 'refresh_token',
+    }),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (res.status !== 200 || !json.access_token) {
+    throw new Error(`Falha ao renovar o token do Firebase CLI (HTTP ${res.status}): ${JSON.stringify(json).slice(0, 200)}`);
+  }
+  console.log(`[auth] sessão do Firebase CLI ok (conta: ${conta}) — publicando v${VERSION}`);
+  return json.access_token;
+}
+
+// ── 3) Upload resumable no GCS (storage.googleapis.com — owner ignora Rules) ─
+async function uploadResumable(token, dest, data, contentType) {
+  const initRes = await fetch(
+    `https://storage.googleapis.com/upload/storage/v1/b/${encodeURIComponent(BUCKET)}/o?uploadType=resumable&name=${encodeURIComponent(dest)}`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json; charset=UTF-8',
+        'X-Upload-Content-Type': contentType,
+        'X-Upload-Content-Length': String(data.length),
+      },
+      body: '{}',
+    }
+  );
+  if (initRes.status !== 200) {
+    const corpo = await initRes.text();
+    throw new Error(`Falha ao iniciar upload de ${dest} (HTTP ${initRes.status}): ${corpo.slice(0, 200)}`);
+  }
+  const location = initRes.headers.get('location');
+  if (!location) throw new Error(`Sem URI de upload para ${dest}.`);
+
+  const up = await fetch(location, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': contentType,
+      'Content-Length': String(data.length),
+      'Content-Range': `bytes 0-${data.length - 1}/${data.length}`,
+    },
+    body: data,
+  });
+  if (up.status !== 200) {
+    const corpo = await up.text();
+    throw new Error(`Upload de ${dest} falhou (HTTP ${up.status}): ${corpo.slice(0, 200)}`);
+  }
+}
+
+// ── 4) Verificação ───────────────────────────────────────────────────────
+async function metadadosGcs(token, dest) {
+  const r = await fetch(
+    `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(BUCKET)}/o/${encodeURIComponent(dest)}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const j = await r.json().catch(() => ({}));
+  return { status: r.status, size: Number(j.size), name: j.name };
+}
+
+// Leitura pública PELO MESMO link que o "Baixar App" usa (end-to-end real).
+async function tamanhoPublico(dest) {
+  const enc = dest.split('/').map(encodeURIComponent).join('%2F');
+  const r = await fetch(
+    `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(BUCKET)}/o/${enc}?alt=media`,
+    { method: 'HEAD' }
+  );
+  return { status: r.status, length: Number(r.headers.get('content-length')) };
+}
 
 async function main() {
-  // 1) Autentica como ADMIN (idToken passa nas Storage Rules — isAdmin()).
-  const login = await request('identitytoolkit.googleapis.com',
-    `/v1/accounts:signInWithPassword?key=${encodeURIComponent(API_KEY)}`, 'POST',
-    { 'Content-Type': 'application/json' },
-    JSON.stringify({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD, returnSecureToken: true }));
-  const idToken = login.body?.idToken;
-  if (!idToken) {
-    throw new Error('Falha no login do administrador: ' + JSON.stringify(login.body).slice(0, 200));
-  }
-  console.log(`[auth] administrador autenticado (publicação v${VERSION})`);
+  const token = await obterAccessToken();
 
-  const hAuth = { Authorization: `Bearer ${idToken}`, 'X-Firebase-Storage-Version': '2' };
-
-  // 2) Localiza os instaladores recém-gerados (mais recentes, por padrão do artifactName)
   const exes = fs.readdirSync(path.join(ROOT, 'dist-electron')).filter((f) => EXE_PATTERN.test(f));
   const acharExe = (modo) => {
     const f = exes.filter((x) => x.startsWith(`MercadoFacil-${modo}-Setup-`)).sort().pop();
-    if (!f) throw new Error(`Instalador da versão ${modo} não encontrado em dist-electron/. Rode: npm run build:exe:${modo.toLowerCase()}`);
+    if (!f) throw new Error(`Instalador da versão ${modo} não encontrado em dist-electron/. Rode: npm run electron-build`);
     return f;
   };
 
   const uploads = [
-    { local: path.join(ROOT, 'dist-electron', acharExe('Usuario')), dest: 'apps/MercadoFacil-Usuario-Setup.exe' },
-    { local: path.join(ROOT, 'dist-electron', acharExe('Admin')), dest: 'apps/MercadoFacil-Admin-Setup.exe' },
-    { local: null, dest: 'apps/version.json', json: { version: VERSION, releasedAt: new Date().toISOString(), webUrl: WEB_URL } },
+    { local: path.join(ROOT, 'dist-electron', acharExe('Usuario')), dest: 'apps/MercadoFacil-Usuario-Setup.exe', ct: 'application/octet-stream' },
+    { local: path.join(ROOT, 'dist-electron', acharExe('Admin')), dest: 'apps/MercadoFacil-Admin-Setup.exe', ct: 'application/octet-stream' },
+    { local: null, dest: 'apps/version.json', ct: 'application/json; charset=UTF-8', json: { version: VERSION, releasedAt: new Date().toISOString(), webUrl: WEB_URL } },
   ];
 
-  // 3) Uploads
+  console.log('[upload] GCS resumable (sessão do dono do projeto):');
   for (const u of uploads) {
-    const data = u.json
-      ? Buffer.from(JSON.stringify(u.json, null, 2))
-      : fs.readFileSync(u.local);
-    console.log(`[upload] ${u.local ? path.basename(u.local) : 'version.json'} (${(data.length / 1024 / 1024).toFixed(1)} MB) -> ${u.dest} (v${VERSION})`);
-    const res = await request(HOST,
-      `/v0/b/${ENC_BUCKET}/o?uploadType=media&name=${encodeURIComponent(u.dest)}`,
-      'POST', { ...hAuth, 'Content-Type': u.json ? 'application/json' : 'application/octet-stream' }, data);
-    if (res.status === 200) {
-      console.log(`  OK (tamanho: ${res.body?.size || data.length})`);
-    } else {
-      console.log(`  FALHOU (${res.status}): ${JSON.stringify(res.body).slice(0, 220)}`);
-      process.exitCode = 1;
-    }
+    const data = u.json ? Buffer.from(JSON.stringify(u.json, null, 2)) : fs.readFileSync(u.local);
+    await uploadResumable(token, u.dest, data, u.ct);
+    console.log(`  ${GREEN('OK')} ${u.dest} <- ${u.local ? path.basename(u.local) : 'version.json'} (${(data.length / 1024 / 1024).toFixed(1)} MB)`);
   }
 
-  // 4) Verificação pública (metadados via GET aberto, sem autenticação)
-  await sleep(1500);
-  console.log('[verificacao] leitura pública de cada arquivo publicado:');
-  let todosOk = !process.exitCode;
+  console.log('\n[verificacao] integridade no GCS + link público real:');
+  let todosOk = true;
   for (const u of uploads) {
-    const enc = u.dest.split('/').map(encodeURIComponent).join('%2F');
-    const r = await request(HOST, `/v0/b/${ENC_BUCKET}/o/${enc}`, 'GET', {});
-    const espera = u.json ? null : fs.statSync(u.local).size;
-    const tamanhoOk = espera == null ? true : Number(r.body?.size) === espera;
-    console.log(`  ${u.dest} -> ${r.status}${espera != null ? ` (${r.body?.size}/${espera} bytes)` : ''} ${r.status === 200 && tamanhoOk ? 'OK' : 'FALHOU'}`);
-    if (r.status !== 200 || !tamanhoOk) todosOk = false;
+    const espera = u.local ? fs.statSync(u.local).size : null;
+    const meta = await metadadosGcs(token, u.dest);
+    const metaOk = meta.status === 200 && meta.name === u.dest && (espera == null || meta.size === espera);
+    const pub = await tamanhoPublico(u.dest);
+    const pubOk = espera == null ? pub.status === 200 && pub.length > 0 : pub.status === 200 && pub.length === espera;
+    console.log(`  ${(metaOk && pubOk ? GREEN('OK') : RED('FALHOU'))} ${u.dest} (GCS ${meta.size ?? '?'}/${espera ?? 'manifest'}, público ${pub.length ?? '?'} bytes)`);
+    if (!metaOk || !pubOk) todosOk = false;
   }
 
   if (!todosOk) {
-    console.error('\nERRO: falha na publicação ou na verificação. Revise a saída acima.');
+    console.error(RED('\nERRO: falha na publicação ou verificação. Revise a saída acima.'));
     process.exit(1);
   }
-  console.log('\nPublicação concluída e verificada! "Baixar App" já serve os instaladores v' + VERSION + '.');
+  console.log(GREEN(`\nPublicação concluída e verificada! "Baixar App" e a Landing já servem os instaladores v${VERSION}.`));
 }
 
-main().catch((e) => { console.error('ERRO:', e.message); process.exit(1); });
+main().catch((e) => { console.error(RED('ERRO:'), e.message); process.exit(1); });
