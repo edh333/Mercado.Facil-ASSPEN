@@ -841,92 +841,136 @@ return false;
         return () => window.removeEventListener('online', onOnline);
     }, [currentUser?.id]);
 
+    // Distingue falha de TRANSPORTE/REDE de erro de negócio real (senha errada,
+    // conta suspensa). Após análise em todas as plataformas: uma queda momentânea
+    // da internet para o cloudfunctions.net virava "internal" no app admin e
+    // "Erro de conexão." no app usuário (as duas strings iguais às reportadas),
+    // e ainda mascarava falha de rede no signIn como "Senha incorreta." — a
+    // pessoa mudava a senha achando que era errrada, mas era link instável.
+    function ehErroTransporte(e: any): boolean {
+        const code = String(e?.code || e?.status || '');
+        const msg = String(e?.message || '');
+        if (/^functions\/(unavailable|deadline-exceeded|internal|aborted|resource-exhausted|cancelled|14|10|3|13|7|8)$/.test(code)) return true;
+        if (/\bfetch failed\b|network request failed|failed to fetch|load failed|ECONNREFUSED|ECONNRESET|ERR_CONN|ERR_NETWORK|ERR_INTERNET_DISCONNECTED|abort(ed)?|\bnetwork\b|unavailable|interrupted/i.test(msg)) return true;
+        return false;
+    }
+
+    function mensagemErroConexao(): string {
+        return 'Não foi possível conectar ao servidor agora (internet instável ou fora do ar). Verifique o Wi-Fi/roteador e tente novamente.';
+    }
+
+    // Retenta chamadas sujeitas a queda momentânea de rede (o login falhava na
+    // primeira tentativa sob link instável). Erros de negócio são re-lançados na
+    // hora — nunca mascara senha inválida, conta suspensa, etc.
+    async function executarComRetry<R>(executar: () => Promise<R>, tentativas = 3, atrasoMs = 600): Promise<R> {
+        let ultimoErro: any;
+        for (let i = 0; i < tentativas; i++) {
+            try {
+                return await executar();
+            } catch (e: any) {
+                ultimoErro = e;
+                if (!ehErroTransporte(e) || i === tentativas - 1) throw e;
+                await new Promise((r) => setTimeout(r, atrasoMs * (i + 1)));
+            }
+        }
+        throw ultimoErro;
+    }
+
     const login = async (identifier: string, pass: string, expectedRole?: UserRole) => {
         const cleanPass = pass.trim();
         if (!cleanPass) return { success: false, message: 'Informe a senha.' };
 
+        let info: any = null;
         try {
-            const res = await fnBuscarLoginInfo({ identificador: identifier.trim() });
-            const info = res.data as any;
-            if (!info?.encontrado) return { success: false, message: 'Usuário não encontrado.' };
+            const res = await executarComRetry(() => fnBuscarLoginInfo({ identificador: identifier.trim() }));
+            info = res.data as any;
+        } catch (e: any) {
+            return { success: false, message: ehErroTransporte(e) ? mensagemErroConexao() : 'Erro de conexão.' };
+        }
+        if (!info?.encontrado) return { success: false, message: 'Usuário não encontrado.' };
 
-            if (expectedRole === UserRole.FAMILY && toUserRole(info.role) === UserRole.ADMIN) {
-                return { success: false, message: 'Acesso Administrativo detectado. Por favor, utilize a aba Área Administrativa para entrar.' };
-            }
-            if (info.status === 'pending') return { success: false, message: 'Cadastro em análise.' };
-            if (info.status === 'suspended') return { success: false, message: 'Conta suspensa.' };
+        if (expectedRole === UserRole.FAMILY && toUserRole(info.role) === UserRole.ADMIN) {
+            return { success: false, message: 'Acesso Administrativo detectado. Por favor, utilize a aba Área Administrativa para entrar.' };
+        }
+        if (info.status === 'pending') return { success: false, message: 'Cadastro em análise.' };
+        if (info.status === 'suspended') return { success: false, message: 'Conta suspensa.' };
 
-            // Migração: usuário legado sem conta vinculada â†’ provisiona (valida a senha atual no servidor)
-            if (!info.jaVinculado) {
-                try {
-                    await fnRegistrarUsuario({
-                        dados: { cpf: info.cpf || identifier, email: info.email, name: info.nome },
-                        senha: cleanPass,
-                        provisionar: true
-                    });
-                } catch (e: any) {
-                    const msg = e?.message || '';
-                    if (msg.includes('incorreta')) return { success: false, message: 'Senha incorreta.' };
-                    return { success: false, message: msg || 'Erro de conexão.' };
-                }
-            }
-
+        // Migração: usuário legado sem conta vinculada â†’ provisiona (valida a senha atual no servidor)
+        if (!info.jaVinculado) {
             try {
-                await signInWithEmailAndPassword(auth, info.authEmail, cleanPass);
+                await fnRegistrarUsuario({
+                    dados: { cpf: info.cpf || identifier, email: info.email, name: info.nome },
+                    senha: cleanPass,
+                    provisionar: true
+                });
             } catch (e: any) {
-                return { success: false, message: 'Senha incorreta.' };
+                const msg = e?.message || '';
+                if (msg.includes('incorreta')) return { success: false, message: 'Senha incorreta.' };
+                if (ehErroTransporte(e)) return { success: false, message: mensagemErroConexao() };
+                return { success: false, message: msg || 'Erro de conexão.' };
             }
+        }
 
-            return { success: true };
-        } catch (e: any) { return { success: false, message: 'Erro de conexão.' }; }
+        try {
+            await signInWithEmailAndPassword(auth, info.authEmail, cleanPass);
+        } catch (e: any) {
+            if (ehErroTransporte(e)) return { success: false, message: mensagemErroConexao() };
+            return { success: false, message: 'Senha incorreta.' };
+        }
+
+        return { success: true };
     };
 
     const loginAdmin = async (email: string, pass: string) => {
+        let info: any = null;
         try {
-            const res = await fnBuscarLoginInfo({ identificador: email.trim() });
-            const info = res.data as any;
-
-            if (!info?.encontrado) {
-                if (!info?.existemAdmins) {
-                    throw new Error("Primeiro acesso do sistema: crie o administrador inicial na área administrativa.");
-                }
-                throw new Error("E-mail ou senha de administrador incorretos.");
-            }
-            if (toUserRole(info.role) !== UserRole.ADMIN) {
-                throw new Error("Este e-mail não pertence a um administrador.");
-            }
-            if (info.status === 'suspended') throw new Error("Conta suspensa.");
-
-            // Migração: admin legado sem conta vinculada â†’ provisiona (valida a senha atual no servidor)
-            if (!info.jaVinculado) {
-                try {
-                    await fnRegistrarUsuario({
-                        dados: { cpf: info.cpf || '', email: info.email, name: info.nome },
-                        senha: pass,
-                        provisionar: true
-                    });
-                } catch (e: any) {
-                    const msg = e?.message || '';
-                    if (msg.includes('incorreta')) throw new Error("E-mail ou senha de administrador incorretos.");
-                    throw new Error("Falha ao vincular a conta administrativa: " + msg);
-                }
-            }
-
-            try {
-                await signInWithEmailAndPassword(auth, info.authEmail, pass);
-            } catch (e: any) {
-                throw new Error("E-mail ou senha de administrador incorretos.");
-            }
-
-            // Desbloqueio offline de emergência: guarda um hash bcrypt da senha
-            // de LOGIN do admin nesta máquina (nunca a senha em texto). Se a
-            // internet cair depois, o operador entra em modo de emergência.
-            try {
-                await salvarCredencialOffline(info.nome || 'Administrador', pass);
-            } catch (e) { /* sem cache local: segue o login normal */ }
+            const res = await executarComRetry(() => fnBuscarLoginInfo({ identificador: email.trim() }));
+            info = res.data as any;
         } catch (e: any) {
-            throw new Error(e.message || "Erro ao tentar login administrativo.");
+            if (ehErroTransporte(e)) throw new Error(mensagemErroConexao());
+            throw new Error(e?.message || "Erro ao tentar login administrativo.");
         }
+
+        if (!info?.encontrado) {
+            if (!info?.existemAdmins) {
+                throw new Error("Primeiro acesso do sistema: crie o administrador inicial na área administrativa.");
+            }
+            throw new Error("E-mail ou senha de administrador incorretos.");
+        }
+        if (toUserRole(info.role) !== UserRole.ADMIN) {
+            throw new Error("Este e-mail não pertence a um administrador.");
+        }
+        if (info.status === 'suspended') throw new Error("Conta suspensa.");
+
+        // Migração: admin legado sem conta vinculada â†’ provisiona (valida a senha atual no servidor)
+        if (!info.jaVinculado) {
+            try {
+                await fnRegistrarUsuario({
+                    dados: { cpf: info.cpf || '', email: info.email, name: info.nome },
+                    senha: pass,
+                    provisionar: true
+                });
+            } catch (e: any) {
+                const msg = e?.message || '';
+                if (msg.includes('incorreta')) throw new Error("E-mail ou senha de administrador incorretos.");
+                if (ehErroTransporte(e)) throw new Error(mensagemErroConexao());
+                throw new Error("Falha ao vincular a conta administrativa: " + msg);
+            }
+        }
+
+        try {
+            await signInWithEmailAndPassword(auth, info.authEmail, pass);
+        } catch (e: any) {
+            if (ehErroTransporte(e)) throw new Error(mensagemErroConexao());
+            throw new Error("E-mail ou senha de administrador incorretos.");
+        }
+
+        // Desbloqueio offline de emergência: guarda um hash bcrypt da senha
+        // de LOGIN do admin nesta máquina (nunca a senha em texto). Se a
+        // internet cair depois, o operador entra em modo de emergência.
+        try {
+            await salvarCredencialOffline(info.nome || 'Administrador', pass);
+        } catch (e) { /* sem cache local: segue o login normal */ }
     };
 
     const loginFamiliar = async (cpf: string, pass: string) => {
