@@ -2919,7 +2919,7 @@ exports.arquivarDadosAntigos = onSchedule({
         .limit(500)
         .get();
       let lote = 0;
-      while (!pagina.empty && lote < 8 && totalArchived < 4000) {
+      while (!pagina.empty && lote < 12 && totalArchived < 6000) {
         const loteDocs = pagina.docs.filter((doc) => {
           const d = doc.data();
           if (d.deleted === true) return false;
