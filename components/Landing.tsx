@@ -20,6 +20,30 @@ export const Landing: React.FC<{ skipLanding?: boolean; initialTab?: 'login' | '
     const [activeTab, setActiveTab] = useState<'login' | 'register' | 'admin'>(initialTab || 'login');
     const [installing, setInstalling] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [baixandoAppUsuario, setBaixandoAppUsuario] = useState(false);
+    const [erroDownloadApp, setErroDownloadApp] = useState('');
+
+    // Endpoint PÚBLICO (sem login) — o App Usuário pode ser baixado direto da
+    // página inicial. O App Admin NUNCA aparece aqui: só no "Baixar App" do
+    // painel, para administradores autenticados.
+    const baixarAppUsuario = async () => {
+        setErroDownloadApp('');
+        setBaixandoAppUsuario(true);
+        try {
+            const projectId = (import.meta as any).env?.VITE_FIREBASE_PROJECT_ID || 'mercado-facil-mt';
+            const res = await fetch(`https://us-central1-${projectId}.cloudfunctions.net/obterDownloadAppUsuario`);
+            if (!res.ok) throw new Error('servidor indisponível');
+            const data = await res.json();
+            if (!data?.ok || !data?.url) {
+                throw new Error('o instalador ainda não foi publicado pelo administrador.');
+            }
+            window.open(data.url, '_blank', 'noopener');
+        } catch (e: any) {
+            setErroDownloadApp(`Não foi possível iniciar o download: ${e?.message || 'erro inesperado'}`);
+        } finally {
+            setBaixandoAppUsuario(false);
+        }
+    };
 
     useEffect(() => {
         if (skipLanding) { setAuthOpen(true); return; }
@@ -253,6 +277,26 @@ export const Landing: React.FC<{ skipLanding?: boolean; initialTab?: 'login' | '
                             <button onClick={() => abrir('login')} className="px-6 py-3.5 min-h-[44px] rounded-2xl border border-slate-700 text-slate-200 font-bold text-sm hover:bg-slate-800 transition-colors cursor-pointer">
                                 Continuar no navegador
                             </button>
+                        </div>
+
+                        {/* Versão Windows — baixável SEM login (página inicial) */}
+                        <div className="mt-7 border-t border-slate-800 pt-5">
+                            <p className="text-[11px] font-black text-emerald-400 tracking-[0.25em] uppercase mb-3">Versão para computador (Windows)</p>
+                            <div className="flex flex-wrap items-center gap-3">
+                                <button
+                                    onClick={baixarAppUsuario}
+                                    disabled={baixandoAppUsuario}
+                                    className="px-5 py-3 min-h-[44px] rounded-2xl bg-slate-900 border border-emerald-500/40 text-emerald-300 font-bold text-sm hover:bg-slate-800 hover:border-emerald-400 transition-all active:scale-[0.98] cursor-pointer flex items-center gap-2 disabled:opacity-60"
+                                >
+                                    {baixandoAppUsuario ? <Loader2 size={17} className="animate-spin" /> : <Download size={17} />} Baixar App Usuário
+                                </button>
+                                <p className="text-[12px] font-medium text-slate-400 leading-relaxed max-w-sm">
+                                    Para familiares acompanharem pedidos e compras. O <span className="font-bold text-slate-200">App Admin</span> (gestão completa) é baixado somente por administradores, pelo botão "Baixar App" dentro do painel.
+                                </p>
+                            </div>
+                            {erroDownloadApp && (
+                                <p className="mt-3 text-[11px] font-semibold text-amber-400 leading-relaxed">⚠ {erroDownloadApp}</p>
+                            )}
                         </div>
                     </motion.div>
                     <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.1 }} className="flex justify-center gap-4">

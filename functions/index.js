@@ -1,10 +1,12 @@
 const { onSchedule } = require("firebase-functions/v2/scheduler");
-const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
 const { onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { logger } = require("firebase-functions");
 const admin = require("firebase-admin");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
+const path = require("path");
+const fs = require("fs");
 
 // Lógica pura de negócio (testável) — decisões financeiras vêm daqui.
 const {
@@ -38,6 +40,14 @@ const FUNC_BUCKET = process.env.FIREBASE_STORAGE_BUCKET
 // iam.serviceAccountTokenCreator (signBlob negado desde a política de 2024).
 const urlPublicaArquivo = (file) =>
   `https://firebasestorage.googleapis.com/v0/b/${file.bucket.name}/o/${encodeURIComponent(file.name)}?alt=media`;
+
+// Versão atual do app (vem do package.json da RAIZ, mantido em sincronia com os
+// instaladores desktop — usada no manifest apps/version.json e nos endpoints).
+let APP_VERSION = "1.0.2";
+try {
+  const rootPkg = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "package.json"), "utf-8"));
+  if (rootPkg?.version) APP_VERSION = String(rootPkg.version);
+} catch { /* mantém o padrão */ }
 
 // URL de download via token nativo do Firebase Storage (metadata), para
 // arquivos NÃO públicos. Se não conseguir ler/definir o token, retorna "".
@@ -3386,14 +3396,15 @@ exports.resetarSistemaTotal = onCall({
 // DOWNLOAD DO APP (EXE / SETUP)
 // ──────────────────────────────────────────────
 // Regras de acesso por papel (servidor decide, nunca o cliente):
-//  - FAMILY (usuário comum): pode baixar SOMENTE a versão "Usuário".
-//  - ADMIN: pode baixar as duas versões ("Usuário" e "Administrador").
-// Os executáveis ficam no Storage em apps/ e o link é assinado (7 dias).
+//  - FAMILY (usuário comum): pode baixar SOMENTE o "App Usuário".
+//  - ADMIN: pode baixar os dois ("App Usuário" e "App Admin").
+// O "App Usuário" também tem um endpoint PÚBLICO (obterDownloadAppUsuario) para
+// a página inicial baixar sem login. Os executáveis ficam em apps/ e o link é
+// direto (leitura pública) — sem assinatura (service account sem signBlob).
 // ──────────────────────────────────────────────
-
 const APPS_DISPONIVEIS = [
-  { chave: "usuario", arquivo: "apps/MercadoFacil-Usuario-Setup.exe", nome: "Mercado Fácil - Usuário", descricao: "App de compras para os familiares" },
-  { chave: "admin", arquivo: "apps/MercadoFacil-Admin-Setup.exe", nome: "Mercado Fácil - Administrador", descricao: "Painel de gestão completa (PDV, estoque e relatórios)" },
+  { chave: "usuario", arquivo: "apps/MercadoFacil-Usuario-Setup.exe", nome: "App Usuário", descricao: "Compras para familiares — catálogo, carteira e acompanhamento de pedidos" },
+  { chave: "admin", arquivo: "apps/MercadoFacil-Admin-Setup.exe", nome: "App Admin", descricao: "Gestão completa — PDV, estoque, clientes e relatórios" },
 ];
 
 /** Autenticado ─ gera links de download do app conforme o papel do chamador. */
@@ -3426,7 +3437,29 @@ exports.obterLinkDownloadApp = onCall({
     }
   }
 
-  return { ok: true, ehAdmin, apps: resultado, versao: "1.0.0" };
+  return { ok: true, ehAdmin, apps: resultado, versao: APP_VERSION };
+});
+
+/**
+ * PÚBLICO (sem autenticação) — link de download do "App Usuário" para a página
+ * inicial (Landing), onde familiares baixam o instalador Windows sem login.
+ * O "App Admin" NUNCA passa por aqui: só pelo obterLinkDownloadApp (auth).
+ */
+exports.obterDownloadAppUsuario = onRequest({ timeoutSeconds: 30 }, async (_req, res) => {
+  res.set("Access-Control-Allow-Origin", "*");
+  try {
+    const entrada = APPS_DISPONIVEIS.find((a) => a.chave === "usuario");
+    const file = admin.storage().bucket(FUNC_BUCKET).file(entrada.arquivo);
+    const [existe] = await file.exists();
+    if (!existe) {
+      res.json({ ok: false, motivo: "nao_publicado", nome: entrada.nome, versao: APP_VERSION });
+      return;
+    }
+    res.json({ ok: true, nome: entrada.nome, descricao: entrada.descricao, versao: APP_VERSION, url: urlPublicaArquivo(file) });
+  } catch (e) {
+    logger.warn("[DownloadAppUsuario] Falha:", e.message);
+    res.json({ ok: false, motivo: "erro_servidor", versao: APP_VERSION });
+  }
 });
 
 // ──────────────────────────────────────────────

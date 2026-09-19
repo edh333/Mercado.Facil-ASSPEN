@@ -33,6 +33,11 @@ node scripts/release.mjs
 git push --tags     # ao enviar a tag, o GitHub Actions roda o release automaticamente
 ```
 
+**Como os usuários recebem os apps (público por papel):**
+- O **App Usuário** (Windows) pode ser baixado NA PÁGINA INICIAL, sem login, via endpoint público `obterDownloadAppUsuario` (link direto para `apps/MercadoFacil-Usuario-Setup.exe`).
+- O **App Admin** NUNCA é exposto publicamente: só aparece no botão "Baixar App" do painel para administradores/masters logados (`obterLinkDownloadApp`, servidor filtra por papel). Administradores podem baixar os dois apps.
+- Cada app tem público exclusivo em runtime: no App Usuário só contas de usuário entram; no App Admin só admins entram (o modo divergente cai numa tela de restrição com "Sair").
+
 ## Verificação pós-deploy
 
 - Web: https://mercado-facil-mt.web.app

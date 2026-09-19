@@ -22,6 +22,7 @@ import { AdminDashboard } from './pages/AdminDashboard';
 import { PrintPage } from './components/PrintPage';
 import { UserDashboard } from './pages/UserDashboard';
 import { Landing } from './components/Landing';
+import { WrongAppScreen } from './components/WrongAppScreen';
 
 const FullScreenLoader: React.FC = () => (
   <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#f8fafc' }}>
@@ -100,9 +101,9 @@ const MainApp: React.FC = () => {
   const isPrint =
     urlParams.get('print') === 'true' ||
     window.location.pathname.startsWith('/print');
-  // App instalado como "usuário" (/?mode=user): mesmo um ADMIN deve abrir a
-  // frente de caixa do usuário — o admin troca para o painel pelos próprios
-  // mecanismos do app (instalação separada do Painel Admin / toggle no site).
+  // App instalado como "usuário" (/?mode=user): o app tem público exclusivo —
+  // somente usuários comuns entram (um ADMIN recebe a tela de restrição e usa
+  // o App Admin, instalado à parte).
   const modoUsuario = urlParams.get('mode') === 'user';
   // App ADMINISTRADOR (exe/PWA admin, ?mode=admin): nunca passa pela Landing
   // de marketing — o operador quer o painel (login de admin direto). Antes
@@ -129,7 +130,21 @@ const MainApp: React.FC = () => {
     return <Landing skipLanding={modoUsuario || modoAdmin} initialTab={modoAdmin ? 'admin' : 'login'} />;
   }
 
-  if (currentUser.role !== UserRole.ADMIN || modoUsuario) {
+  // APPS COM PÚBLICO EXCLUSIVO (desktop/PWA instalado com modo fixo):
+  //  - App Usuário  (?mode=user)  → APENAS usuários comuns entram;
+  //  - App Admin     (?mode=admin) → APENAS administradores entram.
+  // A cada um funciona independente do outro: um ADMIN que abre o App Usuário
+  // (ou vice-versa) vê a tela de restrição em vez de outro painel. O toUserRole
+  // normaliza 'admin'/'master' → UserRole.ADMIN, então o teste abaixo cobre os dois.
+  const ehAdmin = currentUser.role === UserRole.ADMIN;
+  if (modoUsuario && ehAdmin) {
+    return <WrongAppScreen appAberto="usuario" />;
+  }
+  if (modoAdmin && !ehAdmin) {
+    return <WrongAppScreen appAberto="admin" />;
+  }
+
+  if (!ehAdmin) {
     const pendente = currentUser.status === 'pending' || currentUser.approved === false;
     return (
       <ErrorBoundary>

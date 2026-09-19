@@ -17,11 +17,22 @@ const fnCriarPrimeiroAdmin = httpsCallable(getFunctions(), 'criarPrimeiroAdmin')
 
 export const Login: React.FC<{ initialTab?: 'login' | 'register' | 'admin'; onVolver?: () => void }> = ({ initialTab = 'login', onVolver }) => {
     const { loginAdmin, loginFamiliar, registerUser, resetUserPassword, validateRecovery, showNotification, settings, preRegisteredInmates, tryOfflineUnlock } = useApp();
-    const [activeTab, setActiveTab] = useState<'login' | 'register' | 'admin' | 'recovery'>(initialTab);
 
     const urlParams = new URLSearchParams(window.location.search);
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
     const isUserPwa = urlParams.get('mode') === 'user' || (isStandalone && urlParams.get('mode') !== 'admin');
+
+    // App com público fixo (desktop/PWA no modo dedicado): cada um só mostra o
+    // login do SEU público. App Admin (?mode=admin) → só administradores;
+    // App Usuário (?mode=user) → só usuários. Sem rotas cruzadas entre eles.
+    const modoAdmin = urlParams.get('mode') === 'admin';
+    const modoUsuario = isUserPwa;
+    const appTravado = modoAdmin || modoUsuario;
+
+    // Estado inicial respeita o modo (nunca "flutua" até o outro app).
+    const [activeTab, setActiveTab] = useState<'login' | 'register' | 'admin' | 'recovery'>(() =>
+        modoAdmin ? 'admin' : modoUsuario ? 'login' : initialTab || 'login'
+    );
 
     const [isLoading, setIsLoading] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState('');
@@ -309,8 +320,19 @@ const [recoveryName, setRecoveryName] = useState('');
 
                     <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xl shadow-slate-900/[0.06] sm:p-8">
 
+                        {/* Identidade do app acoplado (desktop/PWA com modo fixo):
+                            deixa claro qual aplicativo está aberto e quem pode entrar */}
+                        {appTravado && (
+                            <div className="mb-5 flex items-center justify-center">
+                                <span className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border ${modoAdmin ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                                    {modoAdmin ? <ShieldCheck size={13} /> : <Store size={13} />}
+                                    {modoAdmin ? 'App Admin — só administradores' : 'App Usuário — só usuários'}
+                                </span>
+                            </div>
+                        )}
+
                         {/* Botão Voltar ao Início (quando Login é modal do Landing) */}
-                        {onVolver && (
+                        {onVolver && !appTravado && (
                             <button
                                 type="button"
                                 onClick={onVolver}
@@ -606,7 +628,7 @@ const [recoveryName, setRecoveryName] = useState('');
 
                         {/* Footer Actions */}
                         <div className="mt-8 pt-5 border-t border-slate-100 text-center">
-                            {(isAdmin || isRecovery) ? (
+                            {(isAdmin || isRecovery) && !modoAdmin ? (
                                 <button
                                     type="button"
                                     onClick={() => { if (onVolver) { onVolver(); } else { setActiveTab('login'); } }}
