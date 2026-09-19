@@ -338,7 +338,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
                     </div>
                   </div>
                 </div>
-                <div className="mt-4 py-3 bg-[var(--primary-color)] rounded-2xl text-white text-[9px] font-black uppercase flex items-center justify-center gap-2 opacity-70 group-hover:opacity-100 transition-all shadow-lg">
+                <div className="mt-4 py-3 bg-[var(--primary-color)] rounded-2xl text-white text-[9px] font-black uppercase flex items-center justify-center gap-2 opacity-100 transition-all shadow-lg">
                    Validar Agora <ArrowRight size={12}/>
                 </div>
               </div>

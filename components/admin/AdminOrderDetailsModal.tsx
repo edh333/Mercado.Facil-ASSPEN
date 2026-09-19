@@ -52,7 +52,7 @@ const ComprovanteImg: React.FC<{ src: string }> = ({ src }) => {
           alt="Comprovante de Pagamento"
           onError={() => setErro(true)}
         />
-        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center">
+        <div className="absolute inset-0 bg-black/30 opacity-100 transition-opacity rounded-xl flex items-center justify-center">
           <span className="bg-white/90 text-slate-900 px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-wider shadow-lg">Clique para Ampliar</span>
         </div>
       </div>

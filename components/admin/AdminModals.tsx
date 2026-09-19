@@ -453,7 +453,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                                        <button
                                            type="button"
                                            onClick={() => setProductForm({...productForm, imageUrl: ''})}
-                                           className="absolute top-1 right-1 bg-white/90 hover:bg-red-500 hover:text-white rounded-lg p-1.5 shadow-sm border border-slate-200 transition-all opacity-0 group-hover:opacity-100"
+                                           className="absolute top-1 right-1 bg-white/90 hover:bg-red-500 hover:text-white rounded-lg p-1.5 shadow-sm border border-slate-200 transition-all opacity-100"
                                            title="Remover imagem"
                                        >
                                            <X size={14} />

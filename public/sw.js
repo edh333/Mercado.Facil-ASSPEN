@@ -1,4 +1,9 @@
-const CACHE_NAME = 'mercado-facil-v21';
+// V22 — para forçar a troca do Service Worker dos aparelhos que ficaram
+// "presos" na v21 com o app antigo: ao ativar, apaga todos os caches antigos.
+// (A v21 bloquiava a atualização: alguns clientes nunca baixaram o código novo
+// e continuavam com os erros de conexão corrigidos. O cache_name NOVO é o que
+// dispara a limpeza no 'activate'.)
+const CACHE_NAME = 'mercado-facil-v22';
 const CORE_ASSETS = [
   '/',
   '/index.html',

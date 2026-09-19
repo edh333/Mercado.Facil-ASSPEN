@@ -625,7 +625,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
                           <Printer size={20}/>
                         </button>
                         {item?.type === 'EXIT' && deleteExpense && isMaster && (
-                          <button onClick={() => setConfirmDeleteId(item.id)} className="p-3 bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-red-500 hover:border-red-500 rounded-xl shadow-sm transition-all active:scale-95 opacity-0 group-hover:opacity-100" title="Excluir Despesa">
+                          <button onClick={() => setConfirmDeleteId(item.id)} className="p-3 bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-red-500 hover:border-red-500 rounded-xl shadow-sm transition-all active:scale-95 opacity-100" title="Excluir Despesa">
                             <Trash2 size={18}/>
                           </button>
                         )}

@@ -511,7 +511,7 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
                 )}
 
                 {proofSrc && proofSrc !== 'PENDENTE_UPLOAD_LOCAL_CACHE' && (
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                    <div className="absolute inset-0 bg-black/40 opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
                          <span className="bg-white text-black px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-2xl">Clique para Expandir</span>
                     </div>
                 )}

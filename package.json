@@ -1,7 +1,7 @@
 {
   "name": "mercado-facil-pdv",
   "private": true,
-  "version": "1.0.4",
+  "version": "1.0.5",
   "main": "desktop/main.js",
   "type": "commonjs",
   "repository": {

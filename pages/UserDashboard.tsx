@@ -1144,7 +1144,7 @@ export const UserDashboard: React.FC = () => {
                             disabled={myOrders.length === 0}
                             title="Reimprimir Último Cupom"
                             aria-label="Reimprimir último cupom"
-                            className="hidden sm:flex size-10 border border-slate-200 bg-white text-slate-500 items-center justify-center hover:border-[var(--primary-color)]/40 hover:text-[var(--primary-color)]"
+                            className="flex shrink-0 size-10 border border-slate-200 bg-white text-slate-500 items-center justify-center shadow-sm hover:border-[var(--primary-color)]/40 hover:text-[var(--primary-color)] disabled:opacity-70 disabled:shadow-none"
                         />
                         <UiButton
                             size="sm"
@@ -1152,7 +1152,7 @@ export const UserDashboard: React.FC = () => {
                             onClick={() => setIsMsgOpen(!isMsgOpen)}
                             aria-label="Mensagens"
                             aria-expanded={isMsgOpen}
-                            className={`relative hidden sm:flex size-11 border border-slate-200 bg-white text-slate-500 items-center justify-center hover:border-[var(--primary-color)]/40 hover:text-[var(--primary-color)] ${isMsgOpen ? 'border-[var(--primary-color)] text-[var(--primary-color)]' : ''}`}
+                            className={`relative flex shrink-0 size-11 border border-slate-200 bg-white text-slate-500 items-center justify-center shadow-sm hover:border-[var(--primary-color)]/40 hover:text-[var(--primary-color)] ${isMsgOpen ? 'border-[var(--primary-color)] text-[var(--primary-color)] shadow-md' : ''}`}
                         >
                             {unreadMsg > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center font-bold border-2 border-white">{unreadMsg}</span>}
                         </UiButton>
@@ -1165,7 +1165,7 @@ export const UserDashboard: React.FC = () => {
                             onClick={() => setShowUninstallModal(true)}
                             title="Desinstalar aplicativo"
                             aria-label="Desinstalar aplicativo"
-                            className="size-11 border border-slate-200 bg-white text-slate-400 hidden sm:flex items-center justify-center hover:bg-red-50 hover:text-red-500 hover:border-red-200"
+                            className="flex shrink-0 size-11 border border-slate-200 bg-white text-slate-500 items-center justify-center shadow-sm hover:bg-red-50 hover:text-red-500 hover:border-red-200"
                         />
                         <UiButton
                             size="sm"
@@ -1173,7 +1173,7 @@ export const UserDashboard: React.FC = () => {
                             onClick={handleLogout}
                             title={confirmarSair ? 'Toque de novo para confirmar' : 'Sair'}
                             aria-label={confirmarSair ? 'Confirmar saída: toque novamente' : 'Sair'}
-                            className={`size-11 border border-red-200 bg-white text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white hover:border-red-500 ${confirmarSair ? 'ring-4 ring-red-200 animate-pulse bg-red-500 text-white border-red-500' : ''}`}
+                            className={`shrink-0 size-11 border border-red-200 bg-white text-red-500 flex items-center justify-center shadow-sm hover:bg-red-500 hover:text-white hover:border-red-500 ${confirmarSair ? 'ring-4 ring-red-200 animate-pulse bg-red-500 text-white border-red-500 shadow-lg' : ''}`}
                         />
                     </div>
                 }
