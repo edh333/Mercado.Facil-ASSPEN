@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode, useRef } from 'react';
 import { User, Product, Order, PrisonUnit, UserRole, CartItem, OrderStatus, AppConfig, Supplier, Expense, AuditLog, InmateLocation, SystemMessage, ThemeOption, Message, Notification, WalletTransaction, toUserRole } from '../types';
 import { cleanProductName, normalizeName, stringSimilarity, compressImageFile, fileToBase64, formatarMoeda, getNetworkTime } from '../utils';
-import { listarVendasOffline, salvarVendaOffline, removerVendaOffline, marcarErroVendaOffline, VendaOffline } from '../utils/offlineQueue';
+import { listarVendasOffline, salvarVendaOffline, removerVendaOffline, marcarErroVendaOffline, marcarAjustadaVendaOffline, VendaOffline } from '../utils/offlineQueue';
 import {
     setOfflineCredential as salvarCredencialOffline,
     verifyOfflinePassword as verificarSenhaOffline,
@@ -217,7 +217,7 @@ interface StoreContextType {
     expandUsersLimit: (limite: number) => void;
     importInmatesCsv: (file: File) => Promise<void>;
     addWalletCreditDirectly: (userId: string, amount: number, reason: string, senhaMestra?: string) => Promise<void>;
-    registrarVendaOffline: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30', total: number, payments?: { method: string; amount: number }[], change?: number, customerAccountId?: string, cardBrand?: string) => Promise<Order | null>;
+    registrarVendaOffline: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30', total: number, payments?: { method: string; amount: number }[], change?: number, customerAccountId?: string, cardBrand?: string, sessaoCaixaId?: string, clientToken?: string) => Promise<Order | null>;
     sincronizarVendasOffline: (incluirErros?: boolean) => Promise<{ ok: boolean; sincronizadas: number; comErro: number; total: number; offline?: boolean }>;
     vendasOfflinePendentes: number;
     vendasOfflineComErro: number;
@@ -2635,13 +2635,20 @@ return false;
         change?: number,
         customerAccountId?: string,
         cardBrand?: string,
+        sessaoCaixaId?: string,
+        clientToken?: string,
     ): Promise<Order | null> => {
         if (!currentUser || currentUser.role !== UserRole.ADMIN) {
             throw new Error('Acesso restrito a administradores.');
         }
+        // Venda fiada NUNCA entra na fila offline: o servidor rejeita (senha
+        // mestra validada lá) — enfileirar só criaria dívida sem o fator de posse.
+        if (paymentMethod === 'FIADO' || paymentMethod === 'FIADO_30') {
+            throw new Error('Venda fiada não pode ser registrada offline: a senha mestra é validada no servidor. Conecte à internet e finalize novamente.');
+        }
         const agora = new Date().toISOString();
         const venda: VendaOffline = {
-            id: `OFFLINE_${Date.now()}_${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
+            id: clientToken || `OFFLINE_${Date.now()}_${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
             createdAt: agora,
             targetUserId,
             items: (items || []).map((i: any) => ({
@@ -2655,6 +2662,7 @@ return false;
             payments: payments || undefined,
             change: change ?? undefined,
             customerAccountId: customerAccountId || undefined,
+            ...(sessaoCaixaId ? { sessaoCaixaId } : {}),
             total: Number(total) || 0,
             status: 'pending',
             tryCount: 0,
@@ -2714,6 +2722,7 @@ return false;
                         change: v.change ?? undefined,
                         customerAccountId: v.customerAccountId || undefined,
                         cardBrand: v.paymentMethod === 'CARD' ? (v.cardBrand || undefined) : undefined,
+                        sessaoCaixaId: v.sessaoCaixaId || undefined,
                         origemOffline: true,
                     });
                     const pedido = (res.data as any)?.order;
@@ -2724,7 +2733,11 @@ return false;
                     const totalServidor = Number(pedido?.total) || 0;
                     const totalRegistrado = Number(v.total) || 0;
                     if (Math.abs(totalServidor - totalRegistrado) > 0.009) {
-                        marcarErroVendaOffline(v.id, `Preço ajustado no servidor: R$ ${totalServidor.toFixed(2)} (registrado R$ ${totalRegistrado.toFixed(2)}). Reveja antes de repassar.`);
+                        // Divergência de preço NÃO é erro de rede nem volta a tentar
+                        // (ficava em 'error' e o sync infinito cada reconexão). O
+                        // servidor JÁ debitou estoque/credita caixa no valor atual —
+                        // a venda fica 'ajustada' para conferência manual do operador.
+                        marcarAjustadaVendaOffline(v.id, `Preço ajustado no servidor: R$ ${totalServidor.toFixed(2)} (registrado R$ ${totalRegistrado.toFixed(2)}). Reveja antes de repassar.`);
                         comErro += 1;
                         continue;
                     }

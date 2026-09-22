@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { PlusCircle, Check, Wallet, ShieldCheck, AlertTriangle, Lock, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { ModalShell } from '../ui/ModalShell';
 import { User } from '../../types';
-import { formatarMoeda, isAdminRole } from '../../utils';
+import { formatarMoeda, isAdminRole, parseMoeda } from '../../utils';
 
 interface ManualCreditModalProps {
   user: User | null;
@@ -33,13 +33,13 @@ export const ManualCreditModal: React.FC<ManualCreditModalProps> = ({ user, onCl
 
   if (!user) return null;
 
-  const valor = Number(amount.replace(',', '.'));
+  const valor = parseMoeda(amount);
   const isValido = isFinite(valor) && valor > 0;
   const temSenha = senhaMestra.trim().length >= 8;
   const senhaNaoConfigurada = /não foi configurada|ainda não foi configurada|Defina a senha|Configure a senha/i.test(error);
 
   const somarValor = (v: number) => {
-    const atual = parseFloat(amount.replace(',', '.')) || 0;
+    const atual = parseMoeda(amount) || 0;
     setAmount(String(Math.round((atual + v) * 100) / 100).replace('.', ','));
   };
 

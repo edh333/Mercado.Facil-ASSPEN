@@ -38,6 +38,9 @@ jobs:
       - name: Typecheck/lint (web)
         run: npm run lint
 
+      - name: Sincronia de versão (root ↔ functions)
+        run: node -e "const r=require('./package.json').version, f=require('./functions/package.json').version; if (r!==f) { console.error('Versoes dessincronizadas: root ' + r + ' vs functions ' + f); process.exit(1); } console.log('Versões sincronizadas: ' + r);"
+
       - name: Testes da web (vitest)
         run: npm test
 

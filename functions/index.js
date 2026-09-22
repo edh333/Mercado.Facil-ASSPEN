@@ -289,9 +289,16 @@ function validarSenha(senha) {
   return s;
 }
 
-function validarValor(valor, minimo = 0.01) {
+const VALOR_MAXIMO_PADRAO = 100000; // teto de sanidade p/ crédito/saque único (R$)
+
+function validarValor(valor, minimo = 0.01, maximo = VALOR_MAXIMO_PADRAO) {
   const v = Number(valor);
   if (!isFinite(v) || v < minimo) throw new HttpsError("invalid-argument", "Valor inválido.");
+  // Teto de sanidade: um zero a mais digitado não movimenta dezenas de milhares
+  // de reais por engano (crédito/saque único acima do teto é recusado).
+  if (v > maximo) {
+    throw new HttpsError("invalid-argument", `Valor acima do teto de segurança (R$ ${maximo.toFixed(2).replace(".", ",")}).`);
+  }
   return arredondar(v);
 }
 
@@ -532,6 +539,16 @@ exports.registrarUsuario = onCall(async (request) => {
     }
 
     const hashSalvo = await obterHashLegado(existente.id);
+    // SEGURANÇA (correção): sem hash de senha NÃO há fator de posse verificável —
+    // clientes de fiado criados pelo PDV (sem senha) poderiam ser tomados por
+    // qualquer pessoa que soubesse o CPF. Exige-se senha cadastrada (o admin
+    // define a inicial) para vincular a conta.
+    if (!hashSalvo) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Este usuário ainda não possui senha cadastrada. Peça ao administrador do sistema para definir a senha inicial e tente vincular novamente."
+      );
+    }
     if (hashSalvo && hashSalvo.startsWith("$2")) {
       const ok = await bcrypt.compare(senha, hashSalvo);
       if (!ok) throw new HttpsError("invalid-argument", "Senha atual incorreta.");
@@ -1471,6 +1488,12 @@ async function validarComprovanteFlexivel(proofUrl, userId, pasta, proofHash, pr
   const ativo = (d) => d.id !== docIdAtual && !EXCLUIR_STATUS.includes(String(d.data().status || "").toLowerCase());
 
   const colecao = pasta === "wallet_proofs" ? "wallet_transactions" : "orders";
+  const colecaoAlt = pasta === "wallet_proofs" ? "orders" : "wallet_transactions";
+  // Campos de URL diferem por coleção: depósito grava proofUrl, pedido usa paymentProofUrl.
+  const camposUrl = [
+    [colecao, pasta === "wallet_proofs" ? "proofUrl" : "paymentProofUrl"],
+    [colecaoAlt, pasta === "wallet_proofs" ? "paymentProofUrl" : "proofUrl"],
+  ];
 
   // 2) Deduplicação por HASH (primária — identidade do conteúdo)
   // IMPORTANTE: filtra o PRÓPRIO documento (docIdAtual). Sem isso, ao aprovar
@@ -1479,15 +1502,20 @@ async function validarComprovanteFlexivel(proofUrl, userId, pasta, proofHash, pr
   // Query de CAMPO ÚNICO (índice automático) + filtro de status em memória:
   // não depende de índice composto (proofHash+status) — evita o erro "internal"
   // quando o índice ainda não existe no Firestore.
+  // SEGURANÇA (correção): antes a dedup era POR COLEÇÃO — um comprovante real
+  // era reutilizável entre depósito PIX (carteira) e pedido PIX (venda).
+  // Agora consulta AS DUAS coleções em ambos os fluxos.
   if (proofHash && proofHash.trim()) {
     try {
-      const dupSnap = await db.collection(colecao)
-        .where("proofHash", "==", proofHash.trim())
-        .limit(30)
-        .get();
-      const dup = dupSnap.docs.find(ativo);
-      if (dup) {
-        return { ok: false, motivo: `Comprovante já utilizado em ${pasta === "wallet_proofs" ? "outro depósito" : "outro pedido"} (#${dup.id}). Cada comprovante só pode ser usado uma vez.` };
+      for (const col of [colecao, colecaoAlt]) {
+        const dupSnap = await db.collection(col)
+          .where("proofHash", "==", proofHash.trim())
+          .limit(30)
+          .get();
+        const dup = dupSnap.docs.find(ativo);
+        if (dup) {
+          return { ok: false, motivo: `Comprovante já utilizado em ${pasta === "wallet_proofs" ? "outro depósito" : "outro pedido"} (#${dup.id}). Cada comprovante só pode ser usado uma vez.` };
+        }
       }
     } catch (e) {
       // Dedup por hash indisponível → não bloqueia; a validação do arquivo
@@ -1501,20 +1529,21 @@ async function validarComprovanteFlexivel(proofUrl, userId, pasta, proofHash, pr
   // Mesma política de índice único + filtro em memória.
   const size = Number(proofSize || objCheck.size || 0);
   const mime = String(proofMime || objCheck.mime || "").toLowerCase();
-  const campoUrl = pasta === "wallet_proofs" ? "proofUrl" : "paymentProofUrl";
 
   try {
-    const urlSnap = await db.collection(colecao)
-      .where(campoUrl, "==", url)
-      .limit(30)
-      .get();
-    const dupUrl = urlSnap.docs.find(ativo);
-    if (dupUrl) {
-      // Heurística: se size/mime batem, é quase certeza ser o mesmo arquivo
-      const outroSize = Number(dupUrl.data().proofSize || 0);
-      const outroMime = String(dupUrl.data().proofMime || "").toLowerCase();
-      if (size > 0 && outroSize > 0 && size === outroSize && mime && outroMime === mime) {
-        return { ok: false, motivo: `Comprovante já utilizado em ${pasta === "wallet_proofs" ? "outro depósito" : "outro pedido"} (#${dupUrl.id}).` };
+    for (const [col, campoUrl] of camposUrl) {
+      const urlSnap = await db.collection(col)
+        .where(campoUrl, "==", url)
+        .limit(30)
+        .get();
+      const dupUrl = urlSnap.docs.find(ativo);
+      if (dupUrl) {
+        // Heurística: se size/mime batem, é quase certeza ser o mesmo arquivo
+        const outroSize = Number(dupUrl.data().proofSize || 0);
+        const outroMime = String(dupUrl.data().proofMime || "").toLowerCase();
+        if (size > 0 && outroSize > 0 && size === outroSize && mime && outroMime === mime) {
+          return { ok: false, motivo: `Comprovante já utilizado em ${pasta === "wallet_proofs" ? "outro depósito" : "outro pedido"} (#${dupUrl.id}).` };
+        }
       }
     }
   } catch (e) {
@@ -1601,7 +1630,18 @@ async function getSessaoCaixaAberta(operatorId) {
 async function resolverSessaoCaixaDoPedido(pedido) {
   // Datas legadas podem não ter o campo `date` (pedidos PDV antigos): fallback
   // para createdAt mantém o estorno de caixa funcionando nesses registros.
-  const momento = new Date(pedido.date || pedido.createdAt).getTime();
+  // Instante REAL (createdAt) quando existir: `date` é só o dia (YYYY-MM-DD em
+  // São Paulo). `new Date('YYYY-MM-DD')` = meia-noite UTC, sempre ANTES da
+  // abertura da sessão (~07h SP) → o estorno em dinheiro nunca localizava a
+  // sessão atual (e o físico nem saía do fechamento). createdAt tem o instante
+  // exato da venda; legado (sem createdAt) cai no meio-dia UTC do dia.
+  let momento = pedido.createdAt ? new Date(pedido.createdAt).getTime() : NaN;
+  if (!isFinite(momento)) {
+    const partes = String(pedido.date || "").slice(0, 10).split("-").map(Number);
+    momento = partes.length === 3 && partes[0] && partes[1] && partes[2]
+      ? Date.UTC(partes[0], partes[1] - 1, partes[2], 12, 0, 0)
+      : 0;
+  }
   // 1) PDV moderno: sessão em cash_sessions aberta na data do pedido
   const snap = await db.collection("cash_sessions")
     .where("operatorId", "==", (pedido.operatorId || ""))
@@ -1718,14 +1758,18 @@ exports.processarVendaAdmin = onCall(async (request) => {
   // Gate de segurança: venda FIADA (FIADO e FIADO_30) exige a DUPLA senha mestra
   // validada AQUI no servidor (primária + secundária). O front já valida, mas
   // revalidar no backend impede que uma sessão autenticada pule a etapa via
-  // chamada direta. Vendas sincronizadas de fila offline são isentas porque a
-  // senha não pode ser validada sem rede. A isenção SÓ vale para a fila real:
-  // clientToken com o prefixo OFFLINE_ (padrão do offlineQueue) + flag
-  // origemOffline=true — evita que a flag sozinha seja forjada por um cliente.
-  const ehOfflineFiado =
-    request.data?.origemOffline === true &&
-    String(request.data?.clientToken || "").startsWith("OFFLINE_");
-  if ((paymentMethod === "FIADO" || paymentMethod === "FIADO_30") && !ehOfflineFiado) {
+  // chamada direta.
+  // SEGURANÇA (correção): NÃO existe mais isenção offline para fiado. A flag
+  // origemOffline=true + clientToken com prefixo OFFLINE_ eram 100% forjáveis
+  // por um cliente autenticado — um operador concedia fiado sem o supervisor.
+  // Venda fiada exige conexão: a senha mestra é SEMPRE revalidada aqui.
+  if (request.data?.origemOffline === true && (paymentMethod === "FIADO" || paymentMethod === "FIADO_30")) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Venda fiada exige conexão para validar a senha mestra no servidor. Conecte à internet e finalize a venda novamente."
+    );
+  }
+  if (paymentMethod === "FIADO" || paymentMethod === "FIADO_30") {
     const apiKey = String(request.data?.apiKey || "") || process.env.FIREBASE_API_KEY || "";
     if (paymentMethod === "FIADO_30") {
       // FIADO_30 NÃO é venda fiada tradicional em "conta" — é uma venda a prazo
@@ -2828,23 +2872,36 @@ exports.registrarPagamentoConta = onCall({
       }
       t.update(clienteRef, updateConta);
 
-      // Credita na sessão de caixa aberta do operador (se houver)
-      if (sessaoCaixaPgt) {
+      // Credita na gaveta do caixa do operador — SEMPRE com sessão ABERTA.
+      // SEGURANÇA (correção): antes, sem sessão aberta o pagamento era aceito e
+      // o dinheiro NUNCA entrava no fechamento (sumia na dobra da fila). Agora
+      // o recebimento falha com instrução clara; abrir o caixa não apaga nada.
+      if (!sessaoCaixaPgt) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Nenhum caixa aberto para este operador. Abra o caixa para receber o pagamento do fiado."
+        );
+      }
+      {
         const sessaoSnap = await t.get(refSessaoCaixa(sessaoCaixaPgt));
-        if (sessaoSnap.exists && String(sessaoSnap.data().status || "").toUpperCase() === "OPEN") {
-          const payloadPgt = {
-            currentBalance: admin.firestore.FieldValue.increment(amount),
-            supplements: admin.firestore.FieldValue.arrayUnion({
-              amount,
-              reason: `Recebimento de Fiado - ${conta.nome || customerAccountId}`,
-              timestamp: admin.firestore.Timestamp.now(),
-            }),
-          };
-          if (sessaoCaixaPgt.colecao !== "cash_sessions") {
-            payloadPgt.totalEntries = admin.firestore.FieldValue.increment(amount);
-          }
-          t.update(sessaoSnap.ref, payloadPgt);
+        if (!sessaoSnap.exists || String(sessaoSnap.data().status || "").toUpperCase() !== "OPEN") {
+          throw new HttpsError(
+            "failed-precondition",
+            "O caixa foi fechado antes do recebimento. Abra o caixa e registre o pagamento do fiado novamente."
+          );
         }
+        const payloadPgt = {
+          currentBalance: admin.firestore.FieldValue.increment(amount),
+          supplements: admin.firestore.FieldValue.arrayUnion({
+            amount,
+            reason: `Recebimento de Fiado - ${conta.nome || customerAccountId}`,
+            timestamp: admin.firestore.Timestamp.now(),
+          }),
+        };
+        if (sessaoCaixaPgt.colecao !== "cash_sessions") {
+          payloadPgt.totalEntries = admin.firestore.FieldValue.increment(amount);
+        }
+        t.update(sessaoSnap.ref, payloadPgt);
       }
 
       return { dividaAnterior: dividaAtual, novoDebito };
@@ -4182,10 +4239,21 @@ exports.gerenciarSessaoCaixa = onCall(async (request) => {
 
   if (acao === "supplement") {
     if (!(valor > 0)) throw new HttpsError("invalid-argument", "Valor de suprimento deve ser maior que zero.");
-    await ref.update({
-      currentBalance: FIELD_INCREMENTO(valor),
-      supplements: FIELD_ARRAYUNION({ amount: valor, reason: motivo || "Suprimento", timestamp: AGORA() }),
-    });
+    try {
+      await db.runTransaction(async (t) => {
+        const snap = await t.get(ref);
+        if (!snap.exists || String(snap.data().status || "").toLowerCase() !== "open") {
+          throw new HttpsError("failed-precondition", "Esta sessão de caixa já foi encerrada.");
+        }
+        t.update(ref, {
+          currentBalance: FIELD_INCREMENTO(valor),
+          supplements: FIELD_ARRAYUNION({ amount: valor, reason: motivo || "Suprimento", timestamp: AGORA() }),
+        });
+      });
+    } catch (e) {
+      if (e instanceof HttpsError) throw e;
+      throw new HttpsError("internal", "Erro ao registrar suprimento.");
+    }
     await registrarAudit(caller.id, "SUPRIMENTO_CAIXA", sessaoId, { valor });
     return { ok: true };
   }
@@ -4195,6 +4263,11 @@ exports.gerenciarSessaoCaixa = onCall(async (request) => {
     try {
       await db.runTransaction(async (t) => {
         const snap = await t.get(ref);
+        // SEGURANÇA (correção): status revalidado DENTRO da transação — dois
+        // dispositivos/relógio em paralelo não movem dinheiro depois do close.
+        if (!snap.exists || String(snap.data().status || "").toLowerCase() !== "open") {
+          throw new HttpsError("failed-precondition", "Esta sessão de caixa já foi encerrada.");
+        }
         const saldoAtual = Number(snap.data().currentBalance || 0);
         if (!(saldoAtual >= valor)) {
           throw new HttpsError(

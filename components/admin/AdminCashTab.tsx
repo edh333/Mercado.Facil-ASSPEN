@@ -16,7 +16,7 @@ import {
   CheckCircle, ChevronDown, ChevronUp, Printer, ClipboardList, Download
 } from 'lucide-react';
 import { gerarCupomFechamento, imprimirCupom, gerarBoletimDiario, baixarCupomTxt } from '../../utils/printUtils';
-import { formatBRL } from '../../utils/money';
+import { formatBRL, parseMoeda } from '../../utils/money';
 import { ModalShell } from '../ui/ModalShell';
 
 // ──────────────────────────────────────────────
@@ -199,14 +199,16 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
   const handleClose = async () => {
     if (!session || !closedBalance) return;
     // Espelha a guarda do servidor: contagem física negativa/NaN não existe.
-    const contado = Number(closedBalance);
+    // parseMoeda respeita o padrão de ponto decimal (1.234,56 → 1234.56) —
+    // antes, Number("1234,56") era NaN e o caixa fecha recusava a conferência.
+    const contado = parseMoeda(String(closedBalance));
     if (isNaN(contado) || !(contado >= 0)) {
       showToast('Valor contado deve ser zero ou positivo.', 'error');
       return;
     }
     setActionLoading(true);
     try {
-      const result = await closeCashSession(session.id, Number(closedBalance), operatorName);
+      const result = await closeCashSession(session.id, contado, operatorName);
       setCloseResult(result);
       setCloseSessionSnapshot({
         operatorId,
@@ -216,7 +218,7 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
         closedAt: Timestamp.now(),
         initialBalance: session.initialBalance,
         expectedBalance: result.expected,
-        closedBalance: Number(closedBalance),
+        closedBalance: contado,
         cashDifference: result.diff,
       });
       showToast('Caixa fechado!', 'success');

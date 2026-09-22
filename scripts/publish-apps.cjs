@@ -224,9 +224,18 @@ async function main() {
 
   const exes = fs.readdirSync(path.join(ROOT, 'dist-electron')).filter((f) => EXE_PATTERN.test(f));
   const acharExe = (modo) => {
-    const f = exes.filter((x) => x.startsWith(`MercadoFacil-${modo}-Setup-`)).sort().pop();
-    if (!f) throw new Error(`Instalador da versão ${modo} não encontrado em dist-electron/. Rode: npm run electron-build`);
-    return f;
+    // Versão EXATA de package.json — nunca "o maior".
+    // BUGFIX: sort() lexicográfico pegava "Setup-1.0.9" em vez de "Setup-1.0.10"
+    // e o "Baixar App" servia o instalador ANTIGO. Se o binário da versão
+    // exata não existe, é erro (não publicar versão errada em silêncio).
+    const alvo = `MercadoFacil-${modo}-Setup-${VERSION}.exe`;
+    if (!exes.includes(alvo)) {
+      throw new Error(
+        `Instalador ${alvo} não existe em dist-electron/ (achei ${exes.length} em vez do build ${VERSION}). Rode: npm run electron-build` +
+        (exes.length ? `\nEncontrados: ${exes.join(', ')}` : '')
+      );
+    }
+    return alvo;
   };
 
   const uploads = [

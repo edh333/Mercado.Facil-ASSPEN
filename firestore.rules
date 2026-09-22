@@ -103,14 +103,14 @@ function isAdmin() {
     }
 
     // ── PEDIDOS ──
-    // Criação: usuário registra o próprio pedido somente como PENDENTE
-    // (pagamento por comprovante). Vendas com carteira vão via Cloud Function.
-    // Atualização: admin (tudo) ou o dono do pedido PENDENTE — e APENAS o campo
-    // paymentProofUrl (reenvio automático do comprovante após upload offline).
+    // Criação: SOMENTE via Cloud Functions (registrarPedidoPix, comprarComCarteira,
+    // processarVendaAdmin) — o SDK admin ignora estas regras. Criação bloqueada no
+    // cliente para impedir pedido PIX "PENDENTE" forjado (total/items arbitrarios)
+    // que o admin aprovaria depois (SEGURANCA: compra fake por R$ 0,01, estoque
+    // jamais debitado). Atualizacao: admin (tudo) ou o dono do pedido PENDENTE —
+    // e APENAS o campo paymentProofUrl (reenvio automatico do comprovante).
     match /orders/{orderId} {
-      allow create: if isAuthenticated()
-        && userMatch(request.resource.data.userId)
-        && request.resource.data.status == 'PENDING';
+      allow create: if false; // venda via backend (Cloud Functions)
       allow read: if isAuthenticated() && (userMatch(resource.data.userId) || isEquipe());
       allow update: if isAdmin() || (
         userMatch(resource.data.userId)

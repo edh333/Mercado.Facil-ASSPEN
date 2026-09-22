@@ -24,7 +24,7 @@ interface AdminSalesModalProps {
   products: Product[];
   orders?: Order[];
   onConfirm: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30', total: number, payments?: {method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30', amount: number}[], change?: number, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string, fiado30UserId?: string, senhaPrimaria?: string, senhaSecundaria?: string) => Promise<any>;
-  onConfirmOffline?: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30', total: number, payments?: {method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30', amount: number}[], change?: number, customerAccountId?: string, cardBrand?: string, fiado30UserId?: string) => Promise<any>;
+  onConfirmOffline?: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30', total: number, payments?: {method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30', amount: number}[], change?: number, customerAccountId?: string, clientToken?: string, cardBrand?: string, sessaoCaixaId?: string) => Promise<any>;
   setPrintOrder?: (order: any) => void;
   settings?: AppConfig;
   currentUser?: User;
@@ -58,7 +58,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
   const [produtoPrecoDinamico, setProdutoPrecoDinamico] = useState<{ produto: Product; preco: string } | null>(null);
 
   // ── Novas opções PDV: estorno, última venda, suspensas ──
-  const { refundOrder, showNotification, validateMasterPassword, validateDualMasterPassword, validateAnyMasterPassword } = useApp();
+  const { refundOrder, showNotification, validateMasterPassword, validateDualMasterPassword, validateAnyMasterPassword, sessaoCaixaAtiva } = useApp();
   const [ultimaVenda, setUltimaVenda] = useState<Order | null>(null);
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [refundSelected, setRefundSelected] = useState<Order | null>(null);
@@ -989,16 +989,10 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
       if (formaPagamento === 'FIADO') {
         // BUGFIX: venda fiada exige Senha Mestra ANTES de criar a dívida.
         // A porta existia como código morto (executarVendaFiado nunca era chamada).
-        // Offline: segue permitido (operador é admin autenticado e o servidor
-        // revalida limite/status da conta no momento da sincronização).
+        // Offline: BLOQUEADO — o servidor rejeita fiado offline (a dupla senha é
+        // SEMPRE validada lá; a isenção origemOffline foi removida por ser forjável).
         if (!navigator.onLine) {
-          const pedido = await onConfirmOffline(clienteSelecionado, carrinho, 'FIADO', totalCarrinho, undefined, undefined, selectedCustomerAccount.id);
-          if (pedido) {
-            setUltimoPedido(pedido);
-            setUltimaVenda(pedido);
-            resetPdvFields();
-            showNotification('Venda FIADA registrada OFFLINE — será sincronizada quando a internet voltar.', 'info');
-          }
+          showNotification('Venda fiada exige conexão para validar a senha mestra no servidor. Conecte e finalize novamente.', 'error');
           return;
         }
         setProcessando(false);
@@ -1028,8 +1022,10 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
       // SEM INTERNET: em vez de perder a venda, oferece o registro OFFLINE
       // (fila local + sincronização automática quando a rede voltar).
       if (!navigator.onLine && onConfirmOffline) {
+        // Os fluxos FIADO/FIADO_30 terminam cedo (senha mestra) e nunca chegam
+        // aqui — o TS estreita o tipo e exclui fiado deste fallback offline.
         try {
-          const pedidoOffline = await onConfirmOffline(targetId, carrinho, formaPagamento, totalCarrinho, paymentsArray, changeValue, (formaPagamento === 'FIADO' ? selectedCustomerAccount?.id : undefined), (formaPagamento === 'CARD' ? (bandeiraCartao || undefined) : undefined));
+          const pedidoOffline = await onConfirmOffline(targetId, carrinho, formaPagamento, totalCarrinho, paymentsArray, changeValue, (formaPagamento === 'FIADO' ? selectedCustomerAccount?.id : undefined), saleToken, (formaPagamento === 'CARD' ? (bandeiraCartao || undefined) : undefined), sessaoCaixaAtiva?.id);
           if (pedidoOffline) {
             setUltimoPedido(pedidoOffline);
             setUltimaVenda(pedidoOffline);
@@ -1070,18 +1066,10 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
         resetPdvFields();
       }
     } catch (e: any) {
-      if (!navigator.onLine && onConfirmOffline) {
-        try {
-          const pedidoOffline = await onConfirmOffline(clienteSelecionado, carrinho, 'FIADO', totalCarrinho, undefined, undefined, selectedCustomerAccount?.id);
-          if (pedidoOffline) {
-            setUltimoPedido(pedidoOffline);
-            setUltimaVenda(pedidoOffline);
-            resetPdvFields();
-            showNotification('Venda registrada OFFLINE — será sincronizada quando a internet voltar.', 'info');
-          }
-        } catch (e2: any) {
-          setSenhaFiadoErro(e2.message || 'Não foi possível registrar a venda offline.');
-        }
+      if (!navigator.onLine) {
+        // SEGURANÇA (correção): nunca enfileirar fiado offline — o servidor
+        // rejeita e a dívida dependeria de senha que só existe no backend.
+        setSenhaFiadoErro('Venda fiada não pode ser registrada offline: a senha mestra é validada no servidor. Conecte e finalize novamente.');
         return;
       }
       if (/senha|password/i.test(String(e?.message || ''))) {

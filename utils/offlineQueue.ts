@@ -14,8 +14,12 @@ export interface VendaOffline {
   change?: number;
   cardBrand?: string;
   customerAccountId?: string;
+  sessaoCaixaId?: string;
   total: number;
-  status: 'pending' | 'error';
+  // 'ajustada' = venda sincronizada com valor DIFERENTE do registrado offline
+  // (preço mudou no servidor). Já foi contabilizada lá — fica apenas para
+  // conferência, NUNCA torce ser reenviada (status terminal de sync).
+  status: 'pending' | 'error' | 'ajustada';
   error?: string;
   tryCount: number;
 }
@@ -78,6 +82,15 @@ export function marcarErroVendaOffline(id: string, erro: string): void {
   v.status = 'error';
   v.error = erro;
   v.tryCount = (v.tryCount || 0) + 1;
+  gravar(lista);
+}
+
+export function marcarAjustadaVendaOffline(id: string, erro: string): void {
+  const lista = ler();
+  const v = lista.find((x) => x.id === id);
+  if (!v) return;
+  v.status = 'ajustada';
+  v.error = erro;
   gravar(lista);
 }
 

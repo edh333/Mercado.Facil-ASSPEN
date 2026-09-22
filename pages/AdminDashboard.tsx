@@ -416,9 +416,11 @@ export function AdminDashboard() {
     payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30'; amount: number }[],
     change?: number,
     customerAccountId?: string,
-    cardBrand?: string
+    clientToken?: string,
+    cardBrand?: string,
+    sessaoCaixaId?: string
   ) => {
-    const res = await registrarVendaOffline(targetUserId, items, paymentMethod, total, payments, change, customerAccountId, cardBrand);
+    const res = await registrarVendaOffline(targetUserId, items, paymentMethod, total, payments, change, customerAccountId, cardBrand, sessaoCaixaId, clientToken);
     if (!res) {
       throw new Error('Não foi possível registrar a venda offline.');
     }

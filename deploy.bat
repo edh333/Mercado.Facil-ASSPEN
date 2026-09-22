@@ -102,14 +102,8 @@ if "%NONINTERACTIVE%"=="1" set "FB_EXTRA=--non-interactive"
 set "TOKEN_EXTRA="
 if "%NONINTERACTIVE%"=="1" if defined FIREBASE_TOKEN set "TOKEN_EXTRA=--token %FIREBASE_TOKEN%"
 
-echo Deployando Functions...
-call firebase deploy --only functions %FB_EXTRA% %TOKEN_EXTRA%
-if errorlevel 1 goto :fim
-echo OK
-echo.
-
-echo Deployando Firestore, Storage e Hosting...
-call firebase deploy --only "firestore:main,storage:main,hosting" %FB_EXTRA% %TOKEN_EXTRA%
+echo Deployando Functions, Firestore, Storage e Hosting (deploy único)...
+call firebase deploy --only "functions,firestore:main,storage:main,hosting" %FB_EXTRA% %TOKEN_EXTRA%
 if errorlevel 1 goto :fim
 echo OK
 echo.

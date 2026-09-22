@@ -77,8 +77,8 @@ function checarAtualizacao(win) {
             defaultId: 0,
             cancelId: 1,
           }).then(({ response }) => {
-            if (response === 0) shell.openExternal(WEB_URL);
-          });
+            if (response === 0) shell.openExternal(WEB_URL).catch(() => {});
+          }).catch(() => { /* janela fechada antes do clique — nada a fazer */ });
         }
       } catch { /* manifest inválido — ignora silenciosamente */ }
     });
@@ -95,6 +95,22 @@ if (app.isPackaged) {
     fs.mkdirSync(portablePath, { recursive: true });
   }
   app.setPath('userData', portablePath);
+}
+
+// Instância única: o app é PORTABLE (userData no mesmo diretório do .exe).
+// Duas execuções simultâneas gravariam a fila offline/backups no mesmo lugar
+// (janela duplicada + escrita corrompida). A 2ª instância apenas foca a 1ª.
+const temInstanciaUnica = app.requestSingleInstanceLock();
+if (!temInstanciaUnica) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    const [win] = BrowserWindow.getAllWindows();
+    if (win) {
+      if (win.isMinimized()) win.restore();
+      win.focus();
+    }
+  });
 }
 
 // Cria (ou garante) o atalho do app na Área de Trabalho do Windows.
@@ -280,15 +296,30 @@ function createWindow() {
       resolverJanelaPrint(url);
       return { action: 'deny' };
     }
-    return {
-      action: 'allow',
-      overrideBrowserWindowOptions: {
-        autoHideMenuBar: true,
-        minWidth: 480,
-        minHeight: 400,
-        backgroundColor: '#ffffff',
-      },
-    };
+    // SEGURANÇA (correção): popup vira uma janela do Electron DENTRO do app com
+    // o preload ativo — solto, um link externo renderizaria site arbitrário.
+    // Só reabrimos janelas do PRÓPRIO app (print/relatórios); o resto vai para
+    // o navegador padrão (e é negado na janela do app).
+    try {
+      const u = new URL(url);
+      const permitido =
+        (u.protocol === 'file:' && /\/dist\//.test(u.pathname)) ||
+        (u.protocol === 'https:' && u.hostname === 'mercado-facil-mt.web.app') ||
+        (u.hostname === 'localhost' && (u.port === '5177' || u.port === '5173'));
+      if (permitido) {
+        return {
+          action: 'allow',
+          overrideBrowserWindowOptions: {
+            autoHideMenuBar: true,
+            minWidth: 480,
+            minHeight: 400,
+            backgroundColor: '#ffffff',
+          },
+        };
+      }
+    } catch { /* URL inválida → deny */ }
+    shell.openExternal(url).catch(() => {});
+    return { action: 'deny' };
   });
 
   return win;
@@ -317,12 +348,27 @@ function origemPermitida(event) {
   try {
     const url = (event.senderFrame && event.senderFrame.url) || (event.sender && event.sender.getURL()) || '';
     if (!url) return false;
-    return (
-      url.startsWith('file://') ||
-      url.startsWith('http://localhost:5177') ||
-      url.startsWith('https://localhost:5177') ||
-      url.startsWith('https://mercado-facil-mt.web.app')
-    );
+    if (url.startsWith('file://')) {
+      // SEGURANÇA (correção): antes, QUALQUER file:// (ex.: página HTML criada
+      // na máquina e aberta na janela) podia chamar o IPC e ler/escrever a
+      // pasta de dados (CPFs, backup, fila offline). Agora só o BUNDLE LOCAL
+      // (/dist/) do próprio app é reconhecido.
+      try {
+        const u = new URL(url);
+        return u.protocol === 'file:' && /\/dist\//.test(u.pathname);
+      } catch {
+        return false;
+      }
+    }
+    if (url.startsWith('http://localhost:5177') || url.startsWith('https://localhost:5177')) {
+      const u = new URL(url);
+      return u.hostname === 'localhost' && u.port === '5177';
+    }
+    if (url.startsWith('https://mercado-facil-mt.web.app')) {
+      const u = new URL(url);
+      return u.protocol === 'https:' && u.hostname === 'mercado-facil-mt.web.app';
+    }
+    return false;
   } catch {
     return false;
   }

@@ -97,7 +97,7 @@ async function obterOuCriarRelease(token) {
       `download direto sem custo de banda.\n\n` +
       `- **Usuário**: MercadoFacil-Usuario-Setup-${VERSION}.exe\n` +
       `- **Admin**: MercadoFacil-Admin-Setup-${VERSION}.exe`,
-    draft: false,
+    draft: true,
     prerelease: false,
   };
 
@@ -158,7 +158,30 @@ async function main() {
   if (exes.length < 2) {
     throw new Error(`Instaladores não encontrados em dist-electron/ (achei ${exes.length}). Rode: npm run electron-build`);
   }
-  const acharExe = (modo) => exes.filter((x) => x.startsWith(`MercadoFacil-${modo}-Setup-`)).sort().pop();
+  const acharExe = (modo) => {
+    // Versão EXATA de package.json — nunca "o maior": sort() lexicográfico
+    // pegava Setup-1.0.9 em vez de Setup-1.0.10 e publicava o instalador antigo.
+    const alvo = `MercadoFacil-${modo}-Setup-${VERSION}.exe`;
+    if (!exes.includes(alvo)) {
+      throw new Error(
+        `Instalador ${alvo} não existe em dist-electron/ (achei ${exes.length}). Rode: npm run electron-build` +
+        (exes.length ? `\nEncontrados: ${exes.join(', ')}` : '')
+      );
+    }
+    return alvo;
+  };
+
+  // SEGURANÇA de pipeline: o Release vX só é publicado se a TAG vX JÁ EXISTE.
+  // Criar a tag aqui (implicitamente, no POST do Release) faria o push da tag
+  // disparar um SEGUNDO workflow Release completo (deploy duplo concorrente).
+  // workflow_dispatch e push v* usam o MESMO guard — tag ausente = erro claro.
+  const refCheck = await apiJson(token, 'GET', `/repos/${REPO}/git/ref/tags/${TAG}`);
+  if (refCheck.status !== 200) {
+    throw new Error(
+      `Tag ${TAG} não existe no repositório. Crie-a explicitamente (git tag v${VERSION} && git push origin v${VERSION}) ` +
+      `— publicar Release sem a tag dispararia deploy duplo. (HTTP ${refCheck.status})`
+    );
+  }
 
   const versaoJson = Buffer.from(JSON.stringify({
     version: VERSION,
@@ -200,6 +223,13 @@ async function main() {
   }
   if (!tudoOk) {
     throw new Error('Falha na verificação dos assets do GitHub Release.');
+  }
+  // Publicação final: o status rascunho só sai depois que cada asset passou pela
+  // verificação end-to-end. Antes (draft:false na criação) uma falha no meio
+  // deixava Release pública com asset faltando/corrompido.
+  const pub = await apiJson(token, 'PATCH', `/repos/${REPO}/releases/${release.id}`, { draft: false });
+  if (pub.status !== 200 && pub.status !== 201) {
+    throw new Error(`Falha ao publicar a Release ${TAG} (HTTP ${pub.status}): ${pub.text.slice(0, 300)}`);
   }
   console.log(GREEN(`\nGitHub Releases ${TAG} publicado e verificado (${assets.length} assets).`));
 }

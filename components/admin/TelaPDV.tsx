@@ -15,7 +15,7 @@ interface TelaPDVProps {
   products: Product[];
   orders?: Order[];
   onConfirm: (targetUserId: string, items: any[], paymentMethod: MetodoPagamentoPDV, total: number, payments?: { method: MetodoLancamento; amount: number }[], change?: number, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string, fiado30UserId?: string, senhaPrimaria?: string, senhaSecundaria?: string, sessaoCaixaId?: string) => Promise<any>;
-  onConfirmOffline?: (targetUserId: string, items: any[], paymentMethod: MetodoPagamentoPDV, total: number, payments?: { method: MetodoLancamento; amount: number }[], change?: number, customerAccountId?: string) => Promise<any>;
+  onConfirmOffline?: (targetUserId: string, items: any[], paymentMethod: MetodoPagamentoPDV, total: number, payments?: { method: MetodoLancamento; amount: number }[], change?: number, customerAccountId?: string, clientToken?: string, cardBrand?: string, sessaoCaixaId?: string) => Promise<any>;
   setPrintOrder?: (order: any) => void;
   settings?: AppConfig;
   currentUser?: User;
@@ -455,8 +455,9 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
     // FIADO/FIADO_30: a senha validada do supervisor (mestra) é reencaminhada
     // ao servidor, que revalida (nunca confia só no frontend).
     const senhaFiado = (isFiado && senhaSupervisaoOk) ? senhaSupervisor.trim() : undefined;
+    let montagem;
     try {
-      const montagem = montarPagamentoPdv({
+      montagem = montarPagamentoPdv({
         formaPagamento,
         total: totalCarrinho,
         valorMisto,
@@ -466,14 +467,22 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
         clienteEhConsumidor,
         saldoCarteiraCliente: cliente?.walletBalance,
       });
-      if (montagem.ok === false) {
-        showNotification(montagem.message, 'error');
-        return;
-      }
-      paymentsArray = montagem.paymentsArray;
-      changeValue = montagem.changeValue;
+    } catch (e: any) {
+      // BUGFIX: erro de MONTAGEM (valores/cálculos) nunca era "queda de rede".
+      // Antes caía no catch de exceção e, offline, virava uma venda offline com
+      // paymentsArray quebrado. Validação é validação: termina aqui.
+      showNotification(e?.message || 'Dados de pagamento inválidos.', 'error');
+      return;
+    }
+    if (montagem.ok === false) {
+      showNotification(montagem.message, 'error');
+      return;
+    }
+    paymentsArray = montagem.paymentsArray;
+    changeValue = montagem.changeValue;
 
-      setProcessando(true);
+    setProcessando(true);
+    try {
       const pedido = await onConfirm(targetId, carrinho, formaPagamento, totalCarrinho, paymentsArray, changeValue, customerAccountId, saleToken, undefined, bandeiraCartao || undefined, undefined, senhaFiado, undefined, sessaoCaixaId);
       if (pedido) {
         setUltimoPedido(pedido);
@@ -493,9 +502,18 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
       }
     } catch (e: any) {
       setProcessando(false);
+      // FIADO offline é BLOQUEADO no servidor (senha mestra sempre revalidada
+      // lá). Nunca enfileirar: a dívida dependeria de uma senha que só existe
+      // no backend.
+      if (isFiado) {
+        showNotification(formaPagamento === 'FIADO_30'
+          ? 'Fiado 30 Dias requer conexão para validar a senha mestra no servidor.'
+          : 'Venda fiada exige conexão para validar a senha mestra no servidor. Conecte e finalize novamente.', 'error');
+        return;
+      }
       if (!navigator.onLine && onConfirmOffline) {
         try {
-          const pedidoOffline = await onConfirmOffline(targetId, carrinho, formaPagamento, totalCarrinho, paymentsArray, changeValue, customerAccountId);
+          const pedidoOffline = await onConfirmOffline(targetId, carrinho, formaPagamento, totalCarrinho, paymentsArray, changeValue, customerAccountId, saleToken, bandeiraCartao || undefined, sessaoCaixaId || undefined);
           if (pedidoOffline) {
             setUltimoPedido(pedidoOffline);
             setCarrinho([]);

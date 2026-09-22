@@ -84,6 +84,13 @@ describe('parseMoeda', () => {
   it('superset com símbolo R$', () => {
     expect(parseMoeda('R$ 45,67')).toBe(45.67);
   });
+
+  it('contagem física de caixa: milhar BR, zero e inválido', () => {
+    expect(parseMoeda('2.500,00')).toBe(2500);
+    expect(parseMoeda('0')).toBe(0);
+    expect(parseMoeda('1340,5')).toBe(1340.5);
+    expect(Number.isNaN(parseMoeda('abc'))).toBe(false);
+  });
 });
 
 describe('roundCents', () => {

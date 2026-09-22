@@ -9,6 +9,15 @@ on:
     tags:
       - 'v*'
 
+# Uma publicação por vez: sem concurrency-control, tag v* + workflow_dispatch
+# simultâneos (ou retry manual rápido) rodavam 2 fluxos completos em paralelo —
+# deploy concorrente do hosting/functions e run duplo do GitHub Release (erros
+# de 422 no PATCH draft:false). O grupo é por ref (tag): o 2º run fica enfileirado
+# e só desbloqueia quando o 1º termina (-cancel-in-progress: false).
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
 jobs:
   release:
     name: Release completo (Windows)
