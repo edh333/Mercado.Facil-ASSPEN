@@ -59,16 +59,32 @@ jobs:
             "VITE_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}",
             "VITE_FIREBASE_APP_ID=${{ secrets.VITE_FIREBASE_APP_ID }}"
           )
-          $envLines | Set-Content .env -Encoding utf8
+          $envLines | [System.IO.File]::WriteAllLines(".env", $envLines)
           Write-Output "Arquivo .env criado ($($envLines.Count) variáveis)"
+
+      # O hosting serve a pasta build/ (base '/' obrigatória no FireHosting);
+      # ela é gitignorada e não existe no runner — precisa ser gerada aqui.
+      - name: Build web (hosting)
+        shell: pwsh
+        run: npm run build
+
+      # No runner não há sessão OAuth; o Firebase CLI autentica via ADC
+      # (GOOGLE_APPLICATION_CREDENTIALS) com a service account do projeto.
+      - name: Preparar credencial da service account
+        shell: pwsh
+        run: |
+          $sa = "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}"
+          if ([string]::IsNullOrWhiteSpace($sa)) {
+            throw "Secret FIREBASE_SERVICE_ACCOUNT ausente. Cole o JSON da service account do projeto (Console Firebase -  SDK Admin - service account) em Settings `- Secrets and variables `- Actions."
+          }
+          $arquivo = "$env:RUNNER_TEMP\firebase-sa.json"
+          [System.IO.File]::WriteAllText($arquivo, $sa)
+          Write-Output "GOOGLE_APPLICATION_CREDENTIALS=$arquivo" | Out-File -Append -Encoding ascii $env:GITHUB_ENV
+          Write-Output "Service account gravada em $arquivo (CLI 15.x, deploy via ADC)"
 
       - name: Deploy Firebase (hosting, firestore, storage, functions)
         shell: pwsh
-        run: |
-          if ([string]::IsNullOrWhiteSpace("${{ secrets.FIREBASE_TOKEN }}")) {
-            throw "Secret FIREBASE_TOKEN ausente no repositorio. Crie em Settings `- Secrets and variables `- Actions com o token de 'firebase login:ci'."
-          }
-          npx firebase deploy --only hosting,firestore,storage,functions --token "${{ secrets.FIREBASE_TOKEN }}" --non-interactive
+        run: npx --yes firebase-tools@15.8.0 deploy --only hosting,firestore,storage,functions --project mercado-facil-mt --non-interactive
 
       - name: Gerar instaladores (Usuário + Admin)
         shell: pwsh
@@ -76,10 +92,6 @@ jobs:
 
       - name: Publicar instaladores + version.json no Storage
         shell: pwsh
-        env:
-          # publish-apps.cjs não usa configstore no runner: recebe o refresh
-          # token do mesmo secret do firebase deploy.
-          FIREBASE_REFRESH_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: node scripts/publish-apps.cjs
 
       - name: Publicar artefatos (instaladores)

@@ -22,8 +22,12 @@
  *      HEAD com Content-Length vs. tamanho do arquivo local).
  *
  * Requisitos:
- *   - Firebase CLI logado na conta dona do projeto (`firebase login` — o mesmo
- *     exigido pelo deploy.bat). Nunca usa credenciais de usuário do sistema.
+ *   - Autenticação (nesta ordem):
+ *     1. CI/GitHub Actions: env GOOGLE_APPLICATION_CREDENTIALS apontando para
+ *        o JSON da service account do projeto (secret FIREBASE_SERVICE_ACCOUNT)
+ *        — o token de acesso é gerado via assinatura JWT RS256 (scope Storage);
+ *     2. Local: sessão do Firebase CLI (`firebase login` — o mesmo exigido pelo
+ *        deploy.bat). Nunca usa credenciais de usuário do sistema.
  *   - dist-electron/MercadoFacil-Usuario-Setup-*.exe e Admin no padrão do
  *     electron-builder (artifactName → "MercadoFacil-{Usuario,Admin}-Setup-${version}.exe").
  *
@@ -32,6 +36,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const crypto = require('crypto');
 
 const ROOT = path.join(__dirname, '..');
 const RED = (s) => `\x1b[31m${s}\x1b[0m`;
@@ -89,8 +94,55 @@ function localizarRefreshToken() {
   return { refreshToken: tokens[0], conta: cfg.user?.email || cfg.activeAccounts?.default || 'desconhecida' };
 }
 
-// ── 2) Access token (refresh) ────────────────────────────────────────────
+// ── 2) Access token ──────────────────────────────────────────────────────
+function b64url(buf) {
+  return Buffer.from(buf).toString('base64url');
+}
+
+// Service account (CI/ADC): GERA o access token assinando um JWT RS256 com a
+// private_key da service account — sem depender de nenhuma sessão OAuth local.
+async function mintTokenServiceAccount(arquivoSa) {
+  const sa = JSON.parse(fs.readFileSync(arquivoSa, 'utf-8'));
+  if (!sa.client_email || !sa.private_key || !sa.token_uri) {
+    throw new Error(`Service account inválida em ${arquivoSa} (faltam client_email/private_key/token_uri).`);
+  }
+  const header = b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+  const agora = Math.floor(Date.now() / 1000);
+  const claims = b64url(JSON.stringify({
+    iss: sa.client_email,
+    scope: 'https://www.googleapis.com/auth/devstorage.read_write https://www.googleapis.com/auth/cloud-platform',
+    aud: sa.token_uri,
+    iat: agora,
+    exp: agora + 3600,
+  }));
+  const assinatura = crypto.sign(
+    'sha256',
+    Buffer.from(`${header}.${claims}`),
+    { key: sa.private_key, padding: crypto.constants.RSA_PKCS1_PADDING }
+  );
+  const jwt = `${header}.${claims}.${b64url(assinatura)}`;
+  const res = await fetch(sa.token_uri, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt,
+    }),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (res.status !== 200 || !json.access_token) {
+    throw new Error(`Falha ao trocar JWT da service account por access token (HTTP ${res.status}): ${JSON.stringify(json).slice(0, 200)}`);
+  }
+  console.log(`[auth] service account ok (${sa.client_email}) — publicando v${VERSION}`);
+  return json.access_token;
+}
+
 async function obterAccessToken() {
+  if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    const arquivoSa = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+    if (fs.existsSync(arquivoSa)) return mintTokenServiceAccount(arquivoSa);
+    throw new Error(`GOOGLE_APPLICATION_CREDENTIALS aponta para arquivo inexistente: ${arquivoSa}`);
+  }
   const { refreshToken, conta } = localizarRefreshToken();
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
