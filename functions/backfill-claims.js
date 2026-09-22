@@ -56,6 +56,7 @@ async function main() {
   let cursor = null;
   let total = 0;
   let admins = 0;
+  let pulados = 0;
 
   console.log("[Backfill Claims] Iniciando varredura de users/...");
   do {
@@ -67,8 +68,21 @@ async function main() {
 
     for (const d of snap.docs) {
       const dados = d.data();
+      // Usuários LEGADOS têm doc id ≠ authUid (id antigo). O claim deve ir no
+      // UID REAL do Firebase Auth (campo authUid), senão o setCustomUserClaims
+      // falha com "no user record" e o admin legado fica sem o claim (e sem o
+      // fallback da rules, que lê users/{uid} pelo doc id REAL).
+      const alvo = String(dados.authUid || d.id || "");
+      if (!alvo) { pulados += 1; continue; }
       const claim = ehAdmin(dados);
-      await admin.auth().setCustomUserClaims(d.id, { admin: claim });
+      try {
+        await admin.auth().setCustomUserClaims(alvo, { admin: claim });
+      } catch (e) {
+        // Sem conta no Auth (doc órfão) ou falha transitória — não aborta o lote.
+        console.warn(`[Backfill Claims] Pulando ${alvo} (doc ${d.id}): ${e?.message || e}`);
+        pulados += 1;
+        continue;
+      }
       total += 1;
       if (claim) admins += 1;
     }
@@ -76,7 +90,8 @@ async function main() {
   } while (cursor);
 
   console.log(
-    `[Backfill Claims] Concluído: ${total} usuário(s) processado(s), ${admins} admin(s).`
+    `[Backfill Claims] Concluído: ${total} usuário(s) processado(s), ${admins} admin(s)` +
+    (pulados ? `, ${pulados} pulado(s) sem conta no Auth.` : ".")
   );
   console.log(
     "IMPORTANTE: os admins precisam RELOGAR (sair e entrar) para o ID token\n" +
