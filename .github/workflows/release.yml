@@ -36,6 +36,12 @@ jobs:
       - name: Testes da web (vitest)
         run: npm test
 
+      # npm ci na raiz só instala as deps do app; as deps das functions (em
+      # functions/) não existem no runner — instalar antes dos testes/deploy.
+      - name: Instalar dependências (Cloud Functions)
+        run: npm ci
+        working-directory: functions
+
       - name: Testes das Cloud Functions (vitest)
         shell: pwsh
         run: npm test
