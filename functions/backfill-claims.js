@@ -7,13 +7,15 @@
 //   GOOGLE_APPLICATION_CREDENTIALS=<caminho> node backfill-claims.js
 //
 // O que faz: itera TODOS os docs de users/ e grava os custom claims no Firebase
-// Auth (admin: true/false), com o MESMO critério do trigger
-// sincronizarClaimsNoDoc (role admin/master AND status ativo). Deve rodar UMA
-// vez, ANTES do deploy das Security Rules, para que todos os admins tenham o
-// claim no ID token após relogarem.
+// Auth (admin: true/false e vendedor: true/false), com o MESMO critério do
+// trigger sincronizarClaimsNoDoc (role admin|master ⇒ admin, vendedor|operator
+// ⇒ vendedor, ambos somente com status ativo). Deve rodar UMA vez, ANTES do
+// deploy das Security Rules, para que todos os admins/vendedores tenham o claim
+// no ID token após relogarem.
 //
-// Critério espelhado de functions/index.js (ehAdmin):
-//   role admin|master (lowercase)  AND  status ausente ou 'active'
+// Critério espelhado de functions/index.js (sincronizarClaimsUsuario):
+//   ehAdmin    = role admin|master (lowercase) AND status ausente ou 'active'
+//   ehVendedor = role vendedor|operator (lowercase) AND status ausente ou 'active'
 // ─────────────────────────────────────────────────────────────
 "use strict";
 
@@ -27,6 +29,13 @@ function ehAdmin(usuario) {
   const statusAtivo =
     !usuario || !usuario.status || String(usuario.status).toLowerCase() === "active";
   return ["admin", "master"].includes(role) && statusAtivo;
+}
+
+function ehVendedor(usuario) {
+  const role = String((usuario && usuario.role) || "user").toLowerCase();
+  const statusAtivo =
+    !usuario || !usuario.status || String(usuario.status).toLowerCase() === "active";
+  return ["vendedor", "operator"].includes(role) && statusAtivo;
 }
 
 async function main() {
@@ -74,9 +83,12 @@ async function main() {
       // fallback da rules, que lê users/{uid} pelo doc id REAL).
       const alvo = String(dados.authUid || d.id || "");
       if (!alvo) { pulados += 1; continue; }
-      const claim = ehAdmin(dados);
+      const claim = {
+        admin: ehAdmin(dados),
+        vendedor: ehVendedor(dados),
+      };
       try {
-        await admin.auth().setCustomUserClaims(alvo, { admin: claim });
+        await admin.auth().setCustomUserClaims(alvo, claim);
       } catch (e) {
         // Sem conta no Auth (doc órfão) ou falha transitória — não aborta o lote.
         console.warn(`[Backfill Claims] Pulando ${alvo} (doc ${d.id}): ${e?.message || e}`);
@@ -84,7 +96,7 @@ async function main() {
         continue;
       }
       total += 1;
-      if (claim) admins += 1;
+      if (claim.admin) admins += 1;
     }
     cursor = snap.docs[snap.docs.length - 1];
   } while (cursor);

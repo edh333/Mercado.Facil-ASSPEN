@@ -308,8 +308,36 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
+// ── GUARDA DE ORIGEM DOS IPC ────────────────────────────────────────────────
+// O renderer do app só pode chamar os handlers abaixo a partir de UMA destas
+// origens (bundle local file://, dev do Vite em localhost:5177 ou o fallback
+// web). Qualquer outra origem (XSS, página externa aberta na janela, iframe
+// malicioso) é rejeitada antes de tocar no disco/sistema.
+function origemPermitida(event) {
+  try {
+    const url = (event.senderFrame && event.senderFrame.url) || (event.sender && event.sender.getURL()) || '';
+    if (!url) return false;
+    return (
+      url.startsWith('file://') ||
+      url.startsWith('http://localhost:5177') ||
+      url.startsWith('https://localhost:5177') ||
+      url.startsWith('https://mercado-facil-mt.web.app')
+    );
+  } catch {
+    return false;
+  }
+}
+
+function exigirOrigemPermitida(event) {
+  if (!origemPermitida(event)) {
+    console.error('[main] IPC bloqueado — origem não permitida:', event.senderFrame && event.senderFrame.url);
+    throw new Error('Origem não permitida.');
+  }
+}
+
 // IPC para Arquivos locais (backup localStorageService)
-ipcMain.handle('save-file', async (_event, { filePath, data }) => {
+ipcMain.handle('save-file', async (event, { filePath, data }) => {
+  exigirOrigemPermitida(event);
   const safePath = path.basename(filePath);
   const full = path.join(app.getPath('userData'), 'data', 'local', safePath);
   await fs.promises.mkdir(path.dirname(full), { recursive: true });
@@ -321,7 +349,8 @@ ipcMain.handle('save-file', async (_event, { filePath, data }) => {
 // cria uma janela oculta com o HTML do cupom e imprime direto na impressora
 // padrão (ou na `deviceName` informada) via webContents.print({ silent: true }).
 // O front só precisa abrir quando NÃO estiver no Electron (navegador).
-ipcMain.handle('print-html-silent', async (_event, { html, deviceName }) => {
+ipcMain.handle('print-html-silent', async (event, { html, deviceName }) => {
+  exigirOrigemPermitida(event);
   // Validação: o renderer pode ser comprometido num XSS — nunca confiar que
   // venha string/limite. HTML de cupom costuma ter <100 KB.
   if (typeof html !== 'string' || html.length === 0 || html.length > 200000) {
@@ -351,6 +380,7 @@ ipcMain.handle('print-html-silent', async (_event, { html, deviceName }) => {
 
 // IPC para Archiving/Backup
 ipcMain.handle('save-backup', async (event, { fileName, data }) => {
+  exigirOrigemPermitida(event);
   const backupDir = 'C:\\MercadoFacil_Backups';
   if (!fs.existsSync(backupDir)) {
     fs.mkdirSync(backupDir, { recursive: true });
@@ -362,14 +392,16 @@ ipcMain.handle('save-backup', async (event, { fileName, data }) => {
   return filePath;
 });
 
-ipcMain.handle('select-folder', async () => {
+ipcMain.handle('select-folder', async (event) => {
+  exigirOrigemPermitida(event);
   const result = await dialog.showOpenDialog({
     properties: ['openDirectory']
   });
   return result.filePaths[0];
 });
 
-ipcMain.handle('create-shortcut', async () => {
+ipcMain.handle('create-shortcut', async (event) => {
+  exigirOrigemPermitida(event);
   // Reusa o mesmo criador do atalho automático da primeira execução.
   try {
     return criarAtalhoDesktop();
@@ -381,9 +413,13 @@ ipcMain.handle('create-shortcut', async () => {
 // Fecha a janela de impressão /print de forma controlada (o window.close() do
 // renderer não funciona em janelas criadas pelo main — allowScriptsToCloseWindows).
 ipcMain.on('close-print-window', (event) => {
+  exigirOrigemPermitida(event);
   const win = BrowserWindow.fromWebContents(event.sender);
   if (win) win.close();
 });
 
 // Expõe o modo do app (admin/user) para a interface decidir a URL inicial
-ipcMain.handle('get-app-mode', () => APP_MODE);
+ipcMain.handle('get-app-mode', (event) => {
+  exigirOrigemPermitida(event);
+  return APP_MODE;
+});

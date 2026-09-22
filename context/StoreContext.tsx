@@ -10,6 +10,7 @@ import {
     hasActiveOfflineSession as temSessaoOfflineAtiva,
     getOfflineSession as obterSessaoOffline,
     clearOfflineSession as limparSessaoOffline,
+    clearOfflineCredential as limparCredencialOffline,
 } from '../utils/offlineUnlock';
 import { queuePendingUpload, listPendingUploads, removePendingUpload, attachPendingUploadDoc } from '../services/localStorageService';
 import { comprimirImagem } from '../utils/imageCompress';
@@ -133,7 +134,6 @@ interface StoreContextType {
     deleteProduct: (productId: string) => void;
     deleteExpense: (id: string) => Promise<void>;
 
-    deleteOrder: (orderId: string) => void;
     approveUser: (userId: string) => void;
     suspendUser: (userId: string, status: boolean) => void;
     updateUserStatus: (userId: string, status: 'active' | 'suspended' | 'pending') => void;
@@ -483,6 +483,7 @@ const [isLoggingOut, setIsLoggingOut] = useState(false);
             setPreRegisteredInmates([]);
             sessionStorage.clear();
             limparSessaoOffline();
+            limparCredencialOffline();
             setOfflineUnlocked(false);
             showNotification('Sessão encerrada com segurança.', 'success');
         } catch (error) {
@@ -1243,55 +1244,6 @@ return false;
         }
     };
     const markOrderAsPrinted = async (oid: string) => { try { await updateDoc(doc(db, 'orders', oid), { printCount: increment(1), status: OrderStatus.PREPARING }); } catch (e: any) { console.warn("[markOrderAsPrinted]", e.message); } };
-    const deleteOrder = async (oid: string) => {
-        try {
-            // Lê o pedido FRESCO no servidor (não do cache local) para evitar race condition
-            const orderSnap = await getDoc(doc(db, 'orders', oid));
-            if (!orderSnap.exists()) { showNotification("Pedido não encontrado.", "error"); return; }
-            const order = orderSnap.data();
-            const statusLower = String(order.status || '').toLowerCase();
-            const JA_ESTORNADO = ['refunded', 'devolvido', 'reembolsado', 'estornado', 'cancelled', 'cancelado', 'rejected', 'rejeitado'].includes(statusLower);
-            if (order.deleted) { showNotification("Pedido já está na lixeira.", "info"); return; }
-
-            const usouCarteira = String(order.paymentMethod || '').toUpperCase() === 'WALLET' ||
-                (Array.isArray(order.payments) && order.payments.some((p: any) => String(p.method || '').toUpperCase() === 'WALLET'));
-
-            if (usouCarteira && !JA_ESTORNADO) {
-                // Carteira: estorno server-side (restaura saldo + estoque + fiado + caixa atômico)
-                await fnEstornarVenda({ orderId: oid, motivo: 'Exclusão administrativa (restituição da carteira)' });
-                await updateDoc(doc(db, 'orders', oid), { deleted: true });
-                showNotification("Pedido excluído — estorno processado (saldo + estoque restaurados).", "success");
-            } else if (!usouCarteira && !JA_ESTORNADO) {
-                // Sem carteira (PIX/CASH/FIADO): transação local para restaurar estoque + marcar deleted
-                await runTransaction(db, async (transaction) => {
-                    const freshOrderSnap = await transaction.get(doc(db, 'orders', oid));
-                    if (!freshOrderSnap.exists()) throw new Error("Pedido não encontrado.");
-                    const freshOrder = freshOrderSnap.data();
-                    const freshStatus = String(freshOrder.status || '').toLowerCase();
-                    const FRESH_ESTORNADO = ['refunded', 'devolvido', 'reembolsado', 'estornado', 'cancelled', 'cancelado', 'rejected', 'rejeitado'].includes(freshStatus);
-                    if (freshOrder.deleted || FRESH_ESTORNADO) throw new Error("Pedido já processado/excluído.");
-
-                    for (const item of freshOrder.items) {
-                        const productRef = doc(db, 'products', item.productId);
-                        const prodSnap = await transaction.get(productRef);
-                        if (prodSnap.exists()) {
-                            const freshStock = prodSnap.data().stock || 0;
-                            transaction.update(productRef, { stock: freshStock + item.quantity });
-                        }
-                    }
-                    transaction.update(doc(db, 'orders', oid), { deleted: true });
-                });
-                showNotification("Pedido excluído e estoque restituído.", "success");
-            } else {
-                // Já estornado/cancelado: só marca deleted
-                await updateDoc(doc(db, 'orders', oid), { deleted: true });
-                showNotification("Pedido estornado movido para a lixeira (estoque/saldo já devolvidos).", "success");
-            }
-        } catch (e: any) {
-            showNotification("Erro ao excluir pedido: " + (e?.message || 'tente novamente'), "error");
-        }
-    };
-
     const addProduct = async (product: Product) => {
         try {
             const id = product.id || crypto.randomUUID();
@@ -2850,7 +2802,7 @@ return false;
                     }
                     setAppConfig(DEFAULT_CONFIG);
                 } else {
-                    const data = configSnap.data();
+                    const data = semSenhasConfig(configSnap.data());
                     if ((data.appName || '').toUpperCase().includes('JUMBO') || (data.systemName || '').toUpperCase().includes('JUMBO') || !(data.systemName || '') || (data.systemName || '').includes('FAMÍLIA')) {
                         const fixedData = { ...data, appName: 'MERCADO FÁCIL', systemName: 'MERCADO FÁCIL' };
                         await setDoc(doc(db, 'settings', 'general'), semSenhasConfig(fixedData), { merge: true });
@@ -2864,7 +2816,7 @@ return false;
 
         unsubConfig = onSnapshot(doc(db, 'settings', 'general'), (docSnap: any) => {
             if (docSnap.exists()) {
-                const data = docSnap.data();
+                const data = semSenhasConfig(docSnap.data());
                 setAppConfig({ ...DEFAULT_CONFIG, ...data });
             }
             setIsLoading(false);
@@ -3034,7 +2986,7 @@ return false;
             generateActivationKey,
             isSystemActive,
             
-            updateOrderStatus, aprovarPedido, markOrderAsPrinted, deleteOrder, addProduct, updateProduct, deleteProduct, deleteExpense,
+            updateOrderStatus, aprovarPedido, markOrderAsPrinted, addProduct, updateProduct, deleteProduct, deleteExpense,
             loadMoreOrders, loadMoreExpenses, loadMoreProducts, productsLimit, ordersLimit, expensesLimit, aumentarCapacidade, usersLimit, loadMoreUsers, expandUsersLimit, loadMoreSuppliers, loadMoreInmates, suppliersLimit, inmatesLimit, cotaCritica,
             approveUser, updateUserStatus, toggleUserCredit, deleteUser, suspendUser,
             addSupplier, removeSupplier, addExpense, addWithdrawal, toggleFinanceEntries,

@@ -43,7 +43,6 @@ import { AdminMessagesTab } from '../components/admin/AdminMessagesTab';
 import { AdminCustomersTab } from '../components/admin/AdminCustomersTab';
 import { AdminModals } from '../components/admin/AdminModals';
 import { ManualCreditModal } from '../components/admin/ManualCreditModal';
-import { executarArquivamentoLocal, shouldRunArchive } from '../utils/archiveUtils';
 import { abrirJanelaImpressao } from '../utils/printUtils';
 import { toDate } from '../utils/dateUtils';
 import { usePermissions } from '../hooks/usePermissions';
@@ -99,7 +98,6 @@ export function AdminDashboard() {
     backupSystem,
     logout,
     showNotification,
-    deleteOrder,
     createAdminUser,
     updateAdminPermissions,
     removeSupplier,
@@ -271,17 +269,6 @@ export function AdminDashboard() {
     });
     return () => unsubscribe();
   }, [currentUser?.role]);
-
-
-  // Run client-side archiving once per day on admin login
-  useEffect(() => {
-    if (!currentUser) return;
-    if (!shouldRunArchive()) return;
-    const timer = setTimeout(() => {
-      executarArquivamentoLocal().catch(console.error);
-    }, 15000); // 15s delay — let the UI settle first
-    return () => clearTimeout(timer);
-  }, [currentUser?.id]);
 
   // 4. Role-Based Access Control
   const { role: userRole, loading: roleLoading } = usePermissions(currentUser?.id);

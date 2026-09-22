@@ -39,10 +39,12 @@ export const formatarDataContabil = (d: any): string => {
  */
 export const buildMonthlyDre = (orders: any[], expenses: any[], products: any[], startDate: string, endDate: string) => {
   const validOrders = (orders || []).filter(o =>
+    !o.deleted &&
     ehReceita(o.status) &&
     inRangeContabil(o.date || o.createdAt, startDate, endDate)
   );
   const cancelledOrders = (orders || []).filter(o =>
+    !o.deleted &&
     String(o.status || '').toUpperCase() === 'CANCELLED' &&
     inRangeContabil(o.date || o.createdAt, startDate, endDate)
   );
@@ -98,7 +100,7 @@ export const buildSalesCsv = (orders: any[], users: any[], startDate: string, en
   const cabecalho = ['DATA', 'NUMERO_CUPOM', 'CPF_CLIENTE', 'FORMA_PAGAMENTO', 'ALIQUOTA_ESTIMADA(%)', 'IMPOSTO_ESTIMADO', 'VALOR_TOTAL'];
 
   const linhas = (orders || [])
-    .filter(o => ehReceita(o.status) && inRangeContabil(o.date || o.createdAt, startDate, endDate))
+    .filter(o => !o.deleted && ehReceita(o.status) && inRangeContabil(o.date || o.createdAt, startDate, endDate))
     .map(o => {
       const u = userMap.get(String(o.userId));
       const cpf = sanitizarCpf(u?.cpf || o.userCpf || '');
@@ -131,6 +133,7 @@ export const buildSalesCsv = (orders: any[], users: any[], startDate: string, en
  */
 export const buildStockAbc = (products: any[], orders: any[], startDate: string, endDate: string) => {
   const validOrders = (orders || []).filter(o =>
+    !o.deleted &&
     ehReceita(o.status) &&
     inRangeContabil(o.date || o.createdAt, startDate, endDate)
   );
@@ -200,7 +203,7 @@ export const buildStockAbc = (products: any[], orders: any[], startDate: string,
  */
 export const buildTopProducts = (products: any[], orders: any[], startDate: string, endDate: string) => {
   const validOrders = (orders || [])
-    .filter(o => ehReceita(o.status) &&
+    .filter(o => !o.deleted && ehReceita(o.status) &&
       inRangeContabil(o.date || o.createdAt, startDate, endDate));
 
   const giroMap = new Map<string, { qtd: number; receita: number }>();
@@ -247,7 +250,7 @@ export const buildTopProducts = (products: any[], orders: any[], startDate: stri
  */
 export const buildDailySales = (orders: any[], startDate: string, endDate: string) => {
   const validOrders = (orders || [])
-    .filter(o => ehReceita(o.status) && inRangeContabil(o.date || o.createdAt, startDate, endDate));
+    .filter(o => !o.deleted && ehReceita(o.status) && inRangeContabil(o.date || o.createdAt, startDate, endDate));
 
   const porDia = new Map<string, { data: string; vendas: number; total: number; items: number }>();
   let totalGeral = 0;
@@ -288,7 +291,7 @@ export const buildDailySales = (orders: any[], startDate: string, endDate: strin
 export const buildSalesByCategory = (orders: any[], products: any[], startDate: string, endDate: string) => {
   const productMap = new Map((products || []).map(p => [String(p.id), p]));
   const validOrders = (orders || [])
-    .filter(o => ehReceita(o.status) && inRangeContabil(o.date || o.createdAt, startDate, endDate));
+    .filter(o => !o.deleted && ehReceita(o.status) && inRangeContabil(o.date || o.createdAt, startDate, endDate));
 
   const grupos = new Map<string, { categoria: string; quantidade: number; receita: number }>();
   for (const o of validOrders) {
@@ -376,7 +379,7 @@ export const buildExtratoIndividual = (user: any, orders: any[], transactions: a
   const movs: { date: any; type: 'ENTRY' | 'EXIT'; description: string; amount: number; doc: string }[] = [];
 
   (orders || [])
-    .filter(o => String(o.userId) === String(user.id) && inRangeContabil(o.date || o.createdAt, startDate, endDate))
+    .filter(o => !o.deleted && String(o.userId) === String(user.id) && inRangeContabil(o.date || o.createdAt, startDate, endDate))
     .forEach(o => {
       const total = Math.abs(Number(o.total) || 0);
       const status = String(o.status || '').toUpperCase();
@@ -548,7 +551,8 @@ export const buildFiadoVendas = (orders: any[], startDate: string, endDate: stri
   const vendas = (orders || [])
     .filter(o => {
       const pm = String(o.paymentMethod || '').toUpperCase();
-      return (pm === 'FIADO' || pm === 'FIADO_30') &&
+      return !o.deleted &&
+        (pm === 'FIADO' || pm === 'FIADO_30') &&
         inRangeContabil(o.date || o.createdAt, startDate, endDate);
     })
     .map(o => ({

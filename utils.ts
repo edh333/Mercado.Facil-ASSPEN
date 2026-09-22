@@ -300,13 +300,15 @@ export const copiarTextoComFallback = async (texto: string): Promise<boolean> =>
 
 /** Converte entrada de valor monetário (aceita vírgula ou ponto) em número.
  *  Com vírgula: o ponto é separador de milhar ("1.234,56"). Sem vírgula: o
- *  ponto é decimal ("129.90") — padrão de teclados internacionais. */
+ *  ponto é decimal ("129.90") — padrão de teclados internacionais.
+ *  Remove símbolos/letras ("R$ 45,67" → 45.67), espelhando utils/money.ts. */
 export const parseMoeda = (valor: string | number | null | undefined): number => {
   if (valor === null || valor === undefined) return 0;
   if (typeof valor === 'number') return isFinite(valor) ? valor : 0;
   const s = String(valor).trim();
   if (!s) return 0;
-  const limpo = s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : s;
+  const semSimbolo = s.replace(/[^\d,.\-]/g, '');
+  const limpo = semSimbolo.includes(',') ? semSimbolo.replace(/\./g, '').replace(',', '.') : semSimbolo;
   const n = parseFloat(limpo);
   return isFinite(n) ? n : 0;
 };

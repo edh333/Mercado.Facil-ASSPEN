@@ -871,7 +871,9 @@ exports.redefinirSenhaAdmin = onCall(async (request) => {
  * Público — recuperação de senha validando CPF do usuário e do interno.
  * Se `novaSenha` for `__VALIDACAO__`, APENAS valida os CPFs (não troca a senha),
  * usado pelo fluxo "Esqueci minha senha" (passo 1 de verificação).
- * Protegido contra brute force por janela de tentativas (5 por 10 min por CPF).
+ * Protegido contra brute force por janela de tentativas (5 por 30 min por CPF,
+ * contadas ANTES da validação dos fatores — qualquer tentativa desgasta a janela)
+ * e por limite por IP em memória (complementar).
  */
 exports.redefinirSenhaPublica = onCall(async (request) => {
   const cpf = cleanCpf(request.data?.cpf);
@@ -882,33 +884,10 @@ exports.redefinirSenhaPublica = onCall(async (request) => {
   if (cpf.length !== 11) throw new HttpsError("invalid-argument", "CPF do usuário inválido.");
   if (cpfInterno.length !== 11) throw new HttpsError("invalid-argument", "CPF do interno inválido.");
 
-  const usuario = await usuarioPorCpf(cpf);
-  if (!usuario) throw new HttpsError("not-found", "Usuário não encontrado.");
-
-  // NUNCA permitir recuperação pública de contas administrativas — um atacante
-  // não pode tomar o painel com 2 CPFs conhecidos.
-  const roleDoc = String(usuario.role || "").toLowerCase();
-  if (["admin", "master"].includes(roleDoc)) {
-    throw new HttpsError("permission-denied", "Recuperação pública não disponível para contas administrativas.");
-  }
-
-  const cpfInternoDoc = cleanCpf(usuario.inmateCpf || usuario.prisonerCpf || "");
-  if (cpfInternoDoc !== cpfInterno) {
-    throw new HttpsError("permission-denied", "CPF do interno não confere com o cadastro.");
-  }
-
-  // Fator adicional de conhecimento: o nome completo cadastrado deve bater.
-  // (CPF de usuário + CPF de interno são semi-públicos entre familiares; o
-  // nome completo reduz drasticamente a superfície de tomada de conta.)
-  if (!nomeCompleto) {
-    throw new HttpsError("invalid-argument", "Informe o nome completo cadastrado.");
-  }
-  const nomeDoc = String(usuario.name || "").trim().toLowerCase().replace(/\s+/g, " ");
-  if (!nomeDoc || nomeDoc !== nomeCompleto) {
-    throw new HttpsError("permission-denied", "Nome completo não confere com o cadastro.");
-  }
-
-  // Contagem de tentativas somente após confirmar que o CPF pertence a um usuário válido
+  // RATE LIMIT ANTES da validação dos fatores: o contador (compartilhado em
+  // Firestore, visível a todas as instâncias) é incrementado por QUALQUER
+  // tentativa do CPF — antes, erros de CPF interno/nome nunca eram contados e
+  // o brute-force de fatores era ilimitado. Janela 30 min (5 tentativas).
   const bloqueioRef = db.collection("security_events").doc("rec_" + cpf);
   const bloqueio = await bloqueioRef.get();
   if (bloqueio.exists) {
@@ -929,6 +908,41 @@ exports.redefinirSenhaPublica = onCall(async (request) => {
   } else {
     await bloqueioRef.set({ contagem: 1, primeiraTentativa: new Date().toISOString() });
   }
+  // Linha de defesa extra por IP (em memória por instância — complementa o CPF).
+  try {
+    const ip = request.rawRequest?.ip || request.rawRequest?.socket?.remoteAddress || "";
+    if (ip) verificarRateLimit("redefinirSenhaIP:" + ip, 15);
+  } catch (e) { /* IP indisponível/proxy — o bloqueio por CPF continua valendo */ }
+
+  const usuario = await usuarioPorCpf(cpf);
+  if (!usuario) throw new HttpsError("not-found", "Usuário não encontrado.");
+
+  // NUNCA permitir recuperação pública de contas administrativas — um atacante
+  // não pode tomar o painel com 2 CPFs conhecidos. Erro IDÊNTICO ao CPF
+  // inexistente: não vazamos que aquele CPF pertence a um admin.
+  const roleDoc = String(usuario.role || "").toLowerCase();
+  if (["admin", "master"].includes(roleDoc)) {
+    throw new HttpsError("not-found", "Usuário não encontrado.");
+  }
+
+  const cpfInternoDoc = cleanCpf(usuario.inmateCpf || usuario.prisonerCpf || "");
+  if (cpfInternoDoc !== cpfInterno) {
+    throw new HttpsError("permission-denied", "CPF do interno não confere com o cadastro.");
+  }
+
+  // Fator adicional de conhecimento: o nome completo cadastrado deve bater.
+  // (CPF de usuário + CPF de interno são semi-públicos entre familiares; o
+  // nome completo reduz drasticamente a superfície de tomada de conta.)
+  if (!nomeCompleto) {
+    throw new HttpsError("invalid-argument", "Informe o nome completo cadastrado.");
+  }
+  const nomeDoc = String(usuario.name || "").trim().toLowerCase().replace(/\s+/g, " ");
+  if (!nomeDoc || nomeDoc !== nomeCompleto) {
+    throw new HttpsError("permission-denied", "Nome completo não confere com o cadastro.");
+  }
+
+  // Fatores validados: zera o contador (não punir usuário legítimo).
+  await bloqueioRef.delete();
 
   if (apenasValidacao) {
     return { ok: true, validado: true };
@@ -1053,6 +1067,8 @@ exports.aprovarDeposito = onCall(async (request) => {
       }).catch(() => {});
       throw new HttpsError("already-exists", "Comprovante já utilizado em outro depósito. Depósito recusado automaticamente.");
     }
+    console.error("[aprovarDeposito] Falha ao aprovar depósito:", e && e.message, e && e.stack);
+    if (e && e.code && String(e.code).startsWith("functions/")) throw e;
     throw new HttpsError("invalid-argument", "Falha ao aprovar depósito. Tente novamente.");
   }
 
@@ -1092,7 +1108,13 @@ exports.rejeitarDeposito = onCall(async (request) => {
       });
     });
   } catch (e) {
-    throw new HttpsError("invalid-argument", "Falha ao rejeitar depósito. Tente novamente.");
+    console.error("[rejeitarDeposito] Falha ao rejeitar depósito:", e && e.message, e && e.stack);
+    if (e && e.code && String(e.code).startsWith("functions/")) throw e;
+    const msg = (e && e.message) || "Falha ao rejeitar depósito. Tente novamente.";
+    if (/n[aã]o encontrad|j[aá] foi processad/i.test(msg)) {
+      throw new HttpsError("invalid-argument", msg);
+    }
+    throw new HttpsError("internal", "Falha ao rejeitar depósito. Tente novamente.");
   }
 
   await registrarAudit(caller.id, "REJEITAR_DEPOSITO", { transacaoId: tid, usuarioId: usuarioIdDeposito }, { transacaoId: tid, usuarioId: usuarioIdDeposito, motivo });
@@ -1169,7 +1191,10 @@ exports.creditarSaldo = onCall(async (request) => {
  * e só zera se ainda > 0.
  */
 exports.zerarCarteiras = onCall(async (request) => {
-  const caller = await exigirAdmin(request);
+  // Ação destrutiva em massa de saldo: exige permissão granular 'wallet'
+  // (não basta ser admin — admins restritos sem acesso a carteira são barrados),
+  // como no aprovarDeposito/creditarSaldo. Rate limit adicional por operador.
+  const caller = await exigirAdminPermissao(request, "wallet");
   verificarRateLimit("zerarCarteiras:" + caller.id, 3);
   logger.info(`[zerarCarteiras] operador=${caller.id}`);
 
@@ -1550,9 +1575,11 @@ function refSessaoCaixa(sessao) {
 async function getSessaoCaixaAberta(operatorId) {
   // 1) PDV moderno (coleção cash_sessions, status minúsculo "open").
   //    Filtro de status feito em memória para não depender de índice composto.
+  //    Janela 500 (não 100): com muitas sessões históricas, a ativa podia ficar
+  //    fora da página de 100 (IDs aleatórios, sem orderBy) → "Nenhuma sessão".
   const snap1 = await db.collection("cash_sessions")
     .where("operatorId", "==", operatorId)
-    .limit(100)
+    .limit(500)
     .get();
   const ativa1 = snap1.docs.find((d) => String(d.data().status || "").toLowerCase() === "open");
   if (ativa1) {
@@ -1572,11 +1599,13 @@ async function getSessaoCaixaAberta(operatorId) {
 /** Resolve a sessão de caixa vigente na data do pedido (para estorno).
  *  Ordem = mesma da venda: PDV (cash_sessions) primeiro, legado (cashier) depois. */
 async function resolverSessaoCaixaDoPedido(pedido) {
-  const momento = new Date(pedido.date).getTime();
+  // Datas legadas podem não ter o campo `date` (pedidos PDV antigos): fallback
+  // para createdAt mantém o estorno de caixa funcionando nesses registros.
+  const momento = new Date(pedido.date || pedido.createdAt).getTime();
   // 1) PDV moderno: sessão em cash_sessions aberta na data do pedido
   const snap = await db.collection("cash_sessions")
     .where("operatorId", "==", (pedido.operatorId || ""))
-    .limit(100)
+    .limit(500)
     .get();
   const sessao = snap.docs
     .map((d) => ({ id: d.id, ...d.data() }))
@@ -1856,6 +1885,12 @@ exports.processarVendaAdmin = onCall(async (request) => {
     if (paymentMethod === "FIADO") {
       if (isConsumer) throw new Error("Venda fiada exige usuário cadastrado.");
       if (!customerAccountId) throw new Error("Selecione o usuário cadastrado para o fiado.");
+      // Defesa em profundidade: a dívida nasce em users/targetUserId (gravação
+      // abaixo) e o estorno a reverte via customerAccountId — se diferirem, a
+      // dívida fica órfã. O PDV envia SEMPRE o mesmo id (cliente = usuário).
+      if (customerAccountId !== targetUserId) {
+        throw new Error("Inconsistência: o cliente de fiado difere do usuário da venda.");
+      }
       if (!userData) throw new Error("Usuário de fiado não encontrado.");
       clienteFiadoNome = String(userData.name || userData.nome || "Fiado").slice(0, 80);
       if (String(userData.status || "").toLowerCase() === "blocked") {
@@ -1897,6 +1932,10 @@ exports.processarVendaAdmin = onCall(async (request) => {
     if (paymentMethod === "FIADO_30") {
       if (isConsumer) throw new Error("Fiado 30 Dias exige usuário cadastrado.");
       if (!customerAccountId) throw new Error("Selecione o usuário para o fiado 30 dias.");
+      // Mesma proteção do FIADO: dívida e estorno usam a MESMA referência.
+      if (customerAccountId !== targetUserId) {
+        throw new Error("Inconsistência: o cliente do fiado 30 dias difere do usuário da venda.");
+      }
       const fiado30UserId = customerAccountId;
       const fiado30UserSnap = await t.get(db.collection("users").doc(fiado30UserId));
       if (!fiado30UserSnap.exists) throw new Error("Usuário para fiado 30 dias não encontrado.");
@@ -2005,6 +2044,10 @@ exports.processarVendaAdmin = onCall(async (request) => {
     const novoPedido = {
       id: orderId,
       createdAt: new Date().toISOString(),
+      // Dia local São Paulo (YYYY-MM-DD): base do fechamento de caixa/reportes.
+      // Sem ele, o estorno de vendas em dinheiro não conseguia localizar a
+      // sessão de caixa correspondente (resolverSessaoCaixaDoPedido usa date).
+      date: new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }),
       status: 'paid',
       userId: targetUserId,
       userName: isConsumer ? "CONSUMIDOR FINAL" : (userData?.name || clienteFiadoNome || "Consumidor"),
@@ -2079,9 +2122,12 @@ exports.comprarComCarteira = onCall(async (request) => {
 
   // ID do pedido derivado do clientToken quando presente (reenvios reutilizam o
   // mesmo ID; sem token segue com ID aleatório por compatibilidade antiga).
+  // HASH (sha256) em vez de truncar os 12 primeiros caracteres: truncar
+  // colidia se dois tokens distintos coincissem no prefixo (segundo t.set
+  // SOBRESCRIA o pedido anterior — um some do histórico, com duplo débito).
   const clientToken = lerClientToken(request.data);
   const orderId = clientToken
-    ? clientToken.replace(/[^a-zA-Z0-9]/g, "").slice(0, 12).toUpperCase()
+    ? crypto.createHash("sha256").update("pedido:" + clientToken).digest("hex").slice(0, 12).toUpperCase()
     : Math.random().toString(36).slice(2, 14).toUpperCase();
   let resultado;
   try {
@@ -2310,8 +2356,13 @@ paymentMethod: "PIX",
     return novoPedido;
   });
   } catch (e) {
+    console.error("[registrarPedidoPix] Falha ao registrar pedido:", e && e.message, e && e.stack);
     if (e instanceof HttpsError) throw e;
-    throw new HttpsError("invalid-argument", "Falha ao registrar o pedido. Tente novamente.");
+    const msg = (e && e.message) || "Falha ao registrar o pedido. Tente novamente.";
+    if (/produto n[aã]o encontrad|estoque insuficiente|cr[eé]dito insuficiente|limite|n[aã]o encontrad|senha/i.test(msg)) {
+      throw new HttpsError("invalid-argument", msg);
+    }
+    throw new HttpsError("internal", "Falha ao registrar o pedido. Tente novamente.");
   }
 
   if (!resultado.replay) {
@@ -2487,14 +2538,28 @@ exports.buscarPedidosParaEstorno = onCall(async (request) => {
           priceAtPurchase: i.priceAtPurchase || 0,
         })),
       });
-      if (resultados.length >= LIMITE_RESULTADOS) break;
     }
+
+    // Paginação corrigida:
+    //  - janela cheia → pode haver páginas mais antigas (hasMore = true);
+    //  - cursor = fim da janela lida quando não estouramos o limite (evita
+    //    re-ler/repitir as não-correspondências);
+    //  - cursor = última corresp. retornada quando há MAIS corresp. na janela
+    //    (senão elas ficariam órfãs, "puladas" pelo salto de página).
+    const limitado = resultados.slice(0, LIMITE_RESULTADOS);
+    const haMaisNaJanela = resultados.length > LIMITE_RESULTADOS;
+    const ultimoDoc = snap.docs[snap.docs.length - 1];
+    const janelaCheia = snap.docs.length === WINDOW;
+    const ultimoCreated = ultimoDoc ? String(ultimoDoc.data().createdAt || "") : "";
+    const cursorBase = haMaisNaJanela
+      ? String(limitado[limitado.length - 1]?.createdAt || "")
+      : ultimoCreated;
 
     return {
       ok: true,
-      results: resultados,
-      hasMore: resultados.length >= LIMITE_RESULTADOS,
-      last: resultados.length > 0 ? (resultados[resultados.length - 1].createdAt || "") : "",
+      results: limitado,
+      hasMore: haMaisNaJanela || janelaCheia,
+      last: cursorBase,
     };
   } catch (e) {
     logger.warn("[BuscarPedidosEstorno] Falha:", e.message);
@@ -2656,7 +2721,10 @@ exports.estornarVenda = onCall(async (request) => {
         t.update(caRef, updateReversao);
       }
 
-      if (caixaRef && caixaSnap && caixaSnap.exists) {
+      // Só credita ESTORNO se a sessão estiver ABERTA: creditar em caixa já
+      // fechado corrompe o fechamento (mesma semântica do processarVendaAdmin).
+      if (caixaRef && caixaSnap && caixaSnap.exists &&
+          String(caixaSnap.data().status || "").toLowerCase() === "open") {
         const parteCash = pedido.paymentMethod === "CASH"
           ? (Number(pedido.total) || 0)
           : (pedido.payments || []).filter((p) => p.method === "CASH").reduce((s, p) => s + (Number(p.amount) || 0), 0);
@@ -2679,7 +2747,16 @@ exports.estornarVenda = onCall(async (request) => {
       t.update(oRef, { status: "cancelled", refundReason: motivo });
     });
   } catch (e) {
-    throw new HttpsError("invalid-argument", "Falha ao estornar o pedido. Tente novamente.");
+    // Nunca engolir o erro real: loga e devolve mensagens de negócio amigáveis
+    // (escritas em PT-BR acima) — "Tente novamente" escondia "não encontrado",
+    // "já estornado", "caixa fechado" etc.
+    console.error("[estornarVenda] Falha ao estornar", { orderId, erro: e && e.message, stack: e && e.stack });
+    if (e && e.code && String(e.code).startsWith("functions/")) throw e;
+    const msg = (e && e.message) || "Falha ao estornar o pedido. Tente novamente.";
+    if (/pedido n[aá]o encontrado|j[aá] foi cancelado|j[aá] est[aá]|exclu[ií]do|restore|estoque|estornad|reembolsad|devolvid|rejeitad|cancelad/i.test(msg)) {
+      throw new HttpsError("invalid-argument", msg);
+    }
+    throw new HttpsError("internal", "Falha ao estornar o pedido. Tente novamente.");
   }
 
   await registrarAudit(caller.id, "ESTORNAR_VENDA", { pedidoId: orderId }, { pedidoId: orderId, motivo });
@@ -2773,7 +2850,13 @@ exports.registrarPagamentoConta = onCall({
       return { dividaAnterior: dividaAtual, novoDebito };
     });
   } catch (e) {
-    throw new HttpsError("invalid-argument", "Falha ao registrar o pagamento. Tente novamente.");
+    console.error("[registrarPagamentoConta] Falha ao registrar pagamento:", e && e.message, e && e.stack);
+    if (e && e.code && String(e.code).startsWith("functions/")) throw e;
+    const msg = (e && e.message) || "Falha ao registrar o pagamento. Tente novamente.";
+    if (/n[aã]o encontrad|j[aá] foi paga|valor deve ser maior|excede|limite|bloquead/i.test(msg)) {
+      throw new HttpsError("invalid-argument", msg);
+    }
+    throw new HttpsError("internal", "Falha ao registrar o pagamento. Tente novamente.");
   }
 
   await registrarAudit(caller.id, "PAGAR_CONTA_FIADO", { clienteId: customerAccountId, amount }, resultado);
