@@ -89,9 +89,27 @@ jobs:
           Write-Output "GOOGLE_APPLICATION_CREDENTIALS=$arquivo" | Out-File -Append -Encoding ascii $env:GITHUB_ENV
           Write-Output "Service account gravada em $arquivo (CLI 15.x, deploy via ADC)"
 
+      # O deploy de FUNCTIONS exige leitura de billing do projeto; a service
+      # account não tem acesso à conta de faturamento (IAM do billing é
+      # gerenciado fora do projeto). Por isso o deploy usa o refresh token
+      # OAuth do dono (o mesmo do firebase login:ci), renovado aqui — a service
+      # account continua valida para a publicação dos instaladores (just 1/2).
+      - name: Renovar token OAuth do dono (deploy)
+        shell: pwsh
+        run: |
+          $rt = "${{ secrets.FIREBASE_CLI_REFRESH_TOKEN }}"
+          if ([string]::IsNullOrWhiteSpace($rt)) {
+            throw "Secret FIREBASE_CLI_REFRESH_TOKEN ausente. Rode 'firebase login:ci' e grave o token em Settings `- Secrets and variables `- Actions."
+          }
+          $body = "client_id=563584335869-fgrhgmd47bqnekij5i8b5pr03ho849e6.apps.googleusercontent.com&client_secret=j9iVZfS8kkCEFUPaAeJV0sAi&grant_type=refresh_token&refresh_token=$([uri]::EscapeDataString($rt))"
+          $tok = Invoke-RestMethod -Uri 'https://oauth2.googleapis.com/token' -Method Post -Body $body -ContentType 'application/x-www-form-urlencoded'
+          if (-not $tok.access_token) { throw "Falha ao renovar token OAuth do dono" }
+          Write-Output "FIREBASE_DEPLOY_TOKEN=$($tok.access_token)" | Out-File -Append -Encoding ascii $env:GITHUB_ENV
+          Write-Output "Token OAuth renovado (deploy via identidade do dono)."
+
       - name: Deploy Firebase (hosting, firestore, storage, functions)
         shell: pwsh
-        run: npx --yes firebase-tools@15.8.0 deploy --only hosting,firestore,storage,functions --project mercado-facil-mt --non-interactive
+        run: npx --yes firebase-tools@15.8.0 deploy --only hosting,firestore,storage,functions --project mercado-facil-mt --token "$env:FIREBASE_DEPLOY_TOKEN" --non-interactive
 
       - name: Gerar instaladores (Usuário + Admin)
         shell: pwsh
