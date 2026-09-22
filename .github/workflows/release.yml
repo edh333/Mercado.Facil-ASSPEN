@@ -14,6 +14,10 @@ jobs:
     name: Release completo (Windows)
     runs-on: windows-latest
     timeout-minutes: 60
+    # contents: write — o GITHUB_TOKEN precisa criar o GitHub Release e
+    # subir os instaladores como assets (espelho do Storage, sem cota de banda).
+    permissions:
+      contents: write
     env:
       CI: 'true'
     steps:
@@ -128,6 +132,13 @@ jobs:
       - name: Publicar instaladores + version.json no Storage
         shell: pwsh
         run: node scripts/publish-apps.cjs
+
+      # Espelho SEM custo de banda: GitHub Releases recebe os MESMOS .exe (72 MB
+      # cada) — tira os downloads pesados da cota de egresso do Cloud Storage
+      # (100 GB/mês grátis). Fonte primária continua sendo o Storage/Firebase.
+      - name: Publicar instaladores no GitHub Releases (espelho)
+        shell: pwsh
+        run: node scripts/publish-gh-release.cjs
 
       # Smoke test pós-deploy: confirma que o front (index), a Cloud Function
       # de download do app e o version.json respondem com a versão recém-publicada.

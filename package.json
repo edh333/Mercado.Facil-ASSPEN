@@ -30,6 +30,7 @@
     "deploy:functions": "firebase deploy --only functions",
     "deploy:pages": "npm run build && npx --yes wrangler pages deploy build",
     "publish:apps": "node scripts/publish-apps.cjs",
+    "publish:gh": "node scripts/publish-gh-release.cjs",
     "release": "node scripts/release.mjs"
   },
   "dependencies": {

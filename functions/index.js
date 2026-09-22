@@ -3599,6 +3599,31 @@ const APPS_DISPONIVEIS = [
   { chave: "admin", arquivo: "apps/MercadoFacil-Admin-Setup.exe", nome: "App Admin", descricao: "Gestão completa — PDV, estoque, clientes e relatórios" },
 ];
 
+// Espelho oficial dos instaladores no GitHub Releases: download SEM custo de
+// banda. O Storage/Firebase continua sendo a fonte primária, mas a URL PREFERIDA
+// de download passa a ser o Release do GitHub (não consome a cota de egresso de
+// 100 GB/mês do Cloud Storage — o maior custo num POS são os .exe de ~72 MB).
+// Padrão determinístico por versão (Release criado pelo scripts/publish-gh-release.cjs).
+const GITHUB_REPO = "edh333/Mercado.Facil-ASSPEN";
+const arquivoGithub = (chave) =>
+  `https://github.com/${GITHUB_REPO}/releases/download/v${APP_VERSION}/MercadoFacil-${chave === "admin" ? "Admin" : "Usuario"}-Setup-${APP_VERSION}.exe`;
+
+// HEAD rápido (4s) no Release da versão atual. Se o Release ainda não existir
+// (versões antigas publicadas só no Storage), cai na URL pública do Storage —
+// compatibilidade total com o que já está no ar.
+async function urlPreferencialDownload(chave) {
+  const url = arquivoGithub(chave);
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 4000);
+    const r = await fetch(url, { method: "HEAD", redirect: "follow", signal: ctrl.signal });
+    clearTimeout(t);
+    if (r.ok) return url;
+  } catch { /* GitHub indisponível/sem Release — usa o Storage */ }
+  const arquivo = APPS_DISPONIVEIS.find((a) => a.chave === chave).arquivo;
+  return urlPublicaArquivo(admin.storage().bucket(FUNC_BUCKET).file(arquivo));
+}
+
 /** Autenticado ─ gera links de download do app conforme o papel do chamador. */
 exports.obterLinkDownloadApp = onCall({
   timeoutSeconds: 60,
@@ -3618,10 +3643,10 @@ exports.obterLinkDownloadApp = onCall({
         resultado.push({ chave: app.chave, nome: app.nome, descricao: app.descricao, disponivel: false, url: "", motivo: "nao_publicado" });
         continue;
       }
-      // apps/ é de leitura pública nas regras de Storage — devolve a URL direta
-      // (sem assinatura; getSignedUrl exige IAM signBlob que a service account
-      // padrão do projeto não possui).
-      const url = urlPublicaArquivo(file);
+      // apps/ é de leitura pública nas regras de Storage — mas a URL QUE SERVE
+      // O CLIENTE é preferencialmente o GitHub Releases (sem cota de banda),
+      // com queda automática para o Storage se o Release ainda não existir.
+      const url = await urlPreferencialDownload(app.chave);
       resultado.push({ chave: app.chave, nome: app.nome, descricao: app.descricao, disponivel: true, url, motivo: "" });
     } catch (e) {
       logger.warn("[DownloadApp] Falha ao gerar link de " + app.chave + ":", e.message);
@@ -3647,7 +3672,7 @@ exports.obterDownloadAppUsuario = onRequest({ timeoutSeconds: 30 }, async (_req,
       res.json({ ok: false, motivo: "nao_publicado", nome: entrada.nome, versao: APP_VERSION });
       return;
     }
-    res.json({ ok: true, nome: entrada.nome, descricao: entrada.descricao, versao: APP_VERSION, url: urlPublicaArquivo(file) });
+    res.json({ ok: true, nome: entrada.nome, descricao: entrada.descricao, versao: APP_VERSION, url: await urlPreferencialDownload("usuario") });
   } catch (e) {
     logger.warn("[DownloadAppUsuario] Falha:", e.message);
     res.json({ ok: false, motivo: "erro_servidor", versao: APP_VERSION });

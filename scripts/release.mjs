@@ -6,6 +6,7 @@
  *   2. Deploy no Firebase (hosting + firestore + storage + functions)
  *   3. Geração dos instaladores Windows (Usuário e Admin)
  *   4. Publicação dos instaladores + version.json no Firebase Storage
+ *   5. Espelho no GitHub Releases (opcional — sem token local, só avisa)
  *
  * Pré-requisitos:
  *   - Firebase CLI autenticado (firebase login) no projeto mercado-facil-mt
@@ -50,13 +51,13 @@ const hora = () => new Date().toLocaleTimeString('pt-BR', { hour12: false });
 
 // ═══ Etapa 1: Build web ═══
 if (completo || soWeb) {
-  console.log(`[${hora()}] 1/4 — Build da aplicação web (Vite → build/)`);
+  console.log(`[${hora()}] 1/5 — Build da aplicação web (Vite → build/)`);
   rodar(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'build']);
 }
 
 // ═══ Etapa 2: Deploy Firebase ═══
 if (completo || soWeb) {
-  console.log(`[${hora()}] 2/4 — Deploy Firebase (hosting, firestore, storage, functions)`);
+  console.log(`[${hora()}] 2/5 — Deploy Firebase (hosting, firestore, storage, functions)`);
   // firebase-tools fixado (15.8.0) — versão que este projeto valida no CI; evita
   // "breaking change" de CLI não testada quebrando o deploy manual.
   rodar(process.platform === 'win32' ? 'npx.cmd' : 'npx', ['--yes', 'firebase-tools@15.8.0', 'deploy', '--only', 'hosting,firestore,storage,functions']);
@@ -64,14 +65,23 @@ if (completo || soWeb) {
 
 // ═══ Etapa 3: Instaladores ═══
 if (completo || soApps) {
-  console.log(`[${hora()}] 3/4 — Gerando instaladores Windows v${VERSION} (Usuário + Admin)`);
+  console.log(`[${hora()}] 3/5 — Gerando instaladores Windows v${VERSION} (Usuário + Admin)`);
   rodar(process.platform === 'win32' ? 'node.exe' : 'node', ['scripts/build-exe.mjs']);
 }
 
 // ═══ Etapa 4: Publicação no Storage ═══
 if (completo || soApps) {
-  console.log(`[${hora()}] 4/4 — Publicando instaladores + version.json no Firebase Storage`);
+  console.log(`[${hora()}] 4/5 — Publicando instaladores + version.json no Firebase Storage`);
   rodar(process.platform === 'win32' ? 'node.exe' : 'node', ['scripts/publish-apps.cjs']);
+}
+
+// ═══ Etapa 5: Espelho no GitHub Releases ═══
+// Espelho opcional dos MESMOS instaladores (download sem cota de banda). Não é
+// fatal: sem token local o script só avisa e sai 0; se existir token e falhar,
+// o Firebase já está publicado — avisa mas não derruba o release.
+if (completo || soApps) {
+  console.log(`[${hora()}] 5/5 — Espelhando instaladores no GitHub Releases (opcional)`);
+  rodar(process.platform === 'win32' ? 'node.exe' : 'node', ['scripts/publish-gh-release.cjs'], { fatal: false });
 }
 
 console.log(`\n═══════════════════════════════════════════════════════════`);
