@@ -42,13 +42,23 @@ const FUNC_BUCKET = process.env.FIREBASE_STORAGE_BUCKET
 const urlPublicaArquivo = (file) =>
   `https://firebasestorage.googleapis.com/v0/b/${file.bucket.name}/o/${encodeURIComponent(file.name)}?alt=media`;
 
-// Versão atual do app (vem do package.json da RAIZ, mantido em sincronia com os
-// instaladores desktop — usada no manifest apps/version.json e nos endpoints).
-let APP_VERSION = "1.0.2";
+// Versão atual do app — usada no manifest apps/version.json e nos endpoints de
+// download. Ordem de resolução:
+//   1. package.json da RAIZ (../) — presente no repositório/emulador, única
+//      fonte a manter em sincronia com os instaladores desktop;
+//   2. package.json DAS PRÓPRIAS functions (./) — no deploy, a raiz do projeto
+//      NÃO é empacotada (só a pasta functions/ sobe), então ".." não existe no
+//      Cloud Functions e o fallback garante a versão correta ali também.
+let APP_VERSION = "1.0.6";
 try {
   const rootPkg = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "package.json"), "utf-8"));
   if (rootPkg?.version) APP_VERSION = String(rootPkg.version);
-} catch { /* mantém o padrão */ }
+} catch {
+  try {
+    const fnPkg = JSON.parse(fs.readFileSync(path.join(__dirname, "package.json"), "utf-8"));
+    if (fnPkg?.version) APP_VERSION = String(fnPkg.version);
+  } catch { /* mantém o padrão */ }
+}
 
 // URL de download via token nativo do Firebase Storage (metadata), para
 // arquivos NÃO públicos. Se não conseguir ler/definir o token, retorna "".
