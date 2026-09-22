@@ -1,0 +1,54 @@
+name: CI
+
+# Portão de qualidade contínuo: roda em push para as branches principais e em
+# todo PR, SEM publicar. O release continua exclusivo do workflow Release (tag v*).
+on:
+  push:
+    branches:
+      - main
+      - refactor-profissional
+  pull_request:
+    branches:
+      - main
+      - refactor-profissional
+
+jobs:
+  quality:
+    name: Qualidade (web + functions)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CI: 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            functions/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Typecheck/lint (web)
+        run: npm run lint
+
+      - name: Testes da web (vitest)
+        run: npm test
+
+      - name: Instalar dependências (Cloud Functions)
+        run: npm ci
+        working-directory: functions
+
+      - name: Testes das Cloud Functions (vitest)
+        run: npm test
+        working-directory: functions
+
+      # O build valida o bundle de produção (nunca é publicado aqui).
+      - name: Build web (sem publish)
+        run: npm run build

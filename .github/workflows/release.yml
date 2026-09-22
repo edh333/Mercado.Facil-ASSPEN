@@ -25,6 +25,12 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          # Glob explícito cobre root (web) e functions/ (Cloud Functions):
+          # qualquer mudança em UM dos locks invalida o cache (seguro — nunca
+          # restaura estado misto). As duas pastas compartilham o cache npm.
+          cache-dependency-path: |
+            package-lock.json
+            functions/package-lock.json
 
       - name: Instalar dependências
         run: npm ci
@@ -96,8 +102,12 @@ jobs:
       # account continua valida para a publicação dos instaladores (just 1/2).
       - name: Renovar token OAuth do dono (deploy)
         shell: pwsh
+        env:
+          # Secret via env (idem SA): nunca interpolar secret dentro do script
+          # (${{ }} inline fica visível no log e gera ParserError no pwsh).
+          FIREBASE_CLI_REFRESH_TOKEN: ${{ secrets.FIREBASE_CLI_REFRESH_TOKEN }}
         run: |
-          $rt = "${{ secrets.FIREBASE_CLI_REFRESH_TOKEN }}"
+          $rt = $env:FIREBASE_CLI_REFRESH_TOKEN
           if ([string]::IsNullOrWhiteSpace($rt)) {
             throw "Secret FIREBASE_CLI_REFRESH_TOKEN ausente. Rode 'firebase login:ci' e grave o token em Settings `- Secrets and variables `- Actions."
           }
@@ -118,6 +128,32 @@ jobs:
       - name: Publicar instaladores + version.json no Storage
         shell: pwsh
         run: node scripts/publish-apps.cjs
+
+      # Smoke test pós-deploy: confirma que o front (index), a Cloud Function
+      # de download do app e o version.json respondem com a versão recém-publicada.
+      - name: Smoke test após o deploy
+        shell: pwsh
+        run: |
+          $versao = node -e "console.log(require('./package.json').version)"
+          $ok = $true
+          try {
+            $pagina = Invoke-WebRequest -Uri 'https://mercado-facil-mt.web.app/' -UseBasicParsing -TimeoutSec 30
+            if ($pagina.StatusCode -ne 200) { $ok = $false; Write-Output "FALHA: index retornou $($pagina.StatusCode)" }
+          } catch { $ok = $false; Write-Output "FALHA: index: $($_.Exception.Message)" }
+
+          try {
+            $fn = Invoke-RestMethod -Uri 'https://us-central1-mercado-facil-mt.cloudfunctions.net/obterDownloadAppUsuario?plataforma=Windows' -TimeoutSec 30
+            $okV = [string]$fn.versao -eq $versao
+            if ($fn.ok -ne $true -or -not $okV) { $ok = $false; Write-Output "FALHA: endpoint versao=$($fn.versao) ok=$($fn.ok) (esperado $versao/true)" }
+          } catch { $ok = $false; Write-Output "FALHA: endpoint: $($_.Exception.Message)" }
+
+          try {
+            $vj = Invoke-RestMethod -Uri 'https://firebasestorage.googleapis.com/v0/b/mercado-facil-mt.firebasestorage.app/o/apps%2Fversion.json?alt=media' -TimeoutSec 30
+            if ($vj.version -ne $versao) { $ok = $false; Write-Output "FALHA: version.json version=$($vj.version) (esperado $versao)" }
+          } catch { $ok = $false; Write-Output "FALHA: version.json: $($_.Exception.Message)" }
+
+          if (-not $ok) { throw "Smoke test falhou — publicação comprometida." }
+          Write-Output "Smoke test OK: index, endpoint e version.json em v$versao."
 
       - name: Publicar artefatos (instaladores)
         uses: actions/upload-artifact@v4

@@ -57,7 +57,9 @@ if (completo || soWeb) {
 // ═══ Etapa 2: Deploy Firebase ═══
 if (completo || soWeb) {
   console.log(`[${hora()}] 2/4 — Deploy Firebase (hosting, firestore, storage, functions)`);
-  rodar(process.platform === 'win32' ? 'npx.cmd' : 'npx', ['firebase', 'deploy', '--only', 'hosting,firestore,storage,functions']);
+  // firebase-tools fixado (15.8.0) — versão que este projeto valida no CI; evita
+  // "breaking change" de CLI não testada quebrando o deploy manual.
+  rodar(process.platform === 'win32' ? 'npx.cmd' : 'npx', ['--yes', 'firebase-tools@15.8.0', 'deploy', '--only', 'hosting,firestore,storage,functions']);
 }
 
 // ═══ Etapa 3: Instaladores ═══
