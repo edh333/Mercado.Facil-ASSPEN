@@ -1,4 +1,5 @@
 import { db } from "../firebase";
+import { getAuth } from "firebase/auth";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import {
   collection,
@@ -174,25 +175,35 @@ export async function closeCashSession(
 
 /**
  * Returns the currently open cash session for the given operator, or null.
+ * Fallback: quando o doc do usuário (id) difere do UID bruto do Firebase Auth
+ * (ex.: migração de conta), tenta o UID — cobre o caso em que a sessão de caixa
+ * foi gravada com caller.id = UID pelo servidor.
  */
 export async function getActiveSession(
   operatorId: string
 ): Promise<CashSession | null> {
-  try {
-    const q = query(
-      collection(db, "cash_sessions"),
-      where("operatorId", "==", operatorId),
-      where("status", "==", "open"),
-      limit(1)
-    );
-    const snap = await getDocs(q);
-    if (snap.empty) return null;
-    const d = snap.docs[0];
-    return { id: d.id, ...(d.data() as Omit<CashSession, "id">) };
-  } catch (e: any) {
-    console.error("[getActiveSession]", e.message);
-    return null;
+  const ids = new Set<string>();
+  if (operatorId) ids.add(operatorId);
+  const uidRaw = getAuth().currentUser?.uid;
+  if (uidRaw) ids.add(uidRaw);
+  for (const id of ids) {
+    try {
+      const q = query(
+        collection(db, "cash_sessions"),
+        where("operatorId", "==", id),
+        where("status", "==", "open"),
+        limit(1)
+      );
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        const d = snap.docs[0];
+        return { id: d.id, ...(d.data() as Omit<CashSession, "id">) };
+      }
+    } catch (e: any) {
+      console.error("[getActiveSession]", e.message);
+    }
   }
+  return null;
 }
 
 // ──────────────────────────────────────────────

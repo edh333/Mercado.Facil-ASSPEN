@@ -101,7 +101,7 @@ async function usuarioPorAuthUid(uid) {
       return { id: canonico.id, ...canonico.data() };
     }
   }
-  return { id: doc.id, ...doc.data() };
+  return { ...doc.data(), id: doc.id };
 }
 
 async function usuarioPorCpf(cpf) {
@@ -113,14 +113,14 @@ async function usuarioPorCpf(cpf) {
     const formatado = c.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
     snap = await db.collection("users").where("cpf", "==", formatado).limit(1).get();
   }
-  return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
+  return snap.empty ? null : { ...snap.docs[0].data(), id: snap.docs[0].id };
 }
 
 async function usuarioPorEmail(email) {
   const e = String(email || "").trim().toLowerCase();
   if (!e) return null;
   const snap = await db.collection("users").where("email", "==", e).limit(1).get();
-  return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
+  return snap.empty ? null : { ...snap.docs[0].data(), id: snap.docs[0].id };
 }
 
 /** Garante que o chamador é admin (role 'admin'/'ADMIN'/'master' no doc users) e está ativo. */
@@ -1648,7 +1648,7 @@ async function resolverSessaoCaixaDoPedido(pedido) {
     .limit(500)
     .get();
   const sessao = snap.docs
-    .map((d) => ({ id: d.id, ...d.data() }))
+.map((d) => ({ ...d.data(), id: d.id }))
     .find((s) => {
       const ab = s.openedAt ? (s.openedAt.toDate ? s.openedAt.toDate().getTime() : new Date((s.openedAt.seconds || 0) * 1000).getTime()) : 0;
       if (!ab || ab > momento) return false;
@@ -3181,7 +3181,7 @@ exports.arquivarDadosAntigos = onSchedule({
               colecao: col.name,
               origem: col.name,
               arquivadoEm: new Date().toISOString(),
-              documento: { id: doc.id, ...doc.data() },
+              documento: { ...doc.data(), id: doc.id },
             });
           }
           await batchArquivo.commit();
@@ -3511,7 +3511,7 @@ exports.limparDadosAntigos = onCall({
         return String(data.status || "").toLowerCase() !== "pending";
       });
       if (loteDocs.length > 0) {
-        const dadosLote = loteDocs.map((d) => ({ id: d.id, ...d.data() }));
+        const dadosLote = loteDocs.map((d) => ({ ...d.data(), id: d.id }));
         backup.dados[col.name].push(...dadosLote);
         // 1) Cópia para historico_geral (auditoria permanente)
         const batchCopy = db.batch();
@@ -3521,7 +3521,7 @@ exports.limparDadosAntigos = onCall({
             origem: col.name,
             arquivadoEm: new Date().toISOString(),
             motivo: "limpeza_manual_cota",
-            documento: { id: d.id, ...d.data() },
+            documento: { ...d.data(), id: d.id },
           });
         });
         await batchCopy.commit();
