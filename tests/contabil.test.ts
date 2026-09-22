@@ -8,6 +8,7 @@ import {
   buildLowStock,
   buildProductsCatalog,
   buildExtratoIndividual,
+  buildFiadoVendas,
   sanitizarCpf,
   formatarDataContabil,
   ALIQUOTA_IMPOSTO_ESTIMADA,
@@ -261,5 +262,65 @@ describe('buildExtratoIndividual', () => {
 
   it('retorna null sem usuário', () => {
     expect(buildExtratoIndividual(null, [], [], RANGE.ini, RANGE.fim)).toBeNull();
+  });
+
+  it('ignora pedidos apagados (deleted)', () => {
+    const extrato = buildExtratoIndividual(user, [pedido({ deleted: true })], [], RANGE.ini, RANGE.fim);
+    expect(extrato?.movs).toHaveLength(0);
+    expect(extrato?.totalSaidas).toBe(0);
+    expect(extrato?.saldoPeriodo).toBe(0);
+  });
+});
+
+describe('buildFiadoVendas', () => {
+  it('lista apenas FIADO e FIADO_30 dentro do período', () => {
+    const orders = [
+      pedido({ id: 'f1', paymentMethod: 'FIADO', date: new Date('2026-01-10T10:00:00'), userName: 'Maria' }),
+      pedido({ id: 'f2', paymentMethod: 'FIADO_30', date: new Date('2026-01-20T10:00:00') }),
+      pedido({ id: 'pix', paymentMethod: 'PIX', date: new Date('2026-01-11T10:00:00') }),
+      pedido({ id: 'velho', paymentMethod: 'FIADO', date: new Date('2025-12-31T10:00:00') }),
+    ];
+    const r = buildFiadoVendas(orders, RANGE.ini, RANGE.fim);
+    expect(r.count).toBe(2);
+    expect(r.total).toBe(200);
+    expect(r.vendas.map(v => v.id)).toEqual(['f2', 'f1']);
+  });
+
+  it('ignora pedidos apagados (deleted)', () => {
+    const r = buildFiadoVendas(
+      [pedido({ paymentMethod: 'FIADO', deleted: true }), pedido({ paymentMethod: 'FIADO_30', deleted: true })],
+      RANGE.ini,
+      RANGE.fim
+    );
+    expect(r.count).toBe(0);
+    expect(r.total).toBe(0);
+    expect(r.vendas).toEqual([]);
+  });
+
+  it('mapeia cliente, CPF mascarado, forma, status e itens', () => {
+    const r = buildFiadoVendas(
+      [
+        pedido({
+          paymentMethod: 'FIADO',
+          status: 'PENDING',
+          userName: 'Maria',
+          userCpf: '52998224725',
+        }),
+      ],
+      RANGE.ini,
+      RANGE.fim
+    );
+    const v = r.vendas[0];
+    expect(v.cliente).toBe('Maria');
+    expect(v.cpf).toBe('***.***.***-4725');
+    expect(v.forma).toBe('FIADO');
+    expect(v.status).toBe('PENDING');
+    expect(v.total).toBe(100);
+    expect(v.items).toEqual([{ nome: 'Item', qtd: 2, preco: 10 }]);
+  });
+
+  it('lista vazia sem vendas fiado no período', () => {
+    const r = buildFiadoVendas([], RANGE.ini, RANGE.fim);
+    expect(r).toEqual({ vendas: [], total: 0, count: 0 });
   });
 });

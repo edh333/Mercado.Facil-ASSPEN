@@ -555,6 +555,9 @@ export const buildFiadoVendas = (orders: any[], startDate: string, endDate: stri
         (pm === 'FIADO' || pm === 'FIADO_30') &&
         inRangeContabil(o.date || o.createdAt, startDate, endDate);
     })
+    .sort((a, b) =>
+      toDateContabil(b.date || b.createdAt).getTime() - toDateContabil(a.date || a.createdAt).getTime()
+    )
     .map(o => ({
       id: o.id,
       data: formatarDataContabil(o.date || o.createdAt),
@@ -568,8 +571,7 @@ export const buildFiadoVendas = (orders: any[], startDate: string, endDate: stri
         qtd: Number(i.quantity) || 1,
         preco: Number(i.priceAtPurchase || i.price) || 0,
       })),
-    }))
-    .sort((a, b) => (toDateContabil(b.data)?.getTime() || 0) - (toDateContabil(a.data)?.getTime() || 0));
+    }));
 
   const total = vendas.reduce((s, v) => s + v.total, 0);
   const count = vendas.length;
