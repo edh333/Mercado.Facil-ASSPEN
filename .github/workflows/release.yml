@@ -74,8 +74,12 @@ jobs:
       # (GOOGLE_APPLICATION_CREDENTIALS) com a service account do projeto.
       - name: Preparar credencial da service account
         shell: pwsh
+        env:
+          # Secret via env (não dentro de "${{ }}") — o JSON tem aspas internas
+          # e injetado literal no script quebrava o pwsh (ParserError).
+          FIREBASE_SA_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
-          $sa = "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}"
+          $sa = $env:FIREBASE_SA_JSON
           Write-Output "Diagnóstico: valor do secret tem $($sa.Length) caractere(s)."
           if ([string]::IsNullOrWhiteSpace($sa)) {
             throw "Secret FIREBASE_SERVICE_ACCOUNT ausente/vazio. Cole o JSON da service account do projeto (Console Firebase -  SDK Admin - service account) em Settings `- Secrets and variables `- Actions."
