@@ -76,8 +76,9 @@ jobs:
         shell: pwsh
         run: |
           $sa = "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}"
+          Write-Output "Diagnóstico: valor do secret tem $($sa.Length) caractere(s)."
           if ([string]::IsNullOrWhiteSpace($sa)) {
-            throw "Secret FIREBASE_SERVICE_ACCOUNT ausente. Cole o JSON da service account do projeto (Console Firebase -  SDK Admin - service account) em Settings `- Secrets and variables `- Actions."
+            throw "Secret FIREBASE_SERVICE_ACCOUNT ausente/vazio. Cole o JSON da service account do projeto (Console Firebase -  SDK Admin - service account) em Settings `- Secrets and variables `- Actions."
           }
           $arquivo = "$env:RUNNER_TEMP\firebase-sa.json"
           [System.IO.File]::WriteAllText($arquivo, $sa)
