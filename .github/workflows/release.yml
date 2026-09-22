@@ -136,8 +136,12 @@ jobs:
       # Espelho SEM custo de banda: GitHub Releases recebe os MESMOS .exe (72 MB
       # cada) — tira os downloads pesados da cota de egresso do Cloud Storage
       # (100 GB/mês grátis). Fonte primária continua sendo o Storage/Firebase.
+      # IMPORTANTE: o GITHUB_TOKEN NÃO é injetado no ambiente automaticamente —
+      # precisa ser passado explicitamente (senão o script "pula" por falta de token).
       - name: Publicar instaladores no GitHub Releases (espelho)
         shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: node scripts/publish-gh-release.cjs
 
       # Smoke test pós-deploy: confirma que o front (index), a Cloud Function
