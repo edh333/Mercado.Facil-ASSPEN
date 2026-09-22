@@ -12,6 +12,7 @@ const fs = require("fs");
 const {
   arredondar,
   cleanCpf,
+  validarCpf,
   sanitizarToken,
   validarItensPuros,
   calcularPartesPagamento,
@@ -160,6 +161,18 @@ async function exigirAdminPermissao(context, permissao) {
   );
 }
 
+/**
+ * Equipe autorizada ao PDV: vendedor/operador (acesso implícito ao caixa)
+ * OU admin com a permissão granular correspondente. O vendedor NUNCA acessa
+ * funções administrativas — apenas as chamadas rotuladas como PDV.
+ */
+async function exigirOperadorPdv(context, permissao) {
+  const u = await exigirAutenticado(context);
+  const roleLower = String(u.role || "").toLowerCase();
+  if (["vendedor", "operator"].includes(roleLower)) return u;
+  return exigirAdminPermissao(context, permissao);
+}
+
 // ──────────────────────────────────────────────
 // CUSTOM CLAIMS (migração da regra isAdmin nas rules)
 // ──────────────────────────────────────────────
@@ -177,8 +190,9 @@ async function sincronizarClaimsUsuario(uid, usuario) {
   const role = String((usuario && usuario.role) || "user").toLowerCase();
   const statusAtivo = !usuario || !usuario.status || String(usuario.status).toLowerCase() === "active";
   const ehAdmin = ["admin", "master"].includes(role) && statusAtivo;
+  const ehVendedor = ["vendedor", "operator"].includes(role) && statusAtivo;
   try {
-    await admin.auth().setCustomUserClaims(uid, { admin: ehAdmin });
+    await admin.auth().setCustomUserClaims(uid, { admin: ehAdmin, vendedor: ehVendedor });
   } catch (e) {
     logger.warn("[Claims] Falha ao definir claims de " + uid + ":", e.message);
   }
@@ -474,6 +488,12 @@ exports.registrarUsuario = onCall(async (request) => {
   const senha = String(request.data?.senha || "");
   const provisionar = Boolean(request.data?.provisionar);
   const cpf = cleanCpf(dados.cpf);
+  // CPF inválido (matematicamente, via dígito verificador) NUNCA entra no
+  // cadastro — barra antes do rate limit por CPF e antes da checagem de
+  // duplicidade. O CPF é opcional quando há e-mail real.
+  if (cpf.length === 11 && !validarCpf(cpf)) {
+    throw new HttpsError("invalid-cpf", "CPF inválido. Verifique os números e tente novamente.");
+  }
   if (cpf.length === 11) verificarRateLimit("registrarUsuarioCpf:" + cpf, 3);
   // Rate limit por e-mail para cadastros sem CPF (evita spam via IPs rotativos)
   if (dados.email) verificarRateLimit("registrarUsuarioEmail:" + String(dados.email).toLowerCase().trim(), 3);
@@ -688,9 +708,14 @@ exports.criarAdmin = onCall(async (request) => {
   const email = String(request.data?.email || "").trim().toLowerCase();
   const cpf = cleanCpf(request.data?.cpf);
   const senha = validarSenha(request.data?.senha);
+  // Papel da equipe: 'admin' (padrão) ou 'vendedor' (operador de caixa / PDV).
+  const roleRequisitada = String(request.data?.role || "").toLowerCase() === "vendedor" ? "vendedor" : "admin";
   if (!nome) throw new HttpsError("invalid-argument", "Informe o nome.");
   if (!email.includes("@") || email.length < 6) throw new HttpsError("invalid-argument", "E-mail inválido.");
   if (cpf && cpf.length !== 11) throw new HttpsError("invalid-argument", "CPF inválido (11 dígitos).");
+  if (cpf.length === 11 && !validarCpf(cpf)) {
+    throw new HttpsError("invalid-cpf", "CPF inválido. Verifique os números e tente novamente.");
+  }
   if (cpf.length === 11) {
     const dup = await usuarioPorCpf(cpf);
     if (dup) throw new HttpsError("already-exists", "Já existe um usuário com este CPF.");
@@ -700,14 +725,17 @@ exports.criarAdmin = onCall(async (request) => {
 
   const authUser = await admin.auth().createUser({ email, password: senha });
   const hash = await bcrypt.hash(senha, 12);
-  const permissao = validarPermissoesAdmin(request.data?.permissions);
+  // Vendedor: permissões fixas de PDV (não confia em payload — o papel define).
+  const permissao = roleRequisitada === "vendedor"
+    ? ["sales", "orders", "products", "cash"]
+    : validarPermissoesAdmin(request.data?.permissions);
   await db.collection("users").doc(authUser.uid).set({
     id: authUser.uid,
     authUid: authUser.uid,
     name: nome,
     email,
     cpf: cpf || "00000000000",
-    role: "admin",
+    role: roleRequisitada,
     status: "active",
     approved: true,
     permissions: permissao,
@@ -717,8 +745,8 @@ exports.criarAdmin = onCall(async (request) => {
     createdAt: new Date().toISOString(),
   });
   await salvarHashLegado(authUser.uid, hash);
-  await registrarAudit(caller.id, "CRIAR_ADMIN", null, { usuarioId: authUser.uid, nome, email, cpf: cpf || null, permissao });
-  await sincronizarClaimsUsuario(authUser.uid, { role: "admin", status: "active" });
+  await registrarAudit(caller.id, "CRIAR_" + (roleRequisitada === "vendedor" ? "VENDEDOR" : "ADMIN"), null, { usuarioId: authUser.uid, nome, email, cpf: cpf || null, permissao });
+  await sincronizarClaimsUsuario(authUser.uid, { role: roleRequisitada, status: "active" });
   return { ok: true, userId: authUser.uid };
 });
 
@@ -731,7 +759,6 @@ exports.atualizarPermissoesAdmin = onCall(async (request) => {
   if (!Array.isArray(permissoes)) {
     throw new HttpsError("invalid-argument", "Informe a lista de permissões.");
   }
-  const permissaoFinal = validarPermissoesAdmin(permissoes);
 
   const snap = await db.collection("users").doc(userId).get();
   if (!snap.exists) throw new HttpsError("not-found", "Usuário não encontrado.");
@@ -743,15 +770,20 @@ exports.atualizarPermissoesAdmin = onCall(async (request) => {
   ) {
     throw new HttpsError("permission-denied", "Não é possível alterar as permissões do administrador principal.");
   }
-  if (!["admin", "master"].includes(String(userData.role || "").toLowerCase())) {
-    throw new HttpsError("invalid-argument", "O usuário informado não é um administrador.");
+  const roleAlvo = String(userData.role || "").toLowerCase();
+  if (!["admin", "master", "vendedor", "operator"].includes(roleAlvo)) {
+    throw new HttpsError("invalid-argument", "O usuário informado não faz parte da equipe.");
   }
+  // Vendedor tem permissões fixas de PDV — não abre brecha na mão do cliente.
+  const permissaoFinal = ["vendedor", "operator"].includes(roleAlvo)
+    ? ["sales", "orders", "products", "cash"]
+    : validarPermissoesAdmin(permissoes);
 
   await db.collection("users").doc(userId).update({
     permissions: permissaoFinal,
     updatedAt: new Date().toISOString(),
   });
-  await registrarAudit(caller.id, "ALTERAR_PERMISSOES_ADMIN", userId, {
+  await registrarAudit(caller.id, "ALTERAR_PERMISSOES_" + (roleAlvo === "vendedor" ? "VENDEDOR" : "ADMIN"), userId, {
     de: userData.permissions || null,
     para: permissaoFinal,
   });
@@ -1611,7 +1643,7 @@ function lerClientToken(data) {
  * debita carteira quando houver, registra caixa físico e cria o pedido.
  */
 exports.processarVendaAdmin = onCall(async (request) => {
-  const caller = await exigirAdminPermissao(request, "sales");
+  const caller = await exigirOperadorPdv(request, "sales");
   const targetUserId = String(request.data?.targetUserId || "balcao_anonimo");
   const paymentMethod = String(request.data?.paymentMethod || "CASH");
   const cardBrand = paymentMethod === "CARD"
@@ -1636,6 +1668,7 @@ exports.processarVendaAdmin = onCall(async (request) => {
   }
   const change = changeRaw === undefined || changeRaw === null ? undefined : arredondar(Number(changeRaw));
   const customerAccountId = request.data?.customerAccountId ? String(request.data.customerAccountId) : null;
+  const sessaoCaixaId = request.data?.sessaoCaixaId ? String(request.data.sessaoCaixaId) : null;
 
   const isConsumer = targetUserId === "consumidor_geral" || targetUserId === "balcao_anonimo";
   const metodosValidos = ["PIX", "WALLET", "CASH", "CARD", "FIADO", "FIADO_30", "MIXED"];
@@ -1668,13 +1701,15 @@ exports.processarVendaAdmin = onCall(async (request) => {
         throw new HttpsError("permission-denied", "Uma das senhas está incorreta. Tente novamente.");
       }
     } else {
-      const senhaPrimaria = String(request.data?.senhaPrimaria || "");
-      const senhaSecundaria = String(request.data?.senhaSecundaria || "");
-      if (!senhaPrimaria || !senhaSecundaria) {
-        throw new HttpsError("invalid-argument", "Venda fiada exige a senha primária e a secundária do administrador.");
+      // FIADO unificado: o PDV valida a senha mestra (única) antes de finalizar.
+      // O servidor REEVALIDA a MESMA senha aqui (nunca confia só no frontend),
+      // impedindo que uma sessão autenticada pule a autorização do fiado.
+      const senhaUnica = String(request.data?.senhaPrimaria || request.data?.senhaSecundaria || "");
+      if (!senhaUnica) {
+        throw new HttpsError("invalid-argument", "Venda fiada exige a senha mestra do administrador.");
       }
-      const dupla = await validarDuplaSenhaServidor(caller, senhaPrimaria, senhaSecundaria, apiKey);
-      if (!dupla.ok) {
+      const unica = await validarSenhaUnicaServidor(caller, senhaUnica, apiKey);
+      if (!unica.ok) {
         throw new HttpsError("permission-denied", "Uma das senhas está incorreta. Tente novamente.");
       }
     }
@@ -1707,7 +1742,24 @@ exports.processarVendaAdmin = onCall(async (request) => {
   // (correção: antes, a parte em dinheiro do MIXED nunca era creditada no caixa).
   let sessaoCaixa = null;
   if (temParteCash) {
-    sessaoCaixa = await getSessaoCaixaAberta(caller.id);
+    if (sessaoCaixaId) {
+      // Usa o ID da sessão passado explicitamente pelo frontend. O PDV moderno
+      // grava em "cash_sessions"; o legado em "cashier" — resolve o doc correto
+      // e marca a colecao para a escrita/releitura dentro da transação.
+      const modemSnap = await db.collection("cash_sessions").doc(sessaoCaixaId).get();
+      if (modemSnap.exists) {
+        sessaoCaixa = { id: modemSnap.id, colecao: "cash_sessions", ...modemSnap.data() };
+      } else {
+        const legadoSnap = await db.collection("cashier").doc(sessaoCaixaId).get();
+        if (legadoSnap.exists) {
+          sessaoCaixa = { id: legadoSnap.id, colecao: "cashier", ...legadoSnap.data() };
+        }
+      }
+    }
+    if (!sessaoCaixa) {
+      // Fallback: busca a sessão aberta do operador (compatibilidade)
+      sessaoCaixa = await getSessaoCaixaAberta(caller.id);
+    }
   }
 
   let resultado;
@@ -1716,6 +1768,25 @@ exports.processarVendaAdmin = onCall(async (request) => {
       // Idempotência: reenvio com o mesmo clientToken devolve o pedido já criado.
       const guarda = await verificarIdempotenciaVenda(t, lerClientToken(request.data), caller.id);
       if (guarda) return { ...guarda.order, replay: true };
+
+      // CORREÇÃO CRÍTICA: revalida a sessão de caixa DENTRO da transação.
+      // A sessão foi resolvida ANTES de abrir a tx (getSessaoCaixaAberta); aqui o
+      // doc é relido no MESMO snapshot que vai gravar estoque/caixa/orders. Se o
+      // operador fechou o caixa enquanto a venda estava em voo, a venda CANCELA
+      // em vez de creditar dinheiro numa sessão já fechada (quebra de caixa falsa).
+      if (temParteCash && sessaoCaixa) {
+        const sessaoTx = await t.get(refSessaoCaixa(sessaoCaixa));
+        if (!sessaoTx.exists ||
+            String(sessaoTx.data().status || "").toLowerCase() !== "open") {
+          throw new Error("A sessão de caixa foi fechada por outro operador. Reabra o caixa para continuar.");
+        }
+      }
+      // Venda em dinheiro SEM caixa aberto nunca entra: sem sessão não há gaveta
+      // para creditar — deixar passar criaria venda paga sem rastro de caixa.
+      if (temParteCash && !sessaoCaixa) {
+        throw new Error("Nenhuma sessão de caixa aberta para este operador. Abra o caixa antes de vender em dinheiro.");
+      }
+
       const { resultado: itensComPreco, total } = await prepararItensServidor(t, itens);
 
       // Partes de carteira/dinheiro calculadas NO SERVIDOR (lógica pura testável)
@@ -1783,6 +1854,18 @@ exports.processarVendaAdmin = onCall(async (request) => {
       if (!userData.allowCredit && !userData.autorizacaoExcepcional) {
         throw new Error("Usuário sem permissão para venda fiada.");
       }
+      // GAP CORRIGIDO: revalida o limite de crédito DENTRO da transação
+      // (fonte da verdade = servidor). O front não valida; sem esta checagem um
+      // cliente com allowCredit acumulava dívida sem teto, ignorando o
+      // creditLimit do doc. Dívida nova = dívida corrente + valor da venda.
+      const fiadoLimiteSnap = await t.get(db.collection("users").doc(targetUserId));
+      const fiadoLimiteDados = fiadoLimiteSnap.exists ? fiadoLimiteSnap.data() : {};
+      const creditLimitAtual = arredondar(Number(fiadoLimiteDados.creditLimit) || 0);
+      const dividaCorrenteAtual = arredondar(Number(fiadoLimiteDados.currentDebt) || 0);
+      if (creditLimitAtual > 0 && arredondar(dividaCorrenteAtual + total) > creditLimitAtual) {
+        const disponivel = Math.max(0, arredondar(creditLimitAtual - dividaCorrenteAtual));
+        throw new Error(`Limite de crédito excedido. O cliente possui apenas R$ ${disponivel.toFixed(2)} de limite disponível.`);
+      }
       // Grava o INÍCIO da dívida (debtStartedAt) apenas quando o cliente parte de
       // dívida zero — base para o PDV marcar "nota vencida após 30 dias" em Contas
       // a Receber. Mantém a data original enquanto houver débito em aberto.
@@ -1814,6 +1897,17 @@ exports.processarVendaAdmin = onCall(async (request) => {
       }
       if (!fiado30UserData.allowCredit && !fiado30UserData.autorizacaoExcepcional) {
         throw new Error("Usuário sem permissão para fiado 30 dias.");
+      }
+      // GAP CORRIGIDO: o FIADO_30 também deve respeitar o creditLimit do usuário
+      // DENTRO da transação — o front filtra usuários elegíveis, mas o teto real
+      // (dívida corrente + venda atual) só é garantido aqui no servidor.
+      const fiado30LimiteSnap = await t.get(db.collection("users").doc(fiado30UserId));
+      const fiado30LimiteDados = fiado30LimiteSnap.exists ? fiado30LimiteSnap.data() : {};
+      const creditLimit30 = arredondar(Number(fiado30LimiteDados.creditLimit) || 0);
+      const divida30Corrente = arredondar(Number(fiado30LimiteDados.currentDebt) || 0);
+      if (creditLimit30 > 0 && arredondar(divida30Corrente + total) > creditLimit30) {
+        const disponivel30 = Math.max(0, arredondar(creditLimit30 - divida30Corrente));
+        throw new Error(`Limite de crédito excedido. O cliente possui apenas R$ ${disponivel30.toFixed(2)} de limite disponível.`);
       }
       // debtDueAt = agora + 30 dias para controle de vencimento no painel Contas a Receber
       const debtDueAt = admin.firestore.Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
@@ -1944,7 +2038,7 @@ exports.processarVendaAdmin = onCall(async (request) => {
     if (e && e.code && String(e.code).startsWith("functions/")) throw e;
     const msg = (e && e.message) || "Falha ao processar a venda. Tente novamente.";
     // Whitelist de erros de negócio já amigáveis (escritos em PT-BR no backend).
-    if (/produto não encontrado|estoque insuficiente|saldo insuficiente|limite semanal|consumidor final não pode|2º devedor|não confere com o total|nenhuma sessão de caixa|caixa antes|cai?a foi fechada|reabra o caixa|cliente bloqueado|cliente de fiado (não )?encontrado|exige cliente cadastrado|pagamento misto sem valores|método inválido|valor inválido|fiado e card não são suportados|carteira|duplicada|troco|senha|fiado 30|entrada de mercadoria/i.test(msg)) {
+    if (/produto não encontrado|estoque insuficiente|saldo insuficiente|limite semanal|limite de crédito|consumidor final não pode|2º devedor|não confere com o total|nenhuma sessão de caixa|caixa antes|cai?a foi fechada|reabra o caixa|cliente bloqueado|venda fiada exige|fiado exige|usuário de fiado|usuario de fiado|permissão para venda fiada|exige a senha mestra|selecione o usuário|selecione o usuario|fiado 30 dias|cliente de fiado (não )?encontrado|exige cliente cadastrado|pagamento misto sem valores|método inválido|valor inválido|fiado e card não são suportados|carteira|duplicada|troco|senha|fiado 30|entrada de mercadoria/i.test(msg)) {
       throw new HttpsError("invalid-argument", msg);
     }
     throw new HttpsError("internal", "Falha ao processar a venda. Tente novamente.");
@@ -2754,6 +2848,9 @@ exports.criarClienteFiado = onCall(async (request) => {
 
   if (nome.length < 3) throw new HttpsError("invalid-argument", "Informe o nome completo do cliente.");
   if (cpf && cpf.length !== 11) throw new HttpsError("invalid-argument", "CPF inválido.");
+  if (cpf.length === 11 && !validarCpf(cpf)) {
+    throw new HttpsError("invalid-cpf", "CPF inválido. Verifique os números e tente novamente.");
+  }
 
   if (cpf.length === 11) {
     const existente = await usuarioPorCpf(cpf);
@@ -3190,8 +3287,10 @@ exports.validarSenhaMestraUnica = onCall(async (request) => {
   const user = await exigirAutenticado(request);
   verificarRateLimit("validarSenhaMestraUnica:" + user.id, 10);
   const roleLower = String(user.role || "").toLowerCase();
-  if (roleLower !== "admin" && roleLower !== "master") {
-    throw new HttpsError("permission-denied", "Apenas administradores podem validar a senha mestra.");
+  // Admins, master e VENDEDORES (o operador digita a senha mestra no PDV para
+  // liberar venda fiada; a autorização final é revalidada no processarVendaAdmin).
+  if (!["admin", "master", "vendedor", "operator"].includes(roleLower)) {
+    throw new HttpsError("permission-denied", "Apenas a equipe autorizada pode validar a senha mestra.");
   }
   const senha = String(request.data?.senha || "");
   if (!senha) {
@@ -3861,6 +3960,188 @@ exports.tratarAlertasFirebase = onCustomEventPublished(
     }
   }
 );
+
+/**
+ * Caixa do PDV — OPERAÇÕES AUTORITATIVAS SERVIDOR-SIDE.
+ * Substitui as mutações client-side (utils/cashSession.ts) por uma callable
+ * única (ações: open | supplement | withdrawal | close). Regras do Firestore
+ * passam a NEGAR escrita direta em cash_sessions/locks ("if false") — a única
+ * porta de escrita é esta função, autenticada e conferida contra a coleção
+ * users (fonte da verdade) e o dono da sessão.
+ *
+ * Quem pode: vendedor/operador (somente o PRÓPRIO caixa) e admin com a
+ * permissão "cash" (qualquer caixa). O operador é sempre decidido no servidor
+ * (operação "open" usa o UID logado como dono).
+ */
+const FIELD_INCREMENTO = admin.firestore.FieldValue.increment;
+const FIELD_ARRAYUNION = admin.firestore.FieldValue.arrayUnion;
+const AGORA = () => admin.firestore.Timestamp.now();
+
+function ehAdminCompleto(u) {
+  return u.mainAdmin === true ||
+    u.id === "admin" || u.id === "master" ||
+    String(u.email || "").toLowerCase() === "admin@mercado.com" ||
+    ["admin", "master"].includes(String(u.role || "").toLowerCase());
+}
+
+async function carregarSessaoCaixa(sessaoId) {
+  const ref = db.collection("cash_sessions").doc(sessaoId);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Sessão de caixa não encontrada.");
+  return { ref, data: snap.data() };
+}
+
+exports.gerenciarSessaoCaixa = onCall(async (request) => {
+  const caller = await exigirOperadorPdv(request, "cash");
+  const acao = String(request.data?.acao || "").trim().toLowerCase();
+  const sessaoId = String(request.data?.sessaoId || "").trim();
+  const valor = Number(request.data?.valor || 0);
+  const motivo = String(request.data?.motivo || "").trim();
+  const closedByName = String(request.data?.closedByName || caller.name || "").trim();
+
+  if (acao === "open") {
+    // O alvo é SEMPRE o operador logado: impossível abrir caixa de outra pessoa.
+    const operadorId = caller.id;
+    const operadorNome = String(caller.name || "").trim();
+    const inicial = Number(request.data?.initialBalance ?? 0);
+    if (isNaN(inicial) || !(inicial >= 0)) {
+      throw new HttpsError("invalid-argument", "Saldo inicial deve ser zero ou positivo.");
+    }
+
+    const lockRef = db.collection("locks").doc("caixa_ativo_" + operadorId);
+    const novaSessaoRef = db.collection("cash_sessions").doc();
+
+    try {
+      await db.runTransaction(async (t) => {
+        const lockSnap = await t.get(lockRef);
+        if (lockSnap.exists && lockSnap.data().active === true) {
+          const lockSessaoId = String(lockSnap.data().sessaoId || "").trim();
+          let sessaoAtiva = false;
+          if (lockSessaoId) {
+            const sessaoSnap = await t.get(db.collection("cash_sessions").doc(lockSessaoId));
+            sessaoAtiva = sessaoSnap.exists &&
+              String(sessaoSnap.data().status || "").toLowerCase() === "open";
+          }
+          if (sessaoAtiva) {
+            throw new HttpsError("failed-precondition", "Já existe um caixa aberto para este operador.");
+          }
+        }
+        t.set(novaSessaoRef, {
+          operatorId: operadorId,
+          operatorName: operadorNome,
+          status: "open",
+          openedAt: AGORA(),
+          closedAt: null,
+          initialBalance: inicial,
+          currentBalance: inicial,
+          supplements: [],
+          withdrawals: [],
+          closedBalance: 0,
+          openedBy: caller.id,
+        });
+        t.set(lockRef, { active: true, sessaoId: novaSessaoRef.id, updatedAt: AGORA() });
+      });
+    } catch (e) {
+      if (e instanceof HttpsError) throw e;
+      throw new HttpsError("internal", "Não foi possível abrir o caixa.");
+    }
+    await registrarAudit(caller.id, "ABRIR_CAIXA", null, { sessaoId: novaSessaoRef.id });
+    return { ok: true, sessaoId: novaSessaoRef.id };
+  }
+
+  if (!sessaoId) throw new HttpsError("invalid-argument", "Informe a sessão de caixa.");
+  const { ref, data } = await carregarSessaoCaixa(sessaoId);
+
+  // Controle de DONO: vendedor só mexe no próprio caixa; admin em qualquer.
+  const donoId = String(data.operatorId || "");
+  const ehProprioCaixa = donoId === caller.id;
+  if (!ehProprioCaixa && !ehAdminCompleto(caller)) {
+    throw new HttpsError("permission-denied", "Este caixa pertence a outro operador.");
+  }
+  if (String(data.status || "").toLowerCase() !== "open") {
+    throw new HttpsError("failed-precondition", "Esta sessão de caixa não está aberta.");
+  }
+
+  if (acao === "supplement") {
+    if (!(valor > 0)) throw new HttpsError("invalid-argument", "Valor de suprimento deve ser maior que zero.");
+    await ref.update({
+      currentBalance: FIELD_INCREMENTO(valor),
+      supplements: FIELD_ARRAYUNION({ amount: valor, reason: motivo || "Suprimento", timestamp: AGORA() }),
+    });
+    await registrarAudit(caller.id, "SUPRIMENTO_CAIXA", sessaoId, { valor });
+    return { ok: true };
+  }
+
+  if (acao === "withdrawal") {
+    if (!(valor > 0)) throw new HttpsError("invalid-argument", "Valor de sangria deve ser maior que zero.");
+    try {
+      await db.runTransaction(async (t) => {
+        const snap = await t.get(ref);
+        const saldoAtual = Number(snap.data().currentBalance || 0);
+        if (!(saldoAtual >= valor)) {
+          throw new HttpsError(
+            "failed-precondition",
+            `Saldo em caixa insuficiente para sangria de R$ ${valor.toFixed(2).replace(".", ",")} — disponível: R$ ${saldoAtual.toFixed(2).replace(".", ",")}.`
+          );
+        }
+        t.update(ref, {
+          currentBalance: FIELD_INCREMENTO(-valor),
+          withdrawals: FIELD_ARRAYUNION({ amount: valor, reason: motivo || "Sangria", timestamp: AGORA() }),
+        });
+      });
+    } catch (e) {
+      if (e instanceof HttpsError) throw e;
+      throw new HttpsError("internal", "Erro ao registrar sangria.");
+    }
+    await registrarAudit(caller.id, "SANGRIA_CAIXA", sessaoId, { valor });
+    return { ok: true };
+  }
+
+  if (acao === "close") {
+    const contado = Number(request.data?.closedBalance ?? 0);
+    if (isNaN(contado) || !(contado >= 0)) {
+      throw new HttpsError("invalid-argument", "Valor contado deve ser zero ou positivo.");
+    }
+    let diff = 0, expected = 0;
+    try {
+      await db.runTransaction(async (t) => {
+        const snap = await t.get(ref);
+        if (!snap.exists) throw new HttpsError("not-found", "Sessão de caixa não encontrada.");
+        const sessaoDados = snap.data();
+        if (String(sessaoDados.status || "").toLowerCase() !== "open") {
+          throw new HttpsError("failed-precondition", "Esta sessão de caixa já foi encerrada.");
+        }
+        expected = Number(sessaoDados.currentBalance || 0);
+        diff = contado - expected;
+        t.update(ref, {
+          status: "closed",
+          closedAt: AGORA(),
+          closedBalance: contado,
+          expectedBalance: expected,
+          cashDifference: diff,
+          balanceDiff: diff,
+          hasDiscrepancy: diff !== 0,
+          closedByName: closedByName,
+          closedBy: caller.id,
+        });
+        if (sessaoDados.operatorId) {
+          t.set(
+            db.collection("locks").doc("caixa_ativo_" + sessaoDados.operatorId),
+            { active: false, updatedAt: AGORA() },
+            { merge: true }
+          );
+        }
+      });
+    } catch (e) {
+      if (e instanceof HttpsError) throw e;
+      throw new HttpsError("internal", "Erro ao fechar sessão de caixa.");
+    }
+    await registrarAudit(caller.id, "FECHAR_CAIXA", sessaoId, { diff, expected, contado });
+    return { ok: true, diff, expected };
+  }
+
+  throw new HttpsError("invalid-argument", 'Ação desconhecida: use open, supplement, withdrawal ou close.');
+});
 
 
 

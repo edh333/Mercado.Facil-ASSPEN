@@ -37,7 +37,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
   const { themeMode, setThemeMode } = useTheme();
   const hasPermission = (perm: string) => isMaster || permissions.includes('all') || permissions.includes(perm);
-  const isSalesRestricted = userRole === 'manager';
+  const isSalesRestricted = userRole === 'manager' || userRole === 'operator';
 
   const renderHome = () => <NavItem icon={Home} label="Início" active={activeTab === 'home'} onClick={() => setActiveTab('home')} />;
   const renderOrders = () => hasPermission('orders') && <NavItem icon={ShoppingCart} label="Pedidos" active={activeTab === 'orders'} onClick={() => setActiveTab('orders')} badge={pendingOrdersCount} />;
@@ -80,6 +80,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                 {renderOrders()}
                 {renderProducts()}
                 {renderStockAlerts()}
+                {userRole === 'operator' && hasPermission('cash') && <NavItem icon={Landmark} label="Meu Caixa" active={activeTab === 'cash'} onClick={() => setActiveTab('cash')} />}
                 {renderSalesButton()}
               </>
             ) : (
@@ -100,7 +101,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                 {hasPermission('users') && <NavItem icon={MessageSquare} label="Comunicados" active={activeTab === 'messages'} onClick={() => setActiveTab('messages')} />}
                 {hasPermission('finance') && <NavItem icon={DollarSign} label="Fluxo de Caixa" active={activeTab === 'finance'} onClick={() => setActiveTab('finance')} />}
                 {hasPermission('wallet') && <NavItem icon={CreditCard} label="Carteira & Créditos" active={activeTab === 'wallet'} onClick={() => setActiveTab('wallet')} badge={pendingDepositsCount} />}
-                {hasPermission('finance') && userRole !== 'operator' && <NavItem icon={BookOpen} label="Contas a Pagar" active={activeTab === 'customers'} onClick={() => setActiveTab('customers')} />}
+                {hasPermission('finance') && <NavItem icon={BookOpen} label="Contas a Pagar" active={activeTab === 'customers'} onClick={() => setActiveTab('customers')} />}
 
                 <div className="my-2 border-t border-white/10 h-px mx-1"></div>
 
@@ -141,7 +142,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                 </div>
                 <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold leading-tight text-white">{userName}</p>
-                    <p className="text-xs capitalize text-slate-400">Administrador</p>
+                    <p className="text-xs capitalize text-slate-400">{userRole === 'operator' ? 'Operador de Caixa' : userRole === 'manager' ? 'Gerente' : 'Administrador'}</p>
                 </div>
             </div>
             <button onClick={logout} disabled={isLoggingOut} className="w-full flex items-center gap-2 px-3 py-2 text-slate-400 hover:bg-red-500/10 hover:text-red-400 rounded-lg transition-colors text-[13px] disabled:opacity-50 disabled:cursor-not-allowed">

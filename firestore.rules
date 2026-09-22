@@ -36,6 +36,26 @@ function isAdmin() {
       );
     }
 
+    // Vendedor / operador de caixa: claim custom `vendedor` (token) com FALLBACK
+    // transitório ao doc users/{uid} (mesmo padrão do isAdmin). O vendedor é a
+    // "equipe lite": acesso de leitura ao PDV, pedidos, produtos e caixa PRÓPRIO.
+    function isVendedor() {
+      return isAuthenticated() && (
+        request.auth.token.vendedor == true ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'active' &&
+         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'vendedor' ||
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'VENDEDOR' ||
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'operator' ||
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'OPERATOR'))
+      );
+    }
+
+    // Equipe do painel (admin OU vendedor/operador).
+    function isEquipe() {
+      return isAdmin() || isVendedor();
+    }
+
     // O usuário é dono de um registro quando: id == UID autenticado,
     // OU o documento do usuário naquele id possui authUid == UID autenticado
     // (cobre usuários legados que ainda têm id antigo).
@@ -49,27 +69,30 @@ function isAdmin() {
 
     // ── USUÁRIOS ──
     // Leitura: próprio usuário ou admin. Criação: SOMENTE via Cloud Function.
-    // Atualização: admin (exceto campos sensíveis) ou o próprio usuário APENAS
-    // em campos de perfil seguros. Campos sensíveis (role, walletBalance,
-    // weeklySpent, authUid, mainAdmin) só mudam via Cloud Functions (admin SDK,
-    // ignora as regras) — impede auto-promoção e edição de saldo via cliente.
+    // Atualização: admin sobre OUTROS usuários (exceto campos sensíveis) ou o
+    // próprio usuário APENAS em campos de perfil seguros. Campos sensíveis
+    // (role, walletBalance, weeklySpent, authUid, mainAdmin, isMainAdmin,
+    // permissions) só mudam via Cloud Functions (admin SDK, ignora as regras).
     // NUNCA é permitido ao usuário alterar role, walletBalance, weeklySpent ou authUid.
+    // BLINDAGEM DE ELEVAÇÃO: mesmo sendo admin, o próprio doc cai na whitelist de
+    // perfil — impede um admin secundário de gravar permissions:['all'] ou alterar
+    // o próprio status via cliente (elevação que contornava exigirAdminPermissao).
     // diff().affectedKeys() garante que só os campos permitidos MUDAM (hasOnly no doc
     // inteiro quebraria qualquer update, pois o doc contém campos fora da lista).
     match /users/{userId} {
-      allow get: if isAuthenticated() && (userId == request.auth.uid || resource.data.authUid == request.auth.uid || isAdmin());
-      // list: APENAS admin. O painel administrativo precisa da lista completa
-      // para a aba Usuários, a busca de clientes no PDV e relatórios (listar
-      // com onSnapshot/query limit NÃO funciona com allow list: if false —
-      // a busca de clientes quebrava). NÃO liberado para usuário comum:
+      allow get: if isAuthenticated() && (userId == request.auth.uid || resource.data.authUid == request.auth.uid || isEquipe());
+      // list: equipe autenticada (admin OU vendedor). O painel administrativo
+      // precisa da lista completa para a aba Usuários, a busca de clientes no
+      // PDV (vendedor inclui) e relatórios. NÃO liberado para usuário comum:
       // listar TODOS os usuários vazaria PII (CPF, saldo, role). A busca do
       // perfil do usuário logado segue via Cloud Function buscarUsuarioAtual.
-      allow list: if isAdmin();
+      allow list: if isEquipe();
       allow create: if false;
-      allow update: if isAdmin() &&
+      allow update: if (isAdmin() && userId != request.auth.uid &&
         !request.resource.data.diff(resource.data).affectedKeys().hasAny([
-          'role', 'walletBalance', 'weeklySpent', 'authUid', 'mainAdmin'
-        ]) ||
+          'role', 'walletBalance', 'weeklySpent', 'authUid', 'mainAdmin',
+          'isMainAdmin', 'permissions'
+        ])) ||
         (userMatch(userId) &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
            'name', 'phone', 'avatarUrl', 'inmateName', 'inmateCpf',
@@ -88,7 +111,7 @@ function isAdmin() {
       allow create: if isAuthenticated()
         && userMatch(request.resource.data.userId)
         && request.resource.data.status == 'PENDING';
-      allow read: if isAuthenticated() && (userMatch(resource.data.userId) || isAdmin());
+      allow read: if isAuthenticated() && (userMatch(resource.data.userId) || isEquipe());
       allow update: if isAdmin() || (
         userMatch(resource.data.userId)
         && resource.data.status.matches('(?i)^pending$')
@@ -182,9 +205,22 @@ function isAdmin() {
     }
 
     // ── SESSÕES DE CAIXA ──
+    // Leitura: o próprio operador, o caixa que ele opera, ou equipe
+    // (admin/vendedor — o vendedor vê o próprio histórico). Escrita: PROIBIDA
+    // no cliente — TODA mutação passa pela Cloud Function gerenciarSessaoCaixa
+    // (admin SDK, autoritativa: confere papel, dono e atomicidade).
     match /cash_sessions/{sessionId} {
-      allow read: if isAuthenticated() && (userMatch(resource.data.operatorId) || isAdmin());
-      allow write: if isAdmin();
+      allow read: if isAuthenticated() && (userMatch(resource.data.operatorId) || isEquipe());
+      allow create, update, delete: if false;
+    }
+
+    // ── TRAVAS OPERACIONAIS (abertura/fechamento atômico de caixa) ──
+    // Doc de guarda lido/gravado SERVIDOR-SIDE na mesma transação da sessão.
+    // Nenhum cliente (nem admin) escreve diretamente — a única porta é a Cloud
+    // Function gerenciarSessaoCaixa. Exclusão proibida. Leitura também negada
+    // ao cliente (não expõe o id de sessões ativas por fora da API).
+    match /locks/{lockId} {
+      allow read, write, delete: if false;
     }
 
     // ── DESPESAS ──

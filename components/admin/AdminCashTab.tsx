@@ -432,7 +432,7 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
           {expandHistory && (
             <div className="mt-3 space-y-2">
               {history.map(s => (
-                <div key={s.id} className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center justify-between gap-4">
+                <div key={s.id} className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4">
                   <div>
                     <p className="text-xs text-slate-500">{fmtTs(s.openedAt)} → {fmtTs(s.closedAt)}</p>
                     <p className="text-sm font-bold text-slate-800 mt-0.5">Inicial: {fmt(s.initialBalance)}</p>
@@ -496,27 +496,27 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
         {modal && (
           <div className="p-6">
             {modal === 'open' && (
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Valor Inicial (R$)</label>
+              <label className="block text-xs font-semibold text-slate-600 mb-1 text-center">Valor Inicial (R$)</label>
             )}
             {(modal === 'supplement' || modal === 'withdrawal') && (
               <>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Valor (R$)</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1 text-center">Valor (R$)</label>
                 <input type="number" min="0.01" step="0.01" value={amount}
                   onChange={e => setAmount(e.target.value)}
                   placeholder="0,00"
-                  className="w-full border border-slate-300 rounded-xl px-4 py-3 text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 mb-3" />
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Motivo</label>
+                  className="block w-full max-w-xs mx-auto border border-slate-300 rounded-xl px-4 py-3 text-lg font-bold text-slate-900 text-center focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 mb-3" />
+                <label className="block text-xs font-semibold text-slate-600 mb-1 text-center">Motivo</label>
                 <input type="text" value={reason}
                   onChange={e => setReason(e.target.value)}
                   placeholder="Ex: Troco inicial, Retirada p/ cofre..."
-                  className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 mb-4" />
+                  className="block w-full max-w-xs mx-auto border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 text-center focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 mb-4" />
               </>
             )}
             {modal === 'open' && (
               <input type="number" min="0" step="0.01" value={initialBalance}
                 onChange={e => setInitialBalance(e.target.value)}
                 placeholder="Ex: 100,00"
-                className="w-full border border-slate-300 rounded-xl px-4 py-3 text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-400 mb-4" />
+                className="block w-full max-w-xs mx-auto border border-slate-300 rounded-xl px-4 py-3 text-lg font-bold text-slate-900 text-center focus:outline-none focus:ring-2 focus:ring-emerald-400 mb-4" />
             )}
 
             {modal === 'close' && (
@@ -540,11 +540,11 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
                     Usar contagem
                   </button>
                 </div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Valor Contado Fisicamente (R$)</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1 text-center">Valor Contado Fisicamente (R$)</label>
                 <input type="number" min="0" step="0.01" value={closedBalance}
                   onChange={e => setClosedBalance(e.target.value)}
                   placeholder="0,00"
-                  className="w-full border border-slate-300 rounded-xl px-4 py-3 text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-400 mb-4" />
+                  className="block w-full max-w-xs mx-auto border border-slate-300 rounded-xl px-4 py-3 text-lg font-bold text-slate-900 text-center focus:outline-none focus:ring-2 focus:ring-red-400 mb-4" />
               </>
             )}
           </div>

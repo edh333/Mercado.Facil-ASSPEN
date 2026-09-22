@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Loader2 } from 'lucide-react';
 import { ModalShell } from '../ui/ModalShell';
 
 interface ConfirmacaoDestrutivaProps {
@@ -43,14 +43,18 @@ export const ConfirmacaoDestrutiva: React.FC<ConfirmacaoDestrutivaProps> = ({
             icon={<AlertTriangle size={20} />}
             closeOnBackdrop={!processando}
             footer={
-                <div className="flex gap-2 w-full">
+                <div className="flex flex-col sm:flex-row justify-end items-center gap-3 bg-slate-50 border-t border-slate-100 px-6 py-4 mt-6 w-full md:w-auto">
                     <button type="button" onClick={onClose} disabled={processando}
-                        className="flex-1 py-3.5 rounded-2xl bg-white border-2 border-slate-200 hover:bg-slate-100 font-black text-[10px] uppercase tracking-[0.2em] text-slate-600 transition-all active:scale-95 disabled:opacity-40">
+                        className="w-full sm:w-auto h-11 px-6 bg-white border border-slate-200 text-slate-600 font-bold text-sm rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                         Cancelar
                     </button>
                     <button type="button" onClick={onConfirm} disabled={!valido || processando}
-                        className="flex-1 py-3.5 rounded-2xl bg-red-500 hover:bg-red-600 text-white font-black text-[10px] uppercase tracking-[0.2em] transition-all active:scale-95 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center gap-2 shadow-md shadow-red-500/25">
-                        {processando ? 'Processando…' : 'Confirmar'}
+                        className={`w-full sm:w-auto h-11 px-8 rounded-xl transition-all text-sm font-bold flex items-center justify-center gap-2 ${
+                            processando
+                                ? 'bg-emerald-700 text-white/80 cursor-not-allowed'
+                                : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/10 cursor-pointer'
+                        } ${!valido && !processando ? 'opacity-40 cursor-not-allowed' : ''}`}>
+                        {processando ? (<><Loader2 size={16} className="animate-spin" /> Processando...</>) : 'Confirmar'}
                     </button>
                 </div>
             }
@@ -59,9 +63,9 @@ export const ConfirmacaoDestrutiva: React.FC<ConfirmacaoDestrutivaProps> = ({
                 <p className="text-xs font-bold text-slate-500 leading-relaxed">{descricao}</p>
 
                 {semDigitar ? (
-                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-3">
-                        <AlertTriangle size={18} className="text-amber-600 shrink-0" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-amber-700">
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3 text-left mb-4">
+                        <AlertTriangle size={18} className="text-amber-500 shrink-0" />
+                        <span className="text-amber-800 text-xs font-bold font-sans uppercase tracking-wider">
                             Esta ação é irreversível. Confira os dados antes de confirmar.
                         </span>
                     </div>

@@ -8,8 +8,9 @@ import {
   stringSimilarity,
   formatarMoeda,
   generatePixPayload,
-  mascararCpf,
+mascararCpf,
   isAdminRole,
+  isVendedorRole,
 } from '../utils';
 import { montarEscPos, gerarCupomEntregaRaw, gerarRelatorioInadimplentes } from '../utils/printUtils';
 
@@ -232,12 +233,31 @@ describe('isAdminRole', () => {
     expect(isAdminRole(' master ')).toBe(true);
   });
 
-  it('rejeita familiares e valores inválidos', () => {
+it('rejeita familiares e valores inválidos', () => {
     expect(isAdminRole('FAMILY')).toBe(false);
     expect(isAdminRole('FAMILIAR')).toBe(false);
     expect(isAdminRole('')).toBe(false);
     expect(isAdminRole(undefined)).toBe(false);
     expect(isAdminRole(null)).toBe(false);
+  });
+});
+
+describe('isVendedorRole (operador de caixa / PDV)', () => {
+  it('reconhece vendedor/operator em qualquer formato gravado no Firestore', () => {
+    expect(isVendedorRole('vendedor')).toBe(true);
+    expect(isVendedorRole('VENDEDOR')).toBe(true);
+    expect(isVendedorRole('operator')).toBe(true);
+    expect(isVendedorRole('Operator')).toBe(true);
+    expect(isVendedorRole(' vendedor ')).toBe(true);
+  });
+
+  it('não confunde com admin/master nem com familiares', () => {
+    expect(isVendedorRole('admin')).toBe(false);
+    expect(isVendedorRole('master')).toBe(false);
+    expect(isVendedorRole('FAMILY')).toBe(false);
+    expect(isVendedorRole('')).toBe(false);
+    expect(isVendedorRole(undefined)).toBe(false);
+    expect(isVendedorRole(null)).toBe(false);
   });
 });
 

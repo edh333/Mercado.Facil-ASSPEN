@@ -21,9 +21,9 @@ export function usePermissions(userId: string | undefined) {
           if (snap.exists()) {
             const raw = snap.data().role || "operator";
             // Normalize legacy role values
-            if (raw === "ADMIN" || raw === "admin") setRole("admin");
+            if (raw === "ADMIN" || raw === "admin" || raw === "master") setRole("admin");
             else if (raw === "manager") setRole("manager");
-            else if (raw === "FAMILY") setRole("operator");
+            else if (raw === "vendedor" || raw === "operator" || raw === "FAMILY") setRole("operator");
             else setRole("operator");
           } else {
             setRole("operator");

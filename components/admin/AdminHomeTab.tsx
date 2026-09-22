@@ -180,7 +180,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
 
       {isMaster && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-            <div className="bg-[var(--bg-card)] p-8 rounded-[3rem] border border-[var(--border-color)] shadow-sm relative overflow-hidden group card-hover cursor-default">
+            <div className="bg-[var(--bg-card)] p-6 md:p-8 rounded-[3rem] border border-[var(--border-color)] shadow-sm relative overflow-hidden group card-hover cursor-default">
                 <div className="absolute inset-0 bg-gradient-to-br from-[var(--primary-color)] to-transparent opacity-10"></div>
                 <div className="relative z-10">
                     <p className="text-[10px] font-black text-[var(--primary-color)] uppercase tracking-[0.3em] mb-2">Volume Financeiro {filterType === 'day' ? 'Hoje' : 'Período'}</p>
@@ -191,7 +191,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
                     </div>
                 </div>
             </div>
-            <div className="bg-[var(--bg-card)] p-8 rounded-[3rem] border border-[var(--border-color)] shadow-sm relative overflow-hidden group card-hover cursor-default">
+            <div className="bg-[var(--bg-card)] p-6 md:p-8 rounded-[3rem] border border-[var(--border-color)] shadow-sm relative overflow-hidden group card-hover cursor-default">
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-transparent opacity-10"></div>
                 <div className="relative z-10">
                     <p className="text-[10px] font-black text-blue-600 uppercase tracking-[0.3em] mb-2">Pedidos Concluídos</p>
@@ -202,7 +202,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
                     </div>
                 </div>
             </div>
-            <div onClick={() => setActiveTab('orders')} className="bg-[var(--bg-card)] p-8 rounded-[3rem] border border-orange-500/30 shadow-sm flex flex-col justify-between cursor-pointer group card-hover relative overflow-hidden transition-all">
+            <div onClick={() => setActiveTab('orders')} className="bg-[var(--bg-card)] p-6 md:p-8 rounded-[3rem] border border-orange-500/30 shadow-sm flex flex-col justify-between cursor-pointer group card-hover relative overflow-hidden transition-all">
                 <div className="absolute inset-0 bg-gradient-to-br from-orange-600 to-transparent opacity-10"></div>
                 <div className="relative z-10">
                     <p className="text-[10px] font-black text-orange-600 uppercase tracking-[0.3em] mb-2">Ações Pendentes</p>
@@ -361,7 +361,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
 
         {/* Top 5 Products */}
         {isMaster && topProducts.length > 0 && (
-          <div className="lg:col-span-1 bg-[var(--bg-card)] p-8 rounded-3xl shadow-sm border border-[var(--border-color)]">
+          <div className="lg:col-span-1 bg-[var(--bg-card)] p-6 md:p-8 rounded-3xl shadow-sm border border-[var(--border-color)]">
             <h3 className="text-base font-black text-[var(--text-main)] mb-6 flex items-center gap-2 uppercase tracking-tight">
               <Award className="text-amber-500" size={20}/> Top 5 Mais Vendidos
             </h3>
@@ -387,12 +387,12 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
 
         {/* Sales Chart */}
         {isMaster && chartData && chartData.length > 0 && !RC && (
-          <div className={`${topProducts.length > 0 ? 'lg:col-span-2' : 'lg:col-span-3'} bg-[var(--bg-card)] p-8 rounded-3xl shadow-sm border border-[var(--border-color)]`}>
+          <div className={`${topProducts.length > 0 ? 'lg:col-span-2' : 'lg:col-span-3'} bg-[var(--bg-card)] p-6 md:p-8 rounded-3xl shadow-sm border border-[var(--border-color)]`}>
             <RechartsSkeleton minHeight={288} label="Carregando gráfico..." />
           </div>
         )}
         {isMaster && chartData && chartData.length > 0 && RC && (
-          <div className={`${topProducts.length > 0 ? 'lg:col-span-2' : 'lg:col-span-3'} bg-[var(--bg-card)] p-8 rounded-3xl shadow-sm border border-[var(--border-color)]`}>
+          <div className={`${topProducts.length > 0 ? 'lg:col-span-2' : 'lg:col-span-3'} bg-[var(--bg-card)] p-6 md:p-8 rounded-3xl shadow-sm border border-[var(--border-color)]`}>
             <h3 className="text-xl font-bold text-[var(--text-main)] mb-8 flex items-center gap-3 tracking-tight">
               <BarChart3 className="text-blue-500" size={24}/> Fluxo de Vendas
             </h3>
@@ -415,7 +415,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
         )}
 
         {/* Recent Activity */}
-        <div className={`${isMaster ? '' : 'lg:col-span-3'} bg-[var(--bg-card)] p-8 rounded-3xl shadow-sm border border-[var(--border-color)] flex flex-col`}>
+        <div className={`${isMaster ? '' : 'lg:col-span-3'} bg-[var(--bg-card)] p-6 md:p-8 rounded-3xl shadow-sm border border-[var(--border-color)] flex flex-col`}>
           <h3 className="text-lg font-bold text-[var(--text-main)] mb-6 flex items-center gap-2 tracking-tight">
             <Zap size={20} className="text-yellow-500"/> Atividade Recente
           </h3>

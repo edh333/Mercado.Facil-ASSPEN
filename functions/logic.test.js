@@ -5,6 +5,7 @@ import { describe, it, expect } from "vitest";
 import {
   arredondar,
   cleanCpf,
+  validarCpf,
   sanitizarToken,
   validarItensPuros,
   calcularPartesPagamento,
@@ -45,6 +46,35 @@ describe("sanitizarToken (idempotência)", () => {
     expect(sanitizarToken("abc123_-é$ ")).toBe("abc123_-");
     expect(sanitizarToken("x".repeat(100)).length).toBe(64);
     expect(sanitizarToken("")).toBe("");
+  });
+});
+
+describe("validarCpf (dígito verificador)", () => {
+  it("aceita CPFs matematicamente válidos (com e sem máscara)", () => {
+    expect(validarCpf("529.982.247-25")).toBe(true);
+    expect(validarCpf("52998224725")).toBe(true);
+    expect(validarCpf("111.444.777-35")).toBe(true);
+    expect(validarCpf("168.995.350-09")).toBe(true);
+  });
+
+  it("rejeita dígito verificador incorreto", () => {
+    expect(validarCpf("529.982.247-24")).toBe(false);
+    expect(validarCpf("111.444.777-36")).toBe(false);
+    expect(validarCpf("52998224726")).toBe(false);
+  });
+
+  it("rejeita sequências repetidas (000/111/999)", () => {
+    expect(validarCpf("000.000.000-00")).toBe(false);
+    expect(validarCpf("11111111111")).toBe(false);
+    expect(validarCpf("99999999999")).toBe(false);
+  });
+
+  it("rejeita tamanho inválido, vazio e sem dígitos", () => {
+    expect(validarCpf("123")).toBe(false);
+    expect(validarCpf("")).toBe(false);
+    expect(validarCpf(null)).toBe(false);
+    expect(validarCpf("abcdefghijk")).toBe(false);
+    expect(validarCpf("5299822472a6")).toBe(false);
   });
 });
 

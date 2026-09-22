@@ -52,6 +52,7 @@ export const UserStoreTab: React.FC<UserStoreTabProps> = ({
               >
                   <button
                     onClick={() => setViewMode('grid')}
+                    aria-label="Visualizar produtos em grade"
                     className={`p-2.5 rounded-xl transition-all ${viewMode === 'grid' ? 'shadow-md' : ''}`}
                     style={{
                       backgroundColor: viewMode === 'grid' ? '#10b981' : 'transparent',
@@ -62,6 +63,7 @@ export const UserStoreTab: React.FC<UserStoreTabProps> = ({
                   </button>
                   <button
                     onClick={() => setViewMode('list')}
+                    aria-label="Visualizar produtos em lista"
                     className={`p-2.5 rounded-xl transition-all ${viewMode === 'list' ? 'shadow-md' : ''}`}
                     style={{
                       backgroundColor: viewMode === 'list' ? '#10b981' : 'transparent',
@@ -189,6 +191,7 @@ export const UserStoreTab: React.FC<UserStoreTabProps> = ({
                                       <button
                                           disabled={isOutOfStock}
                                           onClick={() => addToCart(p.id)}
+                                          aria-label={isOutOfStock ? `${p?.name || 'Produto'}: esgotado` : `${p?.name || 'Produto'}: adicionar ao carrinho`}
                                           className="w-11 h-11 rounded-2xl flex items-center justify-center shadow-lg active:scale-90 transition-all"
                                           style={{
                                             backgroundColor: isOutOfStock ? '#94a3b8' : '#10b981',
@@ -235,6 +238,7 @@ export const UserStoreTab: React.FC<UserStoreTabProps> = ({
                                       <button
                                           disabled={isOutOfStock}
                                           onClick={() => addToCart(p.id)}
+                                          aria-label={isOutOfStock ? `${p?.name || 'Produto'}: esgotado` : `${p?.name || 'Produto'}: adicionar ao carrinho`}
                                           className="p-2.5 rounded-xl"
                                           style={{
                                             backgroundColor: isOutOfStock ? '#94a3b8' : '#10b981',

@@ -576,9 +576,13 @@ export const AdminOrderDetailsModal: React.FC<AdminOrderDetailsModalProps> = ({
                         <button
                           onClick={handleApproveAndFinalize}
                           disabled={isProcessing}
-                          className="w-full py-5 bg-emerald-600 text-white rounded-xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-4 disabled:opacity-50"
+                          className={`w-full py-5 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl transition-all flex items-center justify-center gap-4 ${
+                            isProcessing
+                              ? 'bg-emerald-700 text-white/80 cursor-not-allowed'
+                              : 'bg-emerald-600 text-white hover:brightness-110 active:scale-95'
+                          }`}
                         >
-                          <CheckCircle size={22}/> {isProcessing ? 'PROCESSANDO...' : 'Aprovar e Finalizar Compra'}
+                          {isProcessing ? (<><Loader2 size={20} className="animate-spin" /> Processando...</>) : (<><CheckCircle size={22}/> Aprovar e Finalizar Compra</>)}
                         </button>
                         <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest text-center -mt-1">
                           Aprova o pagamento e finaliza o pedido em um único passo
@@ -598,16 +602,22 @@ export const AdminOrderDetailsModal: React.FC<AdminOrderDetailsModalProps> = ({
                       </>
                     ) : order.status === OrderStatus.PAID ? (
                         <div className="flex flex-col sm:flex-row gap-3">
-                            <button onClick={handlePrepare} disabled={isProcessing} className="flex-1 py-4 bg-blue-600 text-white rounded-xl font-black text-[11px] uppercase tracking-[0.2em] shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-4 disabled:opacity-50">
-                                <Box size={22}/> {isProcessing ? 'PROCESSANDO...' : 'Iniciar Separação'}
+                            <button onClick={handlePrepare} disabled={isProcessing} className={`flex-1 py-4 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] shadow-lg transition-all flex items-center justify-center gap-4 ${
+                                    isProcessing ? 'bg-blue-700 text-white/80 cursor-not-allowed' : 'bg-blue-600 text-white hover:brightness-110 active:scale-95'
+                                }`}>
+                                {isProcessing ? (<><Loader2 size={20} className="animate-spin" /> Processando...</>) : (<><Box size={22}/> Iniciar Separação</>)}
                             </button>
-                            <button onClick={handleDeliver} disabled={isProcessing} className="flex-[1.3] py-4 bg-purple-600 text-white rounded-xl font-black text-[11px] uppercase tracking-[0.2em] shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-4 disabled:opacity-50">
-                                <Truck size={22}/> {isProcessing ? 'PROCESSANDO...' : 'Finalizar Pedido'}
+                            <button onClick={handleDeliver} disabled={isProcessing} className={`flex-[1.3] py-4 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] shadow-lg transition-all flex items-center justify-center gap-4 ${
+                                    isProcessing ? 'bg-purple-700 text-white/80 cursor-not-allowed' : 'bg-purple-600 text-white hover:brightness-110 active:scale-95'
+                                }`}>
+                                {isProcessing ? (<><Loader2 size={20} className="animate-spin" /> Processando...</>) : (<><Truck size={22}/> Finalizar Pedido</>)}
                             </button>
                         </div>
                     ) : order.status === OrderStatus.PREPARING ? (
-                        <button onClick={handleDeliver} disabled={isProcessing} className="w-full py-5 bg-purple-600 text-white rounded-xl font-black text-[11px] uppercase tracking-[0.3em] shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-4 disabled:opacity-50">
-                            <Truck size={24}/> {isProcessing ? 'PROCESSANDO...' : 'Marcar como Entregue'}
+                        <button onClick={handleDeliver} disabled={isProcessing} className={`w-full py-5 rounded-xl font-black text-[11px] uppercase tracking-[0.3em] shadow-lg transition-all flex items-center justify-center gap-4 ${
+                            isProcessing ? 'bg-purple-700 text-white/80 cursor-not-allowed' : 'bg-purple-600 text-white hover:brightness-110 active:scale-95'
+                        }`}>
+                            {isProcessing ? (<><Loader2 size={20} className="animate-spin" /> Processando...</>) : (<><Truck size={24}/> Marcar como Entregue</>)}
                         </button>
                     ) : (
                         <div className="w-full py-4 bg-white rounded-xl border border-slate-200 text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] flex items-center justify-center gap-3">

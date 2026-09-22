@@ -250,7 +250,7 @@ export function AdminCustomersTab() {
           <RefreshCw className="animate-spin text-emerald-500" size={32} />
         </div>
       ) : filtered.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-16 text-center">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 md:p-16 text-center">
           <CreditCard size={48} className="mx-auto mb-4 text-slate-400" />
           <p className="font-black text-slate-900 text-lg uppercase tracking-tight mb-1">
             {search ? 'Nenhum cliente encontrado' : 'Nenhum cliente cadastrado'}

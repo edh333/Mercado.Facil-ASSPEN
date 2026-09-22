@@ -103,13 +103,13 @@ set "TOKEN_EXTRA="
 if "%NONINTERACTIVE%"=="1" if defined FIREBASE_TOKEN set "TOKEN_EXTRA=--token %FIREBASE_TOKEN%"
 
 echo Deployando Functions...
-firebase deploy --only functions %FB_EXTRA% %TOKEN_EXTRA%
+call firebase deploy --only functions %FB_EXTRA% %TOKEN_EXTRA%
 if errorlevel 1 goto :fim
 echo OK
 echo.
 
 echo Deployando Firestore, Storage e Hosting...
-firebase deploy --only "firestore:main,storage:main,hosting" %FB_EXTRA% %TOKEN_EXTRA%
+call firebase deploy --only "firestore:main,storage:main,hosting" %FB_EXTRA% %TOKEN_EXTRA%
 if errorlevel 1 goto :fim
 echo OK
 echo.

@@ -98,13 +98,10 @@ export function montarPagamentoPdv(input: MontagemPagamentoInput): MontagemPagam
     if (input.clienteEhConsumidor) {
       throw new Error('Venda fiada exige cliente cadastrado — escolha o cliente no início da venda (não o Consumidor Final).');
     }
-    const conta = input.contaFiadoSelecionada;
-    if (!conta) {
-      throw new Error('Selecione um cliente de fiado.');
-    }
-    // FIADO: venda a prazo 30 dias — NÃO bloqueia por limite de crédito no frontend.
-    // O servidor registra a dívida sem validar limite; o limite serve só como referência visual.
-    // O admin gerencia cobrança/abate no painel Contas a Receber.
+    // UNIFICADO: o cliente de fiado É o usuário cadastrado selecionado no PDV
+    // (clienteSelecionado), mesmo universo das vendas PIX/WALLET/CASH/CARD/MIXED.
+    // Nada de conta/customer_accounts paralela — o servidor registra a dívida no
+    // próprio doc do usuário e valida limite de crédito (fonte da verdade).
     return { ok: true, paymentsArray: undefined, changeValue: undefined, jointWalletPayload: undefined };
   }
 
@@ -115,11 +112,7 @@ export function montarPagamentoPdv(input: MontagemPagamentoInput): MontagemPagam
     if (input.clienteEhConsumidor) {
       throw new Error('Fiado 30 Dias exige cliente cadastrado — escolha o cliente no início da venda (não o Consumidor Final).');
     }
-    if (!input.fiado30UserId) {
-      throw new Error('Selecione um usuário para o fiado 30 dias.');
-    }
     // A validação de limite de crédito é feita no servidor (source of truth)
-    // Aqui apenas validamos que o usuário foi selecionado
     return { ok: true, paymentsArray: undefined, changeValue: undefined, jointWalletPayload: undefined };
   }
 

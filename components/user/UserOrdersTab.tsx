@@ -74,7 +74,7 @@ export const UserOrdersTab: React.FC<UserOrdersTabProps> = ({
                   className="w-full pl-10 pr-10 py-3 bg-slate-800 border-2 border-slate-700 rounded-xl focus:border-white outline-none font-black text-sm text-white placeholder:text-slate-500"
               />
               {searchOrder && (
-                  <button onClick={() => setSearchOrder('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                  <button onClick={() => setSearchOrder('')} aria-label="Limpar busca de pedidos" className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                       <XCircle size={16} />
                   </button>
               )}
@@ -90,14 +90,14 @@ export const UserOrdersTab: React.FC<UserOrdersTabProps> = ({
                   </div>
               ) : (
                   (walletTxs || []).map(tx => (
-                      <div key={tx.id} className="bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-700 flex justify-between items-center hover:shadow-md transition-shadow">
-                          <div className="flex items-center gap-3">
-                             <div className={`p-2.5 rounded-xl ${tx.amount > 0 ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'}`}>
+                      <div key={tx.id} className="bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-700 flex justify-between items-center gap-3 hover:shadow-md transition-shadow">
+                          <div className="flex items-center gap-3 min-w-0">
+                             <div className={`p-2.5 rounded-xl shrink-0 ${tx.amount > 0 ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'}`}>
                                 <CreditCard size={18}/>
                              </div>
-                             <div>
+                             <div className="min-w-0">
                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Preso</p>
-                                <p className="font-black text-sm uppercase leading-tight text-white">{tx.inmateName || 'Não identificado'}</p>
+                                <p className="font-black text-sm uppercase leading-tight text-white truncate">{tx.inmateName || 'Não identificado'}</p>
                                 {tx.userName && (
                                   <p className="text-[10px] font-black mt-1 text-slate-300">Família: {tx.userName}</p>
                                 )}

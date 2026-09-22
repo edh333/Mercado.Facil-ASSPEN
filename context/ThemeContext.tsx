@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { useApp } from './StoreContext';
+import { db } from '../firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { THEME_COLORS } from '../constants';
 import { ThemeOption } from '../types';
 
@@ -32,11 +33,28 @@ function loadThemeMode(): ThemeMode {
 }
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { settings } = useApp();
+  const [config, setConfig] = useState<any>(null);
   const [themeMode, setThemeModeState] = useState<ThemeMode>(loadThemeMode);
   const [systemDark, setSystemDark] = useState(getSystemDark);
 
   const isDark = themeMode === 'dark' || (themeMode === 'system' && systemDark);
+
+  // Tema DESACOPLADO do StoreContext: um snapshot leve do doc settings/general.
+  // Antes, ThemeProvider consumia useApp() — qualquer mudança em QUALQUER
+  // coleção (produtos, pedidos, usuários, despesas...) re-renderizava o
+  // ThemeProvider e, como ele é ancestral de MainApp, a árvore inteira do app
+  // era re-renderizada DUAS vezes por snapshot (uma pelo store, outra pelo
+  // theme). Agora o theme só re-renderiza quando o próprio doc de configuração
+  // muda — custo de 1 stream leve num doc pequeno em troca de eliminar a
+  // duplicação de render do app inteiro a cada evento do Firestore.
+  useEffect(() => {
+    const unsub = onSnapshot(
+      doc(db, 'settings', 'general'),
+      (snap) => setConfig(snap.exists() ? snap.data() : null),
+      () => setConfig(null)
+    );
+    return () => unsub();
+  }, []);
 
   // Persist + apply
   const setThemeMode = useCallback((mode: ThemeMode) => {
@@ -55,12 +73,12 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [themeMode]);
 
   // Theme ID + colors
-  const themeId = settings?.theme || ThemeOption.MODERN_GREEN;
+  const themeId = config?.theme || ThemeOption.MODERN_GREEN;
   const themeData = THEME_COLORS[themeId] || THEME_COLORS[ThemeOption.MODERN_GREEN];
 
   // Primary color
   const DEFAULT_PRIMARY = '#10b981';
-  const rawPrimary = String(settings?.primaryColor || '').trim().toLowerCase();
+  const rawPrimary = String(config?.primaryColor || '').trim().toLowerCase();
   const isLegacyGreen = rawPrimary === '#0e7a4d';
   const primaryColor = /^#[0-9a-fA-F]{6}$/.test(rawPrimary) && !isLegacyGreen ? rawPrimary : DEFAULT_PRIMARY;
 
@@ -101,12 +119,12 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     // Wallpaper Global
-    if (settings?.loginBgType === 'image' && settings?.loginBgUrl) {
-      root.style.setProperty('--wallpaper-url', `url(${settings.loginBgUrl})`);
+    if (config?.loginBgType === 'image' && config?.loginBgUrl) {
+      root.style.setProperty('--wallpaper-url', `url(${config.loginBgUrl})`);
     } else {
       root.style.setProperty('--wallpaper-url', 'none');
     }
-  }, [settings, primaryColor, isDark]);
+  }, [config, primaryColor, isDark]);
 
   return (
     <ThemeContext.Provider value={{ isDark, primaryColor, themeId, colors: themeData, themeMode, setThemeMode }}>

@@ -16,6 +16,32 @@ function cleanCpf(v) {
   return String(v || "").replace(/\D/g, "");
 }
 
+/**
+ * Valida o dígito verificador do CPF (algoritmo oficial do Ministério da
+ * Fazenda). Devolve true SOMENTE para CPF matematicamente válido e com 11
+ * dígitos. Rejeita sequências repetidas (000.000.000-00, 111.111.111-11...),
+ * que passam no algoritmo mas são proibidas pela Receita. Nunca lança.
+ */
+function validarCpf(cpf) {
+  const c = String(cpf || "").replace(/\D/g, "");
+  if (c.length !== 11) return false;
+  if (/^(\d)\1{10}$/.test(c)) return false;
+  try {
+    let soma = 0;
+    for (let i = 0; i < 9; i++) soma += parseInt(c.charAt(i), 10) * (10 - i);
+    let resto = (soma * 10) % 11;
+    if (resto === 10) resto = 0;
+    if (resto !== parseInt(c.charAt(9), 10)) return false;
+    soma = 0;
+    for (let i = 0; i < 10; i++) soma += parseInt(c.charAt(i), 10) * (11 - i);
+    resto = (soma * 10) % 11;
+    if (resto === 10) resto = 0;
+    return resto === parseInt(c.charAt(10), 10);
+  } catch {
+    return false;
+  }
+}
+
 /** Sanitiza token de idempotência (somente [a-zA-Z0-9_-], máx 64). */
 function sanitizarToken(token) {
   return String(token || "").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 64);
@@ -201,6 +227,7 @@ function calcularEstornoCarteira(pedido) {
 module.exports = {
   arredondar,
   cleanCpf,
+  validarCpf,
   sanitizarToken,
   validarItensPuros,
   calcularPartesPagamento,

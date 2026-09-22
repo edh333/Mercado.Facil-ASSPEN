@@ -12,6 +12,7 @@ import { CupomEntrega } from '../components/CupomEntrega';
 import { NotificationSystem } from '../components/NotificationSystem';
 
 import { generatePixPayload, formatarMoeda, compressImageFile, copiarTextoComFallback } from '../utils';
+import { MIN_PROOF_BYTES } from '../utils/fileHash';
 import { imprimirComPrioridadeFiscal } from '../utils/printUtils';
 import { toDate } from '../utils/dateUtils';
 import { collection, query, where, onSnapshot, orderBy, limit, getDocs, getDocsFromServer } from 'firebase/firestore';
@@ -604,15 +605,26 @@ export const UserDashboard: React.FC = () => {
                 // UMA única vez (reenvio automático aqui gerava pedido duplicado).
                 let arquivo: File;
                 const original = proofFile!;
+                // Bloqueia comprovante truncado ANTES de comprimir — mesmo critério
+                // do depósito: arquivo < 3 KB não é um recibo real.
+                if (original.size < MIN_PROOF_BYTES) {
+                    throw new Error("Comprovante inválido: arquivo muito pequeno. Anexe a imagem ou PDF completo do comprovante PIX.");
+                }
                 if (original.type === 'application/pdf') {
                     arquivo = original;
                 } else {
                     try {
                         arquivo = new File(
-                            [await compressImageFile(original, 0.3, 600)],
+                            [await compressImageFile(original, 0.5, 900)],
                             original.name.replace(/\.[^/.]+$/, '') + '.jpg',
                             { type: 'image/jpeg' }
                         );
+                        // Compressão forte pode encolher uma tela simples (comprovante
+                        // de app de banco com fundo claro) abaixo do mínimo de 3 KB.
+                        // O original é um recibo legítimo — envia ele no lugar.
+                        if (arquivo.size < MIN_PROOF_BYTES) {
+                            arquivo = original;
+                        }
                     } catch (err: any) {
                         console.warn("Compressão do comprovante falhou, enviando original. Motivo:", err?.message || err);
                         arquivo = original;
@@ -1237,7 +1249,7 @@ export const UserDashboard: React.FC = () => {
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                         {(settings?.allow_user_purchases ?? true) === false && !isAdmin ? (
                             <div className="flex flex-col items-center justify-center py-20 text-center">
-                                <div className="bg-red-500/10 border-2 border-red-500/20 rounded-[3rem] p-12 max-w-md w-full shadow-2xl">
+                                <div className="bg-red-500/10 border-2 border-red-500/20 rounded-[3rem] p-6 md:p-12 max-w-md w-full shadow-2xl">
                                     <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
                                         <Lock size={36} className="text-red-500" />
                                     </div>

@@ -24,6 +24,27 @@ function isAdmin() {
       );
     }
 
+    // Dados do usuário autenticado (para regras que exigem acesso gran).
+    function dadosUsuario() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // Publicação de instaladores (pasta apps/): além de admin, exige permissão
+    // explícita 'apps' ou 'all'. Admins principais (custom claim admin) e legados
+    // sem o campo permissions seguem com acesso total. Impede que um admin
+    // secundário restrito substitua o instalador distribuído (vetor de
+    // supply-chain).
+    function isAdminPublicadora() {
+      return request.auth != null && (
+        request.auth.token.admin == true ||
+        (firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+         dadosUsuario().status == 'active' &&
+         (dadosUsuario().role == 'admin' || dadosUsuario().role == 'ADMIN' ||
+          dadosUsuario().role == 'master' || dadosUsuario().role == 'MASTER') &&
+         (!('permissions' in dadosUsuario()) || dadosUsuario().permissions.hasAny(['apps', 'all'])))
+      );
+    }
+
     match /products/{fileName} {
       allow read: if request.auth != null;
       allow write: if isAdmin()
@@ -40,7 +61,7 @@ function isAdmin() {
       allow read: if isOwner(uid) || isAdmin();
       allow write: if (isOwner(uid) || isAdmin())
         && request.resource.size < 8 * 1024 * 1024
-        && (request.resource.contentType.matches('image/(png|jpeg|jpg|heic|heif)') || request.resource.contentType.matches('application/pdf'));
+        && (request.resource.contentType.matches('image/(png|jpeg|jpg|heic|heif|webp|bmp)') || request.resource.contentType.matches('application/pdf'));
       allow delete: if false;
     }
 
@@ -49,7 +70,7 @@ function isAdmin() {
       allow read: if isOwner(uid) || isAdmin();
       allow write: if (isOwner(uid) || isAdmin())
         && request.resource.size < 8 * 1024 * 1024
-        && (request.resource.contentType.matches('image/(png|jpeg|jpg|heic|heif)') || request.resource.contentType.matches('application/pdf'));
+        && (request.resource.contentType.matches('image/(png|jpeg|jpg|heic|heif|webp|bmp)') || request.resource.contentType.matches('application/pdf'));
       allow delete: if isAdmin();
     }
 
@@ -58,7 +79,7 @@ function isAdmin() {
       allow read: if isOwner(uid) || isAdmin();
       allow write: if (isOwner(uid) || isAdmin())
         && request.resource.size < 8 * 1024 * 1024
-        && (request.resource.contentType.matches('image/(png|jpeg|jpg|heic|heif)') || request.resource.contentType.matches('application/pdf'));
+        && (request.resource.contentType.matches('image/(png|jpeg|jpg|heic|heif|webp|bmp)') || request.resource.contentType.matches('application/pdf'));
       allow delete: if false;
     }
 
@@ -67,7 +88,7 @@ function isAdmin() {
       allow read: if isOwner(uid) || isAdmin();
       allow write: if (isOwner(uid) || isAdmin())
         && request.resource.size < 5 * 1024 * 1024
-        && (request.resource.contentType.matches('image/(png|jpeg|jpg|heic|heif)') || request.resource.contentType.matches('application/pdf'));
+        && (request.resource.contentType.matches('image/(png|jpeg|jpg|heic|heif|webp|bmp)') || request.resource.contentType.matches('application/pdf'));
       allow delete: if false;
     }
 
@@ -77,10 +98,10 @@ function isAdmin() {
     // usuário comum — vetor de supply-chain).
     match /apps/{fileName} {
       allow read, list: if true;
-      allow write: if isAdmin()
+      allow write: if isAdminPublicadora()
         && (fileName.matches('.*\\.exe$') || fileName == 'version.json')
         && request.resource.size < 100 * 1024 * 1024;
-      allow delete: if isAdmin();
+      allow delete: if isAdminPublicadora();
     }
 
     // Regra de seguranÃ§a (Fallback): bloqueia qualquer pasta nÃ£o listada acima

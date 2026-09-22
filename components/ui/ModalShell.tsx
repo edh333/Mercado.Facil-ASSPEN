@@ -27,43 +27,28 @@ const SIZE_CLASS: Record<NonNullable<ModalShellProps['size']>, string> = {
   xl: 'max-w-6xl',
 };
 
-// Identidade visual por tom semântico — destrutivo = vermelho, aviso = âmbar,
-// informativo = azul, sucesso = esmeralda, neutro = escuro slate.
-const TONE_STYLES: Record<ModalTone, { header: string; tile: string; accent: string; subtitle: string; shadow: string }> = {
+// Identidade visual minimalista por tom semântico — fundo claro constate,
+// acento cirúrgico apenas em faixa fina no topo e ícone com tint suave.
+const TONE_STYLES: Record<ModalTone, { accent: string; tile: string }> = {
   primary: {
-    header: 'from-[#0f172a] via-[#1e293b] to-[#0f172a]',
-    tile: 'from-emerald-500 to-emerald-600',
     accent: 'from-emerald-500 to-emerald-600',
-    subtitle: 'text-slate-400',
-    shadow: 'shadow-emerald-500/30',
+    tile: 'bg-emerald-50 text-emerald-600',
   },
   danger: {
-    header: 'from-red-600 via-red-600 to-red-700',
-    tile: 'bg-white/15',
-    accent: 'from-red-600 to-red-700',
-    subtitle: 'text-white/60',
-    shadow: 'shadow-red-600/30',
+    accent: 'from-red-500 to-red-600',
+    tile: 'bg-red-50 text-red-600',
   },
   warning: {
-    header: 'from-amber-500 via-amber-500 to-amber-600',
-    tile: 'bg-white/15',
     accent: 'from-amber-500 to-amber-600',
-    subtitle: 'text-white/70',
-    shadow: 'shadow-amber-500/30',
+    tile: 'bg-amber-50 text-amber-600',
   },
   info: {
-    header: 'from-sky-600 via-sky-600 to-sky-700',
-    tile: 'bg-white/15',
     accent: 'from-sky-500 to-sky-600',
-    subtitle: 'text-white/70',
-    shadow: 'shadow-sky-500/30',
+    tile: 'bg-sky-50 text-sky-600',
   },
   success: {
-    header: 'from-emerald-600 via-emerald-600 to-emerald-700',
-    tile: 'bg-white/15',
     accent: 'from-emerald-500 to-emerald-600',
-    subtitle: 'text-white/70',
-    shadow: 'shadow-emerald-600/30',
+    tile: 'bg-emerald-50 text-emerald-600',
   },
 };
 
@@ -138,19 +123,17 @@ export const ModalShell: React.FC<ModalShellProps> = ({
         tabIndex={-1}
         className={`modal-content modal-shell-fixed relative w-full ${SIZE_CLASS[size]} bg-white overflow-hidden flex flex-col max-h-[90vh] rounded-2xl shadow-2xl animate-scaleIn outline-none`}
       >
-        {/* TOP ACCENT BAR — identidade visual por tom */}
-        <div className={`h-1.5 shrink-0 bg-gradient-to-r ${toneStyle.accent}`}></div>
-
-        <div className={`px-6 py-4 shrink-0 flex items-center justify-between gap-4 bg-gradient-to-r ${headerColor ?? toneStyle.header} text-white`}>
-          <div className="flex items-center gap-4 min-w-0">
+        {/* HEADER CLARO — título sobre o fundo branco, sem barra pesada */}
+        <div className={`px-6 py-4 shrink-0 flex items-center justify-between gap-4 bg-white border-b border-slate-100 ${headerColor ?? ''}`}>
+          <div className="flex items-center gap-3 min-w-0">
             {icon && (
-              <div className={`w-11 h-11 shrink-0 rounded-2xl flex items-center justify-center text-white shadow-lg ${toneStyle.shadow} ${toneStyle.tile.startsWith('bg-') ? toneStyle.tile : `bg-gradient-to-br ${toneStyle.tile}`}`}>
+              <div className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center ${toneStyle.tile}`}>
                 {icon}
               </div>
             )}
             <div className="min-w-0">
-              <h3 className="font-black uppercase tracking-wide text-sm truncate">{title}</h3>
-              {subtitle && <p className={`text-[10px] font-bold ${toneStyle.subtitle} truncate`}>{subtitle}</p>}
+              <h3 className="text-slate-800 font-black uppercase tracking-wide text-base truncate">{title}</h3>
+              {subtitle && <p className="text-[10px] font-bold text-slate-400 truncate">{subtitle}</p>}
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -159,9 +142,9 @@ export const ModalShell: React.FC<ModalShellProps> = ({
               onClick={onClose}
               aria-label={'Fechar ' + title}
               title={'Fechar ' + title}
-              className="p-3 rounded-xl bg-white/10 hover:bg-red-500 text-white transition-all active:scale-90"
+              className="p-2.5 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all active:scale-90"
             >
-              <X size={20} />
+              <X size={18} />
             </button>
           </div>
         </div>

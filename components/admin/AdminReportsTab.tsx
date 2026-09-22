@@ -166,7 +166,7 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
                                 </div>
                                 <div className="min-w-0">
                                     <p className={`font-black text-xs uppercase tracking-tight mb-1 truncate ${reportConfig.type === opt.id ? 'text-white' : 'text-[var(--text-main)]'}`}>{opt?.name || 'Relatório'}</p>
-                                    <p className={`text-[9px] font-medium leading-snug line-clamp-2 ${reportConfig.type === opt.id ? 'text-white/60' : 'text-[var(--text-muted)]'}`}>{opt.desc}</p>
+                                    <p className={`text-[9px] font-medium leading-snug ${reportConfig.type === opt.id ? 'text-white/60' : 'text-[var(--text-muted)]'}`}>{opt.desc}</p>
                                 </div>
                             </button>
                         ))}
@@ -345,7 +345,8 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
                     />
                 </div>
 
-                <div className="border border-[var(--border-color)] rounded-2xl overflow-hidden">
+                <div className="border border-[var(--border-color)] rounded-2xl overflow-x-auto">
+                    <div className="min-w-[560px]">
                     <div className="grid grid-cols-12 gap-2 px-5 py-3 bg-[var(--bg-main)] border-b border-[var(--border-color)] text-[9px] font-black uppercase tracking-widest text-[var(--text-muted)]">
                         <span className="col-span-4">Cliente</span>
                         <span className="col-span-3">CPF</span>
@@ -370,6 +371,7 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
                             ))}
                         </div>
                     )}
+                    </div>
                 </div>
 
                 {creditList.length > 0 && (

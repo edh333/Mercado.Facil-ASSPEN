@@ -1,7 +1,8 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   DollarSign, Landmark, Printer, Search, Plus, X, Check, ArrowRightCircle,
-  TrendingUp, TrendingDown, Download, Trash2, Loader2, Wallet, AlertTriangle
+  TrendingUp, TrendingDown, Download, Trash2, Loader2, Wallet, AlertTriangle,
+  ChevronDown, MoreHorizontal, ListFilter
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { Expense, Order, Supplier } from '../../types';
@@ -45,6 +46,16 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [printReceipt, setPrintReceipt] = useState<any>(null);
   const [cashSessions, setCashSessions] = useState<CashSession[]>([]);
+  const [acoesOpen, setAcoesOpen] = useState(false);
+  const acoesRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      if (acoesRef.current && !acoesRef.current.contains(e.target as Node)) setAcoesOpen(false);
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, []);
 
   useEffect(() => {
     let ativo = true;
@@ -310,6 +321,25 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
     }
   };
 
+  const RenderTabSwitch = () => (
+    <div className="inline-flex bg-[var(--bg-main)] border border-[var(--border-color)] rounded-2xl p-1.5 gap-1 shadow-sm w-full sm:w-auto">
+      {([
+        { key: 'ALL' as const, rotulo: 'Tudo', icone: <ListFilter size={14}/>, ativo: 'bg-[var(--bg-card)] text-[var(--text-main)] shadow-md' },
+        { key: 'ENTRIES' as const, rotulo: 'Entradas', icone: <TrendingUp size={14}/>, ativo: 'bg-emerald-600 text-white shadow-md' },
+        { key: 'EXITS' as const, rotulo: 'Saídas', icone: <TrendingDown size={14}/>, ativo: 'bg-red-600 text-white shadow-md' },
+      ]).map(t => (
+        <button
+          key={t.key}
+          type="button"
+          onClick={() => setActiveSubTab(t.key)}
+          className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${activeSubTab === t.key ? t.ativo : 'text-[var(--text-muted)] hover:bg-[var(--bg-card)]/70'}`}
+        >
+          {t.icone} {t.rotulo}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <div className="space-y-6 animate-slideUp pb-20">
       {/* Upper Dashboard */}
@@ -318,43 +348,55 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
         <h2 className="text-xl font-bold text-[var(--text-main)] flex items-center gap-2 tracking-tight relative z-10">
             <DollarSign size={24} className="text-emerald-600"/> Painel Financeiro
         </h2>
-        <div className="flex flex-wrap gap-3 w-full md:w-auto relative z-10">
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto relative z-10">
             <button onClick={() => setShowExpenseModal(true)} className="flex-1 md:flex-none bg-emerald-600 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 transition-all">
                 <Plus size={18}/> Novo Lançamento
             </button>
-            <button onClick={exportFinanceToCSV} className="flex-1 md:flex-none bg-[var(--text-main)] text-[var(--bg-card)] px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 transition-all">
-                <Download size={18}/> Exportar
-            </button>
-            <button onClick={printExpenseList} className="flex-1 md:flex-none bg-emerald-600 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 transition-all">
-                <Printer size={18}/> Relatório
-            </button>
-            {isMaster && (
-              <>
+            <div className="relative flex-1 md:flex-none" ref={acoesRef}>
                 <button
-                  onClick={() => setConfirmacao('FINANCEIRO')}
-                  className="flex-1 md:flex-none bg-red-50 text-red-600 border border-red-200 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl flex items-center justify-center gap-2 hover:bg-red-100 active:scale-95 transition-all"
-                  title="Apagar todos os lançamentos de despesas e caixa"
+                  onClick={() => setAcoesOpen(o => !o)}
+                  aria-expanded={acoesOpen}
+                  aria-haspopup="menu"
+                  className="w-full md:w-auto flex items-center justify-center gap-2 bg-[var(--bg-main)] text-[var(--text-main)] border border-[var(--border-color)] px-5 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-sm hover:bg-[var(--bg-card)] transition-all active:scale-95"
                 >
-                  <X size={18}/> Zerar Lançamentos
+                    <MoreHorizontal size={18}/> Ações Avançadas
+                    <ChevronDown size={14} className={`transition-transform ${acoesOpen ? 'rotate-180' : ''}`}/>
                 </button>
-                <button
-                  onClick={() => setConfirmacao('CREDITOS')}
-                  className="flex-1 md:flex-none bg-amber-50 text-amber-700 border border-amber-200 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl flex items-center justify-center gap-2 hover:bg-amber-100 active:scale-95 transition-all"
-                  title="Zerar o saldo da carteira de todos os familiares"
-                >
-                  <X size={18}/> Zerar Créditos
-                </button>
-              </>
-            )}
-            <div className="flex bg-[var(--bg-main)] rounded-xl p-1 border border-[var(--border-color)] flex-1 md:flex-none">
-                <button onClick={() => setActiveSubTab('ALL')} className={`flex-1 px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'ALL' ? 'bg-[var(--bg-card)] text-[var(--text-main)] shadow-sm' : 'text-[var(--text-muted)]'}`}>Tudo</button>
-                <button onClick={() => setActiveSubTab('ENTRIES')} className={`flex-1 px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'ENTRIES' ? 'bg-emerald-600 text-white shadow-sm' : 'text-[var(--text-muted)]'}`}>Entradas</button>
-                <button onClick={() => setActiveSubTab('EXITS')} className={`flex-1 px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeSubTab === 'EXITS' ? 'bg-red-600 text-white shadow-sm' : 'text-[var(--text-muted)]'}`}>Saídas</button>
+                {acoesOpen && (
+                    <div className="absolute right-0 mt-2 w-64 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl shadow-2xl p-2 z-50 space-y-1">
+                        <button onClick={() => { setAcoesOpen(false); exportFinanceToCSV(); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[var(--text-main)] hover:bg-[var(--bg-main)] font-black text-[10px] uppercase tracking-widest transition-all text-left">
+                            <Download size={16} className="text-emerald-500"/> Exportar CSV
+                        </button>
+                        <button onClick={() => { setAcoesOpen(false); printExpenseList(); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[var(--text-main)] hover:bg-[var(--bg-main)] font-black text-[10px] uppercase tracking-widest transition-all text-left">
+                            <Printer size={16} className="text-emerald-500"/> Relatório Impresso
+                        </button>
+                        {isMaster && (
+                            <>
+                                <div className="my-1 h-px bg-[var(--border-color)]"></div>
+                                <p className="px-4 pt-1 text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest">Perigosos — exigem confirmação dupla</p>
+                                <button
+                                  onClick={() => { setAcoesOpen(false); setConfirmacao('FINANCEIRO'); }}
+                                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 font-black text-[10px] uppercase tracking-widest transition-all text-left"
+                                  title="Apagar todos os lançamentos de despesas e caixa"
+                                >
+                                    <X size={16}/> Zerar Lançamentos
+                                </button>
+                                <button
+                                  onClick={() => { setAcoesOpen(false); setConfirmacao('CREDITOS'); }}
+                                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 font-black text-[10px] uppercase tracking-widest transition-all text-left"
+                                  title="Zerar o saldo da carteira de todos os familiares"
+                                >
+                                    <X size={16}/> Zerar Créditos
+                                </button>
+                            </>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
       </div>
 
-{/* Stats Overview */}
+      {/* Stats Overview */}
         {isMaster && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-[var(--bg-card)] p-8 rounded-[3rem] border border-[var(--border-color)] shadow-xl relative overflow-hidden group">
@@ -366,7 +408,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
               </h3>
               <div className="mt-4 flex items-center gap-2">
                   <div className="p-1.5 bg-[var(--bg-main)] rounded-lg border border-[var(--border-color)] text-[var(--text-muted)]"><Landmark size={14}/></div>
-                  <span className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest truncate">{settings?.institutionName}</span>
+                  <span className="block text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest break-words leading-relaxed">{settings?.institutionName || 'Instituição'}</span>
               </div>
             </div>
 
@@ -406,6 +448,16 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
         </div>
       )}
 
+      {/* Filtro por tipo — acoplado logo acima do gráfico de movimentações */}
+      {isMaster && (
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <h3 className="text-xs font-black text-[var(--text-main)] uppercase tracking-widest flex items-center gap-2">
+            <TrendingUp size={16}/> Movimentações
+          </h3>
+          <RenderTabSwitch/>
+        </div>
+      )}
+
       {/* Simple Visual Chart - Daily Breakdown */}
       {isMaster && (
         <div className="bg-[var(--bg-card)] p-6 rounded-[2.5rem] border border-[var(--border-color)] shadow-lg">
@@ -418,30 +470,38 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
             {ultimos7Dias.map((d, idx) => (
               <div key={idx} className="flex-1 flex flex-col items-center gap-2 group">
                 <div className="w-full flex flex-col-reverse gap-1 h-24 items-end justify-end">
+                  {activeSubTab !== 'EXITS' && (
                   <div
                     className="w-full bg-emerald-400 rounded-t-lg transition-all group-hover:bg-emerald-500"
                     style={{ height: `${(d.dayOrders / (d.maxVal || 1)) * 100}%`, minHeight: d.dayOrders > 0 ? '4px' : '0' }}
                     title={`Entradas: R$ ${d.dayOrders.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
                   />
+                  )}
+                  {activeSubTab !== 'ENTRIES' && (
                   <div
                     className="w-full bg-red-400 rounded-t-lg transition-all group-hover:bg-red-500"
                     style={{ height: `${(d.dayExpenses / (d.maxVal || 1)) * 100}%`, minHeight: d.dayExpenses > 0 ? '4px' : '0' }}
                     title={`Saídas: R$ ${d.dayExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
                   />
+                  )}
                 </div>
                 <span className="text-[10px] font-black text-[var(--text-muted)] uppercase">{d.dayName}</span>
               </div>
             ))}
           </div>
           <div className="flex items-center justify-center gap-6 mt-4 pt-4 border-t border-[var(--border-color)]">
+            {activeSubTab !== 'EXITS' && (
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 bg-emerald-500 rounded-full"></div>
               <span className="text-[9px] font-black text-[var(--text-muted)] uppercase">Entradas</span>
             </div>
+            )}
+            {activeSubTab !== 'ENTRIES' && (
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 bg-red-500 rounded-full"></div>
               <span className="text-[9px] font-black text-[var(--text-muted)] uppercase">Saídas</span>
             </div>
+            )}
           </div>
         </div>
       )}
@@ -570,6 +630,12 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
                 </div>
             </div>
           </div>
+          {!isMaster && (
+            <div className="mt-4 flex items-center justify-between gap-3 flex-wrap border-t border-[var(--border-color)] pt-4">
+              <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-muted)]">Filtrar por tipo</span>
+              <RenderTabSwitch/>
+            </div>
+          )}
         </div>
 
         <div className="p-4">
@@ -710,9 +776,8 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
           onClose={() => setShowExpenseModal(false)}
           title="Novo Lançamento de Saída"
           subtitle="Registro de despesa operacional com recibo oficial"
-          icon={<ArrowRightCircle size={22} className="text-red-300" />}
+          icon={<ArrowRightCircle size={22} />}
           size="lg"
-          headerColor="from-red-600 via-rose-700 to-red-800"
           footer={
             <>
               <button
@@ -829,9 +894,8 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
           onClose={() => setPrintReceipt(null)}
           title="Despesa Lançada com Sucesso"
           subtitle="Recibo oficial gerado e arquivado"
-          icon={<Check size={22} className="text-emerald-300" />}
+          icon={<Check size={22} />}
           size="sm"
-          headerColor="from-emerald-600 via-emerald-700 to-teal-800"
         >
           <div className="p-8 space-y-6">
             <div className="bg-emerald-50 p-5 rounded-2xl border border-emerald-100 space-y-2">

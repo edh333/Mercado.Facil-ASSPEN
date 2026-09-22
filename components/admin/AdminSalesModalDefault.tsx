@@ -1488,7 +1488,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                     onKeyDown={handleClienteKeyDown}
                   />
                   {mostrarListaClientes && (
-                    <div className="absolute left-0 right-0 top-full mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden max-h-72 overflow-y-auto custom-scrollbar">
+                    <div className="mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden max-h-72 overflow-y-auto custom-scrollbar">
                       {clientesFiltrados.map(u => (
                         <button
                           key={u.id}
@@ -1569,9 +1569,9 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                         key={p.id}
                         onClick={() => adicionarAoCarrinho(p)}
                         disabled={isOut || (p.price || 0) <= 0}
-                        className={`group p-3 bg-white border border-slate-200 rounded-[2rem] flex flex-col items-center hover:border-emerald-400 transition-all active:scale-95 shadow-sm hover:shadow-md ${isOut ? 'opacity-40 grayscale' : ''}`}
+                        className={`group p-3 h-full w-full min-w-0 bg-white border border-slate-200 rounded-[2rem] flex flex-col items-center hover:border-emerald-400 transition-all active:scale-95 shadow-sm hover:shadow-md ${isOut ? 'opacity-40 grayscale' : ''}`}
                       >
-                        <div className="w-full aspect-square rounded-2xl bg-slate-50 mb-3 overflow-hidden relative border border-slate-100">
+                        <div className="w-full aspect-square rounded-2xl bg-slate-50 mb-3 overflow-hidden relative border border-slate-200">
                           {p.imageUrl ? <img src={p.imageUrl} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" /> : (
                             <div className="absolute inset-0 flex flex-col items-center justify-center">
                               <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center mb-2">
@@ -1662,7 +1662,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                 <div className="flex justify-between items-end">
                   <div>
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total a Receber</p>
-                    <h3 className="text-4xl font-black tracking-tighter text-slate-900">R$ {formatarMoeda(totalCarrinho)}</h3>
+                    <h3 className="text-5xl xl:text-6xl font-black tracking-tighter text-slate-900">R$ {formatarMoeda(totalCarrinho)}</h3>
                   </div>
                   <div className="flex items-center gap-1 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                     <ShoppingCart size={14} /> {carrinho.reduce((s: number, i: any) => s + (i.quantity || 0), 0)} itens
@@ -1672,7 +1672,7 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                 <button
                   onClick={() => { setModalPagamento(true); setPixConfirmado(false); }}
                   disabled={carrinho.length === 0 || !clienteSelecionado}
-                  className={`w-full py-5 rounded-[2rem] font-black text-base uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-4 ${carrinho.length === 0 || !clienteSelecionado ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'text-white shadow-[0_15px_40px_rgba(0,0,0,0.2)] hover:brightness-110 active:scale-[0.98]'}`}
+                  className={`w-full py-6 rounded-[2rem] font-black text-lg uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-4 ${carrinho.length === 0 || !clienteSelecionado ? 'bg-slate-200 text-slate-500 cursor-not-allowed border border-slate-300' : 'text-white shadow-[0_15px_40px_rgba(0,0,0,0.2)] hover:brightness-110 active:scale-[0.98]'}`}
                   style={carrinho.length === 0 || !clienteSelecionado ? undefined : { backgroundColor: corPrincipal }}
                 >
                   <Check size={20} /> Finalizar Venda

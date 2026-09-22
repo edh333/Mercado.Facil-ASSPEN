@@ -1,13 +1,16 @@
 
 export enum UserRole {
   ADMIN = 'ADMIN',
+  VENDEDOR = 'VENDEDOR',
   FAMILY = 'FAMILY'
 }
 
 /** Normaliza o role salvo no Firestore (pode vir como 'admin' minúsculo ou 'ADMIN') para o enum do app. */
 export function toUserRole(role?: string | null | undefined): UserRole {
   const r = String(role || '').toLowerCase();
-  return r === 'admin' || r === 'master' ? UserRole.ADMIN : UserRole.FAMILY;
+  if (r === 'admin' || r === 'master') return UserRole.ADMIN;
+  if (r === 'vendedor' || r === 'operator') return UserRole.VENDEDOR;
+  return UserRole.FAMILY;
 }
 
 export type SystemRole = 'admin' | 'manager' | 'operator' | 'user';

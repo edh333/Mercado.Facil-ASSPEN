@@ -74,7 +74,7 @@ export type { InvoiceData } from '../utils/invoiceParser';
 import {
     collection, doc, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, getDocsFromServer, orderBy, limit, startAfter, writeBatch, Unsubscribe, getDoc, runTransaction, increment, arrayUnion, Timestamp
 } from 'firebase/firestore';
-import { getActiveSession } from '../utils/cashSession';
+import { getActiveSession, CashSession } from '../utils/cashSession';
 
 interface StoreContextType {
     currentUser: User | null;
@@ -199,7 +199,7 @@ interface StoreContextType {
     estornarPedido: (orderId: string, motivo: string) => Promise<void>;
     resetCredits: () => Promise<void>;
     mergeDuplicateProducts: () => Promise<void>;
-    adminDirectSale: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30', total: number, payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30'; amount: number }[], change?: number, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string, fiado30UserId?: string, senhaPrimaria?: string, senhaSecundaria?: string) => Promise<Order | null>;
+    adminDirectSale: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30', total: number, payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30'; amount: number }[], change?: number, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string, fiado30UserId?: string, senhaPrimaria?: string, senhaSecundaria?: string, sessaoCaixaId?: string) => Promise<Order | null>;
     loadMoreOrders: () => void;
     loadMoreExpenses: () => void;
     ordersLimit: number;
@@ -221,6 +221,12 @@ interface StoreContextType {
     sincronizarVendasOffline: (incluirErros?: boolean) => Promise<{ ok: boolean; sincronizadas: number; comErro: number; total: number; offline?: boolean }>;
     vendasOfflinePendentes: number;
     vendasOfflineComErro: number;
+
+    // Sessão de caixa física ATIVA do operador logado (fonte global reativa).
+    // O PDV usa sessaoCaixaAtiva.id no payload CASH — o ID nunca nasce vazio
+    // porque vem do contexto, não de uma variável local lida uma única vez.
+    sessaoCaixaAtiva: CashSession | null;
+    refreshSessaoCaixa: () => Promise<void>;
 
 }
 
@@ -273,6 +279,28 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [offlineUnlocked, setOfflineUnlocked] = useState(false);
     const [serverTime, setServerTime] = useState<Date>(new Date());
+    // Sessão de caixa física ATIVA do operador logado. Fonte única e reativa:
+    // o PDV e a aba de caixa leem daqui (nunca replicam getActiveSession local).
+    const [sessaoCaixaAtiva, setSessaoCaixaAtiva] = useState<CashSession | null>(null);
+
+    const refreshSessaoCaixa = useCallback(async () => {
+        try {
+            if (!currentUser?.id) { setSessaoCaixaAtiva(null); return; }
+            const ativa = await getActiveSession(currentUser.id);
+            setSessaoCaixaAtiva(ativa);
+        } catch {
+            setSessaoCaixaAtiva(null);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentUser?.id]);
+
+    // Reativa: atualiza ao trocar de usuário e faz poll leve (~12s) enquanto o
+    // PDV/aba de caixa estiver aberto — abrir/fechar gaveta reflete instantaneamente.
+    useEffect(() => {
+        refreshSessaoCaixa();
+        const timer = setInterval(refreshSessaoCaixa, 12000);
+        return () => clearInterval(timer);
+    }, [refreshSessaoCaixa]);
 
     const [users, setUsers] = useState<User[]>([]);
   const CONSUMER_USER: User = { id: 'consumidor_geral', name: 'CONSUMIDOR GERAL', email: 'venda@balcao.com', role: UserRole.FAMILY, status: 'active', approved: true, cpf: '000.000.000-00', inmateName: 'CONSUMIDOR', inmateCpf: '000.000.000-00' };
@@ -380,6 +408,21 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         cotaCriticaRef.current = true;
         setCotaCritica(true);
     }, []);
+
+    // Tratamento de erro padrão dos listeners: registra a falha e acende o
+    // alerta de cota (plano Blaze) quando o erro é de limite de uso/quota.
+    const onErr = useCallback((label: string) => (err: Error) => {
+        console.warn(`[Firebase:${label}]`, err.message);
+        const codigo = String((err as any)?.code || '');
+        const mensagem = String(err?.message || '').toLowerCase();
+        if (codigo.includes('resource-exhausted') ||
+            mensagem.includes('quota exceeded') ||
+            mensagem.includes('usage-quota') ||
+            mensagem.includes('excedida') ||
+            (codigo === 'permission-denied' && (mensagem.includes('quota') || mensagem.includes('500')))) {
+            marcaCotaCritica();
+        }
+    }, [marcaCotaCritica]);
 
     const loadMoreOrders = () => setOrdersLimit((prev: number) => prev + 50);
     const loadMoreExpenses = () => setExpensesLimit((prev: number) => prev + 50);
@@ -668,7 +711,11 @@ return false;
         }
 
         const MAX_FILE_SIZE = 8 * 1024 * 1024;
-        const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.pdf', '.heic', '.heif'];
+        // .webp/.bmp entram: galeria Android faz download de comprovantes compartilhados
+        // (WhatsApp, app de banco) em .webp e o seletor usa accept="image/*". O compressor
+        // comprimirImagem já tratava webp/bmp — a whitelist estava contradizendo o resto
+        // do stack e derrubava o envio de comprovante com erro de "tipo não permitido".
+        const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.pdf', '.heic', '.heif', '.webp', '.bmp'];
 
         if (file.size > MAX_FILE_SIZE) {
             throw new Error('Arquivo muito grande (máx. 8 MB).');
@@ -676,7 +723,7 @@ return false;
 
         const ext = '.' + (file.name.split('.').pop() || '').toLowerCase();
         if (!ALLOWED_EXTENSIONS.includes(ext)) {
-            throw new Error('Tipo de arquivo não permitido (JPG, PNG, HEIC ou PDF).');
+            throw new Error('Tipo de arquivo não permitido (JPG, PNG, PDF, HEIC ou WEBP).');
         }
 
         // Comprime fotos antes do envio (menos Storage, uploads mais rápidos);
@@ -1916,13 +1963,16 @@ return false;
                 email: d.email || '',
                 cpf: d.cpf || '',
                 senha: (d as any).password || '',
-                permissions: Array.isArray((d as any).permissions) && (d as any).permissions.length
-                    ? (d as any).permissions
-                    : ['all']
+                role: (d as any).role === 'vendedor' ? 'vendedor' : 'admin',
+                permissions: (d as any).role === 'vendedor'
+                    ? ['sales', 'orders', 'products', 'cash']
+                    : (Array.isArray((d as any).permissions) && (d as any).permissions.length
+                        ? (d as any).permissions
+                        : ['all'])
             });
-            showNotification('Admin criado', 'success');
+            showNotification(((d as any).role === 'vendedor' ? 'Operador de caixa' : 'Admin') + ' criado com sucesso', 'success');
         } catch (e: any) {
-            showNotification('Erro ao criar admin: ' + e.message, 'error');
+            showNotification('Erro ao criar administrador: ' + e.message, 'error');
         }
     };
     const updateAdminPermissions = async (userId: string, permissions: string[]) => {
@@ -2767,38 +2817,23 @@ return false;
         normalizeLegacyDocuments();
     }, [authReady, currentUser?.id, currentUser?.role]);
 
+    // ── LISTENERS FIRESTORE POR DOMÍNIO ──
+    // Antes, todas as coleções eram subscritas num ÚNICO efeito cujas deps incluíam
+    // TODOS os limites de paginação. Crescer QUALQUER limite (botão "carregar mais")
+    // re-criava TODOS os listeners: refetch total de produtos + getDoc do config +
+    // re-subscribe de users/orders/messages/expenses/suppliers — leituras em cascata.
+    // Agora cada coleção vive no seu próprio efeito com a própria dep: paginar
+    // produtos só re-subscribe produtos; paginar pedidos só re-subscribe pedidos.
+    // Comportamento preservado, tráfego menor e transições de carga mais rápidas.
+
+    // Config + produtos + mensagens do sistema + liberação do loading.
     useEffect(() => {
         if (!authReady || !currentUser) return;
 
-        let unsubUsers: Unsubscribe | null = null;
-        let unsubOrders: Unsubscribe | null = null;
         let unsubProducts: Unsubscribe | null = null;
         let unsubConfig: Unsubscribe | null = null;
-        let unsubExpenses: Unsubscribe | null = null;
-        let unsubMsg: Unsubscribe | null = null;
-        let unsubMsgAll: Unsubscribe | null = null;
-        let unsubSup: Unsubscribe | null = null;
-        let unsubInmates: Unsubscribe | null = null;
         let unsubSystemMsg: Unsubscribe | null = null;
-        let timer: any = null;
         let safetyTimeout: any = null;
-        let lidarVisibilidadeHora: (() => void) | null = null;
-        let ultimaSyncHora = 0;
-
-        const onErr = (label: string) => (err: Error) => {
-            console.warn(`[Firebase:${label}]`, err.message);
-            // Erros de cota (quota exceeded / resource-exhausted / usage-quota)
-            // â†’ acende o alerta de cota para o admin agir (plano Blaze).
-            const codigo = String((err as any)?.code || '');
-            const mensagem = String(err?.message || '').toLowerCase();
-            if (codigo.includes('resource-exhausted') ||
-                mensagem.includes('quota exceeded') ||
-                mensagem.includes('usage-quota') ||
-                mensagem.includes('excedida') ||
-                (codigo === 'permission-denied' && (mensagem.includes('quota') || mensagem.includes('500')))) {
-                marcaCotaCritica();
-            }
-        };
 
         const semSenhasConfig = (cfg: any) => {
             const { adminPassword, secondaryPassword, ...seguro } = cfg || {};
@@ -2827,128 +2862,165 @@ return false;
             } catch (e) { console.warn('[Config Init]', e); }
         };
 
-        const startListeners = async () => {
-            unsubConfig = onSnapshot(doc(db, 'settings', 'general'), (docSnap: any) => {
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    setAppConfig({ ...DEFAULT_CONFIG, ...data });
-                }
-                setIsLoading(false);
-            }, (err) => { onErr('config')(err); setIsLoading(false); });
-
-            // Initialize config doc if needed (separate from listener to avoid write loop)
-            initConfig();
-
-            // Sync Secure Time: o admin usa a hora do servidor para validar
-            // licença/expiração. Familiares não consomem serverTime (checado) —
-            // pular a chamada evita um cold start de Cloud Function + ida à rede
-            // em CADA abertura do app pelo lado do usuário (navegador, PWA, EXE).
-            if (currentUser?.role === UserRole.ADMIN) {
-                // Sync de hora confiável SEM desperdício: em vez de chamar a Cloud
-                // Function a cada 10 min incondicionalmente (~144 calls/dia com o
-                // app aberto o dia inteiro), o poll agora é barato (2 min) e o
-                // guard decide: só chama com aba VISÍVEL, online, e no máximo uma
-                // vez a cada 10 min. Ao voltar para a aba (visibilitychange), a
-                // hora é revalidada na hora — a licença/expiração nunca fica velha.
-                const atualizarHora = () => {
-                    if (document.hidden || typeof navigator !== 'undefined' && !navigator.onLine) return;
-                    const agora = Date.now();
-                    if (agora - ultimaSyncHora < 10 * 60 * 1000) return;
-                    ultimaSyncHora = agora;
-                    getNetworkTime().then(t => setServerTime(t)).catch(() => {});
-                };
-                lidarVisibilidadeHora = () => { if (!document.hidden) atualizarHora(); };
-                document.addEventListener('visibilitychange', lidarVisibilidadeHora);
-                window.addEventListener('online', lidarVisibilidadeHora);
-                atualizarHora();
-                timer = setInterval(atualizarHora, 1000 * 60 * 2);
+        unsubConfig = onSnapshot(doc(db, 'settings', 'general'), (docSnap: any) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                setAppConfig({ ...DEFAULT_CONFIG, ...data });
             }
+            setIsLoading(false);
+        }, (err) => { onErr('config')(err); setIsLoading(false); });
 
-            // Safety timeout
-            safetyTimeout = setTimeout(() => setIsLoading(false), 8000);
+        // Initialize config doc if needed (separate from listener to avoid write loop)
+        initConfig();
 
-            unsubProducts = onSnapshot(query(collection(db, 'products'), orderBy('name', 'asc'), limit(productsLimit)), (snapshot) => {
-                const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Product));
-                const filtered = items.filter(i => (i as any).deleted !== true);
-                setProducts(filtered);
-            }, onErr('products'));
+        // Safety timeout
+        safetyTimeout = setTimeout(() => setIsLoading(false), 8000);
 
-            unsubSystemMsg = onSnapshot(query(collection(db, 'systemMessages'), orderBy('createdAt', 'desc'), limit(20)), (s) => setSystemMessages(s.docs.map(d => ({ ...d.data(), id: d.id } as SystemMessage))), onErr('systemMessages'));
+        unsubProducts = onSnapshot(query(collection(db, 'products'), orderBy('name', 'asc'), limit(productsLimit)), (snapshot) => {
+            const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Product));
+            const filtered = items.filter(i => (i as any).deleted !== true);
+            setProducts(filtered);
+        }, onErr('products'));
 
-if (currentUser?.role !== UserRole.ADMIN && currentUser) {
-                const mergeMessages = (incoming: Message[]) => setMessages(prev => {
-                    const map = new Map<string, Message>();
-                    (prev || []).forEach(m => map.set(m.id, m));
-                    incoming.forEach(m => map.set(m.id, m));
-                    return Array.from(map.values()).sort((a, b) => ((b as any).createdAt || b.date || '').localeCompare((a as any).createdAt || a.date || ''));
-                });
+        unsubSystemMsg = onSnapshot(query(collection(db, 'systemMessages'), orderBy('createdAt', 'desc'), limit(20)), (s) => setSystemMessages(s.docs.map(d => ({ ...d.data(), id: d.id } as SystemMessage))), onErr('systemMessages'));
 
-                // UNA ÚNICA query com 'in' substitui duas listeners separadas
-                // (menor custo de leitura, mesma ordenação)
-                unsubMsg = onSnapshot(
-                    query(collection(db, 'messages'), where('userId', 'in', [currentUser.id, 'ALL']), orderBy('createdAt', 'desc'), limit(100)),
-                    (s) => mergeMessages(s.docs.map(d => ({ ...d.data(), id: d.id } as Message))),
-                    onErr('messages-merged')
-                );
-            }
-
-            if (currentUser?.role === UserRole.ADMIN) {
-                // orderBy garante paginação estável ao aumentar usersLimit
-                unsubUsers = onSnapshot(query(collection(db, 'users'), orderBy('name', 'asc'), limit(usersLimit)), (snapshot) => {
-                    // CONSUMER_USER é sintético (venda de balcão) e NÃO pertence à
-                    // lista real de usuários — se entra, polui contagens de
-                    // familiares em relatórios/painéis (MÉDIA-2).
-                    const dbUsers = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as User));
-                    setUsers(dbUsers.filter(u => (u as any).deleted !== true && u.id !== 'consumidor_geral' && u.id !== 'balcao_anonimo'));
-                }, onErr('users-admin'));
-                const ordersQuery = query(collection(db, 'orders'), orderBy('createdAt', 'desc'), limit(ordersLimit));
-                unsubOrders = onSnapshot(ordersQuery, (snapshot) => {
-                    const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Order));
-                    setOrders(items.filter(o => (o as any).deleted !== true));
-                }, onErr('orders-admin'));
-            } else if (currentUser) {
-                unsubUsers = onSnapshot(doc(db, 'users', currentUser.id), (docSnap) => {
-                    if (docSnap.exists()) {
-                        const updatedUser = docSnap.data() as User;
-                        setCurrentUser(prev => ({ ...prev, ...updatedUser }));
-                        setCreditoCliente(updatedUser.walletBalance || 0);
-                        if (updatedUser.status === 'suspended') logout();
-                    }
-                }, onErr('user-self'));
-                setOrders([]);
-            }
-
-            if (currentUser?.role === UserRole.ADMIN) {
-                unsubMsg = onSnapshot(query(collection(db, 'messages'), orderBy('createdAt', 'desc'), limit(100)), (s) => setMessages(s.docs.map(d => ({ ...d.data(), id: d.id } as Message))), onErr('messages'));
-                unsubExpenses = onSnapshot(query(collection(db, 'expenses'), orderBy('date', 'desc'), limit(expensesLimit)), (snapshot) => {
-                    const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Expense));
-                    setExpenses(items.filter(e => (e as any).deleted !== true));
-                }, onErr('expenses'));
-                unsubSup = onSnapshot(query(collection(db, 'suppliers'), orderBy('name', 'asc'), limit(suppliersLimit)), (snapshot) => setSuppliers(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Supplier))), onErr('suppliers'));
-                unsubInmates = onSnapshot(query(collection(db, 'pre_registered_inmates'), orderBy('name', 'asc'), limit(inmatesLimit)), (snapshot) => setPreRegisteredInmates(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as any))), onErr('pre-inmates'));
-            }
+        return () => {
+            clearTimeout(safetyTimeout);
+            if (unsubProducts) unsubProducts();
+            if (unsubConfig) unsubConfig();
+            if (unsubSystemMsg) unsubSystemMsg();
         };
+    }, [authReady, currentUser?.id, currentUser?.role, productsLimit, onErr]);
 
-        startListeners();
+    // Lista de usuários (admin) ou doc próprio (familiar, com logout se suspenso).
+    useEffect(() => {
+        if (!authReady || !currentUser) return;
+
+        let unsubUsers: Unsubscribe | null = null;
+
+        if (currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.VENDEDOR) {
+            // orderBy garante paginação estável ao aumentar usersLimit
+            unsubUsers = onSnapshot(query(collection(db, 'users'), orderBy('name', 'asc'), limit(usersLimit)), (snapshot) => {
+                // CONSUMER_USER é sintético (venda de balcão) e NÃO pertence à
+                // lista real de usuários — se entra, polui contagens de
+                // familiares em relatórios/painéis (MÉDIA-2).
+                const dbUsers = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as User));
+                setUsers(dbUsers.filter(u => (u as any).deleted !== true && u.id !== 'consumidor_geral' && u.id !== 'balcao_anonimo'));
+            }, onErr('users-admin'));
+        } else {
+            unsubUsers = onSnapshot(doc(db, 'users', currentUser.id), (docSnap) => {
+                if (docSnap.exists()) {
+                    const updatedUser = docSnap.data() as User;
+                    setCurrentUser(prev => ({ ...prev, ...updatedUser }));
+                    setCreditoCliente(updatedUser.walletBalance || 0);
+                    if (updatedUser.status === 'suspended') logout();
+                }
+            }, onErr('user-self'));
+        }
+
+        return () => { if (unsubUsers) unsubUsers(); };
+    }, [authReady, currentUser?.id, currentUser?.role, usersLimit, onErr]);
+
+    // Pedidos: admin escuta a fila global (paginação própria); familiar não
+    // carrega a fila inteira — busca os próprios pedidos via query no componente.
+    useEffect(() => {
+        if (!authReady || !currentUser) return;
+
+        if (currentUser?.role !== UserRole.ADMIN && currentUser?.role !== UserRole.VENDEDOR) {
+            setOrders([]);
+            return;
+        }
+
+        const ordersQuery = query(collection(db, 'orders'), orderBy('createdAt', 'desc'), limit(ordersLimit));
+        const unsubOrders = onSnapshot(ordersQuery, (snapshot) => {
+            const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Order));
+            setOrders(items.filter(o => (o as any).deleted !== true));
+        }, onErr('orders-admin'));
+
+        return () => unsubOrders();
+    }, [authReady, currentUser?.id, currentUser?.role, ordersLimit, onErr]);
+
+    // Mensagens (admin: todas recentes; familiar: as suas + 'ALL', merge dedup).
+    useEffect(() => {
+        if (!authReady || !currentUser) return;
+
+        let unsubMsg: Unsubscribe | null = null;
+
+        if (currentUser?.role === UserRole.ADMIN) {
+            unsubMsg = onSnapshot(query(collection(db, 'messages'), orderBy('createdAt', 'desc'), limit(100)), (s) => setMessages(s.docs.map(d => ({ ...d.data(), id: d.id } as Message))), onErr('messages'));
+        } else {
+            const mergeMessages = (incoming: Message[]) => setMessages(prev => {
+                const map = new Map<string, Message>();
+                (prev || []).forEach(m => map.set(m.id, m));
+                incoming.forEach(m => map.set(m.id, m));
+                return Array.from(map.values()).sort((a, b) => ((b as any).createdAt || b.date || '').localeCompare((a as any).createdAt || a.date || ''));
+            });
+
+            // UNA ÚNICA query com 'in' substitui duas listeners separadas
+            // (menor custo de leitura, mesma ordenação)
+            unsubMsg = onSnapshot(
+                query(collection(db, 'messages'), where('userId', 'in', [currentUser.id, 'ALL']), orderBy('createdAt', 'desc'), limit(100)),
+                (s) => mergeMessages(s.docs.map(d => ({ ...d.data(), id: d.id } as Message))),
+                onErr('messages-merged')
+            );
+        }
+
+        return () => { if (unsubMsg) unsubMsg(); };
+    }, [authReady, currentUser?.id, currentUser?.role, onErr]);
+
+    // Despesas + fornecedores + pré-cadastrados (somente admin; cada um com o
+    // próprio limite para não re-subscribar os demais ao "carregar mais").
+    useEffect(() => {
+        if (!authReady || !currentUser || currentUser?.role !== UserRole.ADMIN) return;
+
+        let unsubExpenses: Unsubscribe | null = null;
+        let unsubSup: Unsubscribe | null = null;
+        let unsubInmates: Unsubscribe | null = null;
+
+        unsubExpenses = onSnapshot(query(collection(db, 'expenses'), orderBy('date', 'desc'), limit(expensesLimit)), (snapshot) => {
+            const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Expense));
+            setExpenses(items.filter(e => (e as any).deleted !== true));
+        }, onErr('expenses'));
+        unsubSup = onSnapshot(query(collection(db, 'suppliers'), orderBy('name', 'asc'), limit(suppliersLimit)), (snapshot) => setSuppliers(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Supplier))), onErr('suppliers'));
+        unsubInmates = onSnapshot(query(collection(db, 'pre_registered_inmates'), orderBy('name', 'asc'), limit(inmatesLimit)), (snapshot) => setPreRegisteredInmates(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as any))), onErr('pre-inmates'));
+
+        return () => {
+            if (unsubExpenses) unsubExpenses();
+            if (unsubSup) unsubSup();
+            if (unsubInmates) unsubInmates();
+        };
+    }, [authReady, currentUser?.id, currentUser?.role, expensesLimit, suppliersLimit, inmatesLimit, onErr]);
+
+    // Sincronização de hora confiável (somente admin): poll barato (2 min) com
+    // guard de 10 min, revalidando ao voltar para a aba (visibilitychange).
+    useEffect(() => {
+        if (!authReady || !currentUser || currentUser?.role !== UserRole.ADMIN) return;
+
+        let timer: any = null;
+        let lidarVisibilidadeHora: (() => void) | null = null;
+        let ultimaSyncHora = 0;
+
+        const atualizarHora = () => {
+            if (document.hidden || typeof navigator !== 'undefined' && !navigator.onLine) return;
+            const agora = Date.now();
+            if (agora - ultimaSyncHora < 10 * 60 * 1000) return;
+            ultimaSyncHora = agora;
+            getNetworkTime().then(t => setServerTime(t)).catch(() => {});
+        };
+        lidarVisibilidadeHora = () => { if (!document.hidden) atualizarHora(); };
+        document.addEventListener('visibilitychange', lidarVisibilidadeHora);
+        window.addEventListener('online', lidarVisibilidadeHora);
+        atualizarHora();
+        timer = setInterval(atualizarHora, 1000 * 60 * 2);
 
         return () => {
             clearInterval(timer);
-            clearTimeout(safetyTimeout);
             if (lidarVisibilidadeHora) {
                 document.removeEventListener('visibilitychange', lidarVisibilidadeHora);
                 window.removeEventListener('online', lidarVisibilidadeHora);
             }
-            if (unsubUsers) unsubUsers();
-            if (unsubOrders) unsubOrders();
-            if (unsubProducts) unsubProducts();
-            if (unsubConfig) unsubConfig();
-            if (unsubExpenses) unsubExpenses();
-            if (unsubMsg) unsubMsg();
-            if (unsubSup) unsubSup();
-            if (unsubInmates) unsubInmates();
-            if (unsubSystemMsg) unsubSystemMsg();
         };
-    }, [authReady, currentUser?.id, currentUser?.role, ordersLimit, expensesLimit, productsLimit, usersLimit, suppliersLimit, inmatesLimit]);
+    }, [authReady, currentUser?.id, currentUser?.role]);
 
     return (
         <StoreContext.Provider value={{
@@ -3029,9 +3101,9 @@ if (currentUser?.role !== UserRole.ADMIN && currentUser) {
                     setIsLoading(false);
                 }
             },
-            adminDirectSale: async (targetUserId, items, paymentMethod, total, payments: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30'; amount: number }[] | undefined, change, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string, fiado30UserId?: string, senhaPrimaria?: string, senhaSecundaria?: string) => {
-                if (!currentUser || currentUser.role !== UserRole.ADMIN) {
-                    throw new Error("Acesso restrito a administradores.");
+            adminDirectSale: async (targetUserId, items, paymentMethod, total, payments: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30'; amount: number }[] | undefined, change, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string, fiado30UserId?: string, senhaPrimaria?: string, senhaSecundaria?: string, sessaoCaixaId?: string) => {
+                if (!currentUser || (currentUser.role !== UserRole.ADMIN && currentUser.role !== UserRole.VENDEDOR)) {
+                    throw new Error("Acesso restrito à equipe autorizada.");
                 }
                 const isConsumer = targetUserId === 'consumidor_geral' || targetUserId === 'balcao_anonimo';
                 if (!isConsumer && !users.find(u => u.id === targetUserId)) throw new Error("Usuário não encontrado.");
@@ -3074,6 +3146,7 @@ if (currentUser?.role !== UserRole.ADMIN && currentUser) {
                         cardBrand: paymentMethod === 'CARD' ? (cardBrand || '') : undefined,
                         senhaPrimaria: senhaPrimaria || undefined,
                         senhaSecundaria: senhaSecundaria || undefined,
+                        sessaoCaixaId: sessaoCaixaId || undefined,
                         apiKey: (paymentMethod === 'FIADO' || paymentMethod === 'FIADO_30') ? (FIREBASE_API_KEY || undefined) : undefined
                     });
                     const data = res.data as any;
@@ -3111,6 +3184,8 @@ if (currentUser?.role !== UserRole.ADMIN && currentUser) {
             sincronizarVendasOffline,
             vendasOfflinePendentes: vendasOffline.filter((v) => v.status === 'pending').length,
             vendasOfflineComErro: vendasOffline.filter((v) => v.status === 'error').length,
+            sessaoCaixaAtiva,
+            refreshSessaoCaixa,
             addWalletCreditDirectly: async (userId: string, amount: number, reason: string, senhaMestra?: string) => {
                 if (!currentUser || currentUser.role !== UserRole.ADMIN) throw new Error("Acesso restrito a administradores.");
                 if (!(Number(amount) > 0)) throw new Error("Valor de crédito inválido.");

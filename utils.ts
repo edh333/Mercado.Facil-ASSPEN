@@ -264,6 +264,12 @@ export const isAdminRole = (role?: string | null | undefined): boolean => {
   return r === 'admin' || r === 'master';
 };
 
+/** Equipe de caixa (PDV): 'vendedor' (novo) ou 'operator' (legado). */
+export const isVendedorRole = (role?: string | null | undefined): boolean => {
+  const r = String(role || '').trim().toLowerCase();
+  return r === 'vendedor' || r === 'operator';
+};
+
 /** Copia texto para a área de transferência com fallback para navegadores/contextos
  *  sem a API async (HTTP, PWA antiga, WebView): tenta navigator.clipboard primeiro
  *  e, se indisponível/falhar, usa um textarea temporário + document.execCommand("copy"). */

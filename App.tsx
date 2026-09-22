@@ -131,20 +131,23 @@ const MainApp: React.FC = () => {
   }
 
   // APPS COM PÚBLICO EXCLUSIVO (desktop/PWA instalado com modo fixo):
-  //  - App Usuário  (?mode=user)  → APENAS usuários comuns entram;
-  //  - App Admin     (?mode=admin) → APENAS administradores entram.
+  //  - App Usuário  (?mode=user)   → APENAS usuários comuns entram;
+  //  - App Admin     (?mode=admin)  → APENAS equipe (admins + vendedores) entra.
   // A cada um funciona independente do outro: um ADMIN que abre o App Usuário
   // (ou vice-versa) vê a tela de restrição em vez de outro painel. O toUserRole
-  // normaliza 'admin'/'master' → UserRole.ADMIN, então o teste abaixo cobre os dois.
+  // normaliza 'admin'/'master' → UserRole.ADMIN e 'vendedor'/'operator' →
+  // UserRole.VENDEDOR, então o teste abaixo cobre todos os casos.
   const ehAdmin = currentUser.role === UserRole.ADMIN;
-  if (modoUsuario && ehAdmin) {
+  const ehVendedor = currentUser.role === UserRole.VENDEDOR;
+  const ehEquipe = ehAdmin || ehVendedor;
+  if (modoUsuario && ehEquipe) {
     return <WrongAppScreen appAberto="usuario" />;
   }
-  if (modoAdmin && !ehAdmin) {
+  if (modoAdmin && !ehEquipe) {
     return <WrongAppScreen appAberto="admin" />;
   }
 
-  if (!ehAdmin) {
+  if (!ehEquipe) {
     const pendente = currentUser.status === 'pending' || currentUser.approved === false;
     return (
       <ErrorBoundary>

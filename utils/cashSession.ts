@@ -1,19 +1,12 @@
 import { db } from "../firebase";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import {
   collection,
-  addDoc,
-  updateDoc,
-  doc,
   query,
   where,
   getDocs,
-  getDoc,
-  arrayUnion,
-  increment,
-  Timestamp,
   orderBy,
-  limit,
-  runTransaction
+  limit
 } from "firebase/firestore";
 
 // ──────────────────────────────────────────────
@@ -23,7 +16,7 @@ import {
 export interface CashMovement {
   amount: number;
   reason: string;
-  timestamp: Timestamp;
+  timestamp: import("firebase/firestore").Timestamp;
 }
 
 export interface CashSession {
@@ -31,8 +24,8 @@ export interface CashSession {
   operatorId: string;
   operatorName?: string;
   status: "open" | "closed";
-  openedAt: Timestamp;
-  closedAt: Timestamp | null;
+  openedAt: import("firebase/firestore").Timestamp;
+  closedAt: import("firebase/firestore").Timestamp | null;
   initialBalance: number;
   currentBalance: number;
   supplements: CashMovement[];
@@ -53,11 +46,27 @@ export interface CashSession {
 }
 
 // ──────────────────────────────────────────────
+// Mutações — AUTORITATIVAS SERVIDOR-SIDE.
+// As operações disparam a Cloud Function `gerenciarSessaoCaixa` (Firestore
+// rules negam escrita direta em cash_sessions/locks; a única porta é o
+// servidor, que autentica, confere o papel e o dono da sessão).
+// ──────────────────────────────────────────────
+
+const functions = getFunctions();
+const gerenciarSessaoCaixa = httpsCallable(functions, "gerenciarSessaoCaixa");
+
+function mensagemDe(e: any, fallback: string): string {
+  const msg = String((e as any)?.message || "");
+  if (msg && msg !== fallback) return msg;
+  return fallback;
+}
+
+// ──────────────────────────────────────────────
 // 1. Open Cash Session
 // ──────────────────────────────────────────────
 
 /**
- * Opens a new cash session for an operator.
+ * Opens a new cash session for the current operator.
  * Throws if there is already an open session for this operator.
  */
 export async function openCashSession(
@@ -66,42 +75,17 @@ export async function openCashSession(
   initialBalance: number
 ): Promise<string> {
   try {
-    // Gaveta não nasce negativa: NaN/negativo contaminaria suprimentos,
-    // sangrias e a quebra de caixa do dia inteiro. Zero é permitido.
-    const inicial = Number(initialBalance);
-    if (isNaN(inicial) || !(inicial >= 0)) {
-      throw new Error("Saldo inicial deve ser zero ou positivo.");
-    }
-    // Guard: only one open session per operator
-    const q = query(
-      collection(db, "cash_sessions"),
-      where("operatorId", "==", operatorId),
-      where("status", "==", "open")
-    );
-    const activeSession = await getDocs(q);
-
-    if (!activeSession.empty) {
-      throw new Error("Já existe um caixa aberto para este operador.");
-    }
-
-    const newSession: Omit<CashSession, "id"> = {
-      operatorId,
+    const res = await gerenciarSessaoCaixa({
+      acao: "open",
+      initialBalance: Number(initialBalance),
+      operatorId, // mantido para compatibilidade de assinatura; o servidor decide o dono
       operatorName,
-      status: "open",
-      openedAt: Timestamp.now(),
-      closedAt: null,
-      initialBalance: inicial,
-      currentBalance: inicial,
-      supplements: [],
-      withdrawals: [],
-      closedBalance: 0,
-    };
-
-    const docRef = await addDoc(collection(db, "cash_sessions"), newSession);
-    return docRef.id;
+    });
+    const data = res.data as { ok?: boolean; sessaoId?: string };
+    if (!data?.sessaoId) throw new Error("Resposta inválida do servidor.");
+    return data.sessaoId;
   } catch (e: any) {
-    console.error("[openCashSession]", e.message);
-    throw e;
+    throw new Error(mensagemDe(e, "Não foi possível abrir o caixa."));
   }
 }
 
@@ -118,21 +102,14 @@ export async function addSupplement(
   reason: string
 ): Promise<void> {
   try {
-    if (!(Number(amount) > 0)) {
-      throw new Error("Valor de suprimento deve ser maior que zero.");
-    }
-    const sessionRef = doc(db, "cash_sessions", sessionId);
-    await updateDoc(sessionRef, {
-      currentBalance: increment(Number(amount)),
-      supplements: arrayUnion({
-        amount: Number(amount),
-        reason,
-        timestamp: Timestamp.now(),
-      }),
+    await gerenciarSessaoCaixa({
+      acao: "supplement",
+      sessaoId: sessionId,
+      valor: Number(amount),
+      motivo: reason,
     });
   } catch (e: any) {
-    console.error("[addSupplement]", e.message);
-    throw new Error("Erro ao registrar suprimento.");
+    throw new Error(mensagemDe(e, "Erro ao registrar suprimento."));
   }
 }
 
@@ -142,46 +119,23 @@ export async function addSupplement(
 
 /**
  * Removes cash from the till (e.g., safe drop, expense payment).
- * ATÔMICO: antes de debitar, confere o saldo vivo da sessão — uma sangria
- * maior que o disponível NÃO pode deixar a gaveta negativa (torped o
- * fechamento/auditoria de quebra de caixa).
+ * ATÔMICO no servidor: antes de debitar, confere o saldo vivo da sessão — uma
+ * sangria maior que o disponível NÃO pode deixar a gaveta negativa.
  */
 export async function addWithdrawal(
   sessionId: string,
   amount: number,
   reason: string
 ): Promise<void> {
-  const valor = Number(amount);
-  if (!(valor > 0)) {
-    throw new Error("Valor de sangria deve ser maior que zero.");
-  }
   try {
-    await runTransaction(db, async (t) => {
-      const sessionRef = doc(db, "cash_sessions", sessionId);
-      const snap = await t.get(sessionRef);
-      if (!snap.exists()) {
-        throw new Error("Sessão de caixa não encontrada.");
-      }
-      const data = snap.data() as CashSession;
-      const saldoAtual = Number(data.currentBalance || 0);
-      if (!(saldoAtual >= valor)) {
-        throw new Error(
-          `Saldo em caixa insuficiente para sangria de R$ ${valor.toFixed(2).replace('.', ',')} — disponível: R$ ${saldoAtual.toFixed(2).replace('.', ',')}.`
-        );
-      }
-      t.update(sessionRef, {
-        currentBalance: increment(-valor),
-        withdrawals: arrayUnion({
-          amount: valor,
-          reason,
-          timestamp: Timestamp.now(),
-        }),
-      });
+    await gerenciarSessaoCaixa({
+      acao: "withdrawal",
+      sessaoId: sessionId,
+      valor: Number(amount),
+      motivo: reason,
     });
   } catch (e: any) {
-    console.error("[addWithdrawal]", e.message);
-    if (typeof e?.message === "string" && e.message.includes("insuficiente para sangria")) throw e;
-    throw new Error("Erro ao registrar sangria.");
+    throw new Error(mensagemDe(e, "Erro ao registrar sangria."));
   }
 }
 
@@ -200,38 +154,17 @@ export async function closeCashSession(
   closedByName?: string
 ): Promise<{ diff: number; expected: number }> {
   try {
-    // Contagem física negativa não existe — registraria "sobra" absurda
-    // no relatório de auditoria de quebra de caixa.
-    const contado = Number(closedBalance);
-    if (isNaN(contado) || !(contado >= 0)) {
-      throw new Error("Valor contado deve ser zero ou positivo.");
-    }
-    const sessionRef = doc(db, "cash_sessions", sessionId);
-    const sessionSnap = await getDoc(sessionRef);
-
-    if (!sessionSnap.exists()) {
-      throw new Error("Sessão de caixa não encontrada.");
-    }
-
-    const data = sessionSnap.data() as CashSession;
-    const expected = data.currentBalance;
-    const diff = contado - expected;
-
-    await updateDoc(sessionRef, {
-      status: "closed",
-      closedAt: Timestamp.now(),
-      closedBalance: contado,
-      expectedBalance: Number(expected),
-      cashDifference: diff,
-      balanceDiff: diff,
-      hasDiscrepancy: diff !== 0,
-      ...(closedByName ? { closedByName } : {}),
+    const res = await gerenciarSessaoCaixa({
+      acao: "close",
+      sessaoId: sessionId,
+      closedBalance: Number(closedBalance),
+      closedByName,
     });
-
-    return { diff, expected };
+    const data = res.data as { ok?: boolean; diff?: number; expected?: number };
+    if (!data?.ok) throw new Error("Resposta inválida do servidor.");
+    return { diff: Number(data.diff || 0), expected: Number(data.expected || 0) };
   } catch (e: any) {
-    console.error("[closeCashSession]", e.message);
-    throw new Error("Erro ao fechar sessão de caixa.");
+    throw new Error(mensagemDe(e, "Erro ao fechar sessão de caixa."));
   }
 }
 

@@ -15,7 +15,7 @@ import {
   excluirPontoRestauracao, baixarPontoRestauracao, baixarBackupLocal, importarPontoRestauracao,
   aplicarChavesLocal, formatarDataPonto
 } from '../../utils/backupUtils';
-import { isAdminRole } from '../../utils';
+import { isAdminRole, isVendedorRole } from '../../utils';
 import { toDate } from '../../utils/dateUtils';
 
 const MODULOS_PERMISSAO: { key: string; label: string }[] = [
@@ -133,6 +133,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
   const [editPermissions, setEditPermissions] = React.useState<string[]>([]);
   const [adminForm, setAdminForm] = React.useState({
     name: '', email: '', password: '', cpf: '',
+    role: 'admin' as 'admin' | 'vendedor',
     permissions: MODULOS_PERMISSAO.map(m => m.key)
   });
   const [adminFormError, setAdminFormError] = React.useState<string | null>(null);
@@ -420,7 +421,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
     try {
       await createAdminUser(adminForm);
       setShowAddAdmin(false);
-      setAdminForm({ name: '', email: '', password: '', cpf: '', permissions: MODULOS_PERMISSAO.map(m => m.key) });
+      setAdminForm({ name: '', email: '', password: '', cpf: '', role: 'admin', permissions: MODULOS_PERMISSAO.map(m => m.key) });
     } finally {
       setCreatingAdmin(false);
     }
@@ -615,7 +616,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                 <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-2xl">
                   <div className="flex justify-between items-center mb-6">
                     <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
-                      <Shield size={20} className="text-indigo-600" /> Admins
+                      <Shield size={20} className="text-indigo-600" /> Equipe
                     </h3>
                     <button
                       onClick={() => setShowAddAdmin(!showAddAdmin)}
@@ -647,7 +648,34 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                         <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">CPF (opcional)</label>
                         <input className="w-full p-3 text-xs border bg-white rounded-xl font-black text-slate-900" placeholder="CPF (opcional)" inputMode="numeric" value={adminForm.cpf} onChange={e => { setAdminForm({ ...adminForm, cpf: e.target.value.replace(/\D/g, '').slice(0, 11) }); setAdminFormError(null); }} />
                       </div>
-                      <PermToggles perms={adminForm.permissions} onChange={p => setAdminForm({ ...adminForm, permissions: p })} />
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Papel na equipe</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setAdminForm({ ...adminForm, role: 'admin' })}
+                            className={`p-3 rounded-xl border text-left transition-all ${adminForm.role === 'admin' ? 'border-indigo-600 bg-indigo-50' : 'border-slate-200 bg-white'}`}
+                          >
+                            <p className="text-[11px] font-black text-slate-900">Administrador</p>
+                            <p className="text-[9px] font-bold text-slate-500 mt-0.5 leading-snug">Acesso total ou por módulos (financeiro, usuários, relatórios...).</p>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setAdminForm({ ...adminForm, role: 'vendedor' })}
+                            className={`p-3 rounded-xl border text-left transition-all ${adminForm.role === 'vendedor' ? 'border-emerald-600 bg-emerald-50' : 'border-slate-200 bg-white'}`}
+                          >
+                            <p className="text-[11px] font-black text-slate-900">Operador de Caixa (Vendedor)</p>
+                            <p className="text-[9px] font-bold text-slate-500 mt-0.5 leading-snug">Somente PDV: vendas, caixa próprio, produtos e histórico de pedidos.</p>
+                          </button>
+                        </div>
+                      </div>
+                      {adminForm.role === 'admin' ? (
+                        <PermToggles perms={adminForm.permissions} onChange={p => setAdminForm({ ...adminForm, permissions: p })} />
+                      ) : (
+                        <p className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+                          Perfil de vendedor: acesso automático a Vendas (PDV), Meu Caixa, Produtos e Pedidos. Sem acesso financeiro, usuários, relatórios ou configurações.
+                        </p>
+                      )}
                       {adminFormError && (
                         <p className="text-[10px] font-black text-red-600 uppercase tracking-wide" role="alert">{adminFormError}</p>
                       )}
@@ -661,14 +689,21 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                     </div>
                   )}
                   <div className="space-y-2">
-                    {(users || []).filter(u => isAdminRole(u.role) && u.id !== 'master').map(admin => (
+                    {(users || []).filter(u => (isAdminRole(u.role) || isVendedorRole(u.role)) && u.id !== 'master').map(admin => (
                       <React.Fragment key={admin.id}>
                         <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
                           <div className="min-w-0">
-                            <p className="font-black text-xs">{admin.name}</p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-black text-xs">{admin.name}</p>
+                              <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${isVendedorRole(admin.role) ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-700'}`}>
+                                {isVendedorRole(admin.role) ? 'Vendedor' : 'Admin'}
+                              </span>
+                            </div>
                             <p className="text-[10px] text-slate-500">{admin.email}</p>
                             <div className="flex flex-wrap gap-1 mt-1">
-                              {!admin.permissions || admin.permissions.length === 0 || admin.permissions.includes('all') ? (
+                              {isVendedorRole(admin.role) ? (
+                                <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">Acesso PDV</span>
+                              ) : (!admin.permissions || admin.permissions.length === 0 || admin.permissions.includes('all') ? (
                                 <span className={`text-[10px] font-black uppercase px-1.5 py-0.5 rounded ${admin.permissions?.includes('all') ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
                                   {admin.permissions?.includes('all') ? 'Acesso total' : 'Sem permissões'}
                                 </span>
@@ -682,10 +717,11 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                                     </span>
                                   );
                                 })
-                              )}
+                              ))}
                             </div>
                           </div>
                           <div className="flex items-center gap-1 flex-none">
+                            {!isVendedorRole(admin.role) && (
                             <button
                               onClick={() => {
                                 setEditPermissions(admin.permissions?.includes('all') ? MODULOS_PERMISSAO.map(m => m.key) : (admin.permissions || []));
@@ -696,7 +732,8 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                             >
                               <Pencil size={15} />
                             </button>
-                            <button onClick={() => setConfirmDeleteAdmin(admin.id)} className="text-red-500 p-2" title="Remover administrador">
+                            )}
+                            <button onClick={() => setConfirmDeleteAdmin(admin.id)} className="text-red-500 p-2" title="Remover membro da equipe">
                               <Trash2 size={16} />
                             </button>
                           </div>
@@ -728,8 +765,8 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                         )}
                       </React.Fragment>
                     ))}
-                    {(users || []).filter(u => isAdminRole(u.role) && u.id !== 'master').length === 0 && (
-                      <p className="text-[10px] text-slate-400 font-black uppercase text-center py-4">Nenhum administrador extra cadastrado</p>
+                    {(users || []).filter(u => (isAdminRole(u.role) || isVendedorRole(u.role)) && u.id !== 'master').length === 0 && (
+                      <p className="text-[10px] text-slate-400 font-black uppercase text-center py-4">Nenhum membro extra da equipe cadastrado</p>
                     )}
                   </div>
                 </div>

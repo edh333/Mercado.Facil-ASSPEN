@@ -251,6 +251,12 @@ export function AdminDashboard() {
 
   // 3. Firestore Real-time Listeners
   useEffect(() => {
+    // Histórico global de carteiras: somente admin (vendedor não lista a
+    // coleção — as regras negam e o erro não adianta nada).
+    if (currentUser?.role !== UserRole.ADMIN) {
+      setLoadingWallet(false);
+      return;
+    }
     const q = query(collection(db, 'wallet_transactions'), orderBy('createdAt', 'desc'), limit(500));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const txs: WalletTransaction[] = [];
@@ -264,7 +270,7 @@ export function AdminDashboard() {
       setLoadingWallet(false);
     });
     return () => unsubscribe();
-  }, []);
+  }, [currentUser?.role]);
 
 
   // Run client-side archiving once per day on admin login
@@ -304,12 +310,14 @@ export function AdminDashboard() {
   }, [userRole, roleLoading, activeTab, isMaster]);
 
   // SEGURANÇA: Dupla camada — validação nativa no componente.
-  // Se o Firebase Auth não confirmar cargo administrativo, desloga imediatamente.
+  // Se o Firebase Auth não confirmar cargo administrativo/equipe, desloga imediatamente.
   // O master principal (email admin@mercado.com / mainAdmin) é sempre mantido no painel.
+  // Equipe permitida: admin, manager e operator (vendedor/operador de caixa).
   React.useEffect(() => {
     if (roleLoading) return;
     if (!currentUser) return;
-    if (!isMaster && currentUser.role !== UserRole.ADMIN && userRole !== 'admin') {
+    const ehEquipePainel = isMaster || ['admin', 'manager', 'operator'].includes(userRole);
+    if (!ehEquipePainel) {
       logout();
     }
   }, [currentUser, userRole, roleLoading, logout, isMaster]);
@@ -317,6 +325,10 @@ export function AdminDashboard() {
   // 5. Permission Helpers
   const hasPermission = (perm: string) => {
     if (isMaster) return true;
+    // Operador de caixa (vendedor): acesso fixo ao PDV e operação própria.
+    if (userRole === 'operator') {
+      return ['sales', 'orders', 'products', 'cash'].includes(perm);
+    }
     const perms = currentUser?.permissions;
     if (perms === undefined) return true; // admin legado (sem campo) = acesso total
     if (perms.includes('all')) return true;
@@ -396,9 +408,10 @@ export function AdminDashboard() {
     cardBrand?: string,
     fiado30UserId?: string,
     senhaPrimaria?: string,
-    senhaSecundaria?: string
+    senhaSecundaria?: string,
+    sessaoCaixaId?: string
   ) => {
-    const res = await adminDirectSale(targetUserId, items, paymentMethod, total, payments, change, customerAccountId, clientToken, jointWallet, cardBrand, fiado30UserId, senhaPrimaria, senhaSecundaria);
+    const res = await adminDirectSale(targetUserId, items, paymentMethod, total, payments, change, customerAccountId, clientToken, jointWallet, cardBrand, fiado30UserId, senhaPrimaria, senhaSecundaria, sessaoCaixaId);
     if (!res) {
       throw new Error('A venda não foi confirmada pelo servidor. Verifique sua internet e tente novamente.');
     }

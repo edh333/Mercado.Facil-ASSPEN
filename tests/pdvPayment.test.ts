@@ -219,7 +219,7 @@ describe("WALLET (créditos internos)", () => {
   });
 });
 
-describe("FIADO (conta)", () => {
+describe("FIADO (usuário cadastrado — unificado)", () => {
   const fiadoOk = base({
     formaPagamento: "FIADO", total: 40, clienteSelecionado: "u1",
     contaFiadoSelecionada: { currentDebt: 20, creditLimit: 100 },
@@ -239,12 +239,15 @@ describe("FIADO (conta)", () => {
       .toThrow("exige cliente cadastrado");
   });
 
-  it("sem conta selecionada: rejeita", () => {
-    expect(() => montarPagamentoPdv(base({ formaPagamento: "FIADO", clienteSelecionado: "u1" })))
-      .toThrow("Selecione um cliente de fiado");
+  it("cliente selecionado SEM conta legada: ACEITA (universo unificado no usuário)", () => {
+    // O PDV seleciona o cliente pelo estado global clienteSelecionado; não
+    // existe mais conta/customer_accounts paralela — o servidor valida limite
+    // e registra a dívida no doc do usuário.
+    const r = montarPagamentoPdv(base({ formaPagamento: "FIADO", clienteSelecionado: "u1" }));
+    expect(r).toEqual({ ok: true, paymentsArray: undefined, changeValue: undefined, jointWalletPayload: undefined });
   });
 
-  it("dívida + venda acima do limite de crédito: ACEITA (sem bloqueio por limite)", () => {
+  it("dívida + venda acima do limite de crédito: ACEITA (limite é validado no servidor)", () => {
     const r = montarPagamentoPdv(base({
       formaPagamento: "FIADO", total: 90, clienteSelecionado: "u1",
       contaFiadoSelecionada: { currentDebt: 20, creditLimit: 100 },
@@ -261,6 +264,11 @@ describe("FIADO 30 DIAS (usuário cadastrado + senha mestra)", () => {
     expect(r).toEqual({ ok: true, paymentsArray: undefined, changeValue: undefined, jointWalletPayload: undefined });
   });
 
+  it("ok: usuário selecionado pelo clienteSelecionado global (unificado)", () => {
+    const r = montarPagamentoPdv(fiado30Base);
+    expect(r).toEqual({ ok: true, paymentsArray: undefined, changeValue: undefined, jointWalletPayload: undefined });
+  });
+
   it("sem cliente selecionado: rejeita", () => {
     expect(() => montarPagamentoPdv(base({ formaPagamento: "FIADO_30", contaFiadoSelecionada: { creditLimit: 100 } })))
       .toThrow("Selecione um cliente para venda fiada");
@@ -269,11 +277,6 @@ describe("FIADO 30 DIAS (usuário cadastrado + senha mestra)", () => {
   it("consumidor final: rejeita", () => {
     expect(() => montarPagamentoPdv(base({ formaPagamento: "FIADO_30", clienteSelecionado: "consumidor_geral", clienteEhConsumidor: true })))
       .toThrow("exige cliente cadastrado");
-  });
-
-  it("sem usuário fiado 30 selecionado: rejeita", () => {
-    expect(() => montarPagamentoPdv(fiado30Base))
-      .toThrow("Selecione um usuário para o fiado 30 dias");
   });
 });
 

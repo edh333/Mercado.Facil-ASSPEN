@@ -1441,6 +1441,20 @@ body {
     .no-min-height {
       min-height: 0;
     }
+    /* Botões compactos (ícones/steppers) NÃO devem ser esticados para 44px,
+       para não distorcer linhas compactas no celular. */
+    button:not(.no-min-height)[class*="w-6 h-6"],
+    button:not(.no-min-height)[class*="w-7 h-7"],
+    button:not(.no-min-height)[class*="w-8 h-8"],
+    button:not(.no-min-height)[class*="w-9 h-9"],
+    button:not(.no-min-height)[class*="w-10 h-10"],
+    button:not(.no-min-height)[class*="size-6 "],
+    button:not(.no-min-height)[class*="size-7 "],
+    button:not(.no-min-height)[class*="size-8 "],
+    button:not(.no-min-height)[class*="size-9 "],
+    button:not(.no-min-height)[class*="size-10 "] {
+      min-height: 0;
+    }
   }
 
   /* Tablet retrato: tabelas também protegidas entre 641–768px */

@@ -50,7 +50,7 @@ export const AdminProductsTab: React.FC<AdminProductsTabProps> = ({
   const [confirmarSanitizar, setConfirmarSanitizar] = React.useState(false);
   const [mesclando, setMesclando] = React.useState(false);
   const [modoListaSimples, setModoListaSimples] = React.useState(false);
-  const [utilOpen, setUtilOpen] = React.useState(true);
+  const [utilOpen, setUtilOpen] = React.useState(false);
 
   // Ao selecionar um XML, lê a NFe e mostra o CUSTO de cada item.
   // O preço de venda é calculado AO VIVO com a margem digitada:
@@ -289,34 +289,34 @@ export const AdminProductsTab: React.FC<AdminProductsTabProps> = ({
 
 return (
     <div className="space-y-6 animate-slideUp pb-20">
-      {/* Stats Board */}
+      {/* Stats Board — base neutra, cor apenas em estados de atenção */}
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-4">
-          <div className="bg-[var(--bg-card)] p-4 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-slate-500">
-              <p className="text-[10px] font-black uppercase text-slate-700 tracking-widest mb-1 flex items-center gap-2"><Package size={14}/> Total de Itens</p>
+          <div className="bg-[var(--bg-card)] p-4 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-slate-300">
+              <p className="text-[10px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1 flex items-center gap-2"><Package size={14}/> Total de Itens</p>
               <p className="text-2xl font-black text-[var(--text-main)] tracking-tighter">{stats.total}</p>
           </div>
-          <div className="bg-[var(--bg-card)] p-4 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-emerald-500">
-              <p className="text-[10px] font-black uppercase text-slate-700 tracking-widest mb-1 flex items-center gap-2"><CheckCircle2 size={14}/> Disponíveis</p>
-              <p className="text-2xl font-black text-emerald-600 tracking-tighter">{stats.available}</p>
+          <div className="bg-[var(--bg-card)] p-4 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-slate-300">
+              <p className="text-[10px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1 flex items-center gap-2"><CheckCircle2 size={14}/> Disponíveis</p>
+              <p className="text-2xl font-black text-[var(--text-main)] tracking-tighter">{stats.available}</p>
           </div>
-          <div className="bg-[var(--bg-card)] p-4 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-blue-500">
-              <p className="text-[10px] font-black uppercase text-slate-700 tracking-widest mb-1 flex items-center gap-2"><Globe size={14}/> Só Usuário</p>
-              <p className="text-2xl font-black text-blue-600 tracking-tighter">{stats.channelUser}</p>
+          <div className="bg-[var(--bg-card)] p-4 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-slate-300">
+              <p className="text-[10px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1 flex items-center gap-2"><Globe size={14}/> Só Usuário</p>
+              <p className="text-2xl font-black text-[var(--text-main)] tracking-tighter">{stats.channelUser}</p>
           </div>
-          <div className="bg-[var(--bg-card)] p-4 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-purple-500">
-              <p className="text-[10px] font-black uppercase text-slate-700 tracking-widest mb-1 flex items-center gap-2"><Store size={14}/> Só PDV Admin</p>
-              <p className="text-2xl font-black text-purple-600 tracking-tighter">{stats.channelAdmin}</p>
+          <div className="bg-[var(--bg-card)] p-4 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-slate-300">
+              <p className="text-[10px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1 flex items-center gap-2"><Store size={14}/> Só PDV Admin</p>
+              <p className="text-2xl font-black text-[var(--text-main)] tracking-tighter">{stats.channelAdmin}</p>
           </div>
-          <div className="bg-[var(--bg-card)] p-4 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-teal-500">
-              <p className="text-[10px] font-black uppercase text-slate-700 tracking-widest mb-1 flex items-center gap-2"><ShoppingCart size={14}/> Ambos</p>
-              <p className="text-2xl font-black text-teal-600 tracking-tighter">{stats.channelBoth}</p>
+          <div className="bg-[var(--bg-card)] p-4 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-slate-300">
+              <p className="text-[10px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1 flex items-center gap-2"><ShoppingCart size={14}/> Ambos</p>
+              <p className="text-2xl font-black text-[var(--text-main)] tracking-tighter">{stats.channelBoth}</p>
           </div>
-          <div className="bg-[var(--bg-card)] p-4 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-amber-500">
-              <p className="text-[10px] font-black uppercase text-slate-700 tracking-widest mb-1 flex items-center gap-2"><AlertTriangle size={14}/> Estoque Baixo</p>
-              <p className="text-2xl font-black text-amber-700 tracking-tighter">{stats.lowStock}</p>
+          <div className="bg-[var(--bg-card)] p-4 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-orange-500">
+              <p className="text-[10px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1 flex items-center gap-2"><AlertTriangle size={14} className="text-orange-500"/> Estoque Baixo</p>
+              <p className="text-2xl font-black text-orange-600 tracking-tighter">{stats.lowStock}</p>
           </div>
           <div className="bg-[var(--bg-card)] p-4 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-red-500">
-              <p className="text-[10px] font-black uppercase text-slate-700 tracking-widest mb-1 flex items-center gap-2"><PackageX size={14}/> Esgotados</p>
+              <p className="text-[10px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1 flex items-center gap-2"><PackageX size={14} className="text-red-500"/> Esgotados</p>
               <p className="text-2xl font-black text-red-600 tracking-tighter">{stats.stockOut}</p>
           </div>
       </div>
@@ -392,17 +392,23 @@ return (
         </div>
       </div>
 
-      {/* Admin Utilities (retraível) */}
-      <div className="bg-[var(--bg-card)] rounded-[2.5rem] border border-[var(--border-color)] shadow-sm overflow-hidden">
-        <button type="button" onClick={() => setUtilOpen(o => !o)} className="w-full px-6 py-4 flex items-center justify-between gap-3 hover:bg-[var(--bg-main)] transition-colors" aria-expanded={utilOpen}>
-          <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-main)] flex items-center gap-2">
-            <Wrench size={14} className="text-emerald-500"/> Ferramentas de Administração
-          </span>
-          <span className="hidden md:flex text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Importar XML · Imprimir · Mesclar · Zerar estoque</span>
-          <span className="text-[var(--text-muted)]">{utilOpen ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}</span>
+      {/* Ferramentas Avançadas — retraído por padrão para o catálogo ficar no topo */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">
+          {utilOpen ? 'Ferramentas avançadas em uso' : 'Importação XML · impressão · manutenção do catálogo'}
+        </span>
+        <button
+          type="button"
+          onClick={() => setUtilOpen(o => !o)}
+          aria-expanded={utilOpen}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-main)] font-black text-[10px] uppercase tracking-widest shadow-sm hover:border-emerald-400 hover:text-emerald-600 transition-all active:scale-95"
+        >
+          <Wrench size={14} className="text-emerald-500"/> Ferramentas Avançadas
+          <ChevronDown size={14} className={`transition-transform ${utilOpen ? 'rotate-180' : ''}`}/>
         </button>
-        {utilOpen && (
-        <div className="px-6 pb-6">
+      </div>
+      {utilOpen && (
+        <div className="bg-[var(--bg-card)] rounded-[2.5rem] border border-[var(--border-color)] shadow-sm overflow-hidden px-6 py-6">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* XML Import */}
           <div className="lg:col-span-8 bg-[var(--bg-card)] p-6 rounded-[2.5rem] border-2 border-dashed border-[var(--border-color)] shadow-sm">
@@ -492,34 +498,46 @@ return (
             </button>
           </div>
 
-          {/* Quick Actions */}
-          <div className="lg:col-span-4 grid grid-cols-3 gap-3">
-              <button onClick={onPrintCatalog} className="bg-[var(--bg-card)] border border-[var(--border-color)] p-6 rounded-[2.5rem] flex flex-col items-center justify-center gap-3 hover:shadow-xl transition-all active:scale-95 group">
-                  <div className="p-3 bg-[var(--bg-main)] rounded-2xl text-[var(--text-muted)] group-hover:text-emerald-500 transition-colors"><Printer size={20}/></div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-main)]">Imprimir</span>
+          {/* Ações de rotina */}
+          <div className="lg:col-span-4 flex flex-col gap-3 content-start">
+              <button onClick={onPrintCatalog} className="flex items-center gap-3 bg-[var(--bg-card)] border border-[var(--border-color)] p-4 rounded-2xl hover:bg-[var(--bg-main)] hover:shadow-lg transition-all active:scale-95 group text-left">
+                  <div className="p-2.5 bg-[var(--bg-main)] rounded-xl text-[var(--text-muted)] group-hover:text-emerald-500 transition-colors shrink-0"><Printer size={18}/></div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-main)] flex-1">Imprimir catálogo</span>
               </button>
-              <button onClick={printProductList} className="bg-[var(--bg-card)] border border-[var(--border-color)] p-6 rounded-[2.5rem] flex flex-col items-center justify-center gap-3 hover:shadow-xl transition-all active:scale-95 group">
-                  <div className="p-3 bg-emerald-100 rounded-2xl text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-colors"><Download size={20}/></div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-main)]">Lista PDF</span>
+              <button onClick={printProductList} className="flex items-center gap-3 bg-[var(--bg-card)] border border-[var(--border-color)] p-4 rounded-2xl hover:bg-[var(--bg-main)] hover:shadow-lg transition-all active:scale-95 group text-left">
+                  <div className="p-2.5 bg-emerald-100 rounded-xl text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-colors shrink-0"><Download size={18}/></div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-main)] flex-1">Lista de preços (PDF)</span>
               </button>
-              <button onClick={async () => { if (mesclando) return; setMesclando(true); try { await mergeDuplicateProducts(); } finally { setMesclando(false); } }} disabled={mesclando} className="bg-[var(--bg-card)] border border-[var(--border-color)] p-6 rounded-[2.5rem] flex flex-col items-center justify-center gap-3 hover:shadow-xl transition-all active:scale-95 group disabled:opacity-50">
-                  <div className="p-3 bg-[var(--bg-main)] rounded-2xl text-[var(--text-muted)] group-hover:text-emerald-500 transition-colors">{mesclando ? <RefreshCw size={20} className="animate-spin"/> : <RefreshCw size={20}/>}</div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-main)]">{mesclando ? 'Mesclando...' : 'Mesclar'}</span>
-              </button>
-              <button onClick={() => setConfirmarEstoque(true)} className="col-span-2 bg-red-500/5 border border-red-500/20 p-4 rounded-2xl flex items-center justify-center gap-3 hover:bg-red-500 text-red-600 hover:text-white transition-all active:scale-95 group">
-                  <AlertTriangle size={18}/>
-                  <span className="text-[10px] font-black uppercase tracking-widest">Zerar Estoque Geral</span>
+              <button onClick={async () => { if (mesclando) return; setMesclando(true); try { await mergeDuplicateProducts(); } finally { setMesclando(false); } }} disabled={mesclando} className="flex items-center gap-3 bg-[var(--bg-card)] border border-[var(--border-color)] p-4 rounded-2xl hover:bg-[var(--bg-main)] hover:shadow-lg transition-all active:scale-95 group text-left disabled:opacity-50">
+                  <div className="p-2.5 bg-[var(--bg-main)] rounded-xl text-[var(--text-muted)] group-hover:text-emerald-500 transition-colors shrink-0">{mesclando ? <RefreshCw size={18} className="animate-spin"/> : <RefreshCw size={18}/>}</div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-main)] flex-1">{mesclando ? 'Mesclando duplicados...' : 'Mesclar produtos duplicados'}</span>
               </button>
           </div>
+          </div>
+
+          {/* Zona de Risco — afastada das ações comuns */}
+          <div className="mt-6 bg-red-50/70 border-2 border-dashed border-red-300 rounded-3xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3 min-w-0">
+              <div className="p-2.5 rounded-xl bg-white border border-red-200 text-red-600 shrink-0"><AlertTriangle size={18}/></div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-red-700">Zona de Risco — Estoque</p>
+                <p className="text-[11px] font-bold text-slate-500 mt-0.5 max-w-md leading-relaxed">
+                  Zera o estoque GERAL de todos os produtos. Ação irreversível — exige digitar a palavra CONFIRMAR.
+                </p>
+              </div>
+            </div>
+            <button onClick={() => setConfirmarEstoque(true)} className="shrink-0 bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-red-500/25 transition-all active:scale-95 flex items-center justify-center gap-2">
+              <AlertTriangle size={16}/> Zerar Estoque Geral
+            </button>
           </div>
         </div>
         )}
-      </div>
 
       <ConfirmacaoDestrutiva
         isOpen={confirmarEstoque}
         titulo="Zerar Estoque de Todos os Produtos"
         descricao="Todos os produtos ficarão com estoque ZERO e desaparecerão da loja dos familiares até serem repostos. Esta ação NÃO pode ser desfeita."
+        palavraChave="CONFIRMAR"
         onConfirm={() => { setConfirmarEstoque(false); handleResetStock(); }}
         onClose={() => setConfirmarEstoque(false)}
       />
@@ -595,98 +613,199 @@ return (
             </p>
           </div>
         </div>
-      ) : (
-      <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6' : 'bg-[var(--bg-card)] rounded-[2.5rem] border border-[var(--border-color)] shadow-sm overflow-hidden'}>
-        {filteredProducts.length === 0 ? (
-          <div className="col-span-full py-20 text-center opacity-70">
-            <Package size={64} className="mx-auto mb-4"/>
-            <p className="font-black uppercase tracking-[0.3em]">Nenhum produto em catálogo</p>
-          </div>
-        ) : filteredProducts.map(product => (
-          <div key={product.id} className={`transition-all overflow-hidden ${viewMode === 'grid' ? 'bg-[var(--bg-card)] rounded-[2.5rem] shadow-sm border border-[var(--border-color)] hover:shadow-2xl hover:-translate-y-2 group flex flex-col relative' : 'flex flex-col sm:flex-row sm:items-center p-6 gap-6 border-b border-[var(--border-color)] last:border-0 hover:bg-[var(--bg-main)]'}`}>
-{/* Estoque Crítico - Borda de alerta */}
-              {product?.stock > 0 && product?.stock <= (product.minStock || 5) && (
-                <div className="absolute inset-0 rounded-[2.5rem] border-2 border-amber-400 pointer-events-none z-10 opacity-50"></div>
-              )}
-              {(product?.stock || 0) <= 0 && (
-                <div className="absolute inset-0 rounded-[2.5rem] border-2 border-red-500 pointer-events-none z-20 opacity-50"></div>
-              )}
-
-             {/* Thumbnail */}
-             <div className={`${viewMode === 'grid' ? 'aspect-square relative overflow-hidden' : 'w-20 h-20 rounded-2xl flex-shrink-0 relative overflow-hidden bg-[var(--bg-main)]'}`}>
-                <img src={product?.imageUrl || ''} className={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 ${product?.available === false ? 'grayscale opacity-40' : ''}`} alt={product?.name || 'Produto'} onError={(e) => { const t = e.target as HTMLImageElement; t.onerror = null; t.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%2394a3b8%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z%22/%3E%3Cline x1=%224%22 y1=%2222%22 x2=%2220%22 y2=%222%22/%3E%3C/svg%3E'; t.classList.add('opacity-40'); }} />
-                {product.available === false && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                        <span className="text-[10px] font-black text-white uppercase tracking-[0.2em] -rotate-12 border-2 border-white/30 px-3 py-1 rounded-xl shadow-2xl">Pausado</span>
-                    </div>
+      ) : viewMode === 'grid' ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {filteredProducts.length === 0 ? (
+            <div className="col-span-full py-20 text-center opacity-70">
+              <Package size={64} className="mx-auto mb-4"/>
+              <p className="font-black uppercase tracking-[0.3em]">Nenhum produto em catálogo</p>
+            </div>
+          ) : (
+            filteredProducts.map(product => (
+              <div key={product.id} className="transition-all overflow-hidden bg-[var(--bg-card)] rounded-[2.5rem] shadow-sm border border-[var(--border-color)] hover:shadow-2xl hover:-translate-y-2 group flex flex-col relative">
+                {/* Estoque Crítico - Borda de alerta */}
+                {product?.stock > 0 && product?.stock <= (product.minStock || 5) && (
+                  <div className="absolute inset-0 rounded-[2.5rem] border-2 border-amber-400 pointer-events-none z-10 opacity-50"></div>
                 )}
-                {(product?.stock || 0) <= 0 && product?.available !== false && (
-                    <div className="absolute top-4 right-4 bg-red-600 text-white text-[10px] font-black px-3 py-1.5 rounded-xl shadow-lg uppercase tracking-widest animate-pulse">Esgotado</div>
+                {(product?.stock || 0) <= 0 && (
+                  <div className="absolute inset-0 rounded-[2.5rem] border-2 border-red-500 pointer-events-none z-20 opacity-50"></div>
                 )}
-             </div>
 
-             {/* Details */}
-             <div className={`flex-1 min-w-0 ${viewMode === 'grid' ? 'p-8 pt-6' : 'flex flex-col sm:flex-row sm:items-center gap-6'}`}>
-<div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-2 flex-wrap">
-                    {!product.barcode && !product.ean ? (
-                      <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg bg-red-500/10 text-red-600 border border-red-500/20 flex items-center gap-1">
-                        <AlertTriangle size={10}/> SEM CÓDIGO
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg bg-[var(--bg-main)] text-[var(--text-muted)] border border-[var(--border-color)]">EAN: {product.barcode || product.ean || '—'}</span>
-                    )}
-                    {product.category && <span className="text-[10px] font-black px-2 py-0.5 rounded-lg uppercase tracking-tighter bg-emerald-500/10 text-emerald-700">{product.category}</span>}
-                  </div>
-                  {product.brand ? (
-                    <div>
-                      <p className={`font-black uppercase tracking-tight text-emerald-700 ${viewMode === 'grid' ? 'text-[11px] mb-0.5' : 'text-[10px] mb-0.5'}`}>{product.brand}</p>
-                      <h4 className={`font-semibold text-[var(--text-muted)] tracking-tight truncate ${viewMode === 'grid' ? 'text-sm' : 'text-xs'}`}>{product?.name || 'Produto'}</h4>
-                    </div>
-                  ) : (
-                    <h4 className={`font-black uppercase tracking-tight truncate text-[var(--text-main)] ${viewMode === 'grid' ? 'text-lg mb-1' : 'text-sm'}`}>{product?.name || 'Produto'}</h4>
+               {/* Thumbnail */}
+               <div className="aspect-square relative overflow-hidden">
+                  <img src={product?.imageUrl || ''} className={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 ${product?.available === false ? 'grayscale opacity-40' : ''}`} alt={product?.name || 'Produto'} onError={(e) => { const t = e.target as HTMLImageElement; t.onerror = null; t.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%2394a3b8%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z%22/%3E%3Cline x1=%224%22 y1=%2222%22 x2=%2220%22 y2=%222%22/%3E%3C/svg%3E'; t.classList.add('opacity-40'); }} />
+                  {product.available === false && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                          <span className="text-[10px] font-black text-white uppercase tracking-[0.2em] -rotate-12 border-2 border-white/30 px-3 py-1 rounded-xl shadow-2xl">Pausado</span>
+                      </div>
+                  )}
+                  {(product?.stock || 0) <= 0 && product?.available !== false && (
+                      <div className="absolute top-4 right-4 bg-red-600 text-white text-[10px] font-black px-3 py-1.5 rounded-xl shadow-lg uppercase tracking-widest animate-pulse">Esgotado</div>
                   )}
                </div>
 
-                <div className={`flex items-center justify-between gap-6 ${viewMode === 'grid' ? 'mt-6 pt-6 border-t border-[var(--border-color)]' : 'w-full sm:w-auto sm:min-w-[300px]'}`}>
-                    <div className="text-left">
-                        <p className="text-[10px] font-black uppercase text-[var(--text-muted)] mb-1">Preço PDV</p>
-                        <p className="font-black text-xl text-[var(--text-main)] tracking-tighter">
-                            <span className="text-xs opacity-70 mr-0.5">R$</span>
-                            {(() => {
-                                // Mesma regra do servidor: promoPrice ativo é o preço praticado.
-                                const efetivo = Number((product as any).promoPrice) > 0 ? Number((product as any).promoPrice) : Number(product.price || 0);
-                                return efetivo > 0 ? formatarMoeda(efetivo) : '—';
-                            })()}
-                        </p>
+               {/* Details */}
+               <div className="flex-1 min-w-0 p-8 pt-6">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                      {!product.barcode && !product.ean ? (
+                        <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg bg-red-500/10 text-red-600 border border-red-500/20 flex items-center gap-1">
+                          <AlertTriangle size={10}/> SEM CÓDIGO
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg bg-[var(--bg-main)] text-[var(--text-muted)] border border-[var(--border-color)]">EAN: {product.barcode || product.ean || '—'}</span>
+                      )}
+                      {product.category && <span className="text-[10px] font-black px-2 py-0.5 rounded-lg uppercase tracking-tighter bg-emerald-500/10 text-emerald-700">{product.category}</span>}
                     </div>
-                    <div className="text-center">
-                        <p className="text-[10px] font-black uppercase text-[var(--text-muted)] mb-1">Estoque</p>
-                        <div className="flex flex-col items-center">
-                          <p className={`font-black text-lg ${(product.stock ?? 0) <= 0 ? 'text-red-600' : (product.stock ?? 0) <= (product.minStock || 5) ? 'text-amber-600' : 'text-[var(--text-main)]'}`}>
-                              {product.stock ?? 0} <span className="text-[10px] font-bold text-[var(--text-muted)]">UN</span>
+                    {product.brand ? (
+                      <div>
+                        <p className="font-black uppercase tracking-tight text-emerald-700 text-[11px] mb-0.5">{product.brand}</p>
+                        <h4 className="font-semibold text-[var(--text-muted)] tracking-tight truncate text-sm">{product?.name || 'Produto'}</h4>
+                      </div>
+                    ) : (
+                      <h4 className="font-black uppercase tracking-tight truncate text-[var(--text-main)] text-lg mb-1">{product?.name || 'Produto'}</h4>
+                    )}
+                 </div>
+
+                  <div className="flex items-center justify-between gap-6 mt-6 pt-6 border-t border-[var(--border-color)]">
+                      <div className="text-left">
+                          <p className="text-[10px] font-black uppercase text-[var(--text-muted)] mb-1">Preço PDV</p>
+                          <p className="font-black text-xl text-[var(--text-main)] tracking-tighter">
+                              <span className="text-xs opacity-70 mr-0.5">R$</span>
+                              {(() => {
+                                  // Mesma regra do servidor: promoPrice ativo é o preço praticado.
+                                  const efetivo = Number((product as any).promoPrice) > 0 ? Number((product as any).promoPrice) : Number(product.price || 0);
+                                  return efetivo > 0 ? formatarMoeda(efetivo) : '—';
+                              })()}
                           </p>
-                          {(product.stock ?? 0) > 0 && (product.stock ?? 0) <= (product.minStock || 5) && (
-                            <span className="text-[10px] font-black text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded mt-1 uppercase tracking-wider">Crítico</span>
+                      </div>
+                      <div className="text-center">
+                          <p className="text-[10px] font-black uppercase text-[var(--text-muted)] mb-1">Estoque</p>
+                          <div className="flex flex-col items-center">
+                            <p className={`font-black text-lg ${(product.stock ?? 0) <= 0 ? 'text-red-600' : (product.stock ?? 0) <= (product.minStock || 5) ? 'text-orange-600' : 'text-[var(--text-main)]'}`}>
+                                {product.stock ?? 0} <span className="text-[10px] font-bold text-[var(--text-muted)]">UN</span>
+                            </p>
+                            {(product.stock ?? 0) > 0 && (product.stock ?? 0) <= (product.minStock || 5) && (
+                              <span className="text-[10px] font-black text-orange-600 bg-orange-500/10 px-2 py-0.5 rounded mt-1 uppercase tracking-wider">Crítico</span>
+                            )}
+                            {(product.stock ?? 0) <= 0 && (
+                              <span className="text-[10px] font-black text-white bg-red-600 px-2 py-0.5 rounded mt-1 uppercase tracking-wider">Esgotado</span>
+                            )}
+                          </div>
+                          {product.lastSoldAt && (
+                            <p className="text-[10px] text-[var(--text-muted)] mt-1">Últ. venda: {toDate(product.lastSoldAt)?.toLocaleDateString('pt-BR') || '—'}</p>
                           )}
-                          {(product.stock ?? 0) <= 0 && (
-                            <span className="text-[10px] font-black text-white bg-red-600 px-2 py-0.5 rounded mt-1 uppercase tracking-wider">Esgotado</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => { setEditingProduct(product); setShowProductModal(true); }} aria-label="Editar produto" className="p-3 bg-[var(--bg-main)] text-[var(--text-muted)] hover:text-emerald-500 rounded-2xl border border-[var(--border-color)] shadow-sm active:scale-95 transition-all"><Edit size={18}/></button>
+                        <button onClick={() => { setShowStockEditModal(product); }} aria-label="Editar estoque" className="p-3 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-2xl border border-blue-200 shadow-sm active:scale-95 transition-all"><Package size={18}/></button>
+                        <button onClick={() => setProdutoParaExcluir(product)} aria-label="Excluir produto" className="p-3 bg-red-500/5 text-red-500 hover:bg-red-600 hover:text-white rounded-2xl border border-red-500/20 shadow-sm active:scale-95 transition-all"><Trash2 size={18}/></button>
+                      </div>
+</div>
+</div>
+        </div>
+      ))
+      )}
+              </div>
+      ) : (
+        <div className="bg-[var(--bg-card)] rounded-[2.5rem] border border-[var(--border-color)] shadow-sm overflow-hidden">
+          <div className="overflow-x-auto custom-scrollbar">
+            <table className="w-full text-sm">
+              <thead className="text-[9px] font-black uppercase tracking-widest text-[var(--text-muted)]">
+                <tr className="border-b border-slate-100">
+                  <th className="p-5 text-left">Foto</th>
+                  <th className="p-5 text-left">Nome</th>
+                  <th className="p-5 text-left">EAN</th>
+                  <th className="p-5 text-right">Preço</th>
+                  <th className="p-5 text-right">Estoque</th>
+                  <th className="p-5 text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredProducts.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-20 text-center opacity-70">
+                      <Package size={64} className="mx-auto mb-4"/>
+                      <p className="font-black uppercase tracking-[0.3em]">Nenhum produto em catálogo</p>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredProducts.map(product => (
+                    <tr key={product.id} className="border-b border-slate-100 last:border-0 hover:bg-[var(--bg-main)]/60 transition-colors align-middle">
+                      <td className="p-4 whitespace-nowrap">
+                        <div className="w-12 h-12 rounded-xl overflow-hidden bg-[var(--bg-main)] border border-[var(--border-color)] relative shrink-0">
+                          <img src={product?.imageUrl || ''} className={`w-full h-full object-cover ${product?.available === false ? 'grayscale opacity-40' : ''}`} alt={product?.name || 'Produto'} onError={(e) => { const t = e.target as HTMLImageElement; t.onerror = null; t.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%2394a3b8%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z%22/%3E%3Cline x1=%224%22 y1=%2222%22 x2=%2220%22 y2=%222%22/%3E%3C/svg%3E'; t.classList.add('opacity-40'); }} />
+                          {(product?.stock || 0) <= 0 && product?.available !== false && (
+                            <div className="absolute bottom-0 right-0 bg-red-600 text-white text-[7px] font-black px-1.5 py-0.5 rounded-tl-lg uppercase tracking-widest">Esgotado</div>
                           )}
                         </div>
-                        {product.lastSoldAt && (
-                          <p className="text-[10px] text-[var(--text-muted)] mt-1">Últ. venda: {product.lastSoldAt ? toDate(product.lastSoldAt)?.toLocaleDateString('pt-BR') || '—' : '—'}</p>
+                      </td>
+                      <td className="p-4 min-w-[240px]">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          {!product.barcode && !product.ean && (
+                            <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md bg-red-500/10 text-red-600 border border-red-500/20 flex items-center gap-1">
+                              <AlertTriangle size={9}/> SEM CÓDIGO
+                            </span>
+                          )}
+                          {product.category && <span className="text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-tighter bg-emerald-500/10 text-emerald-700">{product.category}</span>}
+                          {product.available === false && <span className="text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest bg-slate-200/60 text-slate-500">Pausado</span>}
+                        </div>
+                        {product.brand ? (
+                          <>
+                            <p className="font-black uppercase tracking-tight text-emerald-700 text-[10px] mb-0.5">{product.brand}</p>
+                            <p className="font-semibold text-[var(--text-muted)] tracking-tight text-xs truncate max-w-[260px]">{product?.name || 'Produto'}</p>
+                          </>
+                        ) : (
+                          <p className="font-black uppercase tracking-tight truncate text-[var(--text-main)] text-sm max-w-[260px]">{product?.name || 'Produto'}</p>
                         )}
-                    </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => { setEditingProduct(product); setShowProductModal(true); }} aria-label="Editar produto" className="p-3 bg-[var(--bg-main)] text-[var(--text-muted)] hover:text-emerald-500 rounded-2xl border border-[var(--border-color)] shadow-sm active:scale-95 transition-all"><Edit size={18}/></button>
-                      <button onClick={() => { setShowStockEditModal(product); }} aria-label="Editar estoque" className="p-3 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-2xl border border-blue-200 shadow-sm active:scale-95 transition-all"><Package size={18}/></button>
-                      <button onClick={() => setProdutoParaExcluir(product)} aria-label="Excluir produto" className="p-3 bg-red-500/5 text-red-500 hover:bg-red-600 hover:text-white rounded-2xl border border-red-500/20 shadow-sm active:scale-95 transition-all"><Trash2 size={18}/></button>
-                    </div>
-                </div>
-             </div>
+                      </td>
+                      <td className="p-4 whitespace-nowrap">
+                        <span className="text-[11px] font-mono font-bold text-[var(--text-muted)]">{product.barcode || product.ean || '—'}</span>
+                      </td>
+                      <td className="p-4 text-right whitespace-nowrap">
+                        <p className="font-black text-base text-[var(--text-main)] tracking-tighter">
+                          <span className="text-xs opacity-70 mr-0.5">R$</span>
+                          {(() => {
+                              // Mesma regra do servidor: promoPrice ativo é o preço praticado.
+                              const efetivo = Number((product as any).promoPrice) > 0 ? Number((product as any).promoPrice) : Number(product.price || 0);
+                              return efetivo > 0 ? formatarMoeda(efetivo) : '—';
+                          })()}
+                        </p>
+                        {Number((product as any).promoPrice) > 0 && (
+                          <p className="text-[9px] font-bold text-slate-400 line-through">R$ {Number(product.price || 0).toFixed(2).replace('.', ',')}</p>
+                        )}
+                      </td>
+                      <td className="p-4 text-right whitespace-nowrap">
+                        <div className="flex flex-col items-end gap-1">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <p className={`font-black text-base ${(product.stock ?? 0) <= 0 ? 'text-red-600' : (product.stock ?? 0) <= (product.minStock || 5) ? 'text-orange-600' : 'text-[var(--text-main)]'}`}>
+                              {product.stock ?? 0} <span className="text-[10px] font-bold text-[var(--text-muted)]">UN</span>
+                            </p>
+                            {(product.stock ?? 0) <= 0 ? (
+                              <span className="text-[9px] font-black text-white bg-red-600 px-2 py-0.5 rounded-full uppercase tracking-wider">Esgotado</span>
+                            ) : ((product.stock ?? 0) <= (product.minStock || 5) ? (
+                              <span className="text-[9px] font-black text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full uppercase tracking-wider">Crítico</span>
+                            ) : null)}
+                          </div>
+                          {product.lastSoldAt && (
+                            <span className="text-[9px] text-[var(--text-muted)]">Últ. venda: {toDate(product.lastSoldAt)?.toLocaleDateString('pt-BR') || '—'}</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-4 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-2">
+                          <button onClick={() => { setEditingProduct(product); setShowProductModal(true); }} aria-label="Editar produto" className="p-2.5 bg-[var(--bg-main)] text-[var(--text-muted)] hover:text-emerald-500 rounded-xl border border-[var(--border-color)] shadow-sm active:scale-95 transition-all"><Edit size={15}/></button>
+                          <button onClick={() => { setShowStockEditModal(product); }} aria-label="Editar estoque" className="p-2.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl border border-blue-200 shadow-sm active:scale-95 transition-all"><Package size={15}/></button>
+                          <button onClick={() => setProdutoParaExcluir(product)} aria-label="Excluir produto" className="p-2.5 bg-red-500/5 text-red-500 hover:bg-red-600 hover:text-white rounded-xl border border-red-500/20 shadow-sm active:scale-95 transition-all"><Trash2 size={15}/></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
-        ))}
-      </div>
+        </div>
       )}
 
       {loadMoreProducts && productsLimit && filteredProducts.length >= productsLimit && (
