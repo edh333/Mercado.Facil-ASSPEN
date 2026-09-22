@@ -48,7 +48,7 @@ jobs:
         working-directory: functions
 
 # O Vite injeta as variáveis no build — o .env é montado a partir dos secrets
-      - name: Montar .env a partir dos secrets
+      - name: Montar .env (config publica do Firebase)
         shell: pwsh
         run: |
           # Config PÚBLICA do Firebase web (vai no bundle JS do navegador/app).
