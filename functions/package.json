@@ -1,7 +1,7 @@
 {
   "name": "functions",
   "description": "Cloud Functions for Mercado Fácil PDV",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "main": "index.js",
   "scripts": {
     "serve": "firebase emulators:start --only functions",
