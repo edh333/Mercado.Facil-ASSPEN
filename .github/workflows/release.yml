@@ -51,8 +51,7 @@ jobs:
             "VITE_FIREBASE_PROJECT_ID=${{ secrets.VITE_FIREBASE_PROJECT_ID }}",
             "VITE_FIREBASE_STORAGE_BUCKET=${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}",
             "VITE_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}",
-            "VITE_FIREBASE_APP_ID=${{ secrets.VITE_FIREBASE_APP_ID }}",
-            "VITE_GEMINI_API_KEY=${{ secrets.VITE_GEMINI_API_KEY }}"
+            "VITE_FIREBASE_APP_ID=${{ secrets.VITE_FIREBASE_APP_ID }}"
           )
           $envLines | Set-Content .env -Encoding utf8
           Write-Output "Arquivo .env criado ($($envLines.Count) variáveis)"
@@ -67,6 +66,10 @@ jobs:
 
       - name: Publicar instaladores + version.json no Storage
         shell: pwsh
+        env:
+          # publish-apps.cjs não usa configstore no runner: recebe o refresh
+          # token do mesmo secret do firebase deploy.
+          FIREBASE_REFRESH_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: node scripts/publish-apps.cjs
 
       - name: Publicar artefatos (instaladores)

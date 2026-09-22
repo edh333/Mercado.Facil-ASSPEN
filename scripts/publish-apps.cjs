@@ -59,6 +59,15 @@ const EXE_PATTERN = /^MercadoFacil-(Usuario|Admin)-Setup-(.+)\.exe$/;
 
 // ── 1) Sessão do Firebase CLI ────────────────────────────────────────────
 function localizarRefreshToken() {
+  // CI (GitHub Actions): não existe ~/.config/configstore lá — o token vem do
+  // secret. `firebase login:ci` emite um refresh_token OAuth, que este script
+  // troca pelo mesmo endpoint público usado nos fluxos interativos.
+  if (process.env.FIREBASE_REFRESH_TOKEN) {
+    return { refreshToken: process.env.FIREBASE_REFRESH_TOKEN, conta: 'ci (FIREBASE_REFRESH_TOKEN)' };
+  }
+  if (process.env.FIREBASE_TOKEN) {
+    return { refreshToken: process.env.FIREBASE_TOKEN, conta: 'ci (FIREBASE_TOKEN)' };
+  }
   let cfg;
   try {
     cfg = JSON.parse(fs.readFileSync(CONFIGSTORE, 'utf-8'));
