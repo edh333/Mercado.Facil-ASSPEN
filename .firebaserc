@@ -1,12 +1,20 @@
 {
   "projects": {
-    "default": "mercado-facil-mt"
+    "default": "mercado-facil-mt",
+    "homolog": "mercado-facil-homolog"
   },
   "targets": {
     "mercado-facil-mt": {
       "storage": {
         "main": [
           "mercado-facil-mt.firebasestorage.app"
+        ]
+      }
+    },
+    "mercado-facil-homolog": {
+      "storage": {
+        "main": [
+          "mercado-facil-homolog.firebasestorage.app"
         ]
       }
     }

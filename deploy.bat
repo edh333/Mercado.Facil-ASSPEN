@@ -21,6 +21,7 @@ rem ==============================================================
 
 set "NONINTERACTIVE=0"
 set "FIREBASE_TOKEN="
+set "HOMOLOG=0"
 
 rem ==============================================================
 rem  PROCESSAR ARGUMENTOS
@@ -29,6 +30,8 @@ rem ==============================================================
 if "%~1"=="" goto :args_done
 if /i "%~1"=="--non-interactive" set "NONINTERACTIVE=1" & shift & goto :parse_args
 if /i "%~1"=="-n"                set "NONINTERACTIVE=1" & shift & goto :parse_args
+if /i "%~1"=="--homolog"         set "HOMOLOG=1"     & shift & goto :parse_args
+if /i "%~1"=="-m"                set "HOMOLOG=1"     & shift & goto :parse_args
 set "ARGV=%~1"
 if /i "%ARGV:~0,8%"=="--token=" (
     set "FIREBASE_TOKEN=%ARGV:~8%"
@@ -42,11 +45,22 @@ exit /b 1
 rem ==============================================================
 rem  BANNER
 rem ==============================================================
+if "%HOMOLOG%"=="1" (
+    set "PROJETO=mercado-facil-homolog"
+    set "AMBIENTE=HOMOLOGACAO (testes)"
+    set "URL_HOOK=https://mercado-facil-homolog.web.app"
+    set "BUILD_CMD=build:homolog"
+) else (
+    set "PROJETO=mercado-facil-mt"
+    set "AMBIENTE=PRODUCAO"
+    set "URL_HOOK=https://mercado-facil-mt.web.app"
+    set "BUILD_CMD=build"
+)
 echo.
 echo ============================================================
-echo  DEPLOY MERCADO FACIL PDV - Producao
-echo  Projeto: mercado-facil-mt
-echo  URL: https://mercado-facil-mt.web.app
+echo  DEPLOY MERCADO FACIL PDV - %AMBIENTE%
+echo  Projeto: %PROJETO%
+echo  URL: %URL_HOOK%
 echo  Modo:  NONINTERACTIVE=%NONINTERACTIVE%  ^(1 script / 0 interativo^)
 echo ============================================================
 echo.
@@ -84,9 +98,9 @@ echo.
 rem ==============================================================
 rem  [4/5] BUILD
 rem ==============================================================
-set "STEP=4/5 Build producao"
-echo [4/5] Build de producao...
-call npm run build
+set "STEP=4/5 Build %AMBIENTE%"
+echo [4/5] Build de %AMBIENTE%...
+call npm run %BUILD_CMD%
 if errorlevel 1 goto :fim
 echo OK
 echo.
@@ -103,15 +117,15 @@ set "TOKEN_EXTRA="
 if "%NONINTERACTIVE%"=="1" if defined FIREBASE_TOKEN set "TOKEN_EXTRA=--token %FIREBASE_TOKEN%"
 
 echo Deployando Functions, Firestore, Storage e Hosting (deploy único)...
-call firebase deploy --only "functions,firestore:main,storage:main,hosting" %FB_EXTRA% %TOKEN_EXTRA%
+call firebase deploy --project %PROJETO% --only "functions,firestore,storage:main,hosting" %FB_EXTRA% %TOKEN_EXTRA%
 if errorlevel 1 goto :fim
 echo OK
 echo.
 
 echo ============================================================
 echo  DEPLOY CONCLUIDO COM SUCESSO!
-echo  Producao: https://mercado-facil-mt.web.app
-echo  Console:  https://console.firebase.google.com/project/mercado-facil-mt
+echo  %AMBIENTE%: %URL_HOOK%
+echo  Console:  https://console.firebase.google.com/project/%PROJETO%
 echo ============================================================
 echo.
 if not "%NONINTERACTIVE%"=="1" pause

@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { initializeApp, getApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, setPersistence, browserSessionPersistence } from "firebase/auth";
 import {
   initializeFirestore,
   persistentLocalCache,
@@ -89,5 +89,12 @@ try {
 
 export const db = firestoreDb;
 export const auth = getAuth(app);
+// SESSÃO SOMENTE: fechar a aba/janela/app do desktop encerra o login.
+// Recarregar a página (F5) mantém a sessão viva; reabrir exige senha.
+// Evita que a sessão fique gravada no localStorage em máquina compartilhada
+// (PDV/presídio) e que outra pessoa entre como admin/familiar sem digitar senha.
+setPersistence(auth, browserSessionPersistence).catch((e) =>
+  console.warn("[FIREBASE] Falha ao aplicar persistência de sessão:", e),
+);
 export const storage = getStorage(app);
 export const FIREBASE_API_KEY = firebaseConfig.apiKey;

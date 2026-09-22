@@ -2620,6 +2620,58 @@ return false;
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // ── AUTO-LOGOUT POR INATIVIDADE (30 min sem operação) ─────────────────
+    // Máquina compartilhada protegida mesmo se a janela ficar aberta: 30min
+    // sem interação encerra a sessão sozinho (aviso 60s antes) e volta à tela
+    // de login. NÃO vale para o desbloqueio offline de emergência.
+    const IDLE_LOGOUT_MS = 30 * 60 * 1000;
+    const AVISO_ANTES_MS = 60 * 1000;
+    useEffect(() => {
+        if (!currentUser?.authUid || currentUser.authUid === 'offline_admin' || isLoggingOut) return;
+
+        let ultimaAtividade = Date.now();
+        let jaAvisou = false;
+        let ateve = true;
+
+        const registrarAtividade = () => { ultimaAtividade = Date.now(); };
+        const eventos: [string, (e: Event) => void][] = [
+            ['pointerdown', registrarAtividade],
+            ['keydown', registrarAtividade],
+            ['touchstart', registrarAtividade],
+            ['pointermove', (() => {
+                let ultimo = 0;
+                return () => { const agora = Date.now(); if (agora - ultimo >= 1000) { ultimo = agora; registrarAtividade(); } };
+            })()],
+            ['scroll', (() => {
+                let ultimo = 0;
+                return () => { const agora = Date.now(); if (agora - ultimo >= 1000) { ultimo = agora; registrarAtividade(); } };
+            })()],
+        ];
+
+        eventos.forEach(([ev, handler]) => window.addEventListener(ev, handler, { passive: true }));
+
+        const interval = window.setInterval(() => {
+            if (!ateve) return;
+            const inativo = Date.now() - ultimaAtividade;
+            if (inativo >= IDLE_LOGOUT_MS) {
+                ateve = false;
+                window.clearInterval(interval);
+                eventos.forEach(([ev, handler]) => window.removeEventListener(ev, handler));
+                logout();
+            } else if (!jaAvisou && inativo >= IDLE_LOGOUT_MS - AVISO_ANTES_MS) {
+                jaAvisou = true;
+                showNotification('Sessão será encerrada em 1 minuto por inatividade.', 'warning');
+            }
+        }, 15 * 1000);
+
+        return () => {
+            ateve = false;
+            window.clearInterval(interval);
+            eventos.forEach(([ev, handler]) => window.removeEventListener(ev, handler));
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentUser?.authUid, currentUser?.id, isLoggingOut]);
+
     // ── PDV OFFLINE ────────────────────────────────────────────────────────
     // Vendas registradas sem internet ficam nesta fila local e sincronizam
     // sozinhas quando a rede volta (o id da venda é o clientToken â†’ o
