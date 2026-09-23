@@ -406,7 +406,9 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
   const clienteValido = clienteSelecionado && !clienteEhConsumidor;
   const semClienteCredito = (formaPagamento === 'WALLET' || isFiado) && !clienteValido;
   const saldoCarteiraCliente = Number(cliente?.walletBalance || 0);
-  const limiteSemanalDisponivel = Math.max(0, Number((settings as any)?.weeklyWalletLimit || 300) - Number(cliente?.weeklySpent || 0));
+  const limiteSemanalBruto = Number((settings as any)?.weeklyWalletLimit);
+  const limiteSemanalConfig = Number.isFinite(limiteSemanalBruto) && limiteSemanalBruto >= 0 ? limiteSemanalBruto : 300;
+  const limiteSemanalDisponivel = Math.max(0, limiteSemanalConfig - Number(cliente?.weeklySpent || 0));
   
   // Validações por método de pagamento
   const bloqueioCash = temCashNaVenda && !sessaoCaixaAtiva?.id;

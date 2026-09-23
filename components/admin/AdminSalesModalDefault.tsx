@@ -1232,7 +1232,11 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
   // Parte em créditos do MIXED: valida saldo e limite semanal ANTES do servidor
   // (venda fica travada no botão, sem esperar rejeição no backend).
   const saldoCarteiraPdv = Math.max(0, cliente?.walletBalance || 0);
-  const limiteSemanalPdv = Math.max(0, (settings?.weeklyWalletLimit || 300) - ((cliente as any)?.weeklySpent || 0));
+  // Limite semanal: 0 (zero) é HONRADO e bloqueia compras por carteira (mesma
+  // regra do servidor). Só undefined/negativo/NaN usa o padrão 300.
+  const limiteSemanalBruto = Number(settings?.weeklyWalletLimit);
+  const limiteSemanalConfig = Number.isFinite(limiteSemanalBruto) && limiteSemanalBruto >= 0 ? limiteSemanalBruto : 300;
+  const limiteSemanalPdv = Math.max(0, limiteSemanalConfig - ((cliente as any)?.weeklySpent || 0));
   const falhaMistoWalletConsumidor = formaPagamento === 'MIXED' && pWalletMisto > 0 && clienteEhConsumidor;
   const falhaMistoWallet = formaPagamento === 'MIXED' && pWalletMisto > 0 && !clienteEhConsumidor
     && (pWalletMisto > saldoCarteiraPdv + 0.009 || pWalletMisto > limiteSemanalPdv + 0.009);

@@ -1086,6 +1086,14 @@ exports.aprovarDeposito = onCall(async (request) => {
     }
     console.error("[aprovarDeposito] Falha ao aprovar depósito:", e && e.message, e && e.stack);
     if (e && e.code && String(e.code).startsWith("functions/")) throw e;
+    // NUNCA engolir o motivo real: o admin precisa saber POR QUE o comprovante
+    // foi recusado (arquivo não encontrado, duplicado, pequeno, fora do padrão)
+    // para agir e não pedir vistoria cega. Mensagens do validarComprovanteFlexivel
+    // e das pré-validações já saem prontas em PT-BR.
+    const msg = (e && e.message) || "";
+    if (/comprovante|dep[oó]sito|transa[cç][aã]o|n[aã]o encontrad|j[aá] foi processad|valor de dep[oó]sito|teto|arquivo|pasta|saldo/i.test(msg)) {
+      throw new HttpsError("invalid-argument", msg);
+    }
     throw new HttpsError("invalid-argument", "Falha ao aprovar depósito. Tente novamente.");
   }
 
@@ -1099,7 +1107,7 @@ exports.aprovarDeposito = onCall(async (request) => {
     novoSaldo: novoSaldoFinal,
   });
 
-  return { ok: true, novoSaldo: novoSaldoFinal };
+  return { ok: true, novoSaldo: novoSaldoFinal, userId: usuarioIdDeposito, txStatus: "approved" };
 });
 
 /** Admin — recusa depósito PIX. */
@@ -2244,7 +2252,15 @@ inmateName: ud.inmateName || ud.prisonerName || "",
     return novoPedido;
   });
   } catch (e) {
-    throw new HttpsError("invalid-argument", "Falha ao processar a compra. Tente novamente.");
+    // NUNCA engolir o erro real: o usuário precisa saber se é saldo, limite
+    // semanal ou estoque para conseguir agir. Toda mensagem de negócio
+    // produzida no servidor já sai em PT-BR amigável (whitelist abaixo).
+    if (e && e.code && String(e.code).startsWith("functions/")) throw e;
+    const msg = (e && e.message) || "Falha ao processar a compra. Tente novamente.";
+    if (/produto n[aã]o encontrad|estoque insuficiente|cr[eé]dito insuficiente|saldo insuficiente|limite semanal/i.test(msg)) {
+      throw new HttpsError("invalid-argument", msg);
+    }
+    throw new HttpsError("internal", "Falha ao processar a compra. Tente novamente.");
   }
 
   if (!resultado.replay) {
@@ -2491,6 +2507,12 @@ exports.aprovarPedidoPix = onCall(async (request) => {
       return atualizacao.status;
     });
   } catch (e) {
+    // Não esconder o motivo real (ex.: "já processado", "não encontrado").
+    if (e && e.code && String(e.code).startsWith("functions/")) throw e;
+    const msg = (e && e.message) || "";
+    if (/n[aã]o encontrad|j[aá] foi processad|comprovante|pendente|pagamento/i.test(msg)) {
+      throw new HttpsError("failed-precondition", msg);
+    }
     throw new HttpsError("invalid-argument", "Falha ao aprovar o pedido. Tente novamente.");
   }
 

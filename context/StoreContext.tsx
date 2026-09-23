@@ -2085,16 +2085,20 @@ return false;
         try {
             const res = await fnAprovarDeposito({ transacaoId: tid });
             const data = res.data as any;
-            if (data?.novoSaldo !== undefined && data?.novoSaldo !== null && currentUser?.role === UserRole.ADMIN) {
-                const targetUser = users.find(u => u.id === data?.userId);
-                if (targetUser && targetUser.id === currentUser.id) {
-                    setCreditoCliente(Number(data.novoSaldo));
-                    setCurrentUser(prev => prev ? ({ ...prev, walletBalance: Number(data.novoSaldo) }) : prev);
+            // userId vem junto do servidor: permite refletir o saldo ATUALIZADO
+            // na tela do admin/usuário sem depender do snapshot (que atrasa).
+            if (data?.novoSaldo !== undefined && data?.novoSaldo !== null && data?.userId) {
+                const novoSaldo = Number(data.novoSaldo);
+                if (data.userId === currentUser?.id) {
+                    setCreditoCliente(novoSaldo);
+                    setCurrentUser(prev => prev ? ({ ...prev, walletBalance: novoSaldo }) : prev);
+                } else if (currentUser?.role === UserRole.ADMIN) {
+                    setUsers(prev => prev.map(u => u.id === data.userId ? ({ ...u, walletBalance: novoSaldo }) : u));
                 }
             }
             showNotification("Depósito aprovado e crédito adicionado!", "success");
         } catch (e: any) {
-            showNotification("Erro ao aprovar depósito: " + e.message, "error");
+            showNotification("Erro ao aprovar depósito: " + mensagemErroChamada(e), "error");
         }
     };
 
