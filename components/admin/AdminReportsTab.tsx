@@ -2,7 +2,7 @@ import React from 'react';
 import {
   ClipboardList, FileText, Search, TrendingUp, Users, Package, CreditCard,
   BarChart3, RefreshCcw, Calendar, Download, Landmark, FileSpreadsheet, PieChart,
-  Wallet, Coins, Printer, Calculator
+  Wallet, Coins, Printer, Calculator, ListOrdered, Medal, UserCog, Filter
 } from 'lucide-react';
 import { User } from '../../types';
 import { useTheme } from '../../context/ThemeContext';
@@ -18,6 +18,16 @@ interface AdminReportsTabProps {
   handleExportExcel: () => void;
   settings?: any;
 }
+
+// Tipos de relatório que aceitam os Filtros de Refinamento (forma de pagamento,
+// status, cliente e operador). MESMA lista usada dentro do AdminReportPreviewModal.
+const FILTRAVEIS = new Set([
+  'GENERAL', 'FINANCIAL', 'ACCOUNTABILITY', 'VENDAS_DIARIAS', 'COLLECTIVE_PURCHASES',
+  'SALES_BY_CATEGORY', 'DRE_MONTHLY', 'SALES_CSV', 'STOCK_ABC', 'TOP_PRODUCTS',
+  'DAILY_CLOSING', 'DETALHE_VENDAS', 'RANKING_CLIENTES', 'VENDAS_OPERADOR', 'FIADO_VENDAS'
+]);
+
+const PAGAMENTOS = ['TODAS', 'PIX', 'CASH', 'CARD', 'WALLET', 'FIADO', 'FIADO_30'];
 
 const getQuickDateRange = (period?: string): { start: Date; end: Date } => {
   const today = new Date();
@@ -96,6 +106,21 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
     imprimirRelatorioCreditoA4(creditList as any, creditTitle, settings, subtitulo);
   };
 
+  const filtrosAtivos = (reportConfig.paymentFilter && reportConfig.paymentFilter !== 'TODAS' ? 1 : 0)
+    + (reportConfig.statusFilter && reportConfig.statusFilter !== 'TODOS' ? 1 : 0)
+    + ((reportConfig.clienteFilter || '').trim() ? 1 : 0)
+    + ((reportConfig.operadorFilter || '').trim() ? 1 : 0);
+
+  const limparFiltros = () => {
+    setReportConfig({
+      ...reportConfig,
+      paymentFilter: 'TODAS',
+      statusFilter: 'TODOS',
+      clienteFilter: '',
+      operadorFilter: ''
+    });
+  };
+
   const reportGroups = [
     {
       titulo: 'Gestão Financeira',
@@ -107,6 +132,14 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
         { id: 'DRE_MONTHLY', name: 'Fechamento Mensal (DRE)', desc: 'DRE simplificado: receita, custo das mercadorias e lucro líquido real.', icon: <Landmark className="text-teal-600" size={24}/> },
         { id: 'DAILY_CLOSING', name: 'Fechamento do Dia', desc: 'Conferência de caixa diária: vendas por forma de pagamento, despesas e resultado.', icon: <Calculator className="text-cyan-600" size={24}/> },
         { id: 'VENDAS_DIARIAS', name: 'Vendas Diárias (Detalhado)', desc: 'Evolução dia a dia: nº de vendas, itens vendidos, faturamento e ticket médio.', icon: <Landmark className="text-emerald-500" size={24}/> },
+        { id: 'DETALHE_VENDAS', name: 'Vendas do Dia (Lista Completa)', desc: 'Expansível por dia: quem comprou, o que comprou, valor, pagamento, operador e status — com CSV.', icon: <ListOrdered className="text-sky-500" size={24}/> },
+      ]
+    },
+    {
+      titulo: 'Análise Comercial',
+      options: [
+        { id: 'RANKING_CLIENTES', name: 'Ranking de Clientes', desc: 'Quem mais compra no período: valor, nº de compras e ticket médio.', icon: <Medal className="text-amber-500" size={24}/> },
+        { id: 'VENDAS_OPERADOR', name: 'Desempenho por Operador', desc: 'Faturamento, nº de vendas e ticket de cada operador/CAIXA.', icon: <UserCog className="text-violet-500" size={24}/> },
       ]
     },
     {
@@ -117,6 +150,9 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
         { id: 'CREDITS_POSITIVE', name: 'Créditos Ativos (com Saldo)', desc: 'Familiares com crédito em conta > R$ 0, consulta individual e em lote.', icon: <Wallet className="text-emerald-500" size={24}/> },
         { id: 'CREDITS_ZERO', name: 'Créditos Zerados (sem Saldo)', desc: 'Familiares sem crédito em conta, consulta individual e em lote.', icon: <Coins className="text-slate-500" size={24}/> },
         { id: 'INDIVIDUAL', name: 'Extrato Individual', desc: 'Movimentações completas de um familiar.', icon: <Users className="text-orange-500" size={24}/> },
+        { id: 'FIADO_VENDAS', name: 'Vendas Fiadas (Período)', desc: 'Todas as vendas no fiado do período, com itens e clientes.', icon: <CreditCard className="text-teal-500" size={24}/> },
+        { id: 'FIADO_CONTAS', name: 'Contas a Receber (Fiado)', desc: 'Dívidas em aberto: valor, limite, vencimento e status de cada devedor.', icon: <Wallet className="text-rose-500" size={24}/> },
+        { id: 'FIADO_VENCIMENTOS', name: 'Vencimentos do Fiado', desc: 'Fiados agrupados por faixa: vencidos, desta semana, do mês, 60+ dias.', icon: <Calendar className="text-orange-500" size={24}/> },
       ]
     },
     {
@@ -216,7 +252,7 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
                             </div>
                         )}
 
-                        {reportConfig.type !== 'STOCK_LOW' && reportConfig.type !== 'CREDITS_ALL' && reportConfig.type !== 'CREDITS_POSITIVE' && reportConfig.type !== 'CREDITS_ZERO' && reportConfig.type !== 'INDIVIDUAL' && (
+                        {reportConfig.type !== 'STOCK_LOW' && reportConfig.type !== 'CREDITS_ALL' && reportConfig.type !== 'CREDITS_POSITIVE' && reportConfig.type !== 'CREDITS_ZERO' && reportConfig.type !== 'INDIVIDUAL' && reportConfig.type !== 'FIADO_CONTAS' && reportConfig.type !== 'FIADO_VENCIMENTOS' && (
                             <div>
                                 <label className="text-[var(--text-main)] font-black text-[10px] uppercase tracking-widest mb-2 block ml-1">Período de Análise</label>
                                 <div className="flex flex-wrap gap-2 mb-4">
@@ -255,6 +291,63 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
                                     <div>
                                         <label className="text-[var(--text-main)] font-black text-[10px] uppercase tracking-widest mb-1 block ml-1">Data Fim</label>
                                         <input type="date" className="w-full p-4 bg-[var(--bg-card)] border-2 border-[var(--border-color)] focus:border-emerald-500 rounded-lg font-bold text-sm text-[var(--text-main)] outline-none" value={reportConfig.endDate} onChange={e => setReportConfig({...reportConfig, endDate: e.target.value, quickPeriod: 'custom'})}/>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {FILTRAVEIS.has(reportConfig.type) && (
+                            <div className="bg-[var(--bg-main)]/40 border border-[var(--border-color)] rounded-3xl p-5 space-y-4 animate-slideDown">
+                                <div className="flex items-center justify-between gap-2">
+                                    <label className="text-[var(--text-main)] font-black text-[10px] uppercase tracking-widest block ml-1 flex items-center gap-2">
+                                        <Filter size={13} className="text-emerald-500"/> Filtros de Refinamento
+                                    </label>
+                                    {filtrosAtivos > 0 && (
+                                        <button onClick={limparFiltros} className="text-[8px] font-black uppercase tracking-widest text-red-500 hover:text-red-600 transition-colors">
+                                            Limpar {filtrosAtivos} ativo(s)
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-[var(--text-muted)] font-black text-[9px] uppercase tracking-widest mb-1 block ml-1">Forma de Pagamento</label>
+                                        <select
+                                            className="w-full p-3.5 bg-[var(--bg-card)] border-2 border-[var(--border-color)] focus:border-emerald-500 rounded-xl font-black text-xs text-[var(--text-main)] outline-none cursor-pointer"
+                                            value={reportConfig.paymentFilter || 'TODAS'}
+                                            onChange={e => setReportConfig({ ...reportConfig, paymentFilter: e.target.value })}
+                                        >
+                                            {PAGAMENTOS.map(p => <option key={p} value={p}>{p === 'TODAS' ? 'Todas' : p === 'CASH' ? 'Dinheiro' : p === 'CARD' ? 'Cartão' : p === 'WALLET' ? 'Carteira' : p === 'FIADO_30' ? 'Fiado 30 dias' : p}</option>)}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-[var(--text-muted)] font-black text-[9px] uppercase tracking-widest mb-1 block ml-1">Status do Pedido</label>
+                                        <select
+                                            className="w-full p-3.5 bg-[var(--bg-card)] border-2 border-[var(--border-color)] focus:border-emerald-500 rounded-xl font-black text-xs text-[var(--text-main)] outline-none cursor-pointer"
+                                            value={reportConfig.statusFilter || 'TODOS'}
+                                            onChange={e => setReportConfig({ ...reportConfig, statusFilter: e.target.value })}
+                                        >
+                                            <option value="TODOS">Todos</option>
+                                            <option value="PAGOS">Aprovados (receita)</option>
+                                            <option value="CANCELADOS">Cancelados / Estornados</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-[var(--text-muted)] font-black text-[9px] uppercase tracking-widest mb-1 block ml-1">Cliente (nome / interno / CPF)</label>
+                                        <input
+                                            className="w-full p-3.5 bg-[var(--bg-card)] border-2 border-[var(--border-color)] focus:border-emerald-500 rounded-xl font-black text-xs text-[var(--text-main)] outline-none placeholder:text-[var(--text-muted)]"
+                                            placeholder="Filtrar por cliente..."
+                                            value={reportConfig.clienteFilter || ''}
+                                            onChange={e => setReportConfig({ ...reportConfig, clienteFilter: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[var(--text-muted)] font-black text-[9px] uppercase tracking-widest mb-1 block ml-1">Operador (CAIXA)</label>
+                                        <input
+                                            className="w-full p-3.5 bg-[var(--bg-card)] border-2 border-[var(--border-color)] focus:border-emerald-500 rounded-xl font-black text-xs text-[var(--text-main)] outline-none placeholder:text-[var(--text-muted)]"
+                                            placeholder="Filtrar por operador..."
+                                            value={reportConfig.operadorFilter || ''}
+                                            onChange={e => setReportConfig({ ...reportConfig, operadorFilter: e.target.value })}
+                                        />
                                     </div>
                                 </div>
                             </div>

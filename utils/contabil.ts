@@ -578,3 +578,152 @@ export const buildFiadoVendas = (orders: any[], startDate: string, endDate: stri
 
   return { vendas, total, count };
 };
+
+/**
+ * 12) DETALHAMENTO DE VENDAS NO PERÍODO
+ * Agrupa por dia e EXPANDE cada dia com TODAS as vendas: hora, cupom, quem
+ * comprou (familiar/interno/CPF), o que comprou (itens com qtd e subtotal),
+ * valor, formas de pagamento, operador e status. Base para o relatório
+ * "Vendas do Dia — Quem / O quê / Valor" e para filtros de refinamento.
+ */
+export const buildDetalheVendas = (orders: any[], startDate: string, endDate: string) => {
+  const porDia = new Map<string, { data: string; vendas: number; itens: number; total: number; vendasDetalhe: any[] }>();
+  const porForma = new Map<string, { metodo: string; valor: number; count: number }>();
+  let totalGeral = 0;
+  let totalItens = 0;
+
+  for (const o of (orders || [])) {
+    if (o.deleted || !ehReceita(o.status) || !inRangeContabil(o.date || o.createdAt, startDate, endDate)) continue;
+    const dt = toDateContabil(o.date || o.createdAt);
+    if (isNaN(dt.getTime()) || dt.getTime() === 0) continue;
+
+    const valor = Number(o.total) || 0;
+    const qtdItens = (o.items || []).reduce((s: number, i: any) => s + (Number(i.quantity) || 0), 0);
+    const chave = dt.toLocaleDateString('pt-BR');
+    const metodoPrincipal = String(o.paymentMethod || 'PIX').toUpperCase();
+
+    const splits = Array.isArray(o.payments) && o.payments.length
+      ? o.payments
+      : [{ method: o.paymentMethod || 'PIX', amount: valor }];
+    for (const sp of splits) {
+      const metodo = String(sp.method || metodoPrincipal).toUpperCase();
+      const at = porForma.get(metodo) || { metodo, valor: 0, count: 0 };
+      at.valor += Number(sp.amount) || 0;
+      at.count += 1;
+      porForma.set(metodo, at);
+    }
+
+    const dia = porDia.get(chave) || { data: chave, vendas: 0, itens: 0, total: 0, vendasDetalhe: [] as any[] };
+    dia.vendas += 1;
+    dia.total += valor;
+    dia.itens += qtdItens;
+    dia.vendasDetalhe.push({
+      id: o.id,
+      hora: dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      cupom: `#${String(o.id || '').slice(-6).toUpperCase()}`,
+      cliente: o.userName || o.inmateName || 'Consumidor',
+      interno: o.inmateName || '',
+      cpf: sanitizarCpf(o.userCpf || o.inmateCpf || ''),
+      total: valor,
+      formas: splits.map((sp: any) => String(sp.method || metodoPrincipal).toUpperCase()),
+      operador: o.operatorName || o.operador || '—',
+      status: o.status,
+      items: (o.items || []).map((i: any) => ({
+        nome: i.name || i.productName || 'Item',
+        qtd: Number(i.quantity) || 0,
+        preco: Number(i.priceAtPurchase || i.price) || 0,
+        sub: Math.round((Number(i.priceAtPurchase || i.price) || 0) * (Number(i.quantity) || 0) * 100) / 100,
+      })),
+    });
+    porDia.set(chave, dia);
+    totalGeral += valor;
+    totalItens += qtdItens;
+  }
+
+  const dias = Array.from(porDia.values()).sort((a, b) => {
+    const [da, db] = [a.data.split('/'), b.data.split('/')];
+    return new Date(Number(db[2]), Number(db[1]) - 1, Number(db[0])).getTime()
+      - new Date(Number(da[2]), Number(da[1]) - 1, Number(da[0])).getTime();
+  });
+  const totalVendas = dias.reduce((s, d) => s + d.vendas, 0);
+
+  return {
+    dias,
+    totalVendas,
+    totalItens,
+    totalGeral,
+    ticketMedio: totalVendas > 0 ? totalGeral / totalVendas : 0,
+    porForma: Array.from(porForma.values()).sort((a, b) => b.valor - a.valor),
+  };
+};
+
+/**
+ * 13) RANKING DE CLIENTES NO PERÍODO
+ * Quem mais comprou: valor, nº de compras, itens e ticket médio, com % de
+ * participação no faturamento total.
+ */
+export const buildRankingClientes = (orders: any[], startDate: string, endDate: string) => {
+  const map = new Map<string, { cliente: string; cpf: string; compras: number; itens: number; total: number }>();
+  for (const o of (orders || [])) {
+    if (o.deleted || !ehReceita(o.status) || !inRangeContabil(o.date || o.createdAt, startDate, endDate)) continue;
+    const nome = o.userName || o.inmateName || 'Consumidor';
+    const cpf = sanitizarCpf(o.userCpf || o.inmateCpf || '');
+    const at = map.get(nome) || { cliente: nome, cpf, compras: 0, itens: 0, total: 0 };
+    at.compras += 1;
+    at.total += Number(o.total) || 0;
+    at.itens += (o.items || []).reduce((s, i) => s + (Number(i.quantity) || 0), 0);
+    map.set(nome, at);
+  }
+
+  const linhas = Array.from(map.values())
+    .sort((a, b) => b.total - a.total || b.compras - a.compras)
+    .map((l, i) => ({ ...l, pos: i + 1 }));
+  const totalGeral = linhas.reduce((s, l) => s + l.total, 0);
+  const totalVendas = linhas.reduce((s, l) => s + l.compras, 0);
+
+  return {
+    linhas: linhas.map(l => ({
+      ...l,
+      pct: totalGeral > 0 ? (l.total / totalGeral) * 100 : 0,
+      ticket: l.compras > 0 ? l.total / l.compras : 0,
+    })),
+    totalGeral,
+    totalVendas,
+    totalClientes: linhas.length,
+  };
+};
+
+/**
+ * 14) DESEMPENHO POR OPERADOR NO PERÍODO
+ * Quem bateu o maior faturamento (administradores/operadores do PDV):
+ * valor, nº de vendas, itens, ticket médio e % do total.
+ */
+export const buildVendasOperador = (orders: any[], startDate: string, endDate: string) => {
+  const map = new Map<string, { operador: string; vendas: number; itens: number; total: number }>();
+  for (const o of (orders || [])) {
+    if (o.deleted || !ehReceita(o.status) || !inRangeContabil(o.date || o.createdAt, startDate, endDate)) continue;
+    const nome = o.operatorName || o.operador || 'Não informado';
+    const at = map.get(nome) || { operador: nome, vendas: 0, itens: 0, total: 0 };
+    at.vendas += 1;
+    at.total += Number(o.total) || 0;
+    at.itens += (o.items || []).reduce((s, i) => s + (Number(i.quantity) || 0), 0);
+    map.set(nome, at);
+  }
+
+  const linhas = Array.from(map.values())
+    .sort((a, b) => b.total - a.total || b.vendas - a.vendas)
+    .map((l, i) => ({ ...l, pos: i + 1 }));
+  const totalGeral = linhas.reduce((s, l) => s + l.total, 0);
+  const totalVendas = linhas.reduce((s, l) => s + l.vendas, 0);
+
+  return {
+    linhas: linhas.map(l => ({
+      ...l,
+      pct: totalGeral > 0 ? (l.total / totalGeral) * 100 : 0,
+      ticket: l.vendas > 0 ? l.total / l.vendas : 0,
+    })),
+    totalGeral,
+    totalVendas,
+    totalOperadores: linhas.length,
+  };
+};

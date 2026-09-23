@@ -1,12 +1,12 @@
-import React, { useMemo } from 'react';
-import { X, Printer, FileText, TrendingUp, TrendingDown, Package, Users, Download, Calendar, BarChart3, PieChart, Activity, FileSpreadsheet, Landmark, Wallet } from 'lucide-react';
+import React, { useMemo, useEffect } from 'react';
+import { X, Printer, FileText, TrendingUp, TrendingDown, Package, Users, Download, Calendar, BarChart3, PieChart, Activity, FileSpreadsheet, Landmark, Wallet, ChevronDown } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { User } from '../../types';
 import { isAdminRole, formatarMoeda } from '../../utils';
 import { formatBRL } from '../../utils/money';
 import { toDate } from '../../utils/dateUtils';
 import { getLocalDateStr, ehReceita } from './adminUtils';
-import { buildMonthlyDre, buildSalesCsv, buildStockAbc, buildTopProducts, buildDailySales, buildSalesByCategory, buildLowStock, buildProductsCatalog, buildExtratoIndividual } from '../../context/StoreContext';
+import { buildMonthlyDre, buildSalesCsv, buildStockAbc, buildTopProducts, buildDailySales, buildSalesByCategory, buildLowStock, buildProductsCatalog, buildExtratoIndividual, buildDetalheVendas, buildRankingClientes, buildVendasOperador, buildFiadoVendas, buildContasReceberFiado, buildFiadoVencimentos } from '../../context/StoreContext';
 
 const PAYMENT_LABELS: Record<string, string> = {
     PIX: 'PIX',
@@ -14,7 +14,44 @@ const PAYMENT_LABELS: Record<string, string> = {
     CARD: 'Cartão',
     WALLET: 'Carteira',
     FIADO: 'Fiado',
+    FIADO_30: 'Fiado 30 dias',
     MIXED: 'Misto'
+};
+
+// Tipos de relatório que respeitam os filtros de refinamento (forma de pagamento,
+// status, cliente e operador). O painel de filtros no AdminReportsTab usa a MESMA lista.
+const FILTRAVEIS = new Set([
+    'GENERAL', 'FINANCIAL', 'ACCOUNTABILITY', 'VENDAS_DIARIAS', 'COLLECTIVE_PURCHASES',
+    'SALES_BY_CATEGORY', 'DRE_MONTHLY', 'SALES_CSV', 'STOCK_ABC', 'TOP_PRODUCTS',
+    'DAILY_CLOSING', 'DETALHE_VENDAS', 'RANKING_CLIENTES', 'VENDAS_OPERADOR', 'FIADO_VENDAS'
+]);
+
+// Falha de segurança: download de CSV SEM o BOM UTF-8 abre com acentos corrompidos no
+// Excel (café vira "cafÃ©"). O prefixo \ufeff força o Excel a interpretar UTF-8.
+const baixarArquivoCsv = (base: string, cabecalhos: string[], linhas: (string | number)[][]) => {
+    if (!linhas.length) return;
+    const escCsv = (v: string | number) => {
+        const s = String(v ?? '');
+        return /[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const csv = [cabecalhos.join(';'), ...linhas.map(l => l.map(escCsv).join(';'))].join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${base}-${getLocalDateStr()}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+};
+
+const rotuloStatus = (status: string): string => {
+    const s = String(status || '').toUpperCase();
+    if (['PAID', 'PAGO', 'DELIVERED', 'ENTREGUE', 'PREPARING', 'SEPARACAO', 'OUT_FOR_DELIVERY', 'SAIU'].some(k => s === k || s.includes(k))) return 'Aprovado';
+    if (s.includes('CANCEL') || s.includes('REJEITAD') || s.includes('REJECTED')) return 'Cancelado';
+    if (s.includes('REFUND') || s.includes('ESTORNAD') || s.includes('DEVOLVID')) return 'Estornado';
+    return status ? status.replace(/_/g, ' ') : '—';
 };
 
 // Escapa HTML para não corromper os PDFs/saída de impressão quando o dado
@@ -100,6 +137,10 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
     const [thermalMode, setThermalMode] = React.useState(false);
     const [fontSize, setFontSize] = React.useState(14);
 
+    // Dias expandidos no Detalhamento de Vendas (resetados quando o relatório muda).
+    const [diasAbertos, setDiasAbertos] = React.useState<Record<string, boolean>>({});
+    useEffect(() => { setDiasAbertos({}); }, [config?.type, config?.startDate, config?.endDate]);
+
     // Código do relatório: gerado UMA vez por configuração (fonte estável).
     // Antes era Math.random() no próprio render — mudava a cada re-render.
     const codigoRelatorio = useMemo(
@@ -118,18 +159,47 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
     const report = useMemo(() => {
         if (!config || !orders || !expenses) return null;
 
-        const totalEntries = (orders || []).filter(o => statusReceita(o.status)).reduce((a, b) => a + (Number(b.total) || 0), 0);
-        const totalExits = (expenses || []).reduce((a, b) => a + (Number(b.amount) || 0), 0);
-        const ordersCount = (orders || []).filter(o => statusReceita(o.status)).length;
-        const newUsers = (users || []).filter((u: User) => !isAdminRole(u.role) && u.createdAt && (toDate(u.createdAt)?.getTime() || 0) >= Date.now() - 30 * 86400000).length;
-        const outOfStock = (products || []).filter((p: any) => (p.stock || 0) <= 0).length;
-        const net = totalEntries - totalExits;
-
-        // Fuso local nos dois lados: 'YYYY-MM-DD' puro era parseado como UTC meia-noite
+        // FUSO LOCAL nos DOIS lados: 'YYYY-MM-DD' puro era parseado como UTC meia-noite
         // (= 21h do dia anterior no Brasil) e esticava o início do relatório.
         const startDateStr = config?.startDate || getLocalDateStr();
         const endDateStr = config?.endDate || getLocalDateStr();
         const periodLabel = `${new Date(startDateStr + 'T00:00:00').toLocaleDateString('pt-BR')} a ${new Date(endDateStr + 'T00:00:00').toLocaleDateString('pt-BR')}`;
+
+        // FILTROS DE REFINAMENTO (painel do AdminReportsTab): forma de pagamento,
+        // status (pagos/cancelados), cliente (nome/interno/CPF) e operador.
+        // Aplicados de forma centralizada sobre o lote de pedidos — todos os builders
+        // abaixo recebem a MESMA base já filtrada (fonte única de verdade dos totais).
+        const usaFiltros = FILTRAVEIS.has(config?.type);
+        const paymentFilter = String(config?.paymentFilter || 'TODAS').toUpperCase();
+        const statusFilter = String(config?.statusFilter || 'TODOS').toUpperCase();
+        const clienteFilter = String(config?.clienteFilter || '').trim().toLowerCase();
+        const operadorFilter = String(config?.operadorFilter || '').trim().toLowerCase();
+        const ordens = (orders || []).filter(o => {
+            if (!usaFiltros) return true;
+            if (paymentFilter !== 'TODAS') {
+                const pm = String(o.paymentMethod || '').toUpperCase();
+                const temForma = pm === paymentFilter || (Array.isArray(o.payments) && o.payments.some((p: any) => String(p.method || '').toUpperCase() === paymentFilter));
+                if (!temForma) return false;
+            }
+            if (statusFilter === 'PAGOS' && !statusReceita(o.status)) return false;
+            if (statusFilter === 'CANCELADOS' && statusReceita(o.status)) return false;
+            if (clienteFilter) {
+                const c = `${o.userName || ''} ${o.inmateName || ''} ${o.userCpf || ''} ${o.inmateCpf || ''}`.toLowerCase();
+                if (!c.includes(clienteFilter)) return false;
+            }
+            if (operadorFilter) {
+                const op = `${o.operatorName || ''} ${o.operador || ''}`.toLowerCase();
+                if (!op.includes(operadorFilter)) return false;
+            }
+            return true;
+        });
+
+        const totalEntries = ordens.filter(o => statusReceita(o.status)).reduce((a, b) => a + (Number(b.total) || 0), 0);
+        const totalExits = (expenses || []).reduce((a, b) => a + (Number(b.amount) || 0), 0);
+        const ordersCount = ordens.filter(o => statusReceita(o.status)).length;
+        const newUsers = (users || []).filter((u: User) => !isAdminRole(u.role) && u.createdAt && (toDate(u.createdAt)?.getTime() || 0) >= Date.now() - 30 * 86400000).length;
+        const outOfStock = (products || []).filter((p: any) => (p.stock || 0) <= 0).length;
+        const net = totalEntries - totalExits;
 
         let items: any[] = [];
         if (config?.type === 'FINANCIAL' || config?.type === 'GENERAL' || config?.type === 'ACCOUNTABILITY') {
@@ -144,7 +214,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                 person: e.recipientName || ''
             }));
 
-            const filteredOrders = (orders || []).filter(o => {
+            const filteredOrders = ordens.filter(o => {
                 const d = toDate(o.date);
                 // Fuso local nos DOIS lados (mesma correção das despesas acima):
                 // 'YYYY-MM-DD' puro era parseado como UTC meia-noite (= 21h do dia
@@ -176,35 +246,41 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
             'STOCK_ABC': 'Curva ABC de Estoque',
             'TOP_PRODUCTS': 'TOP Produtos (Mais Vendidos)',
             'DAILY_CLOSING': 'Fechamento do Dia (Conferência de Caixa)',
-            'VENDAS_DIARIAS': 'Vendas Diárias Detalhado'
+            'VENDAS_DIARIAS': 'Vendas Diárias Detalhado',
+            'DETALHE_VENDAS': 'Vendas do Dia (Quem / O quê / Valor)',
+            'RANKING_CLIENTES': 'Ranking de Clientes do Período',
+            'VENDAS_OPERADOR': 'Desempenho por Operador',
+            'FIADO_VENDAS': 'Vendas Fiadas do Período',
+            'FIADO_CONTAS': 'Contas a Receber (Fiado)',
+            'FIADO_VENCIMENTOS': 'Vencimentos do Fiado'
         };
 
         const dailyClosing = config?.type === 'DAILY_CLOSING'
-            ? buildDailyClosing(orders, expenses, transactions, startDateStr, endDateStr)
+            ? buildDailyClosing(ordens, expenses, transactions, startDateStr, endDateStr)
             : null;
 
         const dre = config?.type === 'DRE_MONTHLY'
-            ? buildMonthlyDre(orders, expenses, products, startDateStr, endDateStr)
+            ? buildMonthlyDre(ordens, expenses, products, startDateStr, endDateStr)
             : null;
 
         const salesCsv = config?.type === 'SALES_CSV'
-            ? buildSalesCsv(orders, users, startDateStr, endDateStr)
+            ? buildSalesCsv(ordens, users, startDateStr, endDateStr)
             : null;
 
         const stockAbc = config?.type === 'STOCK_ABC'
-            ? buildStockAbc(products, orders, startDateStr, endDateStr)
+            ? buildStockAbc(products, ordens, startDateStr, endDateStr)
             : null;
 
         const topProducts = config?.type === 'TOP_PRODUCTS'
-            ? buildTopProducts(products, orders, startDateStr, endDateStr)
+            ? buildTopProducts(products, ordens, startDateStr, endDateStr)
             : null;
 
         const dailySales = config?.type === 'VENDAS_DIARIAS'
-            ? buildDailySales(orders, startDateStr, endDateStr)
+            ? buildDailySales(ordens, startDateStr, endDateStr)
             : null;
 
         const salesByCategory = config?.type === 'SALES_BY_CATEGORY'
-            ? buildSalesByCategory(orders, products, startDateStr, endDateStr)
+            ? buildSalesByCategory(ordens, products, startDateStr, endDateStr)
             : null;
 
         const lowStock = config?.type === 'STOCK_LOW'
@@ -216,12 +292,36 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
             : null;
 
         const extrato = config?.type === 'INDIVIDUAL'
-            ? buildExtratoIndividual(selectedUser, orders, transactions, startDateStr, endDateStr)
+            ? buildExtratoIndividual(selectedUser, ordens, transactions, startDateStr, endDateStr)
             : null;
 
         // COMPRAS COLETIVAS === Vendas Diárias consolidadas (pedidos agrupados por dia)
         const collective = config?.type === 'COLLECTIVE_PURCHASES'
-            ? buildDailySales(orders, startDateStr, endDateStr)
+            ? buildDailySales(ordens, startDateStr, endDateStr)
+            : null;
+
+        const detalheVendas = config?.type === 'DETALHE_VENDAS'
+            ? buildDetalheVendas(ordens, startDateStr, endDateStr)
+            : null;
+
+        const rankingClientes = config?.type === 'RANKING_CLIENTES'
+            ? buildRankingClientes(ordens, startDateStr, endDateStr)
+            : null;
+
+        const vendasOperador = config?.type === 'VENDAS_OPERADOR'
+            ? buildVendasOperador(ordens, startDateStr, endDateStr)
+            : null;
+
+        const fiadoVendas = config?.type === 'FIADO_VENDAS'
+            ? buildFiadoVendas(ordens, startDateStr, endDateStr)
+            : null;
+
+        const fiadoContas = config?.type === 'FIADO_CONTAS'
+            ? buildContasReceberFiado(users)
+            : null;
+
+        const fiadoVencimentos = config?.type === 'FIADO_VENCIMENTOS'
+            ? buildFiadoVencimentos(users)
             : null;
 
         return {
@@ -239,6 +339,12 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
             productsCatalog,
             extrato,
             collective,
+            detalheVendas,
+            rankingClientes,
+            vendasOperador,
+            fiadoVendas,
+            fiadoContas,
+            fiadoVencimentos,
             summary: {
                 totalSales: totalEntries,
                 totalExpenses: totalExits,
@@ -1063,6 +1169,415 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
         );
     };
 
+    const renderDetalheVendas = () => {
+        const d = report.detalheVendas;
+        if (!d) return null;
+        const fmt = formatBRL;
+        const formas = d.porForma || [];
+        const toggleDia = (data: string) => setDiasAbertos(prev => ({ ...prev, [data]: !prev[data] }));
+
+        const exportCsvDetalhe = () => {
+            const linhas: (string | number)[][] = [];
+            d.dias.forEach((dia: any) => {
+                dia.vendasDetalhe.forEach((v: any) => {
+                    linhas.push([
+                        dia.data,
+                        v.hora,
+                        v.cupom,
+                        v.cliente,
+                        v.interno,
+                        v.cpf,
+                        v.operador,
+                        v.formas.map((f: string) => PAYMENT_LABELS[f] || f).join(' / '),
+                        rotuloStatus(v.status),
+                        v.items.map((i: any) => `${i.qtd}x ${i.nome}`).join(' | '),
+                        v.total.toFixed(2).replace('.', ',')
+                    ]);
+                });
+            });
+            baixarArquivoCsv('detalhamento-vendas', ['DATA', 'HORA', 'CUPOM', 'CLIENTE', 'INTERNO', 'CPF', 'OPERADOR', 'PAGAMENTO', 'STATUS', 'ITENS', 'VALOR'], linhas);
+        };
+
+        return (
+            <div className="space-y-6 animate-fadeIn">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex flex-wrap gap-2">
+                        {formas.map((f: any) => (
+                            <span key={f.metodo} className="px-3 py-1.5 rounded-xl bg-emerald-600/10 border border-emerald-600/20 text-[9px] font-black uppercase tracking-widest text-emerald-600">
+                                {PAYMENT_LABELS[f.metodo] || f.metodo}: <b>{fmt(f.valor)}</b> · {f.count} op.
+                            </span>
+                        ))}
+                    </div>
+                    <button onClick={exportCsvDetalhe} disabled={!d.totalVendas} className="px-4 py-2.5 bg-emerald-600 text-white rounded-2xl font-black text-[9px] uppercase tracking-widest hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-lg disabled:opacity-30 disabled:cursor-not-allowed">
+                        <Download size={14}/> BAIXAR CSV (TODAS AS VENDAS)
+                    </button>
+                </div>
+
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
+                        <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Vendas no Período</p>
+                        <p className="text-xl font-black text-[var(--text-main)]">{d.totalVendas}</p>
+                    </div>
+                    <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
+                        <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Faturamento Total</p>
+                        <p className="text-xl font-black text-emerald-600">{fmt(d.totalGeral)}</p>
+                    </div>
+                    <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
+                        <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Itens Vendidos</p>
+                        <p className="text-xl font-black text-indigo-600">{d.totalItens}</p>
+                    </div>
+                    <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
+                        <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Ticket Médio</p>
+                        <p className="text-xl font-black text-[var(--text-main)]">{fmt(d.ticketMedio)}</p>
+                    </div>
+                </div>
+
+                <div className="space-y-3">
+                    {d.dias.length === 0 && (
+                        <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[2rem] p-12 text-center font-black uppercase text-xs opacity-30">
+                            Nenhuma venda neste período.
+                        </div>
+                    )}
+                    {d.dias.map((dia: any, idx: number) => {
+                        const aberto = diasAbertos[dia.data] !== undefined ? diasAbertos[dia.data] : idx === 0;
+                        return (
+                            <div key={dia.data} className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[2rem] overflow-hidden shadow-sm">
+                                <button onClick={() => toggleDia(dia.data)} className="w-full flex items-center gap-4 p-5 hover:bg-[var(--bg-main)]/40 transition-all text-left">
+                                    <ChevronDown size={20} className={`text-emerald-600 transition-transform shrink-0 ${aberto ? 'rotate-180' : ''}`}/>
+                                    <div className="flex-1 grid grid-cols-2 sm:grid-cols-5 gap-3 items-center">
+                                        <div>
+                                            <p className="text-[8px] font-black text-[var(--text-muted)] uppercase tracking-widest">Data</p>
+                                            <p className="text-xs font-black text-[var(--text-main)]">{dia.data}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[8px] font-black text-[var(--text-muted)] uppercase tracking-widest">Vendas</p>
+                                            <p className="text-xs font-black text-[var(--text-main)]">{dia.vendas}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[8px] font-black text-[var(--text-muted)] uppercase tracking-widest">Itens</p>
+                                            <p className="text-xs font-black text-indigo-600">{dia.itens}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[8px] font-black text-[var(--text-muted)] uppercase tracking-widest">Faturamento</p>
+                                            <p className="text-xs font-black text-emerald-600">{fmt(dia.total)}</p>
+                                        </div>
+                                        <div className="hidden sm:block text-right">
+                                            <p className="text-[8px] font-black text-[var(--text-muted)] uppercase tracking-widest">Cupons</p>
+                                            <p className="text-xs font-black text-[var(--text-muted)]">{aberto ? '—' : `${dia.vendasDetalhe.length} detalhada(s)`}</p>
+                                        </div>
+                                    </div>
+                                </button>
+                                {aberto && (
+                                    <div className="border-t border-[var(--border-color)] overflow-x-auto">
+                                        <table className="w-full text-left min-w-[820px]">
+                                            <thead className="bg-[var(--text-main)] text-[var(--bg-card)] font-black uppercase text-[9px] tracking-widest sticky top-0 z-10">
+                                                <tr>
+                                                    <th className="p-3">Hora</th>
+                                                    <th className="p-3">Cupom</th>
+                                                    <th className="p-3">Quem Comprou</th>
+                                                    <th className="p-3">Itens (o quê)</th>
+                                                    <th className="p-3">Pagamento</th>
+                                                    <th className="p-3">Operador</th>
+                                                    <th className="p-3 text-right">Valor</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-[var(--border-color)] bg-[var(--bg-card)]">
+                                                {dia.vendasDetalhe.map((v: any) => (
+                                                    <tr key={v.id} className="hover:bg-[var(--bg-main)]/30 transition-all align-top">
+                                                        <td className="p-3 whitespace-nowrap text-[10px] font-black font-mono text-[var(--text-muted)]">{v.hora}</td>
+                                                        <td className="p-3 whitespace-nowrap text-[10px] font-black font-mono text-[var(--text-muted)]">{v.cupom}</td>
+                                                        <td className="p-3 text-[11px]">
+                                                            <span className="font-black text-[var(--text-main)] uppercase">{v.cliente}</span>
+                                                            {v.interno && <span className="block font-bold text-[var(--text-muted)]">{v.interno}</span>}
+                                                            {v.cpf && <span className="block text-[9px] font-mono text-[var(--text-muted)] opacity-70">CPF {v.cpf}</span>}
+                                                        </td>
+                                                        <td className="p-3">
+                                                            {v.items.map((i: any, j: number) => (
+                                                                <div key={j} className="text-[11px] font-bold text-[var(--text-main)] whitespace-nowrap">
+                                                                    <span className="text-emerald-600 font-black">{i.qtd}x</span> {i.nome}
+                                                                    <span className="text-[var(--text-muted)]"> = {fmt(i.sub)}</span>
+                                                                </div>
+                                                            ))}
+                                                        </td>
+                                                        <td className="p-3 text-[10px] font-black uppercase text-[var(--text-muted)]">{v.formas.map((f: string) => PAYMENT_LABELS[f] || f).join(' / ')}</td>
+                                                        <td className="p-3 text-[10px] font-black uppercase text-[var(--text-muted)]">{v.operador}</td>
+                                                        <td className="p-3 text-right text-[11px] font-black text-emerald-600 whitespace-nowrap">{fmt(v.total)}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                            <tfoot>
+                                                <tr className="bg-[var(--bg-main)]/40 border-t-2 border-[var(--border-color)]">
+                                                    <td colSpan={6} className="p-3 text-right font-black text-[10px] uppercase tracking-widest text-[var(--text-main)]">Total do dia ({dia.vendas} vendas)</td>
+                                                    <td className="p-3 text-right font-black text-[11px] text-emerald-600">{fmt(dia.total)}</td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        );
+    };
+
+    const renderRankingClientes = () => {
+        const r = report.rankingClientes;
+        if (!r) return null;
+        const fmt = formatBRL;
+        const exportCsvRanking = () => {
+            const linhas: (string | number)[][] = r.linhas.map((l: any) => [
+                l.pos, l.cliente, l.cpf, l.compras, l.itens, l.total.toFixed(2).replace('.', ','), l.ticket.toFixed(2).replace('.', ','), `${l.pct.toFixed(1)}%`
+            ]);
+            baixarArquivoCsv('ranking-clientes', ['POS', 'CLIENTE', 'CPF', 'COMPRAS', 'ITENS', 'FATURAMENTO', 'TICKET', '%'], linhas);
+        };
+        return (
+            <div className="space-y-6 animate-fadeIn">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 flex-1">
+                        <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
+                            <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Clientes Atendidos</p>
+                            <p className="text-xl font-black text-[var(--text-main)]">{r.totalClientes}</p>
+                        </div>
+                        <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
+                            <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Compras</p>
+                            <p className="text-xl font-black text-indigo-600">{r.totalVendas}</p>
+                        </div>
+                        <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
+                            <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Faturamento</p>
+                            <p className="text-xl font-black text-emerald-600">{fmt(r.totalGeral)}</p>
+                        </div>
+                    </div>
+                    <button onClick={exportCsvRanking} disabled={!r.totalClientes} className="px-4 py-2.5 bg-emerald-600 text-white rounded-2xl font-black text-[9px] uppercase tracking-widest hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-lg disabled:opacity-30 disabled:cursor-not-allowed">
+                        <Download size={14}/> CSV
+                    </button>
+                </div>
+                {renderTabelaPadrao(
+                    'Quem Mais Compra',
+                    ['#', 'Cliente', 'CPF', 'Compras', 'Itens', 'Faturamento', 'Ticket Médio', '% do Total'],
+                    ['left', 'left', 'left', 'right', 'right', 'right', 'right', 'right'],
+                    r.linhas.map((l: any) => [
+                        { texto: `#${l.pos}`, classe: 'text-amber-600' },
+                        l.cliente,
+                        { texto: l.cpf || '—', classe: 'text-[var(--text-muted)]' },
+                        String(l.compras),
+                        String(l.itens),
+                        { texto: fmt(l.total), classe: 'text-emerald-600' },
+                        fmt(l.ticket),
+                        { texto: `${l.pct.toFixed(1)}%`, classe: 'text-[var(--text-muted)]' }
+                    ]),
+                    ['TOTAL', String(r.totalClientes) + ' cliente(s)', '', String(r.totalVendas), '', fmt(r.totalGeral), '', '100%'],
+                    'Nenhuma venda neste período.'
+                )}
+            </div>
+        );
+    };
+
+    const renderVendasOperador = () => {
+        const o = report.vendasOperador;
+        if (!o) return null;
+        const fmt = formatBRL;
+        const exportCsvOperador = () => {
+            const linhas: (string | number)[][] = o.linhas.map((l: any) => [
+                l.pos, l.operador, l.vendas, l.itens, l.total.toFixed(2).replace('.', ','), l.ticket.toFixed(2).replace('.', ','), `${l.pct.toFixed(1)}%`
+            ]);
+            baixarArquivoCsv('desempenho-operadores', ['POS', 'OPERADOR', 'VENDAS', 'ITENS', 'FATURAMENTO', 'TICKET', '%'], linhas);
+        };
+        return (
+            <div className="space-y-6 animate-fadeIn">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 flex-1">
+                        <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
+                            <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Operadores</p>
+                            <p className="text-xl font-black text-[var(--text-main)]">{o.totalOperadores}</p>
+                        </div>
+                        <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
+                            <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Vendas</p>
+                            <p className="text-xl font-black text-indigo-600">{o.totalVendas}</p>
+                        </div>
+                        <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
+                            <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Faturamento</p>
+                            <p className="text-xl font-black text-emerald-600">{fmt(o.totalGeral)}</p>
+                        </div>
+                    </div>
+                    <button onClick={exportCsvOperador} disabled={!o.totalOperadores} className="px-4 py-2.5 bg-emerald-600 text-white rounded-2xl font-black text-[9px] uppercase tracking-widest hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-lg disabled:opacity-30 disabled:cursor-not-allowed">
+                        <Download size={14}/> CSV
+                    </button>
+                </div>
+                {renderTabelaPadrao(
+                    'Desempenho por Operador',
+                    ['#', 'Operador', 'Vendas', 'Itens', 'Faturamento', '% do Total'],
+                    ['left', 'left', 'right', 'right', 'right', 'right'],
+                    o.linhas.map((l: any) => [
+                        { texto: `#${l.pos}`, classe: 'text-amber-600' },
+                        l.operador,
+                        String(l.vendas),
+                        String(l.itens),
+                        { texto: fmt(l.total), classe: 'text-emerald-600' },
+                        { texto: `${l.pct.toFixed(1)}%`, classe: 'text-[var(--text-muted)]' }
+                    ]),
+                    ['TOTAL', String(o.totalOperadores) + ' operador(es)', String(o.totalVendas), '', fmt(o.totalGeral), '100%'],
+                    'Nenhuma venda neste período.'
+                )}
+            </div>
+        );
+    };
+
+    const renderFiadoVendas = () => {
+        const f = report.fiadoVendas;
+        if (!f) return null;
+        const fmt = formatBRL;
+        const exportCsvFiado = () => {
+            const linhas: (string | number)[][] = f.vendas.map((v: any) => [
+                v.data, v.cliente, v.cpf, v.forma, rotuloStatus(v.status), v.items.map((i: any) => `${i.qtd}x ${i.nome}`).join(' | '), v.total.toFixed(2).replace('.', ',')
+            ]);
+            baixarArquivoCsv('vendas-fiadas', ['DATA', 'CLIENTE', 'CPF', 'FORMA', 'STATUS', 'ITENS', 'VALOR'], linhas);
+        };
+        return (
+            <div className="space-y-6 animate-fadeIn">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="grid grid-cols-2 gap-4 flex-1">
+                        <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
+                            <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Vendas Fiadas</p>
+                            <p className="text-xl font-black text-amber-600">{f.count}</p>
+                        </div>
+                        <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
+                            <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Total Fiado</p>
+                            <p className="text-xl font-black text-emerald-600">{fmt(f.total)}</p>
+                        </div>
+                    </div>
+                    <button onClick={exportCsvFiado} disabled={!f.count} className="px-4 py-2.5 bg-emerald-600 text-white rounded-2xl font-black text-[9px] uppercase tracking-widest hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-lg disabled:opacity-30 disabled:cursor-not-allowed">
+                        <Download size={14}/> CSV
+                    </button>
+                </div>
+                {renderTabelaPadrao(
+                    'Vendas no Fiado (Período)',
+                    ['Data', 'Cliente', 'CPF', 'Forma', 'Status', 'Itens', 'Valor'],
+                    ['left', 'left', 'left', 'left', 'left', 'left', 'right'],
+                    f.vendas.map((v: any) => [
+                        v.data,
+                        v.cliente,
+                        { texto: v.cpf || '—', classe: 'text-[var(--text-muted)]' },
+                        v.forma,
+                        { texto: rotuloStatus(v.status), classe: v.status ? (ehReceita(v.status) ? 'text-emerald-600' : 'text-red-500') : 'text-[var(--text-muted)]' },
+                        v.items.map((i: any) => `${i.qtd}x ${i.nome}`).join(', '),
+                        { texto: fmt(v.total), classe: 'text-amber-600' }
+                    ]),
+                    ['TOTAL', '', '', '', '', String(f.count) + ' venda(s)', fmt(f.total)],
+                    'Nenhuma venda fiada neste período.'
+                )}
+            </div>
+        );
+    };
+
+    const renderFiadoContas = () => {
+        const c = report.fiadoContas;
+        if (!c) return null;
+        const fmt = formatBRL;
+        const rotuloEstado = (st: string) => {
+            const map: Record<string, string> = {
+                vencido: 'VENCIDO',
+                vence_hoje: 'VENCE HOJE',
+                a_vencer: 'A VENCER',
+                sem_vencimento: 'SEM VENCIMENTO'
+            };
+            return map[st] || st;
+        };
+        const corEstado = (st: string) => st === 'vencido' ? 'text-red-500' : st === 'vence_hoje' ? 'text-amber-600' : st === 'a_vencer' ? 'text-blue-500' : 'text-[var(--text-muted)]';
+        const resumo: any = c.resumo || {};
+        return (
+            <div className="space-y-6 animate-fadeIn">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
+                        <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Clientes Devedores</p>
+                        <p className="text-xl font-black text-[var(--text-main)]">{resumo.totalClientes || 0}</p>
+                    </div>
+                    <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
+                        <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Dívida Total</p>
+                        <p className="text-xl font-black text-amber-600">{fmt(resumo.totalDivida || 0)}</p>
+                    </div>
+                    <div className="bg-red-500/5 p-5 rounded-2xl border border-red-500/20">
+                        <p className="text-[9px] font-black uppercase text-red-500 tracking-widest mb-1">Vencidos</p>
+                        <p className="text-xl font-black text-red-500">{resumo.vencidos || 0}</p>
+                    </div>
+                    <div className="bg-[var(--bg-main)]/50 p-5 rounded-2xl border border-[var(--border-color)]">
+                        <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Vencem Hoje</p>
+                        <p className="text-xl font-black text-amber-600">{resumo.vencemHoje || 0}</p>
+                    </div>
+                </div>
+                {renderTabelaPadrao(
+                    'Contas a Receber (Fiado)',
+                    ['Cliente', 'CPF', 'Dívida', 'Limite', 'Disponível', 'Usado', 'Início', 'Vencimento', 'Status'],
+                    ['left', 'left', 'right', 'right', 'right', 'right', 'left', 'left', 'left'],
+                    c.contas.map((conta: any) => [
+                        conta.nome,
+                        { texto: conta.cpf || '—', classe: 'text-[var(--text-muted)]' },
+                        { texto: fmt(conta.divida), classe: 'text-amber-600' },
+                        fmt(conta.limite),
+                        fmt(conta.disponivel),
+                        `${conta.pctLimite}%`,
+                        conta.debtStartedAt,
+                        conta.debtDueAt,
+                        { texto: rotuloEstado(conta.status) + (conta.diasAtraso > 0 && conta.status === 'vencido' ? ` (${conta.diasAtraso}d)` : ''), classe: corEstado(conta.status) }
+                    ]),
+                    ['TOTAL', '', fmt(resumo.totalDivida || 0), fmt(resumo.totalLimite || 0), fmt(resumo.totalDisponivel || 0), '', '', '', String(c.contas.length) + ' conta(s)'],
+                    'Nenhum débito de fiado em aberto.'
+                )}
+            </div>
+        );
+    };
+
+    const renderFiadoVencimentos = () => {
+        const v = report.fiadoVencimentos;
+        if (!v) return null;
+        const fmt = formatBRL;
+        const corFaixa = (color: string) => color === 'red' ? 'text-red-500' : color === 'amber' ? 'text-amber-600' : color === 'blue' ? 'text-blue-500' : 'text-emerald-600';
+        if (!v.faixas.some((f: any) => f.count > 0)) {
+            return (
+                <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[2rem] p-12 text-center font-black uppercase text-xs opacity-30">
+                    Nenhum fiado em aberto no momento.
+                </div>
+            );
+        }
+        return (
+            <div className="space-y-6 animate-fadeIn">
+                <div className="space-y-4">
+                    {v.faixas.filter((f: any) => f.count > 0).map((faixa: any) => (
+                        <div key={faixa.faixa} className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[2rem] overflow-hidden shadow-sm">
+                            <div className={`p-5 flex items-center justify-between border-b border-[var(--border-color)] bg-[var(--bg-main)]/30`}>
+                                <p className={`text-[10px] font-black uppercase tracking-widest ${corFaixa(faixa.color)}`}>{faixa.faixa}</p>
+                                <p className="text-[10px] font-black text-[var(--text-muted)]">{faixa.count} cliente(s) · <span className="text-amber-600">{fmt(faixa.totalDivida)}</span></p>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left min-w-[520px]">
+                                    <thead className="bg-[var(--text-main)] text-[var(--bg-card)] font-black uppercase text-[9px] tracking-widest">
+                                        <tr>
+                                            <th className="p-3">Cliente</th>
+                                            <th className="p-3 text-right">Dívida</th>
+                                            <th className="p-3">Vencimento</th>
+                                            <th className="p-3 text-right">Dias</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-[var(--border-color)] bg-[var(--bg-card)]">
+                                        {faixa.itens.map((i: any) => (
+                                            <tr key={i.usuarioId} className="hover:bg-[var(--bg-main)]/30 transition-all">
+                                                <td className="p-3 text-[11px] font-black text-[var(--text-main)] uppercase">{i.nome}</td>
+                                                <td className="p-3 text-right text-[11px] font-black text-amber-600">{fmt(i.divida)}</td>
+                                                <td className="p-3 text-[10px] font-black text-[var(--text-muted)]">{i.debtDueAt}</td>
+                                                <td className="p-3 text-right text-[10px] font-black text-[var(--text-muted)]">{i.diasAtraso} dia(s)</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    };
+
     const renderSalesByCategory = () => {
         const c = report.salesByCategory;
         if (!c) return null;
@@ -1300,6 +1815,59 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
             cabecalhoRow = '<th>Data</th><th style="text-align:center;">Cupom</th><th style="text-align:center;">CPF</th><th>Pagamento</th><th style="text-align:right;">Alíq.</th><th style="text-align:right;">Imposto</th><th style="text-align:right;">Valor</th>';
             linhas = csv.linhas.map((l: any) => `<tr><td>${esc(l.DATA)}</td><td style="text-align:center;">${esc(l.NUMERO_CUPOM)}</td><td style="text-align:center;">${esc(l.CPF_CLIENTE)}</td><td>${esc(l.FORMA_PAGAMENTO)}</td><td style="text-align:right;">${l['ALIQUOTA_ESTIMADA(%)']}%</td><td style="text-align:right;font-weight:700;color:#d97706;">R$ ${l.IMPOSTO_ESTIMADO}</td><td style="text-align:right;font-weight:700;">R$ ${l.VALOR_TOTAL}</td></tr>`);
             rodapeHtml = `<tr><td style="font-weight:800;">TOTAL (${csv.linhas.length} vendas)</td><td></td><td></td><td></td><td></td><td style="text-align:right;font-weight:800;color:#d97706;">R$ ${csv.totalImpostos.toFixed(2)}</td><td style="text-align:right;font-weight:800;color:#059669;">R$ ${csv.totalVendas.toFixed(2)}</td></tr>`;
+        } else if (report.type === 'DETALHE_VENDAS') {
+            const d = report.detalheVendas;
+            if (!d) return;
+            titulo = 'Detalhamento de Vendas (Quem / O quê / Valor)';
+            cabecalhoRow = '<th style="text-align:center;">Data</th><th style="text-align:center;">Hora</th><th>Cupom</th><th>Cliente</th><th>Itens</th><th>Pagamento</th><th style="text-align:center;">Operador</th><th style="text-align:right;">Valor</th>';
+            linhas = [];
+            d.dias.forEach((dia: any) => {
+                linhas.push(`<tr style="background:#f1f5f9;"><td style="font-weight:800;color:#059669;">${esc(dia.data)}</td><td colspan="7" style="font-weight:800;">${dia.vendas} venda(s) · ${dia.itens} iten(s) · <span style="color:#059669;">R$ ${dia.total.toFixed(2)}</span></td></tr>`);
+                dia.vendasDetalhe.forEach((v: any) => {
+                    linhas.push(`<tr><td></td><td style="text-align:center;color:#64748b;font-family:monospace;">${esc(v.hora)}</td><td style="font-family:monospace;color:#64748b;font-size:10px;">${esc(v.cupom)}</td><td style="font-weight:700;">${esc(v.cliente)}${v.interno ? '<br/><span style="font-weight:500;color:#64748b;font-size:10px;">' + esc(v.interno) + '</span>' : ''}${v.cpf ? '<br/><span style="color:#94a3b8;font-size:10px;">CPF ' + esc(v.cpf) + '</span>' : ''}</td><td>${v.items.map((i: any) => `${i.qtd}x ${esc(i.nome)} <span style="color:#64748b;">R$ ${i.sub.toFixed(2)}</span>`).join('<br/>')}</td><td>${v.formas.map((f: string) => PAYMENT_LABELS[f] || f).join(' / ')}</td><td style="text-align:center;">${esc(v.operador)}</td><td style="text-align:right;font-weight:700;color:#059669;">R$ ${v.total.toFixed(2)}</td></tr>`);
+                });
+            });
+            rodapeHtml = `<tr><td colspan="7" style="text-align:right;font-weight:800;">TOTAL (${d.totalVendas} vendas)</td><td style="text-align:right;font-weight:800;color:#059669;">R$ ${d.totalGeral.toFixed(2)}</td></tr>`;
+        } else if (report.type === 'RANKING_CLIENTES') {
+            const r = report.rankingClientes;
+            if (!r) return;
+            titulo = 'Ranking de Clientes do Período';
+            cabecalhoRow = '<th style="text-align:center;">#</th><th>Cliente</th><th>CPF</th><th style="text-align:center;">Compras</th><th style="text-align:center;">Itens</th><th style="text-align:right;">Faturamento</th><th style="text-align:right;">Ticket</th><th style="text-align:right;">%</th>';
+            linhas = r.linhas.map((l: any) => `<tr><td style="text-align:center;font-weight:800;color:#d97706;">${l.pos}</td><td style="font-weight:700;">${esc(l.cliente)}</td><td style="color:#94a3b8;font-size:10px;">${esc(l.cpf) || '—'}</td><td style="text-align:center;">${l.compras}</td><td style="text-align:center;">${l.itens}</td><td style="text-align:right;font-weight:700;color:#059669;">R$ ${l.total.toFixed(2)}</td><td style="text-align:right;">R$ ${l.ticket.toFixed(2)}</td><td style="text-align:right;">${l.pct.toFixed(1)}%</td></tr>`);
+            rodapeHtml = `<tr><td></td><td style="font-weight:800;">TOTAL (${r.totalClientes} cliente(s))</td><td></td><td style="text-align:center;font-weight:800;">${r.totalVendas}</td><td></td><td style="text-align:right;font-weight:800;color:#059669;">R$ ${r.totalGeral.toFixed(2)}</td><td></td><td style="text-align:right;">100%</td></tr>`;
+        } else if (report.type === 'VENDAS_OPERADOR') {
+            const o = report.vendasOperador;
+            if (!o) return;
+            titulo = 'Desempenho por Operador';
+            cabecalhoRow = '<th style="text-align:center;">#</th><th>Operador</th><th style="text-align:center;">Vendas</th><th style="text-align:center;">Itens</th><th style="text-align:right;">Faturamento</th><th style="text-align:right;">Ticket</th><th style="text-align:right;">%</th>';
+            linhas = o.linhas.map((l: any) => `<tr><td style="text-align:center;font-weight:800;color:#d97706;">${l.pos}</td><td style="font-weight:700;">${esc(l.operador)}</td><td style="text-align:center;">${l.vendas}</td><td style="text-align:center;">${l.itens}</td><td style="text-align:right;font-weight:700;color:#059669;">R$ ${l.total.toFixed(2)}</td><td style="text-align:right;">R$ ${l.ticket.toFixed(2)}</td><td style="text-align:right;">${l.pct.toFixed(1)}%</td></tr>`);
+            rodapeHtml = `<tr><td></td><td style="font-weight:800;">TOTAL (${o.totalOperadores} operador(es))</td><td style="text-align:center;font-weight:800;">${o.totalVendas}</td><td></td><td style="text-align:right;font-weight:800;color:#059669;">R$ ${o.totalGeral.toFixed(2)}</td><td></td><td style="text-align:right;">100%</td></tr>`;
+        } else if (report.type === 'FIADO_VENDAS') {
+            const f = report.fiadoVendas;
+            if (!f) return;
+            titulo = 'Vendas Fiadas (Período)';
+            cabecalhoRow = '<th>Data</th><th>Cliente</th><th>CPF</th><th>Forma</th><th>Status</th><th>Itens</th><th style="text-align:right;">Valor</th>';
+            linhas = f.vendas.map((v: any) => `<tr><td>${esc(v.data)}</td><td style="font-weight:700;">${esc(v.cliente)}</td><td style="color:#94a3b8;font-size:10px;">${esc(v.cpf) || '—'}</td><td>${esc(v.forma)}</td><td style="color:${ehReceita(v.status) ? '#059669' : '#ef4444'};font-weight:700;">${esc(rotuloStatus(v.status))}</td><td>${v.items.map((i: any) => `${i.qtd}x ${esc(i.nome)}`).join(', ')}</td><td style="text-align:right;font-weight:700;color:#d97706;">R$ ${v.total.toFixed(2)}</td></tr>`);
+            rodapeHtml = `<tr><td colspan="6" style="text-align:right;font-weight:800;">TOTAL (${f.count} venda(s))</td><td style="text-align:right;font-weight:800;color:#d97706;">R$ ${f.total.toFixed(2)}</td></tr>`;
+        } else if (report.type === 'FIADO_CONTAS') {
+            const c = report.fiadoContas;
+            if (!c) return;
+            titulo = 'Contas a Receber (Fiado)';
+            cabecalhoRow = '<th>Cliente</th><th>CPF</th><th style="text-align:right;">Dívida</th><th style="text-align:right;">Limite</th><th style="text-align:right;">Disponível</th><th style="text-align:center;">Início</th><th style="text-align:center;">Vencimento</th><th>Status</th>';
+            linhas = c.contas.map((conta: any) => `<tr><td style="font-weight:700;">${esc(conta.nome)}</td><td style="color:#94a3b8;font-size:10px;">${esc(conta.cpf) || '—'}</td><td style="text-align:right;font-weight:700;color:#d97706;">R$ ${conta.divida.toFixed(2)}</td><td style="text-align:right;">R$ ${conta.limite.toFixed(2)}</td><td style="text-align:right;">R$ ${conta.disponivel.toFixed(2)}</td><td style="text-align:center;">${esc(conta.debtStartedAt)}</td><td style="text-align:center;">${esc(conta.debtDueAt)}</td><td style="font-weight:800;color:${conta.status === 'vencido' ? '#ef4444' : conta.status === 'vence_hoje' ? '#d97706' : '#2563eb'};">${esc(conta.status === 'vencido' ? 'VENCIDO (' + conta.diasAtraso + 'd)' : conta.status === 'vence_hoje' ? 'VENCE HOJE' : conta.status === 'a_vencer' ? 'A VENCER' : 'SEM VENCIMENTO')}</td></tr>`);
+            rodapeHtml = `<tr><td style="font-weight:800;">TOTAL (${c.resumo.totalClientes} conta(s))</td><td></td><td style="text-align:right;font-weight:800;color:#d97706;">R$ ${c.resumo.totalDivida.toFixed(2)}</td><td style="text-align:right;font-weight:800;">R$ ${c.resumo.totalLimite.toFixed(2)}</td><td style="text-align:right;font-weight:800;">R$ ${c.resumo.totalDisponivel.toFixed(2)}</td><td></td><td></td><td></td></tr>`;
+        } else if (report.type === 'FIADO_VENCIMENTOS') {
+            const v = report.fiadoVencimentos;
+            if (!v) return;
+            titulo = 'Vencimentos do Fiado';
+            cabecalhoRow = '<th>Faixa</th><th>Cliente</th><th style="text-align:right;">Dívida</th><th style="text-align:center;">Vencimento</th><th style="text-align:right;">Dias</th>';
+            linhas = [];
+            v.faixas.filter((f: any) => f.count > 0).forEach((faixa: any) => {
+                linhas.push(`<tr style="background:#f1f5f9;"><td style="font-weight:800;">${esc(faixa.faixa)} — ${faixa.count} cliente(s)</td><td></td><td style="text-align:right;font-weight:800;color:#d97706;">R$ ${faixa.totalDivida.toFixed(2)}</td><td colspan="2"></td></tr>`);
+                faixa.itens.forEach((i: any) => {
+                    linhas.push(`<tr><td></td><td style="font-weight:700;">${esc(i.nome)}</td><td style="text-align:right;color:#d97706;font-weight:700;">R$ ${i.divida.toFixed(2)}</td><td style="text-align:center;">${esc(i.debtDueAt)}</td><td style="text-align:right;">${i.diasAtraso} dia(s)</td></tr>`);
+                });
+            });
         } else if (report.type === 'GENERAL' || report.type === 'FINANCIAL' || report.type === 'ACCOUNTABILITY') {
             cabecalhoRow = '<th>Data</th><th style="text-align:center;">Tipo</th><th>Descrição</th><th style="text-align:right;">Valor</th>';
             linhas = report.items.map((i: any) => {
@@ -1437,6 +2005,12 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                         {report.type === 'STOCK_ABC' && renderStockAbc()}
                         {report.type === 'TOP_PRODUCTS' && renderTopProducts()}
                         {report.type === 'DAILY_CLOSING' && renderDailyClosing()}
+                        {report.type === 'DETALHE_VENDAS' && renderDetalheVendas()}
+                        {report.type === 'RANKING_CLIENTES' && renderRankingClientes()}
+                        {report.type === 'VENDAS_OPERADOR' && renderVendasOperador()}
+                        {report.type === 'FIADO_VENDAS' && renderFiadoVendas()}
+                        {report.type === 'FIADO_CONTAS' && renderFiadoContas()}
+                        {report.type === 'FIADO_VENCIMENTOS' && renderFiadoVencimentos()}
                     </div>
                 </div>
 
@@ -1472,7 +2046,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                                 printDailyClosing();
                                 return;
                             }
-                            if (report.type === 'VENDAS_DIARIAS' || report.type === 'COLLECTIVE_PURCHASES' || report.type === 'SALES_BY_CATEGORY' || report.type === 'STOCK_LOW' || report.type === 'PRODUCTS_ALL' || report.type === 'INDIVIDUAL' || report.type === 'DRE_MONTHLY' || report.type === 'STOCK_ABC' || report.type === 'TOP_PRODUCTS' || report.type === 'SALES_CSV' || report.type === 'GENERAL' || report.type === 'FINANCIAL' || report.type === 'ACCOUNTABILITY') {
+                            if (report.type === 'VENDAS_DIARIAS' || report.type === 'COLLECTIVE_PURCHASES' || report.type === 'SALES_BY_CATEGORY' || report.type === 'STOCK_LOW' || report.type === 'PRODUCTS_ALL' || report.type === 'INDIVIDUAL' || report.type === 'DRE_MONTHLY' || report.type === 'STOCK_ABC' || report.type === 'TOP_PRODUCTS' || report.type === 'SALES_CSV' || report.type === 'GENERAL' || report.type === 'FINANCIAL' || report.type === 'ACCOUNTABILITY' || report.type === 'DETALHE_VENDAS' || report.type === 'RANKING_CLIENTES' || report.type === 'VENDAS_OPERADOR' || report.type === 'FIADO_VENDAS' || report.type === 'FIADO_CONTAS' || report.type === 'FIADO_VENCIMENTOS') {
                                 printTabelaProfissional();
                                 return;
                             }

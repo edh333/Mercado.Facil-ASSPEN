@@ -67,7 +67,13 @@ export {
   buildSalesByCategory,
   buildLowStock,
   buildProductsCatalog,
-  buildExtratoIndividual
+  buildExtratoIndividual,
+  buildDetalheVendas,
+  buildRankingClientes,
+  buildVendasOperador,
+  buildFiadoVendas,
+  buildContasReceberFiado,
+  buildFiadoVencimentos
 } from '../utils/contabil';
 import { InvoiceData, parseInvoiceXML } from '../utils/invoiceParser';
 export type { InvoiceData } from '../utils/invoiceParser';

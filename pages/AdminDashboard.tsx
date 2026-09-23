@@ -209,7 +209,11 @@ export function AdminDashboard() {
     endDate: getLocalDateStr(),
     financeType: 'ALL',
     individualSearch: '',
-    selectedUser: null as User | null
+    selectedUser: null as User | null,
+    paymentFilter: 'TODAS',
+    statusFilter: 'TODOS',
+    clienteFilter: '',
+    operadorFilter: ''
   });
   const [reportsMode, setReportsMode] = useState<'visual' | 'formal'>('visual');
   const [showReportModal, setShowReportModal] = useState(false);
