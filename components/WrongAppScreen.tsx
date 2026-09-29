@@ -43,16 +43,29 @@ export const WrongAppScreen: React.FC<{ appAberto: 'usuario' | 'admin' }> = ({ a
           </p>
         </div>
 
+        {/* Saída para o app CORRETO: quem está no app errado não precisa se
+            perder (no iPhone/PWA instalado era beco sem saída — só logout). */}
+        <button
+          onClick={() => {
+            const modo = ehAdmin ? 'user' : 'admin';
+            window.location.href = `${window.location.pathname}?mode=${modo}`;
+          }}
+          className="mt-4 w-full py-3.5 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-600 text-white font-bold text-sm hover:from-indigo-600 hover:to-violet-700 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25"
+        >
+          {ehAdmin ? <Store size={18} /> : <ShieldCheck size={18} />}
+          {ehAdmin ? 'Abrir o App Usuário' : 'Abrir o App Admin'}
+        </button>
+
         <button
           onClick={logout}
-          className="mt-7 w-full py-3.5 rounded-2xl bg-white text-slate-900 font-bold text-sm hover:bg-emerald-50 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg"
+          className="mt-3 w-full py-3.5 rounded-2xl bg-white text-slate-900 font-bold text-sm hover:bg-emerald-50 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg"
         >
           <LogOut size={18} /> Sair e trocar de conta
         </button>
 
         {!ehAdmin && (
           <p className="mt-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-relaxed">
-            O App Admin não fica disponível nesta tela — é baixado por administradores logados.
+            O App Admin é baixado pela equipe logada no painel.
           </p>
         )}
       </div>

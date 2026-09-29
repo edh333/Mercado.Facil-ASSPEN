@@ -163,6 +163,11 @@ approvedAt?: string; // Momento em que o admin aprovou (idade do cupom/comprovan
   cardBrand?: string;
   walletBalanceBefore?: number;
   walletBalanceAfter?: number;
+  // Desconto autorizado no PDV (≤50%, validado no servidor): subtotal de
+  // catálogo, faixa em % e valor abatido — presentes só quando houver desconto.
+  subtotal?: number;
+  discountPct?: number;
+  discountValue?: number;
   jointWallet?: {
     secondUserId: string;
     secondUserName?: string;

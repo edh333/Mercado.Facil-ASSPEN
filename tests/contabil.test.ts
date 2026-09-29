@@ -223,6 +223,40 @@ describe('buildProductsCatalog', () => {
     expect(linhas[0].id).toBe('b'); // Bebidas < Carnes
     expect(linhas[0].disponivel).toBe(true);
   });
+
+  it('mapeia marca, peso, código de barras e categoria', () => {
+    const { linhas } = buildProductsCatalog([
+      produto('p1', { brand: 'Coca-Cola', weight: '2L', barcode: '789123', category: 'Bebidas' }),
+    ]);
+    expect(linhas[0].brand).toBe('Coca-Cola');
+    expect(linhas[0].weight).toBe('2L');
+    expect(linhas[0].barcode).toBe('789123');
+    expect(linhas[0].category).toBe('Bebidas');
+  });
+
+  it('aplica preço promocional quando menor que o preço', () => {
+    const { linhas } = buildProductsCatalog([
+      produto('ok', { price: 10, promoPrice: 8 }),
+      produto('maior', { price: 10, promoPrice: 15 }),
+      produto('zero', { price: 10, promoPrice: 0 }),
+    ]);
+    const porId = Object.fromEntries(linhas.map(l => [l.id, l]));
+    expect(porId.ok.precoPromocional).toBe(8);
+    expect(porId.maior.precoPromocional).toBe(0);
+    expect(porId.zero.precoPromocional).toBe(0);
+  });
+
+  it('marca indisponível e calcula total do estoque a preço de custo', () => {
+    const { linhas, totalProdutos, totalEstoque, totalValorEstoque } = buildProductsCatalog([
+      produto('off', { available: false, price: 5, stock: 3 }),
+      produto('on', { available: true, price: 2, stock: 4 }),
+    ]);
+    expect(linhas[0].disponivel).toBe(false);
+    expect(linhas[1].disponivel).toBe(true);
+    expect(totalProdutos).toBe(2);
+    expect(totalEstoque).toBe(7);
+    expect(totalValorEstoque).toBe(23);
+  });
 });
 
 describe('buildExtratoIndividual', () => {

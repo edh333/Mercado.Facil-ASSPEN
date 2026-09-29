@@ -434,6 +434,9 @@ const [recoveryName, setRecoveryName] = useState('');
                                                 <option value="Companheira">Companheira</option>
                                                 <option value="Outros">Outros</option>
                                             </SelectInput>
+                                            {regData.kinship === 'Outros' && (
+                                                <PremiumInput icon={UserCheck} label="Grau de parentesco" value={regData.kinshipOther} onChange={(e: any) => setRegData({ ...regData, kinshipOther: e.target.value })} autoComplete="off" />
+                                            )}
                                             <PremiumInput icon={Briefcase} label="Nome do Interno" value={regData.prisonerName} onChange={(e: any) => setRegData({ ...regData, prisonerName: e.target.value })} />
                                             <PremiumInput icon={UserCheck} label="CPF do Interno" value={regData.prisonerCpf} onChange={(e: any) => setRegData({ ...regData, prisonerCpf: formatCPF(e.target.value) })} inputMode="numeric" autoComplete="off" />
                                         </div>

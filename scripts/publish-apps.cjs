@@ -239,9 +239,11 @@ async function main() {
   };
 
   const uploads = [
-    { local: path.join(ROOT, 'dist-electron', acharExe('Usuario')), dest: 'apps/MercadoFacil-Usuario-Setup.exe', ct: 'application/octet-stream' },
-    { local: path.join(ROOT, 'dist-electron', acharExe('Admin')), dest: 'apps/MercadoFacil-Admin-Setup.exe', ct: 'application/octet-stream' },
-    { local: null, dest: 'apps/version.json', ct: 'application/json; charset=UTF-8', json: { version: VERSION, releasedAt: new Date().toISOString(), webUrl: WEB_URL } },
+    { local: path.join(ROOT, 'dist-electron', acharExe('Usuario')), dest: 'apps/MercadoFacil-Usuario-Setup.exe', ct: 'application/octet-stream', pubEsperado: 'publico' },
+    // admin: regra de storage.blocks leitura anônima (servido só pela Cloud
+    // Function baixarAppAdmin com token) — o HEAD público DEVE dar ≠ 200.
+    { local: path.join(ROOT, 'dist-electron', acharExe('Admin')), dest: 'apps/MercadoFacil-Admin-Setup.exe', ct: 'application/octet-stream', pubEsperado: 'privado' },
+    { local: null, dest: 'apps/version.json', ct: 'application/json; charset=UTF-8', json: { version: VERSION, releasedAt: new Date().toISOString(), webUrl: WEB_URL }, pubEsperado: 'publico' },
   ];
 
   console.log('[upload] GCS resumable (sessão do dono do projeto):');
@@ -251,15 +253,23 @@ async function main() {
     console.log(`  ${GREEN('OK')} ${u.dest} <- ${u.local ? path.basename(u.local) : 'version.json'} (${(data.length / 1024 / 1024).toFixed(1)} MB)`);
   }
 
-  console.log('\n[verificacao] integridade no GCS + link público real:');
+  console.log('\n[verificacao] integridade no GCS + leitura pública (admin: esperada BLOQUEADA):');
   let todosOk = true;
   for (const u of uploads) {
     const espera = u.local ? fs.statSync(u.local).size : null;
     const meta = await metadadosGcs(token, u.dest);
     const metaOk = meta.status === 200 && meta.name === u.dest && (espera == null || meta.size === espera);
     const pub = await tamanhoPublico(u.dest);
-    const pubOk = espera == null ? pub.status === 200 && pub.length > 0 : pub.status === 200 && pub.length === espera;
-    console.log(`  ${(metaOk && pubOk ? GREEN('OK') : RED('FALHOU'))} ${u.dest} (GCS ${meta.size ?? '?'}/${espera ?? 'manifest'}, público ${pub.length ?? '?'} bytes)`);
+    // 'privado' (exe admin): a leitura anônima DEVE falhar — a regra de
+    // Storage bloqueia e o arquivo só sai pela Cloud Function com token.
+    // HTTP 401/403 aqui é SUCESSO; 200 significa regra furada (FALHOU).
+    const pubOk = u.pubEsperado === 'privado'
+      ? pub.status !== 200
+      : (espera == null ? pub.status === 200 && pub.length > 0 : pub.status === 200 && pub.length === espera);
+    const pubInfo = u.pubEsperado === 'privado'
+      ? `privado (HTTP ${pub.status})`
+      : `público ${pub.length ?? '?'} bytes`;
+    console.log(`  ${(metaOk && pubOk ? GREEN('OK') : RED('FALHOU'))} ${u.dest} (GCS ${meta.size ?? '?'}/${espera ?? 'manifest'}, ${pubInfo})`);
     if (!metaOk || !pubOk) todosOk = false;
   }
 

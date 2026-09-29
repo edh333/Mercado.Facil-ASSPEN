@@ -8,6 +8,11 @@ import { NotaPromissoriaA4 } from '../NotaPromissoriaA4';
 import ImagePreviewModal from '../ImagePreviewModal';
 import { useApp } from '../../context/StoreContext';
 
+// Escapa valores em HTML gerado para impressão (iframe same-origin) — sem
+// isso, payerName/inmateName maliciosos executariam script no contexto do app.
+const escHtml = (v: unknown) => String(v ?? '').replace(/[&<>"']/g, (c) =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
+
 const ComprovanteImg: React.FC<{ src: string; onBlocked?: () => void }> = ({ src, onBlocked }) => {
   const [erro, setErro] = React.useState(false);
   const [previewOpen, setPreviewOpen] = React.useState(false);
@@ -181,7 +186,7 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
     const content = `
       <html>
         <head>
-          <title>Comprovante de Crédito - ${appName}</title>
+          <title>Comprovante de Crédito - ${escHtml(appName)}</title>
           <style>
             body { font-family: 'Inter', sans-serif; padding: 40px; color: #0f172a; background: #fff; }
             .header { text-align: center; border-bottom: 3px solid #0f172a; padding-bottom: 20px; margin-bottom: 30px; }
@@ -196,15 +201,15 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
         </head>
         <body>
           <div class="header">
-            <h1 style="margin:0; letter-spacing:-0.05em; text-transform: uppercase;">${appName}</h1>
+            <h1 style="margin:0; letter-spacing:-0.05em; text-transform: uppercase;">${escHtml(appName)}</h1>
             <p style="margin:5px 0 0; font-size:10px; font-weight:900; letter-spacing:0.3em; color:#64748b;">COMPROVANTE DE DEPÓSITO PIX</p>
           </div>
           <div class="content">
-            <div class="row"><span class="label">Protocolo:</span> <span class="value">#${transaction.id.toUpperCase()}</span></div>
+            <div class="row"><span class="label">Protocolo:</span> <span class="value">#${escHtml(transaction.id.toUpperCase())}</span></div>
             <div class="row"><span class="label">Data/Hora:</span> <span class="value">${new Date(transaction.createdAt || new Date().toISOString()).toLocaleString('pt-BR')}</span></div>
-            <div class="row"><span class="label">Pagador Origem:</span> <span class="value">${transaction.payerName || 'FAMILIAR / VISITANTE'}</span></div>
-            <div class="row"><span class="label">Interno Destino:</span> <span class="value">${transaction.inmateName || 'N/A'}</span></div>
-            <div class="row"><span class="label">Prontuário/CPF:</span> <span class="value">${transaction.inmateCpf || '---'}</span></div>
+            <div class="row"><span class="label">Pagador Origem:</span> <span class="value">${escHtml(transaction.payerName || 'FAMILIAR / VISITANTE')}</span></div>
+            <div class="row"><span class="label">Interno Destino:</span> <span class="value">${escHtml(transaction.inmateName || 'N/A')}</span></div>
+            <div class="row"><span class="label">Prontuário/CPF:</span> <span class="value">${escHtml(transaction.inmateCpf || '---')}</span></div>
             <div class="row" style="margin-top: 30px; border-bottom: 4px solid #059669; padding-bottom: 15px;">
                 <span class="label" style="align-self: center;">VALOR CREDITADO:</span>
                 <span class="amount">R$ ${formatarMoeda(transaction.amount)}</span>

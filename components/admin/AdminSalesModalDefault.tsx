@@ -1631,9 +1631,9 @@ export const AdminSalesModalDefault: React.FC<AdminSalesModalProps> = ({
                         <p className="font-black text-xs uppercase tracking-tight text-slate-900 truncate">{item?.name || 'Produto'}</p>
                         <div className="flex items-center gap-3 mt-1">
                           <div className="flex items-center bg-white rounded-lg p-0.5 border border-slate-200">
-                            <button onClick={() => atualizarQuantidade(item.productId, -1)} className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-red-500 cursor-pointer"><Minus size={12} strokeWidth={3} /></button>
+                            <button onClick={() => atualizarQuantidade(item.productId, -1)} className="w-9 h-9 flex items-center justify-center text-slate-500 hover:text-red-500 cursor-pointer"><Minus size={14} strokeWidth={3} /></button>
                             <span className="w-6 text-center text-xs font-black text-slate-900">{item?.quantity || 0}</span>
-                            <button onClick={() => atualizarQuantidade(item.productId, 1)} className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-emerald-600 cursor-pointer"><Plus size={12} strokeWidth={3} /></button>
+                            <button onClick={() => atualizarQuantidade(item.productId, 1)} className="w-9 h-9 flex items-center justify-center text-slate-500 hover:text-emerald-600 cursor-pointer"><Plus size={14} strokeWidth={3} /></button>
                           </div>
                           <span className="text-xs font-black text-slate-400">× R$ {formatarMoeda(item?.price || 0)}</span>
                         </div>

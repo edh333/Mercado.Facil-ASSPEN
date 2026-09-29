@@ -135,7 +135,7 @@ export const AdminCapacityPanel: React.FC = () => {
           </div>
           <div>
             <h3 className="font-black text-sm text-slate-700 uppercase tracking-wider">Capacidade de Atendimento</h3>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Pedidos por período • usuários • estimativa de uso do Firestore</p>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Pedidos por período • usuários • estimativa de uso do banco de dados</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -229,7 +229,7 @@ export const AdminCapacityPanel: React.FC = () => {
         <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
           <Activity size={16} className="text-blue-600 shrink-0 mt-0.5" />
           <p className="text-[10px] text-blue-700 font-bold leading-relaxed">
-            O sistema opera com folga confortável da cota gratuita do Firestore (50.000 leituras e 20.000 escritas/dia). Com o volume atual não há risco de travamento. Quando o uso ultrapassar 70%, o sistema alertará automaticamente e o administrador poderá limpar os dados antigos com backup de segurança.
+            O sistema opera com folga confortável para o volume atual — não há risco de travamento. Quando o uso ultrapassar 70% do limite diário (referência: 50.000 leituras e 20.000 escritas), o sistema alertará automaticamente e o administrador poderá limpar os dados antigos com backup de segurança.
           </p>
         </div>
       )}
@@ -333,7 +333,7 @@ export const AdminCapacityPanel: React.FC = () => {
                     </a>
                   ) : (
                     <p className="text-[10px] text-amber-600 font-black uppercase flex items-center gap-2">
-                      <AlertTriangle size={14} /> Backup em Storage indisponível no momento — o histórico no Firestore já preserva todos os dados.
+                      <AlertTriangle size={14} /> Backup em nuvem indisponível no momento — o histórico já preserva todos os dados.
                     </p>
                   )}
                 </>
@@ -410,7 +410,7 @@ export const AdminCapacityPanel: React.FC = () => {
               {opcoes(usersLimit, [2000, 5000, 10000]).map(v => <option key={v} value={v}>{v.toLocaleString('pt-BR')}</option>)}
             </select>
             <p className="text-[9px] text-slate-400 font-bold mt-1">Atual: {usersLimit.toLocaleString('pt-BR')}</p>
-            <p className="text-[9px] text-slate-400 font-bold">Uso atual estimado da cota diária de leituras do plano gratuito (50.000/dia): {pctLeituras}%.</p>
+            <p className="text-[9px] text-slate-400 font-bold">Uso atual estimado do limite diário de leituras (50.000/dia de referência): {pctLeituras}%.</p>
           </div>
 
           <div>

@@ -11,6 +11,8 @@ interface AppInfo {
   descricao: string;
   disponivel: boolean;
   url: string;
+  /** true = sem URL pública; o cliente pede token de uso curto por clique (admin). */
+  requerToken?: boolean;
   motivo?: string;
 }
 
@@ -63,7 +65,9 @@ export const AppDownloadModal: React.FC<{ onClose: () => void }> = ({ onClose })
   const [erro, setErro] = useState('');
   const [baixando, setBaixando] = useState('');
 
-  const ehAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'MASTER';
+  // Equipe inteira (admin + vendedor) vê/baixa o App Admin — é o único app
+  // em que vendedor/operador conseguem entrar.
+  const ehAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'VENDEDOR';
   const logado = !!currentUser;
 
   const carregar = useCallback(async () => {
@@ -90,11 +94,32 @@ export const AppDownloadModal: React.FC<{ onClose: () => void }> = ({ onClose })
     carregar();
   }, [carregar]);
 
-  const baixar = (app: AppInfo) => {
-    if (!app.url) return;
+  const baixar = async (app: AppInfo) => {
+    if (!app.url && !app.requerToken) return;
     setBaixando(app.chave);
-    window.open(app.url, '_blank', 'noopener');
-    setTimeout(() => setBaixando(''), 2000);
+    // Janela aberta SINCRONAMENTE no clique: pop-up blocker barra window.open
+    // após await. Se o mint do token falhar, a janela é fechada.
+    const win = app.requerToken ? window.open('about:blank', '_blank') : null;
+    try {
+      let url = app.url;
+      if (app.requerToken) {
+        const fn = httpsCallable(getFunctions(), 'gerarLinkDownloadAdmin');
+        const res = await fn({});
+        url = (res.data as any)?.url || '';
+        if (!url) throw new Error('Não foi possível gerar o link de download.');
+      }
+      if (win) {
+        win.location.href = url;
+      } else {
+        window.open(url, '_blank', 'noopener');
+      }
+      setErro('');
+    } catch (e: any) {
+      win?.close();
+      setErro(e?.message || 'Erro ao iniciar o download do instalador.');
+    } finally {
+      setBaixando('');
+    }
   };
 
   const CardApp = ({ app, admin }: { app: AppInfo; admin?: boolean }) => (

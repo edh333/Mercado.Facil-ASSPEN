@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Order } from '../../types';
 import { mascararCpf } from '../../utils';
+import { celulaCsv } from '../../utils/csv';
 import { toDate } from '../../utils/dateUtils';
 import { getLocalDateStr } from './adminUtils';
 import { ChartMount } from '../ui/ChartMount';
@@ -220,7 +221,7 @@ export const AdminSalesDashboard: React.FC<AdminSalesDashboardProps> = ({ orders
     const linhas = vendasPeriodo.map(o => {
       const d = toDate(o.createdAt || o.date)?.toLocaleDateString('pt-BR') || '';
       const pag = (o as any).payments?.map((p: any) => `${LABELS_PAGAMENTO[p.method] || p.method}:${Number(p.amount).toFixed(2).replace('.', ',')}`).join(' | ') || LABELS_PAGAMENTO[o.paymentMethod || ''] || o.paymentMethod || '';
-      return `"${d}";"${String(o.id || '').toUpperCase()}";"${String(o.userName || o.inmateName || '').replace(/"/g, '""')}";"${mascararCpf(o.userCpf || o.inmateCpf || '')}";"${pag}";"${Number(o.total).toFixed(2).replace('.', ',')}"`;
+      return `"${d}";"${String(o.id || '').toUpperCase()}";"${celulaCsv(String(o.userName || o.inmateName || '').replace(/"/g, '""'))}";"${mascararCpf(o.userCpf || o.inmateCpf || '')}";"${celulaCsv(pag)}";"${Number(o.total).toFixed(2).replace('.', ',')}"`;
     });
     if (linhas.length === 0) {
       showNotification?.('Nenhuma venda no período selecionado.', 'error');

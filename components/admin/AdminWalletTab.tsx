@@ -1,6 +1,7 @@
 import React from 'react';
 import { CreditCard, Search, CheckCircle, XCircle, Clock, Download, ChevronRight, Users, Wallet, TrendingDown, Printer } from 'lucide-react';
 import { formatarMoeda } from '../../utils';
+import { celulaCsv } from '../../utils/csv';
 import { getCustomerAccounts } from '../../utils/customerUtils';
 
 // Data LOCAL (fuso do dispositivo) — sem o bug de toISOString (UTC) que
@@ -116,7 +117,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
       tx.status === 'approved' ? 'Aprovado' : tx.status === 'rejected' ? 'Rejeitado' : 'Pendente'
     ]);
 
-    const csvContent = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(';')).join('\n');
+    const csvContent = [headers, ...rows].map(r => r.map(c => `"${celulaCsv(c)}"`).join(';')).join('\n');
     const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -130,8 +131,8 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
     const withCredits = (users || []).filter(u => Number(u.walletBalance || 0) > 0);
     const withDebt = fiadoAccounts.filter(a => Number(a.currentDebt || 0) > 0);
     const rows: string[] = ['TIPO;NOME;CPF;VALOR;STATUS'];
-    withCredits.forEach(u => rows.push(`CARTEIRA;"${u.name || ''}";"${u.cpf || ''}";${(Number(u.walletBalance) || 0).toFixed(2).replace('.', ',')};${u.status || ''}`));
-    withDebt.forEach(a => rows.push(`FIADO;"${a.nome || a.name || ''}";"${a.cpf || ''}";${(Number(a.currentDebt) || 0).toFixed(2).replace('.', ',')};${a.status || ''}`));
+    withCredits.forEach(u => rows.push(`CARTEIRA;"${celulaCsv(u.name || '')}";"${celulaCsv(u.cpf || '')}";${(Number(u.walletBalance) || 0).toFixed(2).replace('.', ',')};${celulaCsv(u.status || '')}`));
+    withDebt.forEach(a => rows.push(`FIADO;"${celulaCsv(a.nome || a.name || '')}";"${celulaCsv(a.cpf || '')}";${(Number(a.currentDebt) || 0).toFixed(2).replace('.', ',')};${celulaCsv(a.status || '')}`));
     const blob = new Blob(['\ufeff' + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');

@@ -8,6 +8,7 @@ import { Order, OrderStatus } from '../../types';
 import { getLocalDateStr } from './adminUtils';
 import { toDate } from '../../utils/dateUtils';
 import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
+import { celulaCsv } from '../../utils/csv';
 
 interface AdminOrdersTabProps {
   orders: Order[];
@@ -166,7 +167,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
       (o.items || []).map((i: any) => `${i.name || 'Item'} x${i.quantity || 1}`).join(' | ')
     ]);
 
-    const csvContent = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(';')).join('\n');
+    const csvContent = [headers, ...rows].map(r => r.map(c => `"${celulaCsv(c)}"`).join(';')).join('\n');
     const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');

@@ -1,5 +1,6 @@
 import { toDate } from './dateUtils';
 import { ehReceita } from '../components/admin/adminUtils';
+import { celulaCsv } from './csv';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // MÓDULO CONTÁBIL — MOTOR DE RELATÓRIOS FISCAIS (DRE / CSV / CURVA ABC)
@@ -119,7 +120,7 @@ export const buildSalesCsv = (orders: any[], users: any[], startDate: string, en
   const totalVendas = linhas.reduce((s, l) => s + (parseFloat(String(l.VALOR_TOTAL)) || 0), 0);
   const totalImpostos = linhas.reduce((s, l) => s + (parseFloat(String(l.IMPOSTO_ESTIMADO)) || 0), 0);
 
-  const linhasCSV = [cabecalho, ...linhas.map(l => cabecalho.map(c => String(l[c]).replace(/;/g, ' ')))];
+  const linhasCSV = [cabecalho, ...linhas.map(l => cabecalho.map(c => celulaCsv(String(l[c]).replace(/;/g, ' '))))];
   // BOM UTF-8 para o Excel reconhecer acentuação; separador ';' padrão pt-BR
   const csv = '\uFEFF' + linhasCSV.map(row => row.join(';')).join('\r\n');
 
@@ -353,9 +354,12 @@ export const buildProductsCatalog = (products: any[]) => {
     .map(p => ({
       id: String(p.id),
       name: p.name || 'Produto',
+      brand: String(p.brand || '').trim(),
+      weight: String(p.weight || '').trim(),
       barcode: p.barcode || '',
       category: p.category || 'Geral',
       preco: Number(p.price) || 0,
+      precoPromocional: Number(p.promoPrice) > 0 && Number(p.promoPrice) < Number(p.price) ? Number(p.promoPrice) : 0,
       custo: Number(p.costPrice) || 0,
       estoque: Math.max(0, Number(p.stock) || 0),
       disponivel: p.available !== false

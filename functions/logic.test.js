@@ -16,6 +16,10 @@ import {
   caminhoStorageDeUrl,
   calcularSplitVenda,
   calcularEstornoCarteira,
+  formatoTokenDownloadValido,
+  motivoTokenDownloadInvalido,
+  TOKEN_DOWNLOAD_TTL_MINUTOS,
+  TOKEN_DOWNLOAD_MAX_USOS,
 } from "./logic.js";
 
 describe("arredondar (centavos)", () => {
@@ -412,5 +416,80 @@ describe("calcularEstornoCarteira (estorno ciente do split)", () => {
     const r = calcularEstornoCarteira(pedido);
     expect(r.walletPortionTotal).toBe(33);
     expect(r.segundaParcela).toBe(0);
+  });
+});
+
+// ─── Download do app admin: token de uso curto ───
+
+describe("formatoTokenDownloadValido", () => {
+  const hex64 = "a".repeat(64);
+  const hex64Real = "0123456789abcdef".repeat(4);
+
+  it("aceita exatamente 64 chars hex minusculos", () => {
+    expect(formatoTokenDownloadValido(hex64)).toBe(true);
+    expect(formatoTokenDownloadValido(hex64Real)).toBe(true);
+  });
+
+  it("rejeita tamanhos errados, maiusculas e nao-hex", () => {
+    expect(formatoTokenDownloadValido("a".repeat(63))).toBe(false);
+    expect(formatoTokenDownloadValido("a".repeat(65))).toBe(false);
+    expect(formatoTokenDownloadValido("A".repeat(64))).toBe(false);
+    expect(formatoTokenDownloadValido("g".repeat(64))).toBe(false);
+    expect(formatoTokenDownloadValido("0x" + "a".repeat(62))).toBe(false);
+  });
+
+  it("rejeita tipos que nao sejam string", () => {
+    expect(formatoTokenDownloadValido(null)).toBe(false);
+    expect(formatoTokenDownloadValido(undefined)).toBe(false);
+    expect(formatoTokenDownloadValido(123n)).toBe(false);
+    expect(formatoTokenDownloadValido({})).toBe(false);
+  });
+});
+
+describe("motivoTokenDownloadInvalido", () => {
+  const T0 = Date.parse("2026-09-27T12:00:00.000Z");
+  const valido = (extras = {}) => ({
+    uid: "admin1",
+    exp: new Date(T0 + TOKEN_DOWNLOAD_TTL_MINUTOS * 60 * 1000).toISOString(),
+    usos: 0,
+    ...extras,
+  });
+
+  it("doc ausente/nao-objeto => nao_encontrado", () => {
+    expect(motivoTokenDownloadInvalido(null, T0)).toBe("nao_encontrado");
+    expect(motivoTokenDownloadInvalido(undefined, T0)).toBe("nao_encontrado");
+    expect(motivoTokenDownloadInvalido("token", T0)).toBe("nao_encontrado");
+  });
+
+  it("doc valido (dentro do TTL e com usos livres) => null", () => {
+    expect(motivoTokenDownloadInvalido(valido(), T0)).toBe(null);
+    expect(motivoTokenDownloadInvalido(valido({ usos: TOKEN_DOWNLOAD_MAX_USOS - 1 }), T0)).toBe(null);
+    // faltando 1ms para expirar ainda passa
+    expect(motivoTokenDownloadInvalido(valido(), T0 + TOKEN_DOWNLOAD_TTL_MINUTOS * 60 * 1000 - 1)).toBe(null);
+  });
+
+  it("exp vencida (inclusive no instante exato) => expirado", () => {
+    const expMs = T0 + TOKEN_DOWNLOAD_TTL_MINUTOS * 60 * 1000;
+    expect(motivoTokenDownloadInvalido(valido(), expMs)).toBe("expirado");
+    expect(motivoTokenDownloadInvalido(valido(), expMs + 1)).toBe("expirado");
+  });
+
+  it("exp ausente/malformada falha seguro como expirado", () => {
+    expect(motivoTokenDownloadInvalido({ usos: 0 }, T0)).toBe("expirado");
+    expect(motivoTokenDownloadInvalido({ exp: "ontem", usos: 0 }, T0)).toBe("expirado");
+    expect(motivoTokenDownloadInvalido({ exp: null, usos: 0 }, T0)).toBe("expirado");
+  });
+
+  it("usos esgotados => consumido (mesmo dentro do TTL)", () => {
+    expect(motivoTokenDownloadInvalido(valido({ usos: TOKEN_DOWNLOAD_MAX_USOS }), T0)).toBe("consumido");
+    expect(motivoTokenDownloadInvalido(valido({ usos: TOKEN_DOWNLOAD_MAX_USOS + 5 }), T0)).toBe("consumido");
+    // usos corrompido (negativo/nao-numerico) conta como 0 => valido
+    expect(motivoTokenDownloadInvalido(valido({ usos: -1 }), T0)).toBe(null);
+    expect(motivoTokenDownloadInvalido(valido({ usos: "lixo" }), T0)).toBe(null);
+  });
+
+  it("expirado tem precedencia sobre consumido", () => {
+    const depoisDoTtl = T0 + TOKEN_DOWNLOAD_TTL_MINUTOS * 60 * 1000 + 1;
+    expect(motivoTokenDownloadInvalido(valido({ usos: 999 }), depoisDoTtl)).toBe("expirado");
   });
 });

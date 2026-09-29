@@ -359,13 +359,28 @@ export const AdminOrderDetailsModal: React.FC<AdminOrderDetailsModalProps> = ({
                   ))}
                 </div>
 
-                <div className="mt-6 pt-6 border-t border-slate-200 flex justify-between items-end">
-                  <div>
-                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-2">Total Geral do Pedido</p>
-                      <h3 className="text-4xl font-black text-slate-900 tracking-tighter">
-                        <span className="text-xl text-emerald-600 mr-2">R$</span>
-                        {formatarMoeda(Number(order.total))}
-                      </h3>
+                <div className="mt-6 pt-6 border-t border-slate-200">
+                  {Number(order.discountPct) > 0 && (
+                    <div className="flex justify-between items-center mb-4 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl">
+                      <div>
+                        <p className="text-[10px] font-black text-amber-600 uppercase tracking-[0.3em] mb-1">
+                          Desconto aplicado ({String(order.discountPct).replace('.', ',')}%)
+                        </p>
+                        <p className="text-xs font-bold text-slate-500">
+                          Subtotal: R$ {formatarMoeda(Number(order.subtotal) || (Number(order.total) + Number(order.discountValue || 0)))}
+                        </p>
+                      </div>
+                      <span className="font-black text-lg text-amber-600 tracking-tighter">-R$ {formatarMoeda(Number(order.discountValue) || 0)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-end">
+                    <div>
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-2">Total Geral do Pedido</p>
+                        <h3 className="text-4xl font-black text-slate-900 tracking-tighter">
+                          <span className="text-xl text-emerald-600 mr-2">R$</span>
+                          {formatarMoeda(Number(order.total))}
+                        </h3>
+                    </div>
                   </div>
                 </div>
               </div>

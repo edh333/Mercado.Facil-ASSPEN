@@ -257,7 +257,7 @@ export const RefundSaleModal: React.FC<RefundSaleModalProps> = ({
 
           {serverOffline && !searching && (
             <p className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-xl p-3">
-              Busca avançada indisponível (Cloud Functions desatualizadas). Os resultados abaixo são limitados aos pedidos recentes já carregados.
+              Busca avançada indisponível no momento. Os resultados abaixo são limitados aos pedidos recentes já carregados.
             </p>
           )}
 

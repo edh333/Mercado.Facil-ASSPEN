@@ -582,7 +582,9 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
   if (Math.abs(desconto) > 0.005) {
     cupom += formatarLinhaDupla("SUBTOTAL:", `R$ ${subtotal.toFixed(2).replace('.', ',')}`, 48) + "\n";
     if (desconto > 0) {
-      cupom += formatarLinhaDupla("DESCONTO:", `-R$ ${desconto.toFixed(2).replace('.', ',')}`, 48) + "\n";
+      const pctDesc = Number(data.discountPct || 0);
+      const rotuloDesc = pctDesc > 0 ? `DESCONTO (${String(pctDesc).replace('.', ',')}%):` : "DESCONTO:";
+      cupom += formatarLinhaDupla(rotuloDesc, `-R$ ${desconto.toFixed(2).replace('.', ',')}`, 48) + "\n";
     } else {
       cupom += formatarLinhaDupla("ACRESCIMO:", `R$ ${Math.abs(desconto).toFixed(2).replace('.', ',')}`, 48) + "\n";
     }

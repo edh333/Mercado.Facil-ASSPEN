@@ -105,33 +105,50 @@ export const PWAInstallProvider: React.FC<{ children: ReactNode }> = ({ children
   }, []);
 
   const install = useCallback(async (role?: SystemRole) => {
+    const destino = role === 'admin' ? 'o Painel Gerencial (Admin)' : 'o Aplicativo do Mercado Fácil';
     if (isIOS) {
-      const destino = role === 'admin' ? 'o Painel Gerencial (Admin)' : 'o Aplicativo do Mercado Fácil';
       setIosDestino(destino);
       return;
     }
-    if (!deferredPrompt) return;
+    if (!deferredPrompt) {
+      // Sem prompt nativo (navegador sem suporte / evento consumido):
+      // em vez do botão "sumir" ou ficar mudo, ensina o caminho manual.
+      setIosDestino(destino);
+      return;
+    }
 
     const manifest = buildManifest(role);
     const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
     const blobURL = URL.createObjectURL(blob);
     let installed = false;
+    const link = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
+    const hrefOriginal = link ? link.href : null;
 
     try {
-      const link = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
       if (link) link.href = blobURL;
-
       deferredPrompt.prompt();
       const result = await deferredPrompt.userChoice;
       installed = result.outcome === 'accepted';
     } catch {
-      // prompt() pode rejeitar em navegadores restritos (Brave, Safari, iOS)
+      // prompt() pode rejeitar (navegador restrito ou evento já consumido)
     } finally {
+      // Restaura o manifest ORIGINAL antes de revogar o blob — senão o
+      // <link> fica apontando para blob: morto e o navegador falha ao
+      // revalidar o manifest nas próximas visitas.
+      if (link && hrefOriginal) link.href = hrefOriginal;
       URL.revokeObjectURL(blobURL);
       setIsInstalled(installed);
-      setDeferredPrompt(null);
+      if (installed) {
+        setDeferredPrompt(null); // instalado: botão some (correto)
+        (window as any).__deferredPrompt = null;
+      } else {
+        // Recusou/fracassou: NÃO limpa o prompt — o botão permanece visível
+        // e a próxima tentativa (com evento novo ou já consumido) cai nas
+        // instruções manuais em vez de desaparecer da interface.
+        setIosDestino(destino);
+      }
     }
-  }, [deferredPrompt]);
+  }, [deferredPrompt, isIOS]);
 
   return (
     <PWAInstallContext.Provider value={{ isInstallable: !!deferredPrompt || isIOS, isInstalled, install }}>
@@ -148,17 +165,21 @@ export const PWAInstallProvider: React.FC<{ children: ReactNode }> = ({ children
         </div>
       )}
 
-      <ModalShell open={!!iosDestino} onClose={() => setIosDestino(null)} title="Instalar no iPhone/iPad" icon={<span className="text-lg">📲</span>} size="sm">
+      <ModalShell open={!!iosDestino} onClose={() => setIosDestino(null)} title={isIOS ? 'Instalar no iPhone/iPad' : 'Como instalar o aplicativo'} icon={<span className="text-lg">📲</span>} size="sm">
         <div className="p-8 space-y-5">
           <p className="text-sm font-bold text-slate-600 leading-relaxed">
             Para instalar <span className="font-black text-slate-900">{iosDestino}</span>, siga os passos:
           </p>
           <ol className="space-y-3">
-            {[
+            {(isIOS ? [
               'No Safari, toque no botão Compartilhar (ícone de uma seta saindo de um quadrado).',
               'Escolha a opção "Adicionar à Tela de Início".',
               'Toque em "Adicionar" no canto superior direito.'
-            ].map((passo, i) => (
+            ] : [
+              'Abra o menu do navegador (ícone ⋮ no canto superior direito).',
+              'Escolha "Instalar aplicativo" ou "Adicionar à tela inicial".',
+              'Confirme clicando em "Instalar".'
+            ]).map((passo, i) => (
               <li key={i} className="flex items-start gap-3">
                 <span className="w-7 h-7 shrink-0 rounded-full bg-emerald-100 text-emerald-700 font-black text-xs flex items-center justify-center mt-0.5">{i + 1}</span>
                 <span className="text-xs font-bold text-slate-700 leading-relaxed">{passo}</span>
@@ -166,7 +187,7 @@ export const PWAInstallProvider: React.FC<{ children: ReactNode }> = ({ children
             ))}
           </ol>
           <p className="text-[11px] font-bold text-slate-400 leading-relaxed">
-            O aplicativo aparecerá na tela inicial, funcionando mesmo offline.
+            O aplicativo abrirá rápido com o último catálogo e histórico salvos. Compras e depósitos exigem internet.
           </p>
           <button
             onClick={() => setIosDestino(null)}

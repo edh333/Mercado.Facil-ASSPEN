@@ -205,7 +205,7 @@ interface StoreContextType {
     estornarPedido: (orderId: string, motivo: string) => Promise<void>;
     resetCredits: () => Promise<void>;
     mergeDuplicateProducts: () => Promise<void>;
-    adminDirectSale: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30', total: number, payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30'; amount: number }[], change?: number, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string, fiado30UserId?: string, senhaPrimaria?: string, senhaSecundaria?: string, sessaoCaixaId?: string) => Promise<Order | null>;
+    adminDirectSale: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30', total: number, payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30'; amount: number }[], change?: number, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string, fiado30UserId?: string, senhaPrimaria?: string, senhaSecundaria?: string, sessaoCaixaId?: string, descontoPct?: number) => Promise<Order | null>;
     loadMoreOrders: () => void;
     loadMoreExpenses: () => void;
     ordersLimit: number;
@@ -290,13 +290,19 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const [sessaoCaixaAtiva, setSessaoCaixaAtiva] = useState<CashSession | null>(null);
 
     const refreshSessaoCaixa = useCallback(async () => {
+        let ativa: CashSession | null = null;
         try {
-            if (!currentUser?.id) { setSessaoCaixaAtiva(null); return; }
-            const ativa = await getActiveSession(currentUser.id);
-            setSessaoCaixaAtiva(ativa);
-        } catch {
-            setSessaoCaixaAtiva(null);
-        }
+            if (currentUser?.id) ativa = await getActiveSession(currentUser.id);
+        } catch { ativa = null; }
+        // Poll de 12s: só grava no estado se HOUVE mudança real. Sem isso, cada
+        // tick criava um objeto novo e re-renderizava PDV + aba de caixa à toa
+        // (~600 leituras/hora com zero mudança na sessão).
+        setSessaoCaixaAtiva(prev => {
+            try {
+                if (JSON.stringify(prev) === JSON.stringify(ativa)) return prev;
+            } catch { /* JSON inválido (Timestamp circular): troca mesmo assim */ }
+            return ativa;
+        });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentUser?.id]);
 
@@ -643,10 +649,10 @@ const [isLoggingOut, setIsLoggingOut] = useState(false);
 
     useEffect(() => {
         if (currentUser) {
-            checkWeeklyReset(); // Backstop do reset semanal (servidor executa via rotina agendada)
-            if (currentUser.role === UserRole.ADMIN) {
-                performAutoCleanup();
-            }
+            // Só o backstop do reset semanal. O performAutoCleanup + normalize
+            // rodam no efeito de authReady abaixo — antes rodavam 2x por login
+            // (e em cada nova identidade de currentUser), duplicando leituras.
+            checkWeeklyReset();
         }
     }, [currentUser]);
 
@@ -1171,7 +1177,7 @@ return false;
             // sem deploy ou exceção não mapeada) — mostra algo útil em vez de "internal".
             const msg = String(e?.message || '');
             if (!msg || msg === 'internal' || msg === 'INTERNAL' || msg.includes('unavailable') || msg.includes('UNAVAILABLE')) {
-                throw new Error('Falha ao processar a devolução. Verifique se as Cloud Functions estão atualizadas (deploy) e tente novamente.');
+                throw new Error('Falha ao processar a devolução. Verifique sua internet e tente novamente.');
             }
             throw new Error("Erro ao processar devolução: " + msg);
         }
@@ -1244,7 +1250,7 @@ return false;
             // ou exceção não mapeada) — mostra algo útil em vez de "internal".
             const msg = String(e?.message || '');
             if (!msg || msg === 'internal' || msg === 'INTERNAL' || msg.includes('UNAVAILABLE') || msg.includes('unavailable')) {
-                throw new Error('Falha ao se comunicar com o servidor (functions desatualizadas ou indisponíveis). Verifique se o deploy das Cloud Functions foi feito e tente novamente.');
+                throw new Error('Falha ao se comunicar com o servidor. Verifique sua internet e tente novamente.');
             }
             throw new Error(msg);
         }
@@ -1733,6 +1739,11 @@ return false;
     // Normalização automática de dados legados (Adiciona deleted: false onde falta)
     const normalizeLegacyDocuments = async () => {
         if (currentUser?.role !== UserRole.ADMIN) return;
+        // Uma vez por navegador: a varredura lê products+users inteiros
+        // (milhares de leituras). Não existe query por deleted indefinido e o
+        // filtro de tela trata undefined como ativo — depois da 1ª normalização
+        // não há mais nada a marcar.
+        try { if (localStorage.getItem('mf_norm_legado_v1') === 'ok') return; } catch { /* sem storage: tenta mesmo assim */ }
         try {
             const allRefs: import('firebase/firestore').DocumentReference[] = [];
 
@@ -1769,6 +1780,8 @@ return false;
             if (count > 0) {
                 console.info(`[NORMALIZE] ${count} registros legados atualizados.`);
             }
+            // Só marca como concluído se a varredura inteira rodou sem erro.
+            try { localStorage.setItem('mf_norm_legado_v1', 'ok'); } catch { /* noop */ }
         } catch (e) { console.error('Erro na normalização:', e); }
     };
     const updateAppConfig = updateSettings;
@@ -2270,15 +2283,16 @@ return false;
         return Array.isArray(perms) && (perms.includes('all') || perms.includes(permission));
     };
 
-    const showNotification = (message: string, type: any = 'info') => {
-        // HABILITADO PARA TODOS OS TIPOS - Correção cirúrgica de lógica restritiva anterior
+    // useCallback: identidade estável. Sem isso todo efeito com showNotification
+    // nas deps re-executava a cada render do provider (loop de sincronização).
+    const showNotification = useCallback((message: string, type: any = 'info') => {
         const id = Math.random().toString(36).substring(2, 9);
         setNotifications(prev => {
             // Filtra notificações idênticas para evitar poluição visual
             const filtered = prev.filter(n => n.message !== message);
             return [...filtered.slice(-3), { id, message, type }];
         });
-    };
+    }, []);
 
     const removeNotification = React.useCallback((id: string) => {
         setNotifications(prev => prev.filter(n => n.id !== id));
@@ -2818,6 +2832,17 @@ return false;
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // Aviso VISÍVEL quando a fila offline descarta vendas antigas — antes o
+    // evento era emitido mas ninguém escutava (só o console do dev via).
+    useEffect(() => {
+        const onDepleted = (e: Event) => {
+            const n = (e as CustomEvent)?.detail?.descartadas?.length || 0;
+            if (n > 0) showNotification(`Fila offline cheia: ${n} venda(s) mais antiga(s) descartada(s) do cache local. Verifique a sincronização.`, 'warning');
+        };
+        window.addEventListener('offline-queue-depleted', onDepleted);
+        return () => window.removeEventListener('offline-queue-depleted', onDepleted);
+    }, [showNotification]);
+
     // Auto-sincronização: ao abrir o app online e quando a conexão voltar.
     useEffect(() => {
         const rodar = async () => {
@@ -3128,7 +3153,7 @@ return false;
                     setIsLoading(false);
                 }
             },
-            adminDirectSale: async (targetUserId, items, paymentMethod, total, payments: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30'; amount: number }[] | undefined, change, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string, fiado30UserId?: string, senhaPrimaria?: string, senhaSecundaria?: string, sessaoCaixaId?: string) => {
+            adminDirectSale: async (targetUserId, items, paymentMethod, total, payments: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30'; amount: number }[] | undefined, change, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string, fiado30UserId?: string, senhaPrimaria?: string, senhaSecundaria?: string, sessaoCaixaId?: string, descontoPct?: number) => {
                 if (!currentUser || (currentUser.role !== UserRole.ADMIN && currentUser.role !== UserRole.VENDEDOR)) {
                     throw new Error("Acesso restrito à equipe autorizada.");
                 }
@@ -3174,7 +3199,8 @@ return false;
                         senhaPrimaria: senhaPrimaria || undefined,
                         senhaSecundaria: senhaSecundaria || undefined,
                         sessaoCaixaId: sessaoCaixaId || undefined,
-                        apiKey: (paymentMethod === 'FIADO' || paymentMethod === 'FIADO_30') ? (FIREBASE_API_KEY || undefined) : undefined
+                        descontoPct: Number(descontoPct) > 0 ? Number(descontoPct) : undefined,
+                        apiKey: (paymentMethod === 'FIADO' || paymentMethod === 'FIADO_30' || Number(descontoPct) > 0) ? (FIREBASE_API_KEY || undefined) : undefined
                     });
                     const data = res.data as any;
                     const createdOrder = cleanObject(data?.order || null);

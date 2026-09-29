@@ -961,7 +961,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
                 <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
                   <div>
                     <p className="text-xs font-black uppercase text-slate-900">Liberar Compras</p>
-                    <p className="text-[10px] text-slate-500">Permitir que usuários FAMILY vejam a loja</p>
+                    <p className="text-[10px] text-slate-500">Desligue para exibir a tela de suspensão do catálogo (depósitos PIX continuam liberados)</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" className="sr-only peer" aria-label="Permitir compras" checked={settings?.allow_user_purchases !== false} onChange={e => updateSettings({ ...settings, allow_user_purchases: e.target.checked })} />
@@ -1857,7 +1857,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
             </p>
             <p className="text-[11px] font-bold text-slate-400 leading-relaxed mb-2">
               ({formatarDataPonto(restoreTarget.createdAt)}) — as configurações e dados locais serão revertidos para essa data.
-              Recomenda-se baixar um backup antes. Os dados da nuvem (Firestore) não são alterados.
+              Recomenda-se baixar um backup antes. Os dados da nuvem não são alterados.
             </p>
           </div>
         )}

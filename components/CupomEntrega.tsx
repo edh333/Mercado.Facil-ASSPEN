@@ -20,7 +20,7 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
   order, venda, printerName, customText, title, subtitle, docName, remainingBalance, config, onClose
 }) => {
   const data = order || venda;
-  if (!data) return <div className="p-10 text-center font-black uppercase text-slate-400">Dados Indisponíveis</div>;
+  if (!data) return <div className="p-10 text-center font-black uppercase text-slate-500">Dados Indisponíveis</div>;
 
   const itens = data.items || data.itens || [];
   const total = Math.abs(data.total || 0);

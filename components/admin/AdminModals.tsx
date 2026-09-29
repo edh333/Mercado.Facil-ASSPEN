@@ -5,7 +5,7 @@ import {
   MinusCircle, RefreshCw, Loader2, Lock, Package, Key, PlusCircle, Printer, KeyRound, ShieldCheck, Edit, Shield, AlertTriangle, Save, Globe, Store, ShoppingCart, Eye, EyeOff
 } from 'lucide-react';
 import { Product, Expense, Order } from '../../types';
-import { compressImageFile, fileToBase64, normalizeName } from '../../utils';
+import { compressImageFile, fileToBase64, normalizeName, formatarMoeda } from '../../utils';
 import { ModalShell } from '../ui/ModalShell';
 import { CupomEntrega } from '../CupomEntrega';
 import { ReciboA4 } from '../ReciboA4';
@@ -193,9 +193,14 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
     salesChannel: 'both' as 'both' | 'user' | 'admin'
   });
 
+  // Preço digitado manualmente TRAVA o cálculo pela margem. Estado (não ref)
+  // para a trava ficar visível na UI — antes era invisível e o operador via a
+  // margem "não funcionar" sem entender o porquê.
+  const [priceManual, setPriceManual] = React.useState(false);
+
   React.useEffect(() => {
     if (showProductModal && editingProduct) {
-      priceTouchedRef.current = false;
+      setPriceManual(false);
       const priceVal = editingProduct.price || 0;
       const costVal = editingProduct.costPrice || 0;
       const marginVal = editingProduct.margin || 30;
@@ -215,7 +220,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
         salesChannel: editingProduct.salesChannel || 'both'
       });
     } else if (showProductModal && !editingProduct) {
-      priceTouchedRef.current = false;
+      setPriceManual(false);
       setProductForm({
         name: '',
         brand: '',
@@ -236,13 +241,21 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
 
   // MARGEM MANDA NO PREÇO: mudar custo ou margem recalcula o preço de venda
   // NA HORA. Digitar o preço manualmente trava o valor (o admin decide).
-  const priceTouchedRef = React.useRef(false);
   const recalcAutoPrice = (costStr: string, marginStr: string): string => {
     const c = parseFloat(String(costStr).replace(',', '.')) || 0;
     const m = parseFloat(String(marginStr).replace(',', '.'));
     if (!(c > 0) || !Number.isFinite(m) || m < 0) return '';
     return (c * (1 + m / 100)).toFixed(2);
   };
+
+  // Prévia ao vivo do formulário: custo + margem → venda + lucro (R$).
+  const custoPrev = parseFloat(String(productForm.cost).replace(',', '.')) || 0;
+  const margemPrev = parseFloat(String(productForm.margin).replace(',', '.')) || 0;
+  const vendaPrev = custoPrev > 0 && Number.isFinite(margemPrev) && margemPrev >= 0 ? custoPrev * (1 + margemPrev / 100) : 0;
+  const precoManualNum = parseFloat(String(productForm.price).replace(',', '.'));
+  const margemRealPct = custoPrev > 0 && Number.isFinite(precoManualNum) && precoManualNum > 0
+    ? ((precoManualNum - custoPrev) / custoPrev) * 100
+    : NaN;
 
   const handleProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -542,15 +555,17 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                            <Barcode size={11}/> {scanAviso?.texto || 'Leitor ativo — aponte o leitor e escaneie (Enter)'}
                        </p>
                    </div>
-                    <PremiumInput
+                     <PremiumInput
                         label="Custo (R$)"
                         value={productForm.cost}
                         onChange={e => setProductForm(f => ({
                             ...f,
                             cost: e.target.value,
-                            price: priceTouchedRef.current ? f.price : recalcAutoPrice(e.target.value, f.margin)
+                            price: priceManual ? f.price : recalcAutoPrice(e.target.value, f.margin)
                         }))}
-                        type="number"
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="Ex.: 10,50"
                     />
                     <PremiumInput
                         label="Margem (%)"
@@ -558,11 +573,27 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                         onChange={e => setProductForm(f => ({
                             ...f,
                             margin: e.target.value,
-                            price: priceTouchedRef.current ? f.price : recalcAutoPrice(f.cost, e.target.value)
+                            price: priceManual ? f.price : recalcAutoPrice(f.cost, e.target.value)
                         }))}
-                        type="number"
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="Ex.: 30"
                     />
                </div>
+
+               {/* PRÉVIA AO VIVO: custo + margem → venda + lucro */}
+               {custoPrev > 0 && (
+                   <div className={`rounded-xl border px-4 py-3 flex flex-wrap items-center justify-between gap-2 ${priceManual ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-200'}`}>
+                       <span className="text-[11px] font-black uppercase tracking-wider text-emerald-700">
+                           Custo {formatarMoeda(custoPrev)} + Margem {Number.isFinite(margemPrev) ? margemPrev : 0}% → Venda {formatarMoeda(vendaPrev)} · Lucro {formatarMoeda(Math.max(0, vendaPrev - custoPrev))}
+                       </span>
+                       {priceManual && (
+                           <span className="text-[11px] font-black uppercase tracking-wider text-amber-700">
+                               Preço travado em {formatarMoeda(Number.isFinite(precoManualNum) ? precoManualNum : 0)} · margem real {Number.isFinite(margemRealPct) ? `${margemRealPct.toFixed(1).replace('.', ',')}%` : '—'}
+                           </span>
+                       )}
+                   </div>
+               )}
 
                {/* BOTTOM ROW: Estoque + Estoque Mínimo + Preço */}
                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -578,13 +609,39 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                        onChange={e => setProductForm({...productForm, minStock: e.target.value})}
                        type="number"
                    />
-                    <PremiumInput
-                        label="Preço de Venda (R$)"
-                        value={productForm.price}
-                        onChange={e => { priceTouchedRef.current = true; setProductForm({...productForm, price: e.target.value}); }}
-                        type="number"
-                        placeholder="Ajusta sozinho pela margem — digite para travar"
-                    />
+                     <div className="bg-white p-4 rounded-xl border-2 border-slate-200 transition-all focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
+                         <div className="flex justify-between items-center mb-2 gap-2">
+                             <label className="text-slate-700 font-black text-[10px] uppercase tracking-widest">Preço de Venda (R$)</label>
+                             {priceManual ? (
+                                 <span className="flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[9px] font-black uppercase tracking-wider">
+                                     <Lock size={9} /> Travado
+                                 </span>
+                             ) : (
+                                 <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[9px] font-black uppercase tracking-wider">Auto · margem</span>
+                             )}
+                         </div>
+                         <input
+                             type="text"
+                             inputMode="decimal"
+                             value={productForm.price}
+                             onChange={e => {
+                                 // Vazio = volta a seguir a margem; com valor = trava manual.
+                                 setPriceManual(e.target.value.trim() !== '');
+                                 setProductForm({...productForm, price: e.target.value});
+                             }}
+                             placeholder="Ajusta sozinho pela margem — digite para travar"
+                             className="w-full bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 text-sm outline-none px-4 py-2.5 placeholder:text-slate-400 transition-all focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                         />
+                         {priceManual && (
+                             <button
+                                 type="button"
+                                 onClick={() => { setPriceManual(false); setProductForm(f => ({ ...f, price: recalcAutoPrice(f.cost, f.margin) })); }}
+                                 className="mt-2 text-[9px] font-black uppercase tracking-wider text-emerald-600 hover:text-emerald-700 underline underline-offset-2 transition-colors"
+                             >
+                                 Voltar ao cálculo pela margem
+                             </button>
+                         )}
+                     </div>
                </div>
 
 {/* TOGGLES */}
@@ -1109,7 +1166,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
 
 export default AdminModals;
 
-const PremiumInput = ({ label, value, onChange, placeholder, type = "text", error, required }: { label: string; value: string; onChange: (e: any) => void; placeholder?: string; type?: string; error?: string; required?: boolean }) => (
+const PremiumInput = ({ label, value, onChange, placeholder, type = "text", error, required, inputMode }: { label: string; value: string; onChange: (e: any) => void; placeholder?: string; type?: string; error?: string; required?: boolean; inputMode?: "none" | "text" | "tel" | "url" | "email" | "numeric" | "decimal" | "search" }) => (
     <div className={`bg-white p-4 rounded-xl border-2 transition-all ${error ? 'border-red-500 focus-within:border-red-500 focus-within:ring-4 focus-within:ring-red-500/20' : 'border-slate-200 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20'}`}>
        <div className="flex justify-between items-center mb-2">
          <label className="text-slate-700 font-black text-[10px] uppercase tracking-widest">{label}</label>
@@ -1117,6 +1174,7 @@ const PremiumInput = ({ label, value, onChange, placeholder, type = "text", erro
        </div>
        <input
           type={type}
+          inputMode={inputMode}
           className={`w-full bg-slate-50 border rounded-xl font-bold text-slate-900 text-sm outline-none px-4 py-2.5 placeholder:text-slate-400 transition-all ${error ? 'border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20' : 'border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20'}`}
           placeholder={placeholder}
           value={value}

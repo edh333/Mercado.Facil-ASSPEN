@@ -89,7 +89,7 @@ export const OnlineStatusIndicator: React.FC = () => {
                                             Modo Offline
                                         </span>
                                         <span className="text-[10px] font-bold opacity-70">
-                                            Trabalhando com cache local
+                                            Exibindo dados salvos
                                         </span>
                                     </div>
                                     <RefreshCcw size={14} className="opacity-50 ml-2" />

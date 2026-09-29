@@ -23,6 +23,9 @@ const {
   caminhoStorageDeUrl,
   calcularSplitVenda,
   calcularEstornoCarteira,
+  formatoTokenDownloadValido,
+  motivoTokenDownloadInvalido,
+  TOKEN_DOWNLOAD_TTL_MINUTOS,
 } = require("./logic");
 
 if (!admin.apps.length) {
@@ -37,8 +40,10 @@ const FUNC_BUCKET = process.env.FIREBASE_STORAGE_BUCKET
   || `${process.env.GCLOUD_PROJECT || "mercado-facil-mt"}.firebasestorage.app`;
 
 // URL pública de download (usada para itens de leitura pública, ex.: apps/).
-// Evita getSignedUrl: a service account padrão do projeto não tem o papel
-// iam.serviceAccountTokenCreator (signBlob negado desde a política de 2024).
+// Itens PRIVADOS usam getSignedUrl (ex.: baixarAppAdmin) — a SA de runtime
+// 714788107870-compute@developer.gserviceaccount.com tem papel
+// roles/iam.serviceAccountTokenCreator concedido (signBlob estava negado na
+// política de IAM de 2024).
 const urlPublicaArquivo = (file) =>
   `https://firebasestorage.googleapis.com/v0/b/${file.bucket.name}/o/${encodeURIComponent(file.name)}?alt=media`;
 
@@ -270,6 +275,40 @@ async function verificarSenhaMestra(informada) {
   logger.info("[Segurança] Senha secundária migrada do formato legado para bcrypt.");
 }
 
+// ──────────────────────────────────────────────────────────────
+// MIGRAÇÃO PROATIVA da senha mestra legada.
+// Antes, o plaintext só saía de settings/general quando alguém ACERTAVA a
+// senha legada — até lá, qualquer usuário autenticado podia lê-lo pelas
+// regras. Agora, a PRIMEIRA chamada autenticada migra: hash → settings/private
+// e apaga o plaintext, mesmo que ninguém digite a senha mestra.
+// ──────────────────────────────────────────────────────────────
+let migracaoMestraConcluida = false;
+async function migrarSenhaMestraLegada() {
+  if (migracaoMestraConcluida) return;
+  try {
+    const privRef = db.collection("settings").doc("private");
+    const genRef = db.collection("settings").doc("general");
+    await db.runTransaction(async (t) => {
+      const priv = await t.get(privRef);
+      if (priv.exists && priv.data().masterPasswordHash) return; // já migrada
+      const gen = await t.get(genRef);
+      const genData = gen.exists ? gen.data() : {};
+      const legada = String(genData.secondaryPassword || genData.adminPassword || "");
+      if (!legada) return; // nada legado para migrar
+      const hash = await bcrypt.hash(legada, 12);
+      t.set(privRef, { masterPasswordHash: hash }, { merge: true });
+      t.update(genRef, {
+        secondaryPassword: admin.firestore.FieldValue.delete(),
+        adminPassword: admin.firestore.FieldValue.delete(),
+      });
+    });
+    migracaoMestraConcluida = true;
+    logger.info("[Segurança] Senha mestra legada migrada PROATIVAMENTE (sem esperar login).");
+  } catch (e) {
+    logger.warn("[Segurança] Migração proativa da senha mestra falhou:", e.message);
+  }
+}
+
 /** Garante que o chamador está autenticado. */
 async function exigirAutenticado(context) {
   if (!context || !context.auth || !context.auth.uid) {
@@ -280,6 +319,8 @@ async function exigirAutenticado(context) {
   if (u.status && u.status !== "active") {
     throw new HttpsError("permission-denied", "Conta suspensa ou pendente. Contate o administrador.");
   }
+  // Barato após a 1ª chamada (flag em memória): elimina plaintext legado cedo.
+  await migrarSenhaMestraLegada();
   return u;
 }
 
@@ -850,6 +891,9 @@ exports.alterarSenha = onCall(async (request) => {
   const user = await exigirAutenticado(request);
   const novaSenha = validarSenha(request.data?.novaSenha);
   await admin.auth().updateUser(request.auth.uid, { password: novaSenha });
+  // Senha trocada → derruba sessões antigas (revoga refresh tokens; o token
+  // atual segue válido só até expirar, depois exige login novamente).
+  try { await admin.auth().revokeRefreshTokens(request.auth.uid); } catch (e) { logger.warn("[alterarSenha] revoke falhou:", e.message); }
   const hash = await bcrypt.hash(novaSenha, 12);
   await salvarHashLegado(user.id, hash);
   await registrarAudit(request.auth.uid, "ALTERAR_SENHA_PROPRIA", null, { usuarioId: user.id });
@@ -874,6 +918,8 @@ exports.redefinirSenhaAdmin = onCall(async (request) => {
   }
   if (userData.authUid) {
     await admin.auth().updateUser(userData.authUid, { password: novaSenha });
+    // Reset por admin → sessões do usuário-alvo morrem imediatamente.
+    try { await admin.auth().revokeRefreshTokens(userData.authUid); } catch (e) { logger.warn("[redefinirSenhaAdmin] revoke falhou:", e.message); }
   }
   const hash = await bcrypt.hash(novaSenha, 12);
   await salvarHashLegado(userId, hash);
@@ -937,8 +983,11 @@ exports.redefinirSenhaPublica = onCall(async (request) => {
   // NUNCA permitir recuperação pública de contas administrativas — um atacante
   // não pode tomar o painel com 2 CPFs conhecidos. Erro IDÊNTICO ao CPF
   // inexistente: não vazamos que aquele CPF pertence a um admin.
+  // ALTO: antes só admin/master eram bloqueados — VENDEDOR/OPERADOR/GERENTE
+  // eram tomáveis por CPF+CPF interno+nome (fatores semi-públicos). Agora só
+  // familiares (FAMILY) usam a recuperação pública; equipe reset via admin.
   const roleDoc = String(usuario.role || "").toLowerCase();
-  if (["admin", "master"].includes(roleDoc)) {
+  if (roleDoc !== "family" && roleDoc !== "") {
     throw new HttpsError("not-found", "Usuário não encontrado.");
   }
 
@@ -967,6 +1016,9 @@ exports.redefinirSenhaPublica = onCall(async (request) => {
 
   if (usuario.authUid) {
     await admin.auth().updateUser(usuario.authUid, { password: novaSenha });
+    // Revoga as sessões antigas: senhas redefinidas não podem continuar
+    // valendo para quem já estava logado em outro dispositivo.
+    try { await admin.auth().revokeRefreshTokens(usuario.authUid); } catch (e) { logger.warn("[redefinirSenhaPublica] revoke falhou:", e.message); }
   }
   const hash = await bcrypt.hash(novaSenha, 12);
   await salvarHashLegado(usuario.id, hash);
@@ -1806,6 +1858,53 @@ exports.processarVendaAdmin = onCall(async (request) => {
     }
   }
 
+  // DESCONTO no PDV: validado AQUI no servidor (nunca confia só no frontend).
+  // Faixas: até 20% = UMA senha (login OU mestra, validarSenhaUnicaServidor);
+  // acima de 20% até 50% = DUPLA senha (senha de entrada + senha mestra,
+  // validarDuplaSenhaServidor — mesma régua do fiado). Acima de 50% = proibido.
+  // O total é recalculado DENTRO da transação sobre o subtotal de catálogo.
+  const descontoPctRaw = request.data?.descontoPct;
+  let descontoPct = 0;
+  if (descontoPctRaw !== undefined && descontoPctRaw !== null && descontoPctRaw !== "") {
+    descontoPct = Number(descontoPctRaw);
+    if (!Number.isFinite(descontoPct) || descontoPct < 0) {
+      throw new HttpsError("invalid-argument", "Desconto inválido.");
+    }
+    descontoPct = Math.round(descontoPct * 10) / 10;
+  }
+  if (descontoPct > 0) {
+    if (descontoPct > 50) {
+      throw new HttpsError("invalid-argument", "Desconto máximo permitido é de 50%.");
+    }
+    if (request.data?.origemOffline === true) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Desconto exige conexão para validar a senha no servidor. Conecte à internet e finalize a venda novamente."
+      );
+    }
+    const apiKeyDesconto = String(request.data?.apiKey || "") || process.env.FIREBASE_API_KEY || "";
+    if (descontoPct <= 20) {
+      const senhaUnicaDesc = String(request.data?.senhaPrimaria || request.data?.senhaSecundaria || "");
+      if (!senhaUnicaDesc) {
+        throw new HttpsError("invalid-argument", "Desconto exige a senha do administrador (login ou mestra).");
+      }
+      const unicaDesc = await validarSenhaUnicaServidor(caller, senhaUnicaDesc, apiKeyDesconto);
+      if (!unicaDesc.ok) {
+        throw new HttpsError("permission-denied", "Senha de desconto inválida. Tente novamente.");
+      }
+    } else {
+      const sPrimariaDesc = String(request.data?.senhaPrimaria || "");
+      const sSecundariaDesc = String(request.data?.senhaSecundaria || "");
+      if (!sPrimariaDesc || !sSecundariaDesc) {
+        throw new HttpsError("invalid-argument", "Desconto acima de 20% exige a DUPLA senha: senha de entrada (login) + senha mestra.");
+      }
+      const duplaDesc = await validarDuplaSenhaServidor(caller, sPrimariaDesc, sSecundariaDesc, apiKeyDesconto);
+      if (!duplaDesc.ok) {
+        throw new HttpsError("permission-denied", "Senhas de desconto inválidas. Tente novamente.");
+      }
+    }
+  }
+
   // Partes de carteira/dinheiro são calculadas DENTRO da transação (total
   // server-side); aqui só detectamos a presença de dinheiro para resolver a
   // sessão de caixa antes de abrir a transação.
@@ -1878,7 +1977,19 @@ exports.processarVendaAdmin = onCall(async (request) => {
         throw new Error("Nenhuma sessão de caixa aberta para este operador. Abra o caixa antes de vender em dinheiro.");
       }
 
-      const { resultado: itensComPreco, total } = await prepararItensServidor(t, itens);
+      const { resultado: itensComPreco, total: subtotalItens } = await prepararItensServidor(t, itens);
+
+      // Desconto (autorizado no gate acima): aplicado SOBRE o subtotal de
+      // catálogo. Todos os fluxos seguintes — partes de pagamento, carteira,
+      // fiado, caixa e total do pedido — usam o valor JÁ COM desconto.
+      const subtotal = subtotalItens;
+      let descontoValor = 0;
+      let total = subtotalItens;
+      if (descontoPct > 0) {
+        descontoValor = arredondar((subtotalItens * descontoPct) / 100);
+        total = arredondar(subtotalItens - descontoValor);
+        if (!(total > 0)) throw new Error("Total da venda inválido após o desconto.");
+      }
 
       // Partes de carteira/dinheiro calculadas NO SERVIDOR (lógica pura testável)
       const { walletPortion, cashPortion } = calcularPartesPagamento(paymentMethod, payments, total, isConsumer);
@@ -2106,6 +2217,10 @@ exports.processarVendaAdmin = onCall(async (request) => {
       userCpf: isConsumer ? "000.000.000-00" : (userData?.cpf || "000.000.000-00"),
       unitId: isConsumer ? "1" : (userData?.selectedUnitId || userData?.unitId || "1"),
       total,
+      // Auditoria de desconto (só presente quando aplicado): subtotal de
+      // catálogo, faixa autorizada e valor abatido — base de conferência no
+      // recibo (SUBTOTAL/DESCONTO) e nos relatórios.
+      ...(descontoPct > 0 ? { subtotal, discountPct: descontoPct, discountValue: descontoValor } : {}),
       items: itensComPreco,
       paymentMethod,
       ...(paymentMethod === "CARD" && cardBrand ? { cardBrand: cardBrand.toUpperCase() } : {}),
@@ -2143,7 +2258,7 @@ exports.processarVendaAdmin = onCall(async (request) => {
     if (e && e.code && String(e.code).startsWith("functions/")) throw e;
     const msg = (e && e.message) || "Falha ao processar a venda. Tente novamente.";
     // Whitelist de erros de negócio já amigáveis (escritos em PT-BR no backend).
-    if (/produto não encontrado|estoque insuficiente|saldo insuficiente|limite semanal|limite de crédito|consumidor final não pode|2º devedor|não confere com o total|nenhuma sessão de caixa|caixa antes|cai?a foi fechada|reabra o caixa|cliente bloqueado|venda fiada exige|fiado exige|usuário de fiado|usuario de fiado|permissão para venda fiada|exige a senha mestra|selecione o usuário|selecione o usuario|fiado 30 dias|cliente de fiado (não )?encontrado|exige cliente cadastrado|pagamento misto sem valores|método inválido|valor inválido|fiado e card não são suportados|carteira|duplicada|troco|senha|fiado 30|entrada de mercadoria/i.test(msg)) {
+    if (/produto não encontrado|estoque insuficiente|saldo insuficiente|limite semanal|limite de crédito|consumidor final não pode|2º devedor|não confere com o total|nenhuma sessão de caixa|caixa antes|cai?a foi fechada|reabra o caixa|cliente bloqueado|venda fiada exige|fiado exige|usuário de fiado|usuario de fiado|permissão para venda fiada|exige a senha mestra|selecione o usuário|selecione o usuario|fiado 30 dias|cliente de fiado (não )?encontrado|exige cliente cadastrado|pagamento misto sem valores|método inválido|valor inválido|fiado e card não são suportados|carteira|duplicada|troco|senha|desconto|fiado 30|entrada de mercadoria/i.test(msg)) {
       throw new HttpsError("invalid-argument", msg);
     }
     throw new HttpsError("internal", "Falha ao processar a venda. Tente novamente.");
@@ -2156,6 +2271,7 @@ exports.processarVendaAdmin = onCall(async (request) => {
       valor: resultado.total,
       formaPagamento: paymentMethod,
       operadorId: caller.id,
+      ...(descontoPct > 0 ? { descontoPct, descontoValor: resultado.discountValue } : {}),
     });
   }
 
@@ -3448,6 +3564,14 @@ async function validarSenhaUnicaServidor(user, senhaInformada, apiKey) {
     }
   }
 
+  // ALTO: vendedor/operador NÃO pode se auto-autorizar com a própria senha de
+  // login (primariaOk) — anularia a régua de 2 fatores do fiado/desconto. Para
+  // eles vale apenas a senha MESTRA. Admin/master continuam com login OU mestra.
+  const roleLower = String((user && user.role) || "").toLowerCase();
+  if (["vendedor", "operator"].includes(roleLower)) {
+    return { ok: secundariaOk, secundariaOk, primariaOk: false, definida: true };
+  }
+
   return { ok: secundariaOk || primariaOk, secundariaOk, primariaOk, definida: true };
 }
 
@@ -3670,8 +3794,10 @@ exports.resetarSistemaTotal = onCall({
 //  - FAMILY (usuário comum): pode baixar SOMENTE o "App Usuário".
 //  - ADMIN: pode baixar os dois ("App Usuário" e "App Admin").
 // O "App Usuário" também tem um endpoint PÚBLICO (obterDownloadAppUsuario) para
-// a página inicial baixar sem login. Os executáveis ficam em apps/ e o link é
-// direto (leitura pública) — sem assinatura (service account sem signBlob).
+// a página inicial baixar sem login — é o ÚNICO instalador com URL pública
+// direta. O "App Admin" NÃO tem URL pública: o cliente pede um token de uso
+// curto (gerarLinkDownloadAdmin) consumido pelo redirect baixarAppAdmin, e o
+// Storage bloqueia leitura anônima do exe admin (regra apps/ em storage.rules).
 // ──────────────────────────────────────────────
 const APPS_DISPONIVEIS = [
   { chave: "usuario", arquivo: "apps/MercadoFacil-Usuario-Setup.exe", nome: "App Usuário", descricao: "Compras para familiares — catálogo, carteira e acompanhamento de pedidos" },
@@ -3708,7 +3834,9 @@ exports.obterLinkDownloadApp = onCall({
   timeoutSeconds: 60,
 }, async (request) => {
   const user = await exigirAutenticado(request);
-  const ehAdmin = ["admin", "master"].includes(String(user.role || "").toLowerCase());
+  // Equipe inteira (admin, master, vendedor, operador) baixa o App Admin —
+  // o próprio app admin é o único que aceita vendedor/operator no login.
+  const ehAdmin = ["admin", "master", "vendedor", "operator", "manager"].includes(String(user.role || "").toLowerCase());
 
   const bucket = admin.storage().bucket(FUNC_BUCKET);
   const resultado = [];
@@ -3722,11 +3850,16 @@ exports.obterLinkDownloadApp = onCall({
         resultado.push({ chave: app.chave, nome: app.nome, descricao: app.descricao, disponivel: false, url: "", motivo: "nao_publicado" });
         continue;
       }
-      // apps/ é de leitura pública nas regras de Storage — mas a URL QUE SERVE
-      // O CLIENTE é preferencialmente o GitHub Releases (sem cota de banda),
-      // com queda automática para o Storage se o Release ainda não existir.
+      if (app.chave === "admin") {
+        // SEM URL pública: o cliente solicita um token de uso curto a cada
+        // clique (gerarLinkDownloadAdmin) e o redirect baixarAppAdmin consome.
+        resultado.push({ chave: app.chave, nome: app.nome, descricao: app.descricao, disponivel: true, url: "", requerToken: true, motivo: "" });
+        continue;
+      }
+      // O "App Usuário" mantém URL pública preferencial: GitHub Releases
+      // (sem cota de banda), com queda automática para o Storage.
       const url = await urlPreferencialDownload(app.chave);
-      resultado.push({ chave: app.chave, nome: app.nome, descricao: app.descricao, disponivel: true, url, motivo: "" });
+      resultado.push({ chave: app.chave, nome: app.nome, descricao: app.descricao, disponivel: true, url, requerToken: false, motivo: "" });
     } catch (e) {
       logger.warn("[DownloadApp] Falha ao gerar link de " + app.chave + ":", e.message);
       resultado.push({ chave: app.chave, nome: app.nome, descricao: app.descricao, disponivel: false, url: "", motivo: "erro_servidor" });
@@ -3736,10 +3869,117 @@ exports.obterLinkDownloadApp = onCall({
   return { ok: true, ehAdmin, apps: resultado, versao: APP_VERSION };
 });
 
+// ──────────────────────────────────────────────
+// DOWNLOAD DO APP ADMIN — TOKEN DE USO CURTO + REDIRECT ASSINADO
+// O instalador admin NÃO tem URL pública (regra apps/ no storage.rules e
+// sem espelho no GitHub Releases). O cliente chama gerarLinkDownloadAdmin
+// (auth + rate limit), recebe um token único de 15 min e abre baixarAppAdmin,
+// que CONSUME o token numa transação e responde 302 para uma URL V4 assinada
+// (10 min). O navegador baixa DIRETO do Storage: o .exe admin tem ~101 MiB e
+// um stream pela função estoura o limite de ~100 MiB de resposta da
+// plataforma ("Response size was too large" → 500).
+// ──────────────────────────────────────────────
+
+// Base URL destas funções: nenhuma função do projeto usa setGlobalOptions,
+// portanto rodam na região padrão us-central1.
+const BASE_URL_FUNCOES = () =>
+  `https://us-central1-${process.env.GCLOUD_PROJECT || "mercado-facil-mt"}.cloudfunctions.net`;
+
+/**
+ * Autenticado (papel admin/master) — emite um token de uso curto para baixar
+ * o instalador ADMIN. Um token novo a cada clique do cliente; TTL de 15 min.
+ */
+exports.gerarLinkDownloadAdmin = onCall({
+  timeoutSeconds: 30,
+}, async (request) => {
+  const user = await exigirAutenticado(request);
+  // Equipe inteira pode baixar: o instalador admin é o ÚNICO app em que
+  // vendedor/operador conseguem entrar (o App Usuário os bloqueia).
+  const ehEquipe = ["admin", "master", "vendedor", "operator", "manager"].includes(String(user.role || "").toLowerCase());
+  if (!ehEquipe) {
+    throw new HttpsError("permission-denied", "Acesso restrito à equipe administrativa.");
+  }
+  verificarRateLimit(`download_admin_${user.id}`, 10, 60 * 1000);
+
+  const entrada = APPS_DISPONIVEIS.find((a) => a.chave === "admin");
+  const [existe] = await admin.storage().bucket(FUNC_BUCKET).file(entrada.arquivo).exists();
+  if (!existe) {
+    throw new HttpsError("not-found", "Instalador admin ainda não foi publicado.");
+  }
+
+  const token = crypto.randomBytes(32).toString("hex");
+  const agora = Date.now();
+  await db.collection("download_tokens").doc(token).set({
+    uid: user.id,
+    papel: user.role,
+    criadoEm: new Date(agora).toISOString(),
+    exp: new Date(agora + TOKEN_DOWNLOAD_TTL_MINUTOS * 60 * 1000).toISOString(),
+    usos: 0,
+  });
+
+  logger.info(`[DownloadApp] Token de download admin emitido para ${user.id}.`);
+  return { ok: true, url: `${BASE_URL_FUNCOES()}/baixarAppAdmin?token=${token}` };
+});
+
+/**
+ * Redirect (302) para o instalador ADMIN autenticado por token de uso curto.
+ * O token é consumido numa transação ANTES do redirect: expirado/jamais
+ * encontrado = 404, já consumido = 403. O limite de usos (3) dentro do TTL
+ * apenas tolera a retomada que alguns navegadores fazem no MESMO download —
+ * cada clique do cliente emite um token novo. A URL V4 assinada vale 10 min e
+ * leva o navegador DIRETO ao Storage (sem stream pela função: ~101 MiB excede
+ * o limite de resposta da plataforma).
+ */
+exports.baixarAppAdmin = onRequest({ timeoutSeconds: 60, memory: "256MiB" }, async (req, res) => {
+  const token = String((req.query && req.query.token) || "");
+  const rejeitar = (status, msg) => res.status(status).type("text/plain; charset=utf-8").send(msg);
+  if (!formatoTokenDownloadValido(token)) return rejeitar(404, "Link inválido.");
+
+  const ref = db.collection("download_tokens").doc(token);
+  let consumido = false;
+  try {
+    consumido = await db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) return false;
+      if (motivoTokenDownloadInvalido(snap.data(), Date.now())) return false;
+      tx.update(ref, {
+        usos: admin.firestore.FieldValue.increment(1),
+        ultimoUsoEm: new Date().toISOString(),
+      });
+      return true;
+    });
+  } catch (e) {
+    logger.warn("[BaixarAppAdmin] Falha na transação do token:", e.message);
+    return rejeitar(500, "Erro ao validar o link.");
+  }
+  if (!consumido) {
+    return rejeitar(403, "Link expirado ou já utilizado. Abra o modal de download e tente de novo.");
+  }
+
+  const entrada = APPS_DISPONIVEIS.find((a) => a.chave === "admin");
+  const file = admin.storage().bucket(FUNC_BUCKET).file(entrada.arquivo);
+  try {
+    const [existe] = await file.exists();
+    if (!existe) return rejeitar(404, "Instalador não encontrado.");
+    const [assinada] = await file.getSignedUrl({
+      version: "v4",
+      action: "read",
+      expires: Date.now() + 10 * 60 * 1000,
+      promptSaveAs: `MercadoFacil-Admin-Setup-${APP_VERSION}.exe`,
+    });
+    res.set("Cache-Control", "no-store");
+    return res.redirect(302, assinada);
+  } catch (e) {
+    logger.error("[BaixarAppAdmin] Falha ao assinar URL do instalador:", e.message);
+    return rejeitar(500, "Erro ao gerar o link de download. Tente de novo.");
+  }
+});
+
 /**
  * PÚBLICO (sem autenticação) — link de download do "App Usuário" para a página
  * inicial (Landing), onde familiares baixam o instalador Windows sem login.
- * O "App Admin" NUNCA passa por aqui: só pelo obterLinkDownloadApp (auth).
+ * O "App Admin" NUNCA passa por aqui: só pelo gerarLinkDownloadAdmin +
+ * baixarAppAdmin (token de uso curto).
  */
 exports.obterDownloadAppUsuario = onRequest({ timeoutSeconds: 30 }, async (_req, res) => {
   res.set("Access-Control-Allow-Origin", "*");

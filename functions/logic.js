@@ -224,6 +224,37 @@ function calcularEstornoCarteira(pedido) {
   };
 }
 
+/**
+ * DOWNLOAD DO APP ADMIN (token de uso curto).
+ * O exe admin NÃO tem URL pública: o cliente pede um token novo a cada clique
+ * (gerarLinkDownloadAdmin) e o endpoint de redirect o consome
+ * (baixarAppAdmin: 302 para URL V4 assinada de 10 min). TTL curto limita
+ * janela de vazamento do link; o limite de
+ * usos tolera a retomada que alguns navegadores fazem no mesmo download sem
+ * permitir reuso posterior (efetivamente um uso por clique).
+ */
+const TOKEN_DOWNLOAD_TTL_MINUTOS = 15;
+const TOKEN_DOWNLOAD_MAX_USOS = 3;
+
+/** Formato do token: 32 bytes aleatórios em hex (64 chars minúsculos). */
+function formatoTokenDownloadValido(token) {
+  return typeof token === "string" && /^[a-f0-9]{64}$/.test(token);
+}
+
+/**
+ * Valida um doc de download_tokens/{token}. Devolve null quando VÁLIDO, ou o
+ * motivo da recusa: 'nao_encontrado' | 'expirado' | 'consumido'.
+ * Doc sem exp ou com exp malformado falha como 'expirado' (falha seguro).
+ * Nunca lança.
+ */
+function motivoTokenDownloadInvalido(doc, agoraMs) {
+  if (!doc || typeof doc !== "object") return "nao_encontrado";
+  const exp = Date.parse(String(doc.exp || ""));
+  if (!Number.isFinite(exp) || exp <= Number(agoraMs)) return "expirado";
+  if ((Number(doc.usos) || 0) >= TOKEN_DOWNLOAD_MAX_USOS) return "consumido";
+  return null;
+}
+
 module.exports = {
   arredondar,
   cleanCpf,
@@ -238,4 +269,8 @@ module.exports = {
   caminhoStorageDeUrl,
   calcularSplitVenda,
   calcularEstornoCarteira,
+  formatoTokenDownloadValido,
+  motivoTokenDownloadInvalido,
+  TOKEN_DOWNLOAD_TTL_MINUTOS,
+  TOKEN_DOWNLOAD_MAX_USOS,
 };

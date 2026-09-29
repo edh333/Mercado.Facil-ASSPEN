@@ -93,11 +93,14 @@ function isAdmin() {
     }
 
     // Instaladores dos aplicativos desktop (pasta apps/) — públicos para LEITURA;
-    // escrita/deleção APENAS por administradores (a função obterLinkDownloadApp
-    // já filtra a versão por papel; a pasta não pode ser corrompida por
-    // usuário comum — vetor de supply-chain).
+    // escrita/deleção APENAS por administradores (a pasta não pode ser
+    // corrompida por usuário comum — vetor de supply-chain).
+    // LEITURA pública somente do manifest e do instalador de USUÁRIO (a
+    // Landing e o atualizador desktop dependem deles). O instalador ADMIN é
+    // servido exclusivamente pela Cloud Function baixarAppAdmin, que consome
+    // um token de uso curto — URL pública do admin = vazamento da ferramenta.
     match /apps/{fileName} {
-      allow read, list: if true;
+      allow read, list: if fileName == 'version.json' || fileName == 'MercadoFacil-Usuario-Setup.exe';
       allow write: if isAdminPublicadora()
         && (fileName.matches('.*\\.exe$') || fileName == 'version.json')
         && request.resource.size < 100 * 1024 * 1024;

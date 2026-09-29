@@ -2,8 +2,9 @@ import React, { useMemo, useEffect } from 'react';
 import { X, Printer, FileText, TrendingUp, TrendingDown, Package, Users, Download, Calendar, BarChart3, PieChart, Activity, FileSpreadsheet, Landmark, Wallet, ChevronDown } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { User } from '../../types';
-import { isAdminRole, formatarMoeda } from '../../utils';
+import { isAdminRole } from '../../utils';
 import { formatBRL } from '../../utils/money';
+import { abrirJanelaImpressao } from '../../utils/printUtils';
 import { toDate } from '../../utils/dateUtils';
 import { getLocalDateStr, ehReceita } from './adminUtils';
 import { buildMonthlyDre, buildSalesCsv, buildStockAbc, buildTopProducts, buildDailySales, buildSalesByCategory, buildLowStock, buildProductsCatalog, buildExtratoIndividual, buildDetalheVendas, buildRankingClientes, buildVendasOperador, buildFiadoVendas, buildContasReceberFiado, buildFiadoVencimentos } from '../../context/StoreContext';
@@ -53,23 +54,6 @@ const rotuloStatus = (status: string): string => {
     if (s.includes('REFUND') || s.includes('ESTORNAD') || s.includes('DEVOLVID')) return 'Estornado';
     return status ? status.replace(/_/g, ' ') : '—';
 };
-
-// Escapa HTML para não corromper os PDFs/saída de impressão quando o dado
-// (nome de produto, categoria, familiar, descrição) contém <, > ou &.
-const esc = (v: any): string => String(v ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-
-// Formata moeda pt-BR com separador de milhar e vírgula decimal nos DOCUMENTOS
-// impressos (o antigo .toFixed(2) corrompia valores acima de R$ 1.000 e
-// divergia do padrão pt-BR usado nas telas e no printUtils).
-const fmtBr = (v: any): string => formatarMoeda(Number(v));
-
-// Nome da instituição configurada (Settings) — cabeçalhos/rodapés profissionais
-// usam o nome real, não a tagline de marketing do app.
-const nomeInstituicao = (settings: any): string =>
-    settings?.institutionName || settings?.appName || 'MERCADO FÁCIL';
 
 const buildDailyClosing = (orders: any[], expenses: any[], transactions: any[], startDateStr: string, endDateStr: string) => {
     const statusReceita = ehReceita; // Fonte ÚNICA de verdade (adminUtils) — mesmo conceito dos cards/financeiro
@@ -324,6 +308,20 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
             ? buildFiadoVencimentos(users)
             : null;
 
+        const creditsRows = config?.type === 'USERS_CREDITS'
+            ? (users || [])
+                .filter((u: User) => !isAdminRole(u.role))
+                .map(u => ({
+                    name: u.name || '—',
+                    cpf: u.cpf || '—',
+                    status: u.status,
+                    saldo: Number(u.walletBalance) || 0,
+                    gastoSemanal: Number(u.weeklySpent) || 0,
+                    inmateName: u.inmateName || ''
+                }))
+                .sort((a, b) => b.saldo - a.saldo)
+            : null;
+
         return {
             type: config?.type || 'GENERAL',
             title: reportTypes[config?.type] || 'Relatório',
@@ -345,6 +343,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
             fiadoVendas,
             fiadoContas,
             fiadoVencimentos,
+            creditsRows,
             summary: {
                 totalSales: totalEntries,
                 totalExpenses: totalExits,
@@ -864,99 +863,6 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
         );
     };
 
-    const printUsersCredits = () => {
-        const lista = (users || [])
-            .filter((u: User) => !isAdminRole(u.role))
-            .map(u => ({ name: u.name || '—', cpf: u.cpf || '—', status: u.status, saldo: Number(u.walletBalance) || 0, gastoSemanal: Number(u.weeklySpent) || 0 }))
-            .sort((a, b) => b.saldo - a.saldo);
-        const totalSaldo = lista.reduce((a, b) => a + b.saldo, 0);
-        const totalGasto = lista.reduce((a, b) => a + b.gastoSemanal, 0);
-        const ativos = lista.filter(x => x.status === 'active').length;
-        const pendentes = lista.filter(x => x.status === 'pending').length;
-        const suspensos = lista.filter(x => x.status === 'suspended').length;
-        const inst = nomeInstituicao(settings);
-        const hoje = new Date().toLocaleDateString('pt-BR');
-        const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        const linha = lista.map((x, i) => `
-            <tr>
-                <td style="text-align:center;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;">${String(i + 1).padStart(2, '0')}</td>
-                <td style="padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;font-weight:700;text-transform:uppercase;">${esc(x.name)}</td>
-                <td style="text-align:center;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;">${esc(x.cpf)}</td>
-                <td style="text-align:center;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:11px;">${x.status === 'active' ? 'Ativo' : x.status === 'pending' ? 'Pendente' : 'Suspenso'}</td>
-                <td style="text-align:right;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;font-weight:700;">R$ ${fmtBr(x.saldo)}</td>
-                <td style="text-align:right;padding:9px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;">R$ ${fmtBr(x.gastoSemanal)}</td>
-            </tr>`).join('');
-        const printWindow = window.open('', '_blank');
-        if (!printWindow) return;
-        const html = `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8"/>
-<title>Relatório de Créditos dos Usuários</title>
-<style>
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family: 'Segoe UI', Arial, sans-serif; color:#0f172a; padding:32px; background:#fff; }
-    .cabecalho { border-bottom:3px solid #059669; padding-bottom:16px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:flex-end; }
-    .cabecalho h1 { font-size:20px; text-transform:uppercase; letter-spacing:1px; color:#059669; }
-    .cabecalho p { font-size:12px; color:#64748b; margin-top:4px; }
-    .meta { text-align:right; font-size:11px; color:#64748b; }
-    .cards { display:flex; gap:12px; margin-bottom:22px; }
-    .card { flex:1; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:14px 16px; }
-    .card p.titulo { font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:1.5px; color:#94a3b8; margin-bottom:4px; }
-    .card p.valor { font-size:18px; font-weight:800; color:#059669; }
-    table { width:100%; border-collapse:collapse; }
-    thead th { background:#0f172a; color:#fff; padding:10px; font-size:10px; text-transform:uppercase; letter-spacing:1px; text-align:left; }
-    tfoot td { padding:10px; font-weight:800; font-size:12px; background:#f8fafc; border-top:2px solid #0f172a; }
-    .criterio { margin-top:14px; padding:10px 14px; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:10px; font-size:10px; color:#047857; text-transform:uppercase; letter-spacing:1px; font-weight:700; }
-    .rodape { margin-top:22px; text-align:center; font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:1px; }
-    .assinatura { margin-top:48px; display:flex; justify-content:space-between; }
-    .assinatura div { width:40%; border-top:1px solid #64748b; padding-top:8px; font-size:10px; text-transform:uppercase; text-align:center; color:#475569; }
-    @media print { @page { size: A4; margin: 15mm 12mm; } body { padding:16px; } }
-</style>
-</head>
-<body>
-    <div class="cabecalho">
-        <div>
-            <h1>Relatório de Créditos dos Usuários</h1>
-            <p>${inst} — Gestão de saldos dos familiares</p>
-        </div>
-        <div class="meta">
-            <p>Emitido em: <b>${hoje} às ${hora}</b></p>
-            <p>${lista.length} familiar(es) na listagem</p>
-        </div>
-    </div>
-    <div class="cards">
-        <div class="card"><p class="titulo">Saldo Total Disponível</p><p class="valor">R$ ${fmtBr(totalSaldo)}</p></div>
-        <div class="card"><p class="titulo">Familiares Ativos</p><p class="valor">${ativos}</p></div>
-        <div class="card"><p class="titulo">Gasto Semanal Acumulado</p><p class="valor">R$ ${fmtBr(totalGasto)}</p></div>
-        <div class="card"><p class="titulo">Saldo Médio</p><p class="valor">R$ ${lista.length ? fmtBr(totalSaldo / lista.length) : '0,00'}</p></div>
-    </div>
-    <table>
-        <thead>
-            <tr><th style="text-align:center;width:36px;">#</th><th>Familiar</th><th style="text-align:center;">CPF</th><th style="text-align:center;">Status</th><th style="text-align:right;">Saldo Disponível</th><th style="text-align:right;">Gasto Semanal</th></tr>
-        </thead>
-        <tbody>${linha}</tbody>
-        <tfoot>
-            <tr><td colspan="4" style="text-align:right;">TOTAL — ${lista.length} FAMILIARES</td><td style="text-align:right;">R$ ${fmtBr(totalSaldo)}</td><td style="text-align:right;">R$ ${fmtBr(totalGasto)}</td></tr>
-        </tfoot>
-    </table>
-    <div class="criterio">Critério da listagem: todos os familiares cadastrados${pendentes > 0 ? ` · ${pendentes} pendente(s)` : ''}${suspensos > 0 ? ` · ${suspensos} suspenso(s)` : ''}</div>
-    <div class="assinatura">
-        <div>Emitido por: ${(settings as any)?.adminName || 'Administração'}</div>
-        <div>Assinatura / Carimbo</div>
-    </div>
-    <p class="rodape">Documento emitido pelo sistema ${inst} — não é comprovante fiscal</p>
-</body>
-</html>`;
-        printWindow.document.write(html);
-        printWindow.document.close();
-        printWindow.focus();
-        // print() síncrono logo após document.write() imprime PÁGINA EM BRANCO
-        // no Chromium (snapshot antes de o layout terminar). O atraso curto
-        // espera a renderização sem abrir diálogo duplicado.
-        setTimeout(() => { try { printWindow.print(); } catch { /* janela fechou */ } }, 350);
-    };
-
     const renderDailyClosing = () => {
         const dc = report.dailyClosing;
         if (!dc) return null;
@@ -1027,58 +933,6 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                 </div>
             </div>
         );
-    };
-
-    const printDailyClosing = () => {
-        const dc = report.dailyClosing;
-        if (!dc) return;
-        const fmt = (v: number) => `R$ ${fmtBr(v)}`;
-        const inst = nomeInstituicao(settings);
-        const hoje = new Date().toLocaleDateString('pt-BR');
-        const linhas = dc.paymentRows.map((r: any) => `<tr><td>${esc(r.label)}</td><td style="text-align:right;">${fmt(r.amount)}</td></tr>`).join('');
-        const html = `<html><head><title>${report.title}</title><style>
-            body{font-family:'Segoe UI',Arial,sans-serif;padding:40px;color:#0f172a}
-            h1{font-size:22px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
-            .sub{color:#64748b;font-size:13px;margin-bottom:24px}
-            table{width:100%;border-collapse:collapse}
-            th{padding:10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #0f172a}
-            td{padding:11px 10px;font-size:14px;border-bottom:1px solid #e2e8f0;font-weight:600}
-            tfoot td{font-size:15px;font-weight:800;border-top:2px solid #0f172a}
-            .cards{display:flex;gap:14px;margin:18px 0 26px;flex-wrap:wrap}
-            .card{flex:1;min-width:140px;padding:16px 18px;border-radius:14px;background:#f8fafc;border:1px solid #e2e8f0}
-            .card p{margin:0}
-            .card .titulo{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#64748b;font-weight:700;margin-bottom:6px}
-            .card .valor{font-size:20px;font-weight:800}
-            .assinatura{margin-top:70px;display:flex;justify-content:space-between;font-size:13px;color:#475569}
-            .rodape{margin-top:30px;font-size:11px;color:#94a3b8;text-align:center}
-            @media print{@page{size:A4;margin:15mm 12mm}body{background:white!important;padding:20px!important}}
-        </style></head><body>
-            <h1>${report.title}</h1>
-            <p class="sub">Período: ${report.period} · Emitido em: ${hoje} · ${dc.salesCount} venda(s) no período · ${inst}</p>
-            <div class="cards">
-                <div class="card"><p class="titulo">Vendas</p><p class="valor">${fmt(dc.totalSales)}</p></div>
-                <div class="card"><p class="titulo">Despesas</p><p class="valor">${fmt(dc.totalExpenses)}</p></div>
-                <div class="card"><p class="titulo">Resultado</p><p class="valor">${fmt(dc.net)}</p></div>
-                <div class="card"><p class="titulo">Depósitos Aprovados</p><p class="valor">${fmt(dc.totalDeposits)}</p></div>
-            </div>
-            <table>
-                <thead><tr><th>Forma de Pagamento</th><th style="text-align:right;">Valor</th></tr></thead>
-                <tbody>${linhas}</tbody>
-                <tfoot><tr><td>TOTAL DE VENDAS</td><td style="text-align:right;">${fmt(dc.totalSales)}</td></tr></tfoot>
-            </table>
-            <div class="assinatura"><div>Emitido por: ${(settings as any)?.adminName || 'Administração'}</div><div>Assinatura / Carimbo</div></div>
-            <p class="rodape">Documento emitido pelo sistema ${inst} — conferência de caixa</p>
-        </body></html>`;
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-            printWindow.document.write(html);
-            printWindow.document.close();
-            printWindow.focus();
-            // print() síncrono logo após document.write() imprime PÁGINA EM BRANCO
-            // no Chromium (snapshot antes de o layout terminar). O atraso curto
-            // espera a renderização sem abrir diálogo duplicado.
-            setTimeout(() => { try { printWindow.print(); } catch { /* janela fechou */ } }, 350);
-        }
     };
 
     // Helper: tabela padrão profissional (título + corpo) para relatórios de tabela.
@@ -1674,14 +1528,17 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                 </div>
                 {renderTabelaPadrao(
                     'Catálogo Completo de Produtos',
-                    ['Produto', 'Categoria', 'Código', 'Estoque', 'Preço'],
-                    ['left', 'left', 'center', 'right', 'right'],
-                    pc.linhas.map((l: any) => [
+                    ['Nº', 'Produto', 'Marca', 'Peso', 'Categoria', 'Código', 'Estoque', 'Preço'],
+                    ['center', 'left', 'left', 'left', 'left', 'center', 'right', 'right'],
+                    pc.linhas.map((l: any, idx: number) => [
+                        String(idx + 1),
                         l.name,
+                        l.brand || '—',
+                        l.weight || '—',
                         l.category,
                         l.barcode || '—',
                         { texto: String(l.estoque), classe: l.estoque <= 0 ? 'text-red-500' : l.estoque <= (5) ? 'text-amber-600' : 'text-[var(--text-main)]' },
-                        fmt(l.preco)
+                        `${l.precoPromocional > 0 ? 'Oferta: ' : ''}${l.precoPromocional > 0 ? fmt(l.precoPromocional) : fmt(l.preco)}`
                     ]),
                     null,
                     'Nenhum produto cadastrado.'
@@ -1738,204 +1595,6 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
         );
     };
 
-    // Impressão profissional (fonte Segoe UI, não-monospace) para os novos relatórios.
-    const printTabelaProfissional = () => {
-        const hoje = new Date().toLocaleDateString('pt-BR');
-        let titulo = report.title;
-        let linhas: any[] = [];
-        let rodapeHtml = '';
-        let cabecalhoRow = '';
-
-        if (report.type === 'VENDAS_DIARIAS' || report.type === 'COLLECTIVE_PURCHASES') {
-            const ds = report.dailySales || report.collective;
-            if (!ds) return;
-            cabecalhoRow = '<th>Data</th><th style="text-align:center;">Vendas</th><th style="text-align:center;">Itens</th><th style="text-align:right;">Faturamento</th>';
-            linhas = ds.dias.map((d: any) => `<tr><td>${esc(d.data)}</td><td style="text-align:center;">${d.vendas}</td><td style="text-align:center;">${d.items}</td><td style="text-align:right;font-weight:700;">R$ ${d.total.toFixed(2)}</td></tr>`);
-            rodapeHtml = `<tr><td style="text-align:center;font-weight:800;">TOTAL</td><td style="text-align:center;font-weight:800;">${ds.totalVendas}</td><td style="text-align:center;font-weight:800;">${ds.totalItens}</td><td style="text-align:right;font-weight:800;color:#059669;">R$ ${ds.totalGeral.toFixed(2)}</td></tr>`;
-        } else if (report.type === 'SALES_BY_CATEGORY') {
-            const c = report.salesByCategory;
-            if (!c) return;
-            titulo = 'Vendas por Grupo';
-            cabecalhoRow = '<th>Grupo</th><th style="text-align:center;">Itens</th><th style="text-align:right;">Receita</th><th style="text-align:right;">%</th>';
-            linhas = c.linhas.map((l: any) => `<tr><td>${esc(l.categoria)}</td><td style="text-align:center;">${l.quantidade}</td><td style="text-align:right;font-weight:700;color:#059669;">R$ ${l.receita.toFixed(2)}</td><td style="text-align:right;">${c.totalReceita ? ((l.receita / c.totalReceita) * 100).toFixed(1) : 0}%</td></tr>`);
-            rodapeHtml = `<tr><td style="font-weight:800;">TOTAL</td><td style="text-align:center;font-weight:800;">${c.totalQuantidade}</td><td style="text-align:right;font-weight:800;color:#059669;">R$ ${c.totalReceita.toFixed(2)}</td><td>100%</td></tr>`;
-        } else if (report.type === 'STOCK_LOW') {
-            const ls = report.lowStock;
-            if (!ls) return;
-            titulo = 'Reposição / Inventário';
-            cabecalhoRow = '<th>Produto</th><th style="text-align:center;">Estoque</th><th style="text-align:center;">Mínimo</th><th style="text-align:right;">Valor (Custo)</th>';
-            linhas = ls.linhas.map((l: any) => `<tr><td>${esc(l.name)}</td><td style="text-align:center;color:${l.semEstoque ? '#ef4444' : '#d97706'};font-weight:700;">${l.estoque}</td><td style="text-align:center;">${l.minimo}</td><td style="text-align:right;">R$ ${l.valorEstoque.toFixed(2)}</td></tr>`);
-            rodapeHtml = `<tr><td style="font-weight:800;">TOTAL ${ls.totalCriticos} item(ns)</td><td></td><td></td><td style="text-align:right;font-weight:800;">R$ ${ls.totalValorEstoque.toFixed(2)}</td></tr>`;
-        } else if (report.type === 'PRODUCTS_ALL') {
-            const pc = report.productsCatalog;
-            if (!pc) return;
-            titulo = 'Catálogo de Produtos';
-            cabecalhoRow = '<th>Produto</th><th>Grupo</th><th style="text-align:center;">Código</th><th style="text-align:center;">Estoque</th><th style="text-align:right;">Preço</th>';
-            linhas = pc.linhas.map((l: any) => `<tr><td>${esc(l.name)}</td><td>${esc(l.category)}</td><td style="text-align:center;">${l.barcode ? esc(l.barcode) : '—'}</td><td style="text-align:center;color:${l.estoque <= 0 ? '#ef4444' : l.estoque <= 5 ? '#d97706' : '#0f172a'};font-weight:700;">${l.estoque}</td><td style="text-align:right;font-weight:700;">R$ ${l.preco.toFixed(2)}</td></tr>`);
-        } else if (report.type === 'INDIVIDUAL') {
-            const ex = report.extrato;
-            if (!ex) return;
-            titulo = `Extrato Individual — ${esc(ex.usuario.name)}`;
-            cabecalhoRow = '<th>Data</th><th style="text-align:center;">Tipo</th><th>Descrição</th><th style="text-align:right;">Valor</th>';
-            linhas = ex.movs.map((m: any) => {
-                const cor = m.type === 'ENTRY' ? '#059669' : '#ef4444';
-                return `<tr><td>${toDate(m.date)?.toLocaleDateString('pt-BR') || ''}</td><td style="text-align:center;color:${cor};font-weight:700;">${m.type === 'ENTRY' ? 'Entrada' : 'Saída'}</td><td>${esc(m.description)}</td><td style="text-align:right;color:${cor};font-weight:700;">${m.type === 'ENTRY' ? '+' : '-'} R$ ${m.amount.toFixed(2)}</td></tr>`;
-            });
-        } else if (report.type === 'DRE_MONTHLY') {
-            const d = report.dre;
-            if (!d) return;
-            titulo = 'Fechamento Mensal — DRE Simplificado';
-            cabecalhoRow = '<th>Descrição</th><th style="text-align:right;">Valor</th>';
-            linhas = [
-                `<tr><td style="font-weight:700;">Receita Bruta de Vendas (${d.qtdPedidos} pedidos, ${d.qtdItensVendidos} itens)</td><td style="text-align:right;color:#059669;font-weight:700;">R$ ${d.receitaBruta.toFixed(2)}</td></tr>`,
-                `<tr><td>(-) Custo das Mercadorias Vendidas (CMV)</td><td style="text-align:right;color:#ef4444;font-weight:700;">- R$ ${d.custoMercadoriasVendidas.toFixed(2)}</td></tr>`,
-                `<tr><td style="font-weight:700;">(=) Lucro Bruto</td><td style="text-align:right;color:${d.lucroBruto >= 0 ? '#059669' : '#ef4444'};font-weight:800;">R$ ${d.lucroBruto.toFixed(2)}</td></tr>`,
-                `<tr><td>(-) Impostos Estimados (${(d.aliquotaImposto * 100).toFixed(0)}%)</td><td style="text-align:right;color:#ef4444;font-weight:700;">- R$ ${d.impostosEstimados.toFixed(2)}</td></tr>`,
-                `<tr><td>(-) Despesas Operacionais</td><td style="text-align:right;color:#ef4444;font-weight:700;">- R$ ${d.despesasOperacionais.toFixed(2)}</td></tr>`,
-            ];
-            rodapeHtml = `<tr><td style="font-weight:800;text-transform:uppercase;">Lucro Líquido do Período — Ticket Médio R$ ${d.ticketMedio.toFixed(2)}</td><td style="text-align:right;font-weight:800;font-size:14px;color:${d.lucroLiquido >= 0 ? '#059669' : '#ef4444'};">R$ ${d.lucroLiquido.toFixed(2)}</td></tr>`;
-        } else if (report.type === 'STOCK_ABC') {
-            const abc = report.stockAbc;
-            if (!abc) return;
-            titulo = 'Curva ABC de Estoque';
-            cabecalhoRow = '<th>Produto</th><th style="text-align:center;">Qtd Vendida</th><th style="text-align:right;">Receita</th><th style="text-align:right;">% Acum.</th><th style="text-align:center;">Estoque</th><th style="text-align:center;">Classe</th>';
-            linhas = abc.linhas.map((l: any) => `<tr><td style="font-weight:700;">${esc(l.name)}</td><td style="text-align:center;">${l.qtdVendida}</td><td style="text-align:right;font-weight:700;color:#059669;">R$ ${l.receita.toFixed(2)}</td><td style="text-align:right;">${l.acumuladoPct.toFixed(1)}%</td><td style="text-align:center;">${l.estoque}</td><td style="text-align:center;font-weight:800;color:${l.classe === 'A' ? '#059669' : l.classe === 'B' ? '#d97706' : '#ef4444'};">${l.classe}</td></tr>`);
-            rodapeHtml = `<tr><td style="font-weight:800;">TOTAL (${abc.qtdProdutosTotais} produtos)</td><td></td><td style="text-align:right;font-weight:800;color:#059669;">R$ ${abc.totalReceita.toFixed(2)}</td><td></td><td></td><td></td></tr>`;
-        } else if (report.type === 'TOP_PRODUCTS') {
-            const tp = report.topProducts;
-            if (!tp) return;
-            titulo = 'TOP Produtos (Mais Vendidos)';
-            cabecalhoRow = '<th>#</th><th>Produto</th><th style="text-align:center;">Qtd Vendida</th><th style="text-align:right;">Receita</th><th style="text-align:right;">Preço Médio</th><th style="text-align:right;">Estoque</th>';
-            linhas = tp.linhas.map((l: any, idx: number) => `<tr><td style="text-align:center;font-weight:800;color:#d97706;">${idx + 1}</td><td style="font-weight:700;">${esc(l.name)}</td><td style="text-align:center;">${l.qtdVendida}</td><td style="text-align:right;font-weight:700;color:#059669;">R$ ${l.receita.toFixed(2)}</td><td style="text-align:right;">R$ ${l.precoMedio.toFixed(2)}</td><td style="text-align:right;">${l.estoque}</td></tr>`);
-            rodapeHtml = `<tr><td></td><td style="font-weight:800;">TOTAL (${tp.totalProdutos} produtos)</td><td style="text-align:center;font-weight:800;">${tp.totalItens}</td><td style="text-align:right;font-weight:800;color:#059669;">R$ ${tp.totalReceita.toFixed(2)}</td><td></td><td></td></tr>`;
-        } else if (report.type === 'SALES_CSV') {
-            const csv = report.salesCsv;
-            if (!csv) return;
-            titulo = 'Arquivo de Movimentação de Vendas';
-            cabecalhoRow = '<th>Data</th><th style="text-align:center;">Cupom</th><th style="text-align:center;">CPF</th><th>Pagamento</th><th style="text-align:right;">Alíq.</th><th style="text-align:right;">Imposto</th><th style="text-align:right;">Valor</th>';
-            linhas = csv.linhas.map((l: any) => `<tr><td>${esc(l.DATA)}</td><td style="text-align:center;">${esc(l.NUMERO_CUPOM)}</td><td style="text-align:center;">${esc(l.CPF_CLIENTE)}</td><td>${esc(l.FORMA_PAGAMENTO)}</td><td style="text-align:right;">${l['ALIQUOTA_ESTIMADA(%)']}%</td><td style="text-align:right;font-weight:700;color:#d97706;">R$ ${l.IMPOSTO_ESTIMADO}</td><td style="text-align:right;font-weight:700;">R$ ${l.VALOR_TOTAL}</td></tr>`);
-            rodapeHtml = `<tr><td style="font-weight:800;">TOTAL (${csv.linhas.length} vendas)</td><td></td><td></td><td></td><td></td><td style="text-align:right;font-weight:800;color:#d97706;">R$ ${csv.totalImpostos.toFixed(2)}</td><td style="text-align:right;font-weight:800;color:#059669;">R$ ${csv.totalVendas.toFixed(2)}</td></tr>`;
-        } else if (report.type === 'DETALHE_VENDAS') {
-            const d = report.detalheVendas;
-            if (!d) return;
-            titulo = 'Detalhamento de Vendas (Quem / O quê / Valor)';
-            cabecalhoRow = '<th style="text-align:center;">Data</th><th style="text-align:center;">Hora</th><th>Cupom</th><th>Cliente</th><th>Itens</th><th>Pagamento</th><th style="text-align:center;">Operador</th><th style="text-align:right;">Valor</th>';
-            linhas = [];
-            d.dias.forEach((dia: any) => {
-                linhas.push(`<tr style="background:#f1f5f9;"><td style="font-weight:800;color:#059669;">${esc(dia.data)}</td><td colspan="7" style="font-weight:800;">${dia.vendas} venda(s) · ${dia.itens} iten(s) · <span style="color:#059669;">R$ ${dia.total.toFixed(2)}</span></td></tr>`);
-                dia.vendasDetalhe.forEach((v: any) => {
-                    linhas.push(`<tr><td></td><td style="text-align:center;color:#64748b;font-family:monospace;">${esc(v.hora)}</td><td style="font-family:monospace;color:#64748b;font-size:10px;">${esc(v.cupom)}</td><td style="font-weight:700;">${esc(v.cliente)}${v.interno ? '<br/><span style="font-weight:500;color:#64748b;font-size:10px;">' + esc(v.interno) + '</span>' : ''}${v.cpf ? '<br/><span style="color:#94a3b8;font-size:10px;">CPF ' + esc(v.cpf) + '</span>' : ''}</td><td>${v.items.map((i: any) => `${i.qtd}x ${esc(i.nome)} <span style="color:#64748b;">R$ ${i.sub.toFixed(2)}</span>`).join('<br/>')}</td><td>${v.formas.map((f: string) => PAYMENT_LABELS[f] || f).join(' / ')}</td><td style="text-align:center;">${esc(v.operador)}</td><td style="text-align:right;font-weight:700;color:#059669;">R$ ${v.total.toFixed(2)}</td></tr>`);
-                });
-            });
-            rodapeHtml = `<tr><td colspan="7" style="text-align:right;font-weight:800;">TOTAL (${d.totalVendas} vendas)</td><td style="text-align:right;font-weight:800;color:#059669;">R$ ${d.totalGeral.toFixed(2)}</td></tr>`;
-        } else if (report.type === 'RANKING_CLIENTES') {
-            const r = report.rankingClientes;
-            if (!r) return;
-            titulo = 'Ranking de Clientes do Período';
-            cabecalhoRow = '<th style="text-align:center;">#</th><th>Cliente</th><th>CPF</th><th style="text-align:center;">Compras</th><th style="text-align:center;">Itens</th><th style="text-align:right;">Faturamento</th><th style="text-align:right;">Ticket</th><th style="text-align:right;">%</th>';
-            linhas = r.linhas.map((l: any) => `<tr><td style="text-align:center;font-weight:800;color:#d97706;">${l.pos}</td><td style="font-weight:700;">${esc(l.cliente)}</td><td style="color:#94a3b8;font-size:10px;">${esc(l.cpf) || '—'}</td><td style="text-align:center;">${l.compras}</td><td style="text-align:center;">${l.itens}</td><td style="text-align:right;font-weight:700;color:#059669;">R$ ${l.total.toFixed(2)}</td><td style="text-align:right;">R$ ${l.ticket.toFixed(2)}</td><td style="text-align:right;">${l.pct.toFixed(1)}%</td></tr>`);
-            rodapeHtml = `<tr><td></td><td style="font-weight:800;">TOTAL (${r.totalClientes} cliente(s))</td><td></td><td style="text-align:center;font-weight:800;">${r.totalVendas}</td><td></td><td style="text-align:right;font-weight:800;color:#059669;">R$ ${r.totalGeral.toFixed(2)}</td><td></td><td style="text-align:right;">100%</td></tr>`;
-        } else if (report.type === 'VENDAS_OPERADOR') {
-            const o = report.vendasOperador;
-            if (!o) return;
-            titulo = 'Desempenho por Operador';
-            cabecalhoRow = '<th style="text-align:center;">#</th><th>Operador</th><th style="text-align:center;">Vendas</th><th style="text-align:center;">Itens</th><th style="text-align:right;">Faturamento</th><th style="text-align:right;">Ticket</th><th style="text-align:right;">%</th>';
-            linhas = o.linhas.map((l: any) => `<tr><td style="text-align:center;font-weight:800;color:#d97706;">${l.pos}</td><td style="font-weight:700;">${esc(l.operador)}</td><td style="text-align:center;">${l.vendas}</td><td style="text-align:center;">${l.itens}</td><td style="text-align:right;font-weight:700;color:#059669;">R$ ${l.total.toFixed(2)}</td><td style="text-align:right;">R$ ${l.ticket.toFixed(2)}</td><td style="text-align:right;">${l.pct.toFixed(1)}%</td></tr>`);
-            rodapeHtml = `<tr><td></td><td style="font-weight:800;">TOTAL (${o.totalOperadores} operador(es))</td><td style="text-align:center;font-weight:800;">${o.totalVendas}</td><td></td><td style="text-align:right;font-weight:800;color:#059669;">R$ ${o.totalGeral.toFixed(2)}</td><td></td><td style="text-align:right;">100%</td></tr>`;
-        } else if (report.type === 'FIADO_VENDAS') {
-            const f = report.fiadoVendas;
-            if (!f) return;
-            titulo = 'Vendas Fiadas (Período)';
-            cabecalhoRow = '<th>Data</th><th>Cliente</th><th>CPF</th><th>Forma</th><th>Status</th><th>Itens</th><th style="text-align:right;">Valor</th>';
-            linhas = f.vendas.map((v: any) => `<tr><td>${esc(v.data)}</td><td style="font-weight:700;">${esc(v.cliente)}</td><td style="color:#94a3b8;font-size:10px;">${esc(v.cpf) || '—'}</td><td>${esc(v.forma)}</td><td style="color:${ehReceita(v.status) ? '#059669' : '#ef4444'};font-weight:700;">${esc(rotuloStatus(v.status))}</td><td>${v.items.map((i: any) => `${i.qtd}x ${esc(i.nome)}`).join(', ')}</td><td style="text-align:right;font-weight:700;color:#d97706;">R$ ${v.total.toFixed(2)}</td></tr>`);
-            rodapeHtml = `<tr><td colspan="6" style="text-align:right;font-weight:800;">TOTAL (${f.count} venda(s))</td><td style="text-align:right;font-weight:800;color:#d97706;">R$ ${f.total.toFixed(2)}</td></tr>`;
-        } else if (report.type === 'FIADO_CONTAS') {
-            const c = report.fiadoContas;
-            if (!c) return;
-            titulo = 'Contas a Receber (Fiado)';
-            cabecalhoRow = '<th>Cliente</th><th>CPF</th><th style="text-align:right;">Dívida</th><th style="text-align:right;">Limite</th><th style="text-align:right;">Disponível</th><th style="text-align:center;">Início</th><th style="text-align:center;">Vencimento</th><th>Status</th>';
-            linhas = c.contas.map((conta: any) => `<tr><td style="font-weight:700;">${esc(conta.nome)}</td><td style="color:#94a3b8;font-size:10px;">${esc(conta.cpf) || '—'}</td><td style="text-align:right;font-weight:700;color:#d97706;">R$ ${conta.divida.toFixed(2)}</td><td style="text-align:right;">R$ ${conta.limite.toFixed(2)}</td><td style="text-align:right;">R$ ${conta.disponivel.toFixed(2)}</td><td style="text-align:center;">${esc(conta.debtStartedAt)}</td><td style="text-align:center;">${esc(conta.debtDueAt)}</td><td style="font-weight:800;color:${conta.status === 'vencido' ? '#ef4444' : conta.status === 'vence_hoje' ? '#d97706' : '#2563eb'};">${esc(conta.status === 'vencido' ? 'VENCIDO (' + conta.diasAtraso + 'd)' : conta.status === 'vence_hoje' ? 'VENCE HOJE' : conta.status === 'a_vencer' ? 'A VENCER' : 'SEM VENCIMENTO')}</td></tr>`);
-            rodapeHtml = `<tr><td style="font-weight:800;">TOTAL (${c.resumo.totalClientes} conta(s))</td><td></td><td style="text-align:right;font-weight:800;color:#d97706;">R$ ${c.resumo.totalDivida.toFixed(2)}</td><td style="text-align:right;font-weight:800;">R$ ${c.resumo.totalLimite.toFixed(2)}</td><td style="text-align:right;font-weight:800;">R$ ${c.resumo.totalDisponivel.toFixed(2)}</td><td></td><td></td><td></td></tr>`;
-        } else if (report.type === 'FIADO_VENCIMENTOS') {
-            const v = report.fiadoVencimentos;
-            if (!v) return;
-            titulo = 'Vencimentos do Fiado';
-            cabecalhoRow = '<th>Faixa</th><th>Cliente</th><th style="text-align:right;">Dívida</th><th style="text-align:center;">Vencimento</th><th style="text-align:right;">Dias</th>';
-            linhas = [];
-            v.faixas.filter((f: any) => f.count > 0).forEach((faixa: any) => {
-                linhas.push(`<tr style="background:#f1f5f9;"><td style="font-weight:800;">${esc(faixa.faixa)} — ${faixa.count} cliente(s)</td><td></td><td style="text-align:right;font-weight:800;color:#d97706;">R$ ${faixa.totalDivida.toFixed(2)}</td><td colspan="2"></td></tr>`);
-                faixa.itens.forEach((i: any) => {
-                    linhas.push(`<tr><td></td><td style="font-weight:700;">${esc(i.nome)}</td><td style="text-align:right;color:#d97706;font-weight:700;">R$ ${i.divida.toFixed(2)}</td><td style="text-align:center;">${esc(i.debtDueAt)}</td><td style="text-align:right;">${i.diasAtraso} dia(s)</td></tr>`);
-                });
-            });
-        } else if (report.type === 'GENERAL' || report.type === 'FINANCIAL' || report.type === 'ACCOUNTABILITY') {
-            cabecalhoRow = '<th>Data</th><th style="text-align:center;">Tipo</th><th>Descrição</th><th style="text-align:right;">Valor</th>';
-            linhas = report.items.map((i: any) => {
-                const cor = i.type === 'ENTRY' ? '#059669' : '#ef4444';
-                return `<tr><td>${toDate(i.date)?.toLocaleDateString('pt-BR') || ''}</td><td style="text-align:center;color:${cor};font-weight:700;">${i.type === 'ENTRY' ? 'Entrada' : 'Saída'}</td><td>${esc(i.description)}</td><td style="text-align:right;color:${cor};font-weight:700;">${i.type === 'ENTRY' ? '+' : '-'} R$ ${(i.amount || 0).toFixed(2)}</td></tr>`;
-            });
-            rodapeHtml = `<tr><td colspan="3" style="text-align:right;font-weight:800;">SALDO DO PERÍODO</td><td style="text-align:right;font-weight:800;color:${report.summary.net >= 0 ? '#059669' : '#ef4444'};">R$ ${report.summary.net.toFixed(2)}</td></tr>`;
-        }
-
-        if (!cabecalhoRow) return;
-
-        const html = `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8"/>
-<title>${titulo}</title>
-<style>
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; color:#0f172a; padding:32px; background:#fff; }
-    .cabecalho { border-bottom:3px solid #059669; padding-bottom:16px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:flex-end; }
-    .cabecalho h1 { font-size:20px; text-transform:uppercase; letter-spacing:1px; color:#059669; }
-    .cabecalho p { font-size:12px; color:#64748b; margin-top:4px; }
-    .meta { text-align:right; font-size:11px; color:#64748b; }
-    table { width:100%; border-collapse:collapse; margin-top:8px; }
-    thead th { background:#0f172a; color:#fff; padding:10px; font-size:10px; text-transform:uppercase; letter-spacing:1px; text-align:left; }
-    td { padding:9px 10px; font-size:12px; border-bottom:1px solid #e2e8f0; }
-    tfoot td { padding:10px; font-weight:800; font-size:12px; background:#f8fafc; border-top:2px solid #0f172a; }
-    .assinatura { margin-top:48px; display:flex; justify-content:space-between; }
-    .assinatura div { width:40%; border-top:1px solid #64748b; padding-top:8px; font-size:10px; text-transform:uppercase; text-align:center; color:#475569; }
-    .rodape { margin-top:22px; text-align:center; font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:1px; }
-    @media print { @page { size: A4; margin: 15mm 12mm; } body { padding:16px; } }
-</style>
-</head>
-<body>
-    <div class="cabecalho">
-        <div>
-            <h1>${titulo}</h1>
-            <p>Mercado Fácil — Gestão Penitenciária de Alta Performance</p>
-            <p>Período: ${report.period}</p>
-        </div>
-        <div class="meta">
-            <p>Emitido em: <b>${hoje}</b></p>
-        </div>
-    </div>
-    <table>
-        <thead><tr>${cabecalhoRow}</tr></thead>
-        <tbody>${linhas.join('')}</tbody>
-        ${rodapeHtml ? `<tfoot>${rodapeHtml}</tfoot>` : ''}
-    </table>
-    <div class="assinatura">
-        <div>Emitido por: ${(settings as any)?.adminName || 'Administração'}</div>
-        <div>Assinatura / Carimbo</div>
-    </div>
-    <p class="rodape">Documento gerado pelo sistema Mercado Fácil — uso interno</p>
-</body>
-</html>`;
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-            printWindow.document.write(html);
-            printWindow.document.close();
-            printWindow.focus();
-            // print() síncrono logo após document.write() imprime PÁGINA EM BRANCO
-            // no Chromium (snapshot antes de o layout terminar). O atraso curto
-            // espera a renderização sem abrir diálogo duplicado.
-            setTimeout(() => { try { printWindow.print(); } catch { /* janela fechou */ } }, 350);
-        }
-    };
-
     return (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 animate-fadeIn" style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
             <div className="bg-[var(--bg-card)] w-full max-w-5xl rounded-3xl shadow-2xl flex flex-col max-h-[90vh] border border-[var(--border-color)] animate-slideUp" style={{ overflow: 'hidden' }}>
@@ -1989,9 +1648,13 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                     </div>
                 </div>
 
-                {/* Content — 80mm thermal when active */}
-                <div className={`flex-1 overflow-y-auto custom-scrollbar ${thermalMode ? 'bg-white' : 'bg-[var(--bg-main)]/20 p-8 lg:p-12'}`}>
-                    <div className={`${thermalMode ? 'max-w-[380px] mx-auto bg-white p-6 min-h-full font-mono' : ''}`} style={{ fontSize: `${fontSize}px` }}>
+                {/* Content — 80mm thermal when active. overflow-x: tabelas de
+                    relatório em tablet cortavam sem barra de rolagem lateral. */}
+                <div className={`flex-1 overflow-y-auto overflow-x-auto custom-scrollbar ${thermalMode ? 'bg-white' : 'bg-[var(--bg-main)]/20 p-8 lg:p-12'}`}>
+                    <div className={`${thermalMode ? 'max-w-[380px] mx-auto bg-white p-6 min-h-full font-mono' : ''}`} style={{ fontSize: `${fontSize}px`, zoom: fontSize / 14 }}>
+                        {/* zoom = fontSize/14: A+/A- escala o RELATÓRIO INTEIRO.
+                            Antes só mudava fontSize base, anulado pelos tamanhos
+                            fixos (text-[10px] etc.) — o botão não fazia efeito. */}
                         {report.type === 'GENERAL' && renderGeneral()}
                         {(report.type === 'FINANCIAL' || report.type === 'ACCOUNTABILITY') && renderFinancial()}
                         {report.type === 'INDIVIDUAL' && renderExtratoIndividual()}
@@ -2037,34 +1700,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                         }} className="flex-1 sm:flex-none px-6 py-3 bg-emerald-600/10 text-emerald-600 border border-emerald-600/20 font-black rounded-2xl hover:bg-emerald-600 hover:text-white transition-all text-[9px] uppercase tracking-widest flex items-center justify-center gap-2">
                             <Download size={16}/> JSON
                         </button>
-                        <button onClick={() => {
-                            if (report.type === 'USERS_CREDITS') {
-                                printUsersCredits();
-                                return;
-                            }
-                            if (report.type === 'DAILY_CLOSING') {
-                                printDailyClosing();
-                                return;
-                            }
-                            if (report.type === 'VENDAS_DIARIAS' || report.type === 'COLLECTIVE_PURCHASES' || report.type === 'SALES_BY_CATEGORY' || report.type === 'STOCK_LOW' || report.type === 'PRODUCTS_ALL' || report.type === 'INDIVIDUAL' || report.type === 'DRE_MONTHLY' || report.type === 'STOCK_ABC' || report.type === 'TOP_PRODUCTS' || report.type === 'SALES_CSV' || report.type === 'GENERAL' || report.type === 'FINANCIAL' || report.type === 'ACCOUNTABILITY' || report.type === 'DETALHE_VENDAS' || report.type === 'RANKING_CLIENTES' || report.type === 'VENDAS_OPERADOR' || report.type === 'FIADO_VENDAS' || report.type === 'FIADO_CONTAS' || report.type === 'FIADO_VENCIMENTOS') {
-                                printTabelaProfissional();
-                                return;
-                            }
-                            const printWindow = window.open('', '_blank');
-                            if (printWindow) {
-                                // Fonte profissional (Segoe UI) quando NÃO é cupom 80mm thermal;
-                                // monospace apenas no modo cupom térmico.
-                                const thermalClass = thermalMode ? 'max-width:380px;margin:0 auto;font-family:monospace;' : '';
-                                const bodyFont = thermalMode ? 'font-family:monospace' : "font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif";
-                                const html = `<html><head><title>${report.title}</title><style>body{${bodyFont};padding:40px;${thermalClass}}h1{font-size:24px;text-transform:uppercase;letter-spacing:1px;border-bottom:3px solid #059669;padding-bottom:12px}h2{font-size:14px;margin-bottom:8px}.sub{color:#64748b;font-size:13px;margin-bottom:20px}table{width:100%;border-collapse:collapse;margin-top:20px}th{padding:10px;text-align:left;background:#0f172a;color:#fff;font-size:10px;text-transform:uppercase;letter-spacing:1px}td{padding:12px;text-align:left;border-bottom:1px solid #e2e8f0}.entry{color:#059669;font-weight:700}.exit{color:#ef4444;font-weight:700}.summary{margin-top:30px;padding:20px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0}.assinatura{margin-top:60px;display:flex;justify-content:space-between;font-size:13px;color:#475569}.assinatura div{width:40%;border-top:1px solid #64748b;padding-top:8px;font-size:10px;text-transform:uppercase;text-align:center}.rodape{margin-top:24px;text-align:center;color:#94a3b8;font-size:10px;text-transform:uppercase;letter-spacing:1px}@media print{@page{size:A4;margin:15mm 12mm}body{background:white!important;padding:20px!important}}</style></head><body><h1>${report.title}</h1><p class="sub">Período: ${report.period} · Emitido em: ${new Date().toLocaleDateString('pt-BR')}</p><table>${report.items.map((i: any) => `<tr><td>${toDate(i.date)?.toLocaleDateString('pt-BR') || ''}</td><td class="${i.type === 'ENTRY' ? 'entry' : 'exit'}">${i.type === 'ENTRY' ? 'Entrada' : 'Saída'}</td><td>${esc(i.description)}</td><td class="${i.type === 'ENTRY' ? 'entry' : 'exit'}">${i.type === 'ENTRY' ? '+' : '-'} R$ ${i.amount.toFixed(2)}</td></tr>`).join('')}</table><div class="summary"><h2>Resumo do Período</h2><p>Total de Entradas: <b>R$ ${report.summary.totalEntries.toFixed(2)}</b></p><p>Total de Saídas: <b>R$ ${report.summary.totalExits.toFixed(2)}</b></p><p>Resultado Líquido: <b style="color:${report.summary.net >= 0 ? '#059669' : '#ef4444'}">R$ ${report.summary.net.toFixed(2)}</b></p></div><div class="assinatura"><div>Emitido por: ${(settings as any)?.adminName || 'Administração'}</div><div>Assinatura / Carimbo</div></div><p class="rodape">Documento gerado pelo sistema Mercado Fácil — uso interno</p></body></html>`;
-                                printWindow.document.write(html);
-                                printWindow.document.close();
-                                printWindow.focus();
-                                // print() síncrono logo após document.write() imprime PÁGINA
-                                // EM BRANCO no Chromium. O atraso curto espera a renderização.
-                                setTimeout(() => { try { printWindow.print(); } catch { /* janela fechou */ } }, 350);
-                            }
-                        }} className="flex-1 sm:flex-none px-8 py-3 bg-[var(--text-main)] text-[var(--bg-card)] font-black rounded-2xl shadow-xl hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2 text-[9px] uppercase tracking-[0.2em]">
+                        <button onClick={() => abrirJanelaImpressao({ type: 'RELATORIO', data: report }, settings)} className="flex-1 sm:flex-none px-8 py-3 bg-[var(--text-main)] text-[var(--bg-card)] font-black rounded-2xl shadow-xl hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2 text-[9px] uppercase tracking-[0.2em]">
                             <Printer size={18}/> IMPRIMIR / SALVAR PDF
                         </button>
                     </div>

@@ -12,6 +12,7 @@ import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
 import { parseMoeda } from '../../utils';
 import { toDate } from '../../utils/dateUtils';
 import { abrirJanelaImpressao } from '../../utils/printUtils';
+import { celulaCsv } from '../../utils/csv';
 
 interface AdminFinanceTabProps {
   expenses: Expense[];
@@ -228,7 +229,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
       ['', '', 'SALDO DO PERÍODO', '', (totalEntries - totalExits).toFixed(2).replace('.', ',')]
     ];
 
-    const csvContent = [headers, ...rows, ...summaryRows].map(r => r.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(';')).join('\n');
+    const csvContent = [headers, ...rows, ...summaryRows].map(r => r.map(c => `"${celulaCsv(String(c ?? '').replace(/"/g, '""'))}"`).join(';')).join('\n');
     const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');

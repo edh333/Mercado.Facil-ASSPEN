@@ -102,13 +102,17 @@ export const MaintenanceCenter: React.FC<Props> = ({
   }, []);
 
   useEffect(() => {
+    // Só a variante "full" (aba de manutenção) exibe o checklist. O banner do
+    // topo não usa estadoChecklist — assinar aqui era um listener extra e
+    // permanente só para renderizar nulos.
+    if (variant === 'banner') return;
     const unsub = onSnapshot(
       doc(db, 'settings', 'checklist'),
       (snap) => setEstadoChecklist(snap.exists() ? (snap.data() as Record<string, any>) : undefined),
       (err) => console.error('[MaintenanceCenter] erro ao ler settings/checklist:', err),
     );
     return unsub;
-  }, []);
+  }, [variant]);
 
   const alerts = useMemo<AlertaManutencao[]>(() => {
     const esgotados = (products || []).filter((p) => (p as any).deleted !== true && (p.stock ?? 0) <= 0 && p.available !== false).length;
@@ -145,7 +149,7 @@ export const MaintenanceCenter: React.FC<Props> = ({
       await fnExecutarBackupAgora({});
       setFeedback('Backup manual gerado com sucesso no servidor!');
     } catch (e: any) {
-      setFeedback('Falha ao gerar backup: ' + (e?.message || 'verifique se as Cloud Functions estao no ar.'));
+      setFeedback('Falha ao gerar backup: ' + (e?.message || 'o servidor está indisponível no momento. Tente novamente em instantes.'));
     } finally {
       setBackupando(false);
     }

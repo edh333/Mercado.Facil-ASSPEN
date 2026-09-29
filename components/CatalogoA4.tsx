@@ -13,11 +13,14 @@ interface CatalogoA4Props {
  * Impresso pelo admin e entregue na unidade: produtos DISPONÍVEIS com o
  * VALOR DE VENDA de cada um e campo para marcar a quantidade desejada.
  * Preço exibido = preço praticado no dia (promoPrice quando existir).
+ * Cada item exibe Nº (para o interno anotar "quero 2x do Nº 05"), nome,
+ * MARCA e PESO (quando cadastrados) e o valor de venda unitário.
  */
 export const CatalogoA4: React.FC<CatalogoA4Props> = ({ products, config, showUnavailable = false }) => {
   const agora = new Date();
   const dataEmissao = agora.toLocaleDateString('pt-BR');
   const horaEmissao = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const dataValidade = new Date(agora.getTime() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR');
 
   // Somente o que o interno pode realmente pedir: disponível e com estoque.
   // Se showUnavailable=true, mostra todos (para debug/admin)
@@ -35,39 +38,58 @@ export const CatalogoA4: React.FC<CatalogoA4Props> = ({ products, config, showUn
 
   const categories = Object.keys(groupedProducts).sort((a, b) => a.localeCompare(b));
   const instituicao = String(config?.institutionName || config?.appName || 'Mercado Fácil').toUpperCase();
+  const cnpj = String(config?.cnpj || '').trim();
+  const telefone = String(config?.contactPhone || '').trim();
+  const logo = config?.logoUrl;
+
+  // Nº sequencial GLOBAL (o interno localiza o item na folha inteira,
+  // não só dentro da categoria). Contador fluindo entre categorias.
+  let numeroGlobal = 0;
+
+  const precoVenda = (p: Product): number => {
+    const temPromo = p.promoPrice !== undefined && Number(p.promoPrice) > 0 && Number(p.promoPrice) < Number(p.price);
+    return temPromo ? Number(p.promoPrice) : Number(p.price);
+  };
 
   return (
     <div className="documento-a4 bg-white p-8 max-w-[210mm] w-full mx-auto text-slate-900 font-sans shadow-xl mb-8 print:shadow-none print:m-0 print:p-6 print:max-w-none print:w-full">
       {/* Cabeçalho institucional */}
-      <div className="border-b-[6px] border-slate-900 pb-5 mb-6 flex justify-between items-end gap-6">
-        <div className="min-w-0">
-          <h1 className="text-[26px] font-black uppercase tracking-tighter leading-none">{instituicao}</h1>
-          <p className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-700 mt-2">
-            Lista de Compras &mdash; Produtos Disponíveis e Valores
-          </p>
-          {(config?.cnpj || config?.contactPhone) && (
-            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-1">
-              {config?.cnpj ? `CNPJ: ${config.cnpj}` : ''}
-              {config?.cnpj && config?.contactPhone ? ' · ' : ''}
-              {config?.contactPhone ? `Tel: ${config.contactPhone}` : ''}
+      <div className="border-b-[6px] border-slate-900 pb-5 mb-6 flex justify-between items-end gap-6 print-avoid-break">
+        <div className="flex items-start gap-4 min-w-0">
+          {logo && <img src={logo} alt="Logo" className="h-16 w-16 object-contain shrink-0" />}
+          <div className="min-w-0">
+            <h1 className="text-[26px] font-black uppercase tracking-tighter leading-none">{instituicao}</h1>
+            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-700 mt-2">
+              Lista de Compras &mdash; Produtos Disponíveis e Valores
             </p>
-          )}
+            {(cnpj || telefone) && (
+              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mt-1">
+                {cnpj ? `CNPJ: ${cnpj}` : ''}
+                {cnpj && telefone ? ' · ' : ''}
+                {telefone ? `Tel: ${telefone}` : ''}
+              </p>
+            )}
+          </div>
         </div>
-        <div className="text-right shrink-0">
-          <p className="text-[9px] font-black uppercase text-slate-400 mb-1">Emitido em</p>
+        <div className="text-right shrink-0 print-avoid-break">
+          <p className="text-[9px] font-black uppercase text-slate-500 mb-1">Emitido em</p>
           <p className="text-sm font-black text-slate-800 leading-none">{dataEmissao}</p>
-          <p className="text-[9px] font-bold text-slate-400 mt-1">às {horaEmissao}</p>
+          <p className="text-[9px] font-bold text-slate-500 mt-1">às {horaEmissao}</p>
+          <p className="text-[8px] font-black uppercase text-emerald-700 mt-3 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded">
+            Valores válidos até {dataValidade}
+          </p>
         </div>
       </div>
 
       {/* Instruções para o interno */}
-      <div className="bg-slate-100 p-4 rounded-xl mb-7 border-l-8 border-slate-900 flex items-start gap-3">
+      <div className="bg-slate-100 p-4 rounded-xl mb-7 border-l-8 border-slate-900 flex items-start gap-3 print-avoid-break">
         <div className="w-8 h-8 rounded-lg bg-slate-900 text-white font-black text-base flex items-center justify-center shrink-0">?</div>
         <div>
           <p className="text-[10px] font-black uppercase tracking-widest text-slate-800">Como fazer seu pedido</p>
           <p className="text-[11px] font-semibold text-slate-600 mt-1 leading-snug">
-            Escolha os produtos na lista abaixo e marque a quantidade desejada no quadrado à direita de cada item.
-            Os valores estão em reais (R$). Confira seu saldo disponível antes de pedir &mdash; pedidos acima do saldo não são aceitos.
+            Escreva na folha o <b>Nº</b> do item e a <b>quantidade</b> desejada (ex.: "2x do Nº 05"). Os valores estão em
+            reais (R$) e incluem marca e peso quando disponíveis. Confira seu saldo antes de pedir &mdash; pedidos acima
+            do saldo não são aceitos.
           </p>
         </div>
       </div>
@@ -81,46 +103,58 @@ export const CatalogoA4: React.FC<CatalogoA4Props> = ({ products, config, showUn
                 <h2 className="text-xs font-black uppercase tracking-[0.2em] text-white bg-slate-900 px-4 py-2 rounded-md shadow-md inline-block">
                   {category}
                 </h2>
-                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">
                   {itens.length} {itens.length === 1 ? 'item' : 'itens'}
                 </span>
               </div>
 
               <div className="grid grid-cols-1 gap-px bg-slate-100 border border-slate-200 rounded-xl overflow-hidden">
                 {/* Header da tabela */}
-                <div className="grid grid-cols-[1fr,110px,80px] bg-slate-50 px-3 py-2.5 text-[9px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-200">
+                <div className="grid grid-cols-[36px,1fr,100px,72px] bg-slate-50 px-3 py-2.5 text-[9px] font-black uppercase tracking-widest text-slate-500 border-b border-slate-200">
+                  <span className="text-center">Nº</span>
                   <span>Descrição do Produto</span>
                   <span className="text-center">Valor de Venda</span>
                   <span className="text-center">Qtd.</span>
                 </div>
 
                 {itens.map(p => {
+                  numeroGlobal += 1;
                   const temPromo = p.promoPrice !== undefined && Number(p.promoPrice) > 0 && Number(p.promoPrice) < Number(p.price);
                   const isUnavailable = p.available === false || (p.stock ?? 0) <= 0;
+                  const peso = String(p.weight || '').trim();
+                  const marca = String(p.brand || '').trim();
+                  const temDetalhe = peso || marca;
                   return (
-                    <div key={p.id} className="grid grid-cols-[1fr,110px,80px] items-center bg-white px-3 py-2.5 border-b border-slate-100 last:border-0 min-h-[46px] break-inside-avoid">
+                    <div key={p.id} className="grid grid-cols-[36px,1fr,100px,72px] items-center bg-white px-3 py-2.5 border-b border-slate-100 last:border-0 min-h-[46px] break-inside-avoid">
+                      {/* Nº sequencial */}
+                      <div className="flex justify-center">
+                        <span className="w-7 h-7 rounded-md bg-slate-900 text-white text-[10px] font-black flex items-center justify-center shadow-sm">
+                          {String(numeroGlobal).padStart(2, '0')}
+                        </span>
+                      </div>
+
                       <div className="pr-4 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-black text-[11px] uppercase text-slate-900 leading-tight">{p?.name || 'Produto'}</p>
-                        {isUnavailable && !showUnavailable && (
-                          <span className="bg-red-100 text-red-700 text-[7px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">Indisponível</span>
-                        )}
-                      </div>
+                          <p className="font-black text-[11px] uppercase text-slate-900 leading-tight">{p?.name || 'Produto'}</p>
+                          {isUnavailable && !showUnavailable && (
+                            <span className="bg-red-100 text-red-700 text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">Indisponível</span>
+                          )}
                           {temPromo && (
-                            <span className="bg-emerald-100 text-emerald-700 text-[7px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">Oferta</span>
+                            <span className="bg-emerald-100 text-emerald-700 text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">Oferta</span>
                           )}
                         </div>
-                        {p?.brand && (
-                          <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">{p.brand}</p>
+                        {temDetalhe && (
+                          <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">
+                            {[marca, peso].filter(Boolean).join(' · ')}
+                          </p>
                         )}
                       </div>
-                      <div className="text-center tnum">
+                      <div className="text-center tnum print-avoid-break">
                         <p className={`font-black text-xs ${temPromo ? 'text-emerald-600' : 'text-slate-900'}`}>
-                          R$ {formatarMoeda(temPromo ? Number(p.promoPrice) : Number(p.price))}
+                          R$ {formatarMoeda(precoVenda(p))}
                         </p>
                         {temPromo && (
-                          <p className="text-[8px] text-slate-400 line-through font-bold">R$ {formatarMoeda(Number(p.price))}</p>
+                          <p className="text-[8px] text-slate-500 line-through font-bold">R$ {formatarMoeda(Number(p.price))}</p>
                         )}
                       </div>
                       <div className="border-l border-slate-100 flex justify-center">
@@ -135,22 +169,48 @@ export const CatalogoA4: React.FC<CatalogoA4Props> = ({ products, config, showUn
         })}
 
         {categories.length === 0 && (
-          <div className="text-center py-24 text-slate-300 font-black uppercase tracking-[0.2em] border-4 border-dashed border-slate-100 rounded-[3rem]">
+          <div className="text-center py-24 text-slate-500 font-black uppercase tracking-[0.2em] border-4 border-dashed border-slate-100 rounded-[3rem]">
             Nenhum produto disponível para escolha.
-            <p className="text-[10px] font-normal text-slate-400 mt-2">
+            <p className="text-[10px] font-normal text-slate-500 mt-2">
               Verifique se há produtos com estoque &gt; 0 e marcados como disponíveis.
             </p>
           </div>
         )}
       </div>
 
+      {/* Zona de anotações do interno (livre para escrever o pedido) */}
+      <div className="mt-10 border-2 border-dashed border-slate-200 rounded-xl p-5 print-avoid-break">
+        <p className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-500 mb-3">
+          Meu pedido &mdash; escreva aqui os itens escolhidos
+        </p>
+        <div className="space-y-5">
+          <div className="border-b border-slate-200"></div>
+          <div className="border-b border-slate-200"></div>
+          <div className="border-b border-slate-200"></div>
+        </div>
+        <div className="mt-6 flex justify-between items-end gap-6">
+          <div className="flex-1">
+            <div className="border-b-2 border-slate-300 h-8"></div>
+            <p className="text-[8px] font-black uppercase text-slate-500 tracking-wider mt-1">Nome do interno</p>
+          </div>
+          <div className="w-36">
+            <div className="border-b-2 border-slate-300 h-8"></div>
+            <p className="text-[8px] font-black uppercase text-slate-500 tracking-wider mt-1">Raio / Ala / Cela</p>
+          </div>
+          <div className="w-32">
+            <div className="border-b-2 border-slate-300 h-8"></div>
+            <p className="text-[8px] font-black uppercase text-slate-500 tracking-wider mt-1">Data</p>
+          </div>
+        </div>
+      </div>
+
       {/* Rodapé */}
-      <div className="mt-14 pt-5 border-t-2 border-slate-100 flex justify-between items-center px-2 gap-4">
-        <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest">
+      <div className="mt-14 pt-5 border-t-2 border-slate-100 flex justify-between items-center px-2 gap-4 print-avoid-break">
+        <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">
           © {agora.getFullYear()} {instituicao} · {availableProducts.length} {availableProducts.length === 1 ? 'produto disponível' : 'produtos disponíveis'}
         </span>
-        <span className="text-[8px] font-black uppercase text-slate-300 tracking-wider text-right italic">
-          Valores válidos somente para {dataEmissao} &mdash; sujeitos a alteração conforme estoque
+        <span className="text-[8px] font-black uppercase text-slate-500 tracking-wider text-right italic">
+          Preços sujeitos a alteração conforme estoque e promoções vigentes
         </span>
       </div>
     </div>

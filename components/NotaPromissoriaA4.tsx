@@ -74,7 +74,7 @@ export const valorPorExtenso = (valor: number): string => {
 };
 
 export const NotaPromissoriaA4: React.FC<NotaPromissoriaA4Props> = ({ data, onClose, embedded }) => {
-  if (!data) return <div className="p-20 text-center text-slate-400 font-black uppercase tracking-widest">Erro: Dados da nota não localizados</div>;
+  if (!data) return <div className="p-20 text-center text-slate-500 font-black uppercase tracking-widest">Erro: Dados da nota não localizados</div>;
   const emitDate = toDate(data.dataEmissao);
   const dueDate = toDate(data.dataVencimento);
   const dateLong = (d: Date | undefined) => d?.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }) || '';
@@ -90,7 +90,7 @@ export const NotaPromissoriaA4: React.FC<NotaPromissoriaA4Props> = ({ data, onCl
           <div className="bg-slate-900 p-3 rounded-2xl text-white shadow-lg"><FileText size={24} /></div>
           <div>
             <h3 className="font-black text-slate-900 uppercase tracking-tighter text-lg leading-none">Nota Promissória</h3>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Documento de Obrigação de Pagamento</p>
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Documento de Obrigação de Pagamento</p>
           </div>
         </div>
         <div className="flex gap-4">
@@ -98,7 +98,7 @@ export const NotaPromissoriaA4: React.FC<NotaPromissoriaA4Props> = ({ data, onCl
             <Printer size={20} /> Imprimir
           </button>
           {onClose && (
-            <button onClick={onClose} className="bg-white border-2 border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-600 px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 transition-all shadow-md active:scale-95">
+            <button onClick={onClose} className="bg-white border-2 border-slate-200 text-slate-500 hover:text-red-600 hover:border-red-600 px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 transition-all shadow-md active:scale-95">
               <X size={20} /> Encerrar
             </button>
           )}
@@ -143,10 +143,10 @@ export const NotaPromissoriaA4: React.FC<NotaPromissoriaA4Props> = ({ data, onCl
             {/* Value Box */}
             <div className="mb-12">
               <div className="bg-slate-50 border-2 border-slate-900 p-8 rounded-2xl">
-                <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-2">Valor por Extenso</p>
+                <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest mb-2">Valor por Extenso</p>
                 <p className="text-xl font-bold uppercase text-slate-900 leading-relaxed">{valorPorExtenso(data.valor)}</p>
                 <div className="mt-6 pt-6 border-t-2 border-slate-200">
-                  <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1">Valor Numérico</p>
+                  <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest mb-1">Valor Numérico</p>
                   <p className="text-4xl font-black font-mono tracking-tighter text-slate-900">
                     R$ {formatarMoeda(data.valor)}
                   </p>
@@ -158,13 +158,13 @@ export const NotaPromissoriaA4: React.FC<NotaPromissoriaA4Props> = ({ data, onCl
             <div className="grid grid-cols-2 gap-8 mb-12 print-avoid-break">
               <div className="p-6 bg-white border-2 border-slate-200 rounded-2xl shadow-sm relative">
                 <Calendar className="absolute right-4 top-4 text-slate-100" size={28} />
-                <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-2">Data de Emissão</p>
+                <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest mb-2">Data de Emissão</p>
                 <p className="text-lg font-black text-slate-900 uppercase">{dateLong(emitDate)}</p>
                 <p className="text-xs font-bold text-slate-500 mt-1">{dateShort(emitDate)}</p>
               </div>
               <div className="p-6 bg-white border-2 border-slate-200 rounded-2xl shadow-sm relative">
                 <DollarSign className="absolute right-4 top-4 text-slate-100" size={28} />
-                <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-2">Data de Vencimento</p>
+                <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest mb-2">Data de Vencimento</p>
                 <p className="text-lg font-black text-emerald-700 uppercase">{dateLong(dueDate)}</p>
                 <p className="text-xs font-bold text-slate-500 mt-1">{dateShort(dueDate)}</p>
               </div>
@@ -174,13 +174,13 @@ export const NotaPromissoriaA4: React.FC<NotaPromissoriaA4Props> = ({ data, onCl
             <div className="grid grid-cols-2 gap-8 mb-12 print-avoid-break">
               <div className="p-6 bg-white border-2 border-slate-200 rounded-2xl shadow-sm relative">
                 <User className="absolute right-4 top-4 text-slate-100" size={28} />
-                <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-2">Devedor</p>
+                <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest mb-2">Devedor</p>
                 <p className="text-lg font-black uppercase text-slate-900 leading-tight">{data.devedorNome}</p>
                 <p className="text-xs font-bold text-slate-500 mt-1">CPF: {data.devedorCpf}</p>
               </div>
               <div className="p-6 bg-white border-2 border-slate-200 rounded-2xl shadow-sm relative">
                 <Hash className="absolute right-4 top-4 text-slate-100" size={28} />
-                <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-2">Credor / Beneficiário</p>
+                <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest mb-2">Credor / Beneficiário</p>
                 <p className="text-lg font-black uppercase text-slate-900 leading-tight">{data.instituicao}</p>
                 {data.avalistaNome && (
                   <p className="text-xs font-bold text-slate-500 mt-1">Avalista: {data.avalistaNome}</p>
@@ -223,7 +223,7 @@ export const NotaPromissoriaA4: React.FC<NotaPromissoriaA4Props> = ({ data, onCl
 
             {/* Footer */}
             <div className="mt-12 pt-6 border-t border-slate-100">
-              <div className="flex justify-between items-center text-[9px] font-black uppercase text-slate-300">
+              <div className="flex justify-between items-center text-[9px] font-black uppercase text-slate-500">
                 <span>Emissão: {dateShort(emitDate)}</span>
                 <span className="tracking-[0.3em]">Protocolo: {(data.protocolo || '').toUpperCase()}</span>
               </div>

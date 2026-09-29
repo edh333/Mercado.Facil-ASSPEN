@@ -26,8 +26,8 @@ function formatCityDate(dateObj: Date, city: string): string {
 }
 
 export const ReciboA4: React.FC<ReciboA4Props> = ({ data, type, config, printerName, onClose, embedded }) => {
-  if (!data) return <div className="p-20 text-center text-slate-400 font-black uppercase tracking-widest">Erro: Dados não localizados</div>;
-  if (!config) return <div className="p-20 text-center text-slate-400 font-black uppercase tracking-widest">Erro: Configuração não encontrada</div>;
+  if (!data) return <div className="p-20 text-center text-slate-500 font-black uppercase tracking-widest">Erro: Dados não localizados</div>;
+  if (!config) return <div className="p-20 text-center text-slate-500 font-black uppercase tracking-widest">Erro: Configuração não encontrada</div>;
 
   const isOrder = type === 'ORDER';
   const order = isOrder ? (data as Order) : null;
@@ -107,7 +107,7 @@ export const ReciboA4: React.FC<ReciboA4Props> = ({ data, type, config, printerN
           <div className="bg-slate-900 p-3 rounded-2xl text-white shadow-lg"><FileText size={24} /></div>
           <div>
               <h3 className="font-black text-slate-900 uppercase tracking-tighter text-lg leading-none">Visualização de Documento</h3>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Status: Documento Autêntico e Assinado Digitalmente</p>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Status: Documento Autêntico e Assinado Digitalmente</p>
           </div>
         </div>
         <div className="flex gap-4">
@@ -146,7 +146,7 @@ export const ReciboA4: React.FC<ReciboA4Props> = ({ data, type, config, printerN
                         <div>
                             <h1 className="text-xl font-black uppercase tracking-tight leading-none text-slate-900">{config.institutionName}</h1>
                             <p className="text-[10px] font-black text-emerald-600 mt-1.5 uppercase tracking-[0.22em]">{config.appName || 'Sistema de Gestão'}</p>
-                            <p className="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-widest">{config.contactAddress || ''} | CNPJ: {config.cnpj || ''}</p>
+                            <p className="text-[9px] font-bold text-slate-500 mt-1 uppercase tracking-widest">{config.contactAddress || ''} | CNPJ: {config.cnpj || ''}</p>
                         </div>
                     </div>
                     <div className="text-right">
@@ -157,7 +157,7 @@ export const ReciboA4: React.FC<ReciboA4Props> = ({ data, type, config, printerN
                         <h2 className="text-3xl font-black uppercase tracking-tighter text-slate-900 leading-none">
                             {isOrder ? (config.receiptMainTitleOrder || 'Recibo de Venda') : (config.receiptMainTitleExpense || 'Recibo de Pagamento')}
                         </h2>
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1.5">
+                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1.5">
                             {isOrder ? 'Comprovante Oficial de Venda' : 'Comprovante de Despesa Administrativa'}
                         </p>
                         <p className="text-xs font-bold text-slate-500 mt-1 uppercase">{dateShort} • {timeShort}h</p>
@@ -172,7 +172,7 @@ export const ReciboA4: React.FC<ReciboA4Props> = ({ data, type, config, printerN
                 {/* VALUE BOX */}
                 <div className="grid grid-cols-3 gap-4 mb-5">
                     <div className="col-span-2 bg-white border border-slate-200 border-l-4 border-l-emerald-500 p-4 rounded-r-2xl">
-                        <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1">Valor Total</p>
+                        <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest mb-1">Valor Total</p>
                         <p className="text-[2.2rem] leading-none font-black font-mono tracking-tighter text-slate-900">{currencyValue}</p>
                         <p className="text-[11px] font-bold text-slate-500 italic mt-2 leading-relaxed">
                             Valor por extenso: <span className="font-black not-italic uppercase text-slate-700">{extenso}</span>
@@ -189,14 +189,14 @@ export const ReciboA4: React.FC<ReciboA4Props> = ({ data, type, config, printerN
                 {/* PARTICIPANTS */}
                 <div className="grid grid-cols-2 gap-4 mb-5 print-avoid-break">
                      <div className="p-4 bg-white border border-slate-200 rounded-2xl relative">
-                        <span className="absolute right-3 top-3 w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center"><User size={15} className="text-slate-400"/></span>
-                        <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1.5">{isOrder ? 'Cliente / Pagador' : 'Instituição Pagadora'}</p>
+                        <span className="absolute right-3 top-3 w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center"><User size={15} className="text-slate-500"/></span>
+                        <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest mb-1.5">{isOrder ? 'Cliente / Pagador' : 'Instituição Pagadora'}</p>
                         <p className="text-sm font-black uppercase text-slate-900 leading-tight pr-8">{pagadorNome}</p>
                         <p className="text-[11px] font-bold text-slate-500 mt-1 font-mono">DOC: {pagadorDoc}</p>
                      </div>
                      <div className="p-4 bg-white border border-slate-200 rounded-2xl relative">
                         <span className="absolute right-3 top-3 w-8 h-8 bg-emerald-50 rounded-full flex items-center justify-center"><CreditCard size={15} className="text-emerald-500"/></span>
-                        <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1.5">{isOrder ? 'Beneficiário' : 'Recebedor'}</p>
+                        <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest mb-1.5">{isOrder ? 'Beneficiário' : 'Recebedor'}</p>
                         <p className="text-sm font-black uppercase text-slate-900 leading-tight pr-8">{beneficiarioNome}</p>
                         <p className="text-[11px] font-bold text-slate-500 mt-1 font-mono">DOC: {beneficiarioDoc}</p>
                         {!isOrder && numRecibo && (
@@ -222,7 +222,7 @@ export const ReciboA4: React.FC<ReciboA4Props> = ({ data, type, config, printerN
                         {/* CATEGORY */}
                         {category && (
                             <div className="mb-3 p-3 bg-white rounded-xl border border-slate-200">
-                                <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1">Categoria</p>
+                                <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest mb-1">Categoria</p>
                                 <p className="text-sm font-bold text-slate-900 uppercase">{category}</p>
                             </div>
                         )}
@@ -230,7 +230,7 @@ export const ReciboA4: React.FC<ReciboA4Props> = ({ data, type, config, printerN
                         {/* OBSERVATION */}
                         {observation && (
                             <div className="mb-2 p-3 bg-white rounded-xl border border-slate-200">
-                                <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1">{config.receiptLabelObservations || 'Observações'}</p>
+                                <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest mb-1">{config.receiptLabelObservations || 'Observações'}</p>
                                 <p className="text-sm font-bold text-slate-900 whitespace-pre-wrap">{observation}</p>
                             </div>
                         )}
@@ -239,7 +239,7 @@ export const ReciboA4: React.FC<ReciboA4Props> = ({ data, type, config, printerN
                            <div className="mt-4 pt-4 border-t border-slate-200 border-dashed print-avoid-break">
                                <table className="w-full text-xs">
                                    <thead>
-                                       <tr className="text-[8px] font-black uppercase text-slate-400 tracking-widest text-left border-b-2 border-slate-900">
+                                       <tr className="text-[8px] font-black uppercase text-slate-500 tracking-widest text-left border-b-2 border-slate-900">
                                            <th className="pb-2 px-1">Descrição do Item</th>
                                            <th className="pb-2 px-1 text-center">Qtd</th>
                                            <th className="pb-2 px-1 text-right">Unitário</th>
@@ -253,7 +253,7 @@ export const ReciboA4: React.FC<ReciboA4Props> = ({ data, type, config, printerN
                                                    <p className="font-black uppercase text-slate-900 text-[11px] leading-tight mb-0.5">{item?.name || 'Item'}</p>
                                                    <div className="flex items-center gap-2 flex-wrap">
                                                        {(item as any).brand && <span className="text-[8px] font-black text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded uppercase">{(item as any).brand}</span>}
-                                                       {((item as any).barcode || (item as any).ean) && <span className="text-[8px] font-bold text-slate-400 font-mono">#{(item as any).barcode || (item as any).ean}</span>}
+                                                       {((item as any).barcode || (item as any).ean) && <span className="text-[8px] font-bold text-slate-500 font-mono">#{(item as any).barcode || (item as any).ean}</span>}
                                                    </div>
                                                </td>
                                                <td className="py-2 px-1 text-center text-sm font-black text-slate-900">{item.quantity}</td>
@@ -291,9 +291,9 @@ export const ReciboA4: React.FC<ReciboA4Props> = ({ data, type, config, printerN
                      <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-200 w-full max-w-md">
                          <QrCode size={36} className="text-emerald-600 shrink-0"/>
                          <div className="min-w-0">
-                             <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest mb-0.5">Autenticação Digital</p>
+                             <p className="text-[8px] font-black uppercase text-slate-500 tracking-widest mb-0.5">Autenticação Digital</p>
                              <p className="text-[10px] font-black text-slate-900 font-mono truncate">{authHash}</p>
-                             <p className="text-[7px] font-bold text-slate-400 uppercase mt-0.5">Verificação: {config.appName || 'SISTEMA'} • Gestão Penitenciária</p>
+                             <p className="text-[8px] font-bold text-slate-500 uppercase mt-0.5">Verificação: {config.appName || 'SISTEMA'} • Gestão Penitenciária</p>
                          </div>
                      </div>
                 </div>
@@ -306,7 +306,7 @@ export const ReciboA4: React.FC<ReciboA4Props> = ({ data, type, config, printerN
                     </div>
                 </div>
 
-                <div className="flex justify-between items-center text-[8px] font-black uppercase text-slate-400 border-t border-slate-200 pt-2.5">
+                <div className="flex justify-between items-center text-[8px] font-black uppercase text-slate-500 border-t border-slate-200 pt-2.5">
                     <span>Emitido em: {dateShort} às {timeShort}</span>
                     <span className="tracking-[0.28em]">Código de controle: {codigoControle}</span>
                 </div>

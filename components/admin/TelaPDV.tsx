@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { X, Search, Barcode, ShoppingCart, Check, Lock, User as UserIcon, Plus, Minus, Package, Wallet, CreditCard, DollarSign, Trash2, LayoutGrid, List } from 'lucide-react';
+import { X, Search, Barcode, ShoppingCart, Check, Lock, User as UserIcon, Plus, Minus, Package, Wallet, CreditCard, DollarSign, Trash2, LayoutGrid, List, Percent } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Product, User, Order, AppConfig, UserRole } from '../../types';
 import { filtrarClientesPdv } from '../../utils/pdvSearch';
@@ -14,7 +14,7 @@ interface TelaPDVProps {
   users: User[];
   products: Product[];
   orders?: Order[];
-  onConfirm: (targetUserId: string, items: any[], paymentMethod: MetodoPagamentoPDV, total: number, payments?: { method: MetodoLancamento; amount: number }[], change?: number, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string, fiado30UserId?: string, senhaPrimaria?: string, senhaSecundaria?: string, sessaoCaixaId?: string) => Promise<any>;
+  onConfirm: (targetUserId: string, items: any[], paymentMethod: MetodoPagamentoPDV, total: number, payments?: { method: MetodoLancamento; amount: number }[], change?: number, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string, fiado30UserId?: string, senhaPrimaria?: string, senhaSecundaria?: string, sessaoCaixaId?: string, descontoPct?: number) => Promise<any>;
   onConfirmOffline?: (targetUserId: string, items: any[], paymentMethod: MetodoPagamentoPDV, total: number, payments?: { method: MetodoLancamento; amount: number }[], change?: number, customerAccountId?: string, clientToken?: string, cardBrand?: string, sessaoCaixaId?: string) => Promise<any>;
   setPrintOrder?: (order: any) => void;
   settings?: AppConfig;
@@ -43,7 +43,7 @@ const METODOS: { key: MetodoPagamentoPDV; rotulo: string; icon: any }[] = [
 export const TelaPDV: React.FC<TelaPDVProps> = ({
   isOpen, onClose, users, products, orders = [], onConfirm, onConfirmOffline, setPrintOrder, settings, currentUser,
 }) => {
-  const { showNotification, validateAnyMasterPassword, sessaoCaixaAtiva, refreshSessaoCaixa } = useApp();
+  const { showNotification, validateAnyMasterPassword, validateDualMasterPassword, sessaoCaixaAtiva, refreshSessaoCaixa } = useApp();
 
   // ── Estado do carrinho / venda ──
   const [carrinho, setCarrinho] = useState<any[]>([]);
@@ -85,6 +85,7 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
       setSenhaSupervisaoOk(false);
       setSenhaSupervisaoErro('');
       setValidandoSenhaSupervisor(false);
+      limparDesconto();
     }
   }, [ultimoPedido]);
 
@@ -96,6 +97,28 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
   const [senhaSupervisaoOk, setSenhaSupervisaoOk] = useState(false);
   const [senhaSupervisaoErro, setSenhaSupervisaoErro] = useState('');
   const [validandoSenhaSupervisor, setValidandoSenhaSupervisor] = useState(false);
+
+  // ── Desconto na venda (até 50%; validado no servidor por faixa de senha) ──
+  const [descontoAberto, setDescontoAberto] = useState(false);
+  const [descontoPct, setDescontoPct] = useState(0);
+  // Senhas autorizadas para o desconto atual: ≤20% = uma (login ou mestra);
+  // >20% = dupla (entrada + mestra). Reencaminhadas ao servidor, que revalida.
+  const [descontoSenhas, setDescontoSenhas] = useState<{ primaria: string; secundaria?: string } | null>(null);
+  const [descPctInput, setDescPctInput] = useState('');
+  const [descSenha1, setDescSenha1] = useState('');
+  const [descSenha2, setDescSenha2] = useState('');
+  const [descErro, setDescErro] = useState('');
+  const [validandoDesconto, setValidandoDesconto] = useState(false);
+
+  const limparDesconto = () => {
+    setDescontoPct(0);
+    setDescontoSenhas(null);
+    setDescontoAberto(false);
+    setDescPctInput('');
+    setDescSenha1('');
+    setDescSenha2('');
+    setDescErro('');
+  };
 
   // Token de idempotência: reenvios da MESMA venda reutilizam o token e o
   // servidor devolve o pedido já criado (nunca debita 2x).
@@ -127,6 +150,7 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
     setSenhaSupervisaoErro('');
     setFormaPagamento('WALLET');
     setProdutoPrecoDinamico(null);
+    limparDesconto();
     refreshSessaoCaixa();
     setTimeout(() => clienteInputRef.current?.focus(), 100);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -152,14 +176,15 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
         e.preventDefault();
         produtoInputRef.current?.focus();
       } else if (e.key === 'Escape') {
-        if (produtoPrecoDinamico) setProdutoPrecoDinamico(null);
+        if (descontoAberto) setDescontoAberto(false);
+        else if (produtoPrecoDinamico) setProdutoPrecoDinamico(null);
         else if (mostrarListaClientes) setMostrarListaClientes(false);
         else onClose();
       }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [isOpen, produtoPrecoDinamico, mostrarListaClientes, onClose]);
+  }, [isOpen, descontoAberto, produtoPrecoDinamico, mostrarListaClientes, onClose]);
 
   // ── Derivação de dados ──
   const consumidorGeral: User = {
@@ -349,17 +374,25 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
 
   const totalCarrinho = useMemo(() => carrinho.reduce((soma, item) => arredondarCentavos(soma + item.price * item.quantity), 0), [carrinho]);
 
+  // Desconto aplicado: subtotal (totalCarrinho) menos o percentual autorizado.
+  // O SERVIDOR recalcula tudo a partir do subtotal — aqui só espelhamos a UX.
+  const valorDesconto = useMemo(
+    () => (descontoPct > 0 ? arredondarCentavos((totalCarrinho * descontoPct) / 100) : 0),
+    [totalCarrinho, descontoPct]
+  );
+  const totalFinal = useMemo(() => arredondarCentavos(totalCarrinho - valorDesconto), [totalCarrinho, valorDesconto]);
+
   const pixPayloadCarrinho = useMemo(() => {
     const chave = pixChave();
     if (!chave) return '';
-    return generatePix(chave, settings?.appName || 'ASSOCIACAO ASSPEN MT', 'PEIXOTO DE AZEVEDO', totalCarrinho, 'MERCFACIL');
-  }, [totalCarrinho, settings]); // eslint-disable-line react-hooks/exhaustive-deps
+    return generatePix(chave, settings?.appName || 'ASSOCIACAO ASSPEN MT', 'PEIXOTO DE AZEVEDO', totalFinal, 'MERCFACIL');
+  }, [totalFinal, settings]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Segurança extra: se o total mudar com PIX pendente, exige nova confirmação.
   useEffect(() => {
     if (pixConfirmado) setPixConfirmado(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [totalCarrinho]);
+  }, [totalFinal]);
 
   // ── Seleção de cliente ──
   const selecionarCliente = (u: User) => {
@@ -399,6 +432,49 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
     }
   };
 
+  // ── Desconto: valida a senha conforme a faixa e SÓ ENTÃO aplica ──
+  // ≤20% = UMA senha (login OU mestra) · >20% até 50% = DUPLA senha.
+  // O servidor revalida as mesmas senhas antes de calcular o total.
+  const confirmarDesconto = async () => {
+    const v = parseFloat(String(descPctInput).replace(',', '.'));
+    if (!Number.isFinite(v) || v <= 0) {
+      setDescErro('Informe um percentual maior que zero (ex.: 10 ou 25,5).');
+      return;
+    }
+    if (v > 50) {
+      setDescErro('Desconto máximo permitido é de 50%.');
+      return;
+    }
+    const pct = Math.round(v * 10) / 10;
+    const s1 = descSenha1.trim();
+    const s2 = descSenha2.trim();
+    if (pct <= 20) {
+      if (!s1) { setDescErro('Informe a senha do administrador (login ou mestra).'); return; }
+    } else if (!s1 || !s2) {
+      setDescErro('Acima de 20% é necessária a DUPLA senha: senha de entrada (login) + senha mestra.');
+      return;
+    }
+    setValidandoDesconto(true);
+    setDescErro('');
+    try {
+      const ok = pct <= 20
+        ? await validateAnyMasterPassword(s1)
+        : await validateDualMasterPassword(s1, s2);
+      if (!ok) {
+        setDescErro(pct <= 20 ? 'Senha inválida para autorizar o desconto.' : 'Senhas inválidas para autorizar o desconto.');
+        return;
+      }
+      setDescontoPct(pct);
+      setDescontoSenhas(pct <= 20 ? { primaria: s1 } : { primaria: s1, secundaria: s2 });
+      setDescontoAberto(false);
+      showNotification(`Desconto de ${String(pct).replace('.', ',')}% aplicado.`, 'success');
+    } catch {
+      setDescErro('Não foi possível validar a senha. Verifique a conexão.');
+    } finally {
+      setValidandoDesconto(false);
+    }
+  };
+
   const isFiado = formaPagamento === 'FIADO' || formaPagamento === 'FIADO_30';
   const temPixNoMisto = formaPagamento === 'MIXED' && parseMoeda(valorMisto.PIX) > 0;
   const temCashNaVenda = formaPagamento === 'CASH' || (formaPagamento === 'MIXED' && parseMoeda(valorMisto.CASH) > 0);
@@ -416,12 +492,12 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
   const bloqueioPixMisto = temPixNoMisto && !pixMistoConfirmado;
   // Fiado: precisa cliente válido E senha do supervisor
   const bloqueioFiado = isFiado && (!clienteValido || !senhaSupervisaoOk);
-  const bloqueioWallet = formaPagamento === 'WALLET' && (!clienteValido || saldoCarteiraCliente < totalCarrinho);
+  const bloqueioWallet = formaPagamento === 'WALLET' && (!clienteValido || saldoCarteiraCliente < totalFinal);
   const bloqueioPix = (formaPagamento === 'PIX' || temPixNoMisto) && !pixConfirmado;
-  
+
   const motivoBloqueioCredito = !clienteValido && (formaPagamento === 'WALLET' || isFiado)
     ? 'Selecione um cliente cadastrado para créditos/fiado'
-    : (formaPagamento === 'WALLET' && saldoCarteiraCliente < totalCarrinho) ? `Saldo insuficiente (disponível: ${formatarMoeda(saldoCarteiraCliente)})`
+    : (formaPagamento === 'WALLET' && saldoCarteiraCliente < totalFinal) ? `Saldo insuficiente (disponível: ${formatarMoeda(saldoCarteiraCliente)})`
     : (isFiado && clienteValido && !senhaSupervisaoOk) ? 'Valide a senha do supervisor para liberar o fiado'
     : '';
 
@@ -445,6 +521,14 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
       return;
     }
 
+    // Desconto exige conexão: a senha é revalidada NO servidor (nunca confia
+    // só no frontend). Sem internet, não enfileira — a replay offline cairia no
+    // gate origemOffline do backend.
+    if (descontoPct > 0 && typeof navigator !== 'undefined' && navigator.onLine === false) {
+      showNotification('Venda com desconto exige conexão para validar a senha no servidor. Conecte e finalize novamente.', 'error');
+      return;
+    }
+
     const targetId = clienteSelecionado || 'balcao_anonimo';
     let paymentsArray: { method: MetodoLancamento; amount: number }[] | undefined;
     let changeValue: number | undefined;
@@ -457,11 +541,16 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
     // FIADO/FIADO_30: a senha validada do supervisor (mestra) é reencaminhada
     // ao servidor, que revalida (nunca confia só no frontend).
     const senhaFiado = (isFiado && senhaSupervisaoOk) ? senhaSupervisor.trim() : undefined;
+    // Senhas reencaminhadas ao servidor: desconto tem prioridade sobre o fiado
+    // (a senha do desconto ≤20% também satisfaz o gate único do fiado; >20% já
+    // envia a dupla, cuja primária cobre o fiado).
+    const senhaPrimariaFinal = descontoSenhas?.primaria || senhaFiado;
+    const senhaSecundariaFinal = descontoSenhas?.secundaria;
     let montagem;
     try {
       montagem = montarPagamentoPdv({
         formaPagamento,
-        total: totalCarrinho,
+        total: totalFinal,
         valorMisto,
         valorRecebido,
         clienteSelecionado,
@@ -485,7 +574,7 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
 
     setProcessando(true);
     try {
-      const pedido = await onConfirm(targetId, carrinho, formaPagamento, totalCarrinho, paymentsArray, changeValue, customerAccountId, saleToken, undefined, bandeiraCartao || undefined, undefined, senhaFiado, undefined, sessaoCaixaId);
+      const pedido = await onConfirm(targetId, carrinho, formaPagamento, totalFinal, paymentsArray, changeValue, customerAccountId, saleToken, undefined, bandeiraCartao || undefined, undefined, senhaPrimariaFinal, senhaSecundariaFinal, sessaoCaixaId, descontoPct > 0 ? descontoPct : undefined);
       if (pedido) {
         setUltimoPedido(pedido);
         setProcessando(false);
@@ -513,9 +602,13 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
           : 'Venda fiada exige conexão para validar a senha mestra no servidor. Conecte e finalize novamente.', 'error');
         return;
       }
-      if (!navigator.onLine && onConfirmOffline) {
+      if (descontoPct > 0 && typeof navigator !== 'undefined' && navigator.onLine === false) {
+        showNotification('Venda com desconto exige conexão para validar a senha no servidor. Conecte e finalize novamente.', 'error');
+        return;
+      }
+      if (!navigator.onLine && onConfirmOffline && descontoPct === 0) {
         try {
-          const pedidoOffline = await onConfirmOffline(targetId, carrinho, formaPagamento, totalCarrinho, paymentsArray, changeValue, customerAccountId, saleToken, bandeiraCartao || undefined, sessaoCaixaId || undefined);
+          const pedidoOffline = await onConfirmOffline(targetId, carrinho, formaPagamento, totalFinal, paymentsArray, changeValue, customerAccountId, saleToken, bandeiraCartao || undefined, sessaoCaixaId || undefined);
           if (pedidoOffline) {
             setUltimoPedido(pedidoOffline);
             setCarrinho([]);
@@ -547,14 +640,14 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
   const trocoPreview = useMemo(() => {
     if (formaPagamento === 'CASH') {
       const recebido = parseMoeda(valorRecebido);
-      if (recebido > totalCarrinho) return recebido - totalCarrinho;
+      if (recebido > totalFinal) return recebido - totalFinal;
     }
     if (formaPagamento === 'MIXED') {
       const total = parseMoeda(valorMisto.PIX) + parseMoeda(valorMisto.WALLET) + parseMoeda(valorMisto.CASH);
-      if (total > totalCarrinho) return total - totalCarrinho;
+      if (total > totalFinal) return total - totalFinal;
     }
     return null;
-  }, [formaPagamento, valorRecebido, valorMisto, totalCarrinho]);
+  }, [formaPagamento, valorRecebido, valorMisto, totalFinal]);
 
   if (!isOpen) return null;
 
@@ -572,7 +665,7 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
             onClick={() => setIsSoundEnabled(s => !s)}
             className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 font-medium hover:bg-slate-50 transition-colors"
           >
-            Som: {isSoundEnabled ? 'ON' : 'OFF'}
+            Som: {isSoundEnabled ? 'Ligado' : 'Desligado'}
           </button>
           <button
             onClick={onClose}
@@ -590,7 +683,7 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
           {/* Métodos de Pagamento — horizontal abaixo do header PDV Balcão */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-wrap items-center gap-3 w-full mb-4 shrink-0">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500 shrink-0">Pagamento</span>
-            <div className="grid grid-cols-6 gap-1.5 flex-1 min-w-0 h-11">
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 flex-1 min-w-0 min-h-[44px]">
               {METODOS.map(m => {
                 const Icon = m.icon;
                 const ativo = formaPagamento === m.key;
@@ -599,7 +692,7 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
                     key={m.key}
                     title={m.rotulo}
                     onClick={() => { setFormaPagamento(m.key); setPixConfirmado(false); setCardConfirmado(false); setSenhaSupervisor(''); setSenhaSupervisaoOk(false); setSenhaSupervisaoErro(''); }}
-                    className={`flex items-center justify-center gap-1 rounded-xl border text-[10px] font-bold transition-all ${
+                    className={`flex items-center justify-center gap-1 rounded-xl border text-[10px] font-bold transition-all min-h-[44px] ${
                       ativo
                         ? 'bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-600/20'
                         : 'bg-white border-slate-200 text-slate-500 hover:border-emerald-300 hover:text-emerald-600'
@@ -869,25 +962,25 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
                   <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       onClick={() => atualizarQuantidade(item.productId, -1)}
-                      className="w-6 h-6 rounded-xl bg-white border border-slate-200 text-slate-500 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-colors"
+                      className="w-9 h-9 rounded-xl bg-white border border-slate-200 text-slate-500 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-colors"
                       aria-label="Diminuir"
                     >
-                      <Minus size={12} />
+                      <Minus size={14} />
                     </button>
                     <span className="w-8 text-center text-xs font-black text-slate-700 tabular-nums">{item.quantity}x</span>
                     <button
                       onClick={() => atualizarQuantidade(item.productId, 1)}
-                      className="w-6 h-6 rounded-xl bg-white border border-slate-200 text-slate-500 flex items-center justify-center hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
+                      className="w-9 h-9 rounded-xl bg-white border border-slate-200 text-slate-500 flex items-center justify-center hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
                       aria-label="Aumentar"
                     >
-                      <Plus size={12} />
+                      <Plus size={14} />
                     </button>
                   </div>
                   <button
                     onClick={() => removerDoCarrinho(item.productId)}
                     title="Remover item"
                     aria-label="Remover item"
-                    className="text-slate-400 hover:text-rose-500 hover:bg-rose-50 p-2 rounded-xl transition-all cursor-pointer shrink-0"
+                    className="text-slate-400 hover:text-rose-500 hover:bg-rose-50 p-2.5 rounded-xl transition-all cursor-pointer shrink-0"
                   >
                     <Trash2 size={15} />
                   </button>
@@ -908,7 +1001,7 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
                 <div className="grid grid-cols-2 gap-2">
                   <div className="bg-white border border-slate-200/80 rounded-xl p-3">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Saldo da Carteira</p>
-                    <p className={`text-lg font-black tracking-tight ${saldoCarteiraCliente >= totalCarrinho ? 'text-emerald-600' : 'text-red-500'}`}>{formatarMoeda(saldoCarteiraCliente)}</p>
+                    <p className={`text-lg font-black tracking-tight ${saldoCarteiraCliente >= totalFinal ? 'text-emerald-600' : 'text-red-500'}`}>{formatarMoeda(saldoCarteiraCliente)}</p>
                     <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Crédito na semana: {formatarMoeda(limiteSemanalDisponivel)}</p>
                   </div>
                   <div className="bg-white border border-slate-200/80 rounded-xl p-3">
@@ -983,12 +1076,12 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
             {formaPagamento === 'PIX' && (
               pixChave() ? (
                 <div className="flex flex-col items-center gap-3 bg-white rounded-xl p-4 mb-3 border border-slate-200/80">
-                  {totalCarrinho > 0 ? (
+                  {totalFinal > 0 ? (
                     <>
                       <div className="bg-white rounded-xl p-3 border border-slate-200/80">
                         <QRCodeSVG value={pixPayloadCarrinho} size={140} level="M" />
                       </div>
-                      <span className="text-xs font-bold text-slate-500">Valor: {formatarMoeda(totalCarrinho)}</span>
+                      <span className="text-xs font-bold text-slate-500">Valor: {formatarMoeda(totalFinal)}</span>
                       <button
                         onClick={() => setPixConfirmado(c => !c)}
                         className={`w-full min-h-[42px] rounded-xl border text-sm font-bold transition-colors ${
@@ -1045,7 +1138,7 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
                 {parseMoeda(valorRecebido) > 0 && (
                   <div className="text-xs font-semibold text-slate-500 flex justify-between px-1">
                     <span>Troco</span>
-                    <span className="text-emerald-600 font-black">{formatarMoeda(Math.max(0, parseMoeda(valorRecebido) - totalCarrinho))}</span>
+                    <span className="text-emerald-600 font-black">{formatarMoeda(Math.max(0, parseMoeda(valorRecebido) - totalFinal))}</span>
                   </div>
                 )}
               </div>
@@ -1090,9 +1183,50 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
                   <span className="text-base font-black">{formatarMoeda(trocoPreview)}</span>
                 </div>
               )}
+              {/* DESCONTO — faixa com subtotal + percentual aplicado (ou botão) */}
+              <div className={`rounded-xl border p-3 flex items-center justify-between gap-2 ${descontoPct > 0 ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200'}`}>
+                {descontoPct > 0 ? (
+                  <>
+                    <div className="flex flex-col min-w-0 gap-0.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Subtotal: {formatarMoeda(totalCarrinho)}</span>
+                      <span className="text-xs font-black text-amber-700 flex items-center gap-1">
+                        <Percent size={13} /> Desconto {String(descontoPct).replace('.', ',')}% · -{formatarMoeda(valorDesconto)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => { setDescPctInput(String(descontoPct).replace('.', ',')); setDescSenha1(''); setDescSenha2(''); setDescErro(''); setDescontoAberto(true); }}
+                        className="text-[10px] font-bold px-2.5 py-1.5 rounded-lg border border-amber-300 text-amber-700 hover:bg-amber-100 transition-colors"
+                      >
+                        Trocar
+                      </button>
+                      <button
+                        onClick={limparDesconto}
+                        title="Remover desconto"
+                        aria-label="Remover desconto"
+                        className="w-7 h-7 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-red-500 hover:border-red-200 flex items-center justify-center transition-colors"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                      <Percent size={14} className="text-slate-400" /> Desconto (até 50%)
+                    </span>
+                    <button
+                      onClick={() => { setDescPctInput(''); setDescSenha1(''); setDescSenha2(''); setDescErro(''); setDescontoAberto(true); }}
+                      className="text-[11px] font-bold px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-emerald-400 hover:text-emerald-700 transition-colors"
+                    >
+                      Aplicar
+                    </button>
+                  </>
+                )}
+              </div>
               <div className="bg-slate-50 p-4 rounded-xl flex justify-between items-center">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Total a Receber</span>
-                <span className="text-2xl font-black text-slate-900">{formatarMoeda(totalCarrinho)}</span>
+                <span className="text-2xl font-black text-slate-900">{formatarMoeda(totalFinal)}</span>
               </div>
               {/* Mensagens de bloqueio específicas por método */}
               {bloqueioCash && (
@@ -1173,6 +1307,106 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
             >
               <Plus size={18} /> Adicionar ao Carrinho
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de desconto — senha validada por faixa (≤20% 1 senha · >20% dupla) */}
+      {descontoAberto && (
+        <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4" onMouseDown={() => setDescontoAberto(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 p-6 w-full max-w-sm" onMouseDown={(e) => e.stopPropagation()}>
+            {(() => {
+              const v = parseFloat(String(descPctInput).replace(',', '.'));
+              const pctDesc = Number.isFinite(v) && v > 0 ? Math.min(Math.round(v * 10) / 10, 50) : 0;
+              const valorDesc = pctDesc > 0 ? arredondarCentavos((totalCarrinho * pctDesc) / 100) : 0;
+              const totalDesc = arredondarCentavos(totalCarrinho - valorDesc);
+              const excede50 = Number.isFinite(v) && v > 50;
+              const exigeDupla = Number.isFinite(v) && v > 20;
+              const podeConfirmar = pctDesc > 0 && !excede50 && !!descSenha1.trim() && (!exigeDupla || !!descSenha2.trim());
+              return (
+                <>
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-sm font-black text-slate-700 flex items-center gap-2"><Percent size={16} className="text-amber-500" /> Desconto na Venda</span>
+                    <button onClick={() => setDescontoAberto(false)} className="text-slate-400 hover:text-red-500" aria-label="Fechar"><X size={18} /></button>
+                  </div>
+
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-col gap-1 mb-4 text-xs">
+                    <div className="flex justify-between text-slate-500 font-semibold"><span>Subtotal</span><span>{formatarMoeda(totalCarrinho)}</span></div>
+                    <div className="flex justify-between text-amber-600 font-black">
+                      <span>Desconto {pctDesc > 0 ? `${String(pctDesc).replace('.', ',')}%` : ''}</span>
+                      <span>{valorDesc > 0 ? `-${formatarMoeda(valorDesc)}` : '-'}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-900 font-black text-sm border-t border-slate-200 pt-1.5">
+                      <span>Novo total</span><span>{formatarMoeda(totalDesc)}</span>
+                    </div>
+                  </div>
+
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Percentual (%) — máximo 50%</label>
+                  <input
+                    autoFocus
+                    type="text"
+                    inputMode="decimal"
+                    value={descPctInput}
+                    onChange={(e) => { setDescPctInput(e.target.value); setDescErro(''); }}
+                    onKeyDown={(e) => e.key === 'Enter' && podeConfirmar && !validandoDesconto && confirmarDesconto()}
+                    placeholder="Ex.: 10 ou 25,5"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white text-sm font-bold transition-all mb-3"
+                  />
+                  {excede50 && <p className="text-[11px] font-semibold text-red-500 mb-2">Desconto máximo permitido é de 50%.</p>}
+
+                  <p className="text-[11px] font-semibold text-slate-400 mb-3">
+                    {exigeDupla
+                      ? 'Acima de 20%: informe a senha de entrada (login) + a senha mestra.'
+                      : 'Até 20%: informe UMA senha — login do administrador ou senha mestra.'}
+                  </p>
+
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">{exigeDupla ? 'Senha de entrada (login)' : 'Senha do administrador'}</label>
+                  <input
+                    type="password"
+                    value={descSenha1}
+                    onChange={(e) => { setDescSenha1(e.target.value); setDescErro(''); }}
+                    onKeyDown={(e) => e.key === 'Enter' && podeConfirmar && !validandoDesconto && confirmarDesconto()}
+                    placeholder="Digite a senha"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white text-sm font-medium transition-all mb-3"
+                  />
+                  {exigeDupla && (
+                    <>
+                      <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Senha mestra</label>
+                      <input
+                        type="password"
+                        value={descSenha2}
+                        onChange={(e) => { setDescSenha2(e.target.value); setDescErro(''); }}
+                        onKeyDown={(e) => e.key === 'Enter' && podeConfirmar && !validandoDesconto && confirmarDesconto()}
+                        placeholder="Digite a senha mestra"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white text-sm font-medium transition-all mb-3"
+                      />
+                    </>
+                  )}
+
+                  {descErro && <p className="text-[11px] font-semibold text-red-500 mb-2">{descErro}</p>}
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setDescontoAberto(false)}
+                      className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 text-sm font-bold hover:bg-slate-50 transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={confirmarDesconto}
+                      disabled={!podeConfirmar || validandoDesconto}
+                      className={`flex-1 py-3 rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-2 ${
+                        podeConfirmar && !validandoDesconto
+                          ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/20'
+                          : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                      }`}
+                    >
+                      {validandoDesconto ? 'Validando...' : <><Check size={16} /> Autorizar</>}
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
       )}

@@ -5,7 +5,7 @@ import { OrderStatus, ThemeOption, Order, Product, CartItem, WalletTransaction }
 import { 
     ShoppingCart, LogOut, Search, Plus, X, Upload, CheckCircle, 
     MessageSquare, Clock, FileText, 
-    Printer, ShoppingBag, Loader2, Package, CreditCard, RefreshCcw, AlertCircle, Sparkles, Lock,
+    Printer, ShoppingBag, Loader2, Package, CreditCard, RefreshCcw, AlertCircle, Sparkles,
     Trash2, Wrench, Banknote, Paperclip, Home, HardHat, Wallet, ShieldCheck, Smartphone
 } from 'lucide-react';
 import { CupomEntrega } from '../components/CupomEntrega';
@@ -15,13 +15,14 @@ import { generatePixPayload, formatarMoeda, compressImageFile, copiarTextoComFal
 import { MIN_PROOF_BYTES } from '../utils/fileHash';
 import { imprimirComPrioridadeFiscal } from '../utils/printUtils';
 import { toDate } from '../utils/dateUtils';
-import { collection, query, where, onSnapshot, orderBy, limit, getDocs, getDocsFromServer } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, limit, getDocsFromServer, getDocsFromCache } from 'firebase/firestore';
 import { db } from '../firebase';
 import { QRCodeSVG } from 'qrcode.react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { OnlineStatusIndicator } from '../components/OnlineStatusIndicator';
 import { InstallButton } from '../components/InstallButton';
 import { UninstallModal } from '../components/UninstallModal';
+import { StoreSuspendedScreen } from '../components/user/StoreSuspendedScreen';
 import { PageHeader, UiButton, ModalShell } from '../components/ui';
 
 export const UserDashboard: React.FC = () => {
@@ -37,7 +38,13 @@ export const UserDashboard: React.FC = () => {
 
     // States de Navegação e Visualização
     const [activeTab, setActiveTab] = useState<'store' | 'orders'>('store');
-    const [mobileView, setMobileView] = useState<'catalog' | 'cart' | 'payment'>('catalog');
+    const [mobileView, setMobileView] = useState<'catalog' | 'cart'>('catalog');
+
+    // Modo "somente envia crédito": compras suspensas — catálogo, carrinho e
+    // histórico de pedidos ficam ocultos; ficam só envio de crédito e extrato.
+    const comprasSuspensas = (settings?.allow_user_purchases ?? true) === false && !isAdmin;
+    const saldoSuspenso = (settings?.allow_balance_purchases ?? true) === false && !isAdmin;
+    const soCredito = comprasSuspensas || saldoSuspenso;
 
     // States do Carrinho e Pedido
     const [cart, setCart] = useState<CartItem[]>(() => {
@@ -89,9 +96,23 @@ export const UserDashboard: React.FC = () => {
     const [viewingOrderCupom, setViewingOrderCupom] = useState<Order | null>(null);
     const [expandedOrders, setExpandedOrders] = useState<string[]>([]);
     const [myOrders, setMyOrders] = useState<Order[]>([]);
+    // Histórico mostra 20 por vez com "CARREGAR MAIS" — antes cortava em 20
+    // SEM aviso e o pedido 21+ simplesmente desaparecia para o familiar.
+    const [pedidosVisiveis, setPedidosVisiveis] = useState(20);
     const [loadingOrders, setLoadingOrders] = useState(false);
     const [walletTxs, setWalletTxs] = useState<WalletTransaction[]>([]);
     const [viewingWalletHistory, setViewingWalletHistory] = useState(false);
+
+    // Modo só-crédito: volta para a área de crédito e fecha qualquer fluxo de
+    // compra que estiver aberto (carrinho, checkout, cupom).
+    useEffect(() => {
+        if (!soCredito) return;
+        setActiveTab('store');
+        setMobileView('catalog');
+        setIsCartReviewOpen(false);
+        setIsCheckoutModalOpen(false);
+        setViewingOrderCupom(null);
+    }, [soCredito]);
 
     const isMobile = useMemo(() => typeof navigator !== 'undefined' && /android|iphone|ipad|ipod/i.test(navigator.userAgent), []);
 
@@ -163,43 +184,36 @@ export const UserDashboard: React.FC = () => {
         );
 
         const loadOrders = async () => {
-            // 1. Tenta cache local primeiro (0ms, funciona offline)
-            try {
-                const snapshot = await getDocs(q);
-                if (!snapshot.empty) {
-                    const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Order)).filter(o => (o as any).deleted !== true);
-                    items.sort((a, b) => (toDate(b.createdAt || b.date)?.getTime() || 0) - (toDate(a.createdAt || a.date)?.getTime() || 0));
-                    setMyOrders(items.slice(0, 20));
-                    setLoadingOrders(false);
-                }
-            } catch { console.warn("order listener error"); /* silencioso — o servidor cobre */ }
-
-            // 2. Refresh do servidor em segundo plano (dados frescos)
+            // 1. Servidor primeiro (dados frescos) — UMA leitura por abertura.
+            // Antes era getDocs + getDocsFromServer (2 leituras) e o refresh
+            // duplicava o render quando os dados não mudavam.
             try {
                 const snapshot = await getDocsFromServer(q);
                 const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Order)).filter(o => (o as any).deleted !== true);
                 items.sort((a, b) => (toDate(b.createdAt || b.date)?.getTime() || 0) - (toDate(a.createdAt || a.date)?.getTime() || 0));
-                setMyOrders(items.slice(0, 20));
+                setMyOrders(items);
             } catch {
+                // 2. Offline: cai para o cache local (0 rede).
                 try {
-                    const qFallback = query(collection(db, 'orders'), where('userId', '==', currentUser.id), limit(100));
-                    const snapshot = await getDocsFromServer(qFallback);
+                    const snapshot = await getDocsFromCache(q);
                     const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Order)).filter(o => (o as any).deleted !== true);
                     items.sort((a, b) => (toDate(b.createdAt || b.date)?.getTime() || 0) - (toDate(a.createdAt || a.date)?.getTime() || 0));
-                    setMyOrders(items.slice(0, 20));
-                } catch { console.warn("orders fetch fallback"); setLoadingOrders(false); /* offline sem cache — lista vazia */ }
+                    setMyOrders(items);
+                } catch { console.warn("orders fetch fallback"); /* offline sem cache — lista vazia */ }
             }
             setLoadingOrders(false);
         };
         loadOrders();
 
-        // Real-time subscription com sincronização multi-aba (desktop only)
+        // Real-time subscription com sincronização multi-aba (desktop only).
+        // Sem includeMetadataChanges: antes, cada mudança só-de-cache (ex.:
+        // servidor puxou os mesmos docs) re disparava o listener à toa.
         if (!isMobile) {
             try {
-                unsubOrders = onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
+                unsubOrders = onSnapshot(q, (snapshot) => {
                     const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Order)).filter(o => (o as any).deleted !== true);
                     items.sort((a, b) => (toDate(b.createdAt || b.date)?.getTime() || 0) - (toDate(a.createdAt || a.date)?.getTime() || 0));
-                    setMyOrders(items.slice(0, 20));
+                    setMyOrders(items);
                 }, () => {});
             } catch { console.warn("orders snapshot error"); }
         }
@@ -523,10 +537,12 @@ export const UserDashboard: React.FC = () => {
     const getStatusStyle = (status: string) => {
         const s = (status || '').toLowerCase();
         if (s.includes('cancel')) return 'bg-red-100 text-red-700';
+        // "Saiu para entrega" ANTES de "entregue": 'out_for_delivery' contém
+        // 'deliver' e estava caindo na cor verde de pedido entregue.
+        if (s.includes('out_for_delivery') || s.includes('saiu') || s.includes('delivery')) return 'bg-sky-100 text-sky-700';
         if (s.includes('deliver') || s.includes('entregue')) return 'bg-emerald-100 text-emerald-700';
         if (s === 'paid' || s.includes('pago')) return 'bg-green-100 text-green-700';
         if (s.includes('separa') || s.includes('prepar')) return 'bg-indigo-100 text-indigo-700';
-        if (s.includes('saiu') || s.includes('delivery')) return 'bg-sky-100 text-sky-700';
         return 'bg-amber-100 text-amber-700';
     };
 
@@ -1113,7 +1129,7 @@ export const UserDashboard: React.FC = () => {
                         <>
                             <div className="hidden sm:flex items-center gap-3 rounded-full border border-slate-200 bg-slate-50 px-4 py-2">
                                 <div className="text-right leading-tight">
-                                    <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">Saldo Disponível</p>
+                                    <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">Saldo</p>
                                     <p className="text-sm font-bold tracking-tight text-[var(--primary-color)]">R$ {formatarMoeda(currentUser?.walletBalance || 0)}</p>
                                 </div>
                                 <UiButton
@@ -1124,40 +1140,44 @@ export const UserDashboard: React.FC = () => {
                                     Enviar Crédito
                                 </UiButton>
                             </div>
-                            <div className="hidden md:flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1">
-                                <button
-                                    onClick={() => setActiveTab('store')}
-                                    className={`flex items-center gap-2 rounded-md px-4 py-2 text-xs font-semibold transition-colors ${activeTab === 'store' ? 'bg-[var(--primary-color)] text-white shadow-sm' : 'text-slate-500 hover:bg-white hover:text-slate-900'}`}
-                                >
-                                    <ShoppingBag size={14} /> Loja
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab('orders')}
-                                    className={`flex items-center gap-2 rounded-md px-4 py-2 text-xs font-semibold transition-colors ${activeTab === 'orders' ? 'bg-[var(--primary-color)] text-white shadow-sm' : 'text-slate-500 hover:bg-white hover:text-slate-900'}`}
-                                >
-                                    <Clock size={14} /> Pedidos
-                                </button>
-                            </div>
+                            {!soCredito && (
+                                <div className="hidden md:flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1">
+                                    <button
+                                        onClick={() => setActiveTab('store')}
+                                        className={`flex items-center gap-2 rounded-md px-4 py-2 text-xs font-semibold transition-colors ${activeTab === 'store' ? 'bg-[var(--primary-color)] text-white shadow-sm' : 'text-slate-500 hover:bg-white hover:text-slate-900'}`}
+                                    >
+                                        <ShoppingBag size={14} /> Loja
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveTab('orders')}
+                                        className={`flex items-center gap-2 rounded-md px-4 py-2 text-xs font-semibold transition-colors ${activeTab === 'orders' ? 'bg-[var(--primary-color)] text-white shadow-sm' : 'text-slate-500 hover:bg-white hover:text-slate-900'}`}
+                                    >
+                                        <Clock size={14} /> Pedidos
+                                    </button>
+                                </div>
+                            )}
                         </>
                     )
                 }
                 actions={
                     <div className="flex gap-1.5 relative z-10">
-                        <UiButton
-                            size="sm"
-                            icon={<Printer size={17} />}
-                            onClick={() => {
-                                if (myOrders.length > 0) {
-                                    setViewingOrderCupom(myOrders[0]);
-                                } else {
-                                    showNotification('Nenhum pedido encontrado para reimpressão.', 'error');
-                                }
-                            }}
-                            disabled={myOrders.length === 0}
-                            title="Reimprimir Último Cupom"
-                            aria-label="Reimprimir último cupom"
-                            className="flex shrink-0 size-10 border border-slate-200 bg-white text-slate-500 items-center justify-center shadow-sm hover:border-[var(--primary-color)]/40 hover:text-[var(--primary-color)] disabled:opacity-70 disabled:shadow-none"
-                        />
+                        {!soCredito && (
+                            <UiButton
+                                size="sm"
+                                icon={<Printer size={17} />}
+                                onClick={() => {
+                                    if (myOrders.length > 0) {
+                                        setViewingOrderCupom(myOrders[0]);
+                                    } else {
+                                        showNotification('Nenhum pedido encontrado para reimpressão.', 'error');
+                                    }
+                                }}
+                                disabled={myOrders.length === 0}
+                                title="Reimprimir Último Cupom"
+                                aria-label="Reimprimir último cupom"
+                                className="flex shrink-0 size-10 border border-slate-200 bg-white text-slate-500 items-center justify-center shadow-sm hover:border-[var(--primary-color)]/40 hover:text-[var(--primary-color)] disabled:opacity-70 disabled:shadow-none"
+                            />
+                        )}
                         <UiButton
                             size="sm"
                             icon={<MessageSquare size={17} />}
@@ -1247,19 +1267,13 @@ export const UserDashboard: React.FC = () => {
             <main className={`flex-1 min-h-0 w-full px-4 sm:px-6 py-6 md:py-8 pb-24 z-10 relative ${isAdmin ? 'max-w-7xl' : 'max-w-5xl mx-auto'}`}>
                 {activeTab === 'store' && (
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                        {(settings?.allow_user_purchases ?? true) === false && !isAdmin ? (
-                            <div className="flex flex-col items-center justify-center py-20 text-center">
-                                <div className="bg-red-500/10 border-2 border-red-500/20 rounded-[3rem] p-6 md:p-12 max-w-md w-full shadow-2xl">
-                                    <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                                        <Lock size={36} className="text-red-500" />
-                                    </div>
-                                    <p className="font-black text-lg uppercase tracking-tight text-slate-900 mb-4"><Lock size={16} className="inline-block mr-1.5 -mt-0.5 text-red-500" />MÓDULO DE COMPRAS SUSPENSO</p>
-                                    <p className="text-sm font-bold text-slate-500 leading-relaxed">
-                                        Módulo de Compras Suspenso no Momento. Utilize esta tela exclusivamente para enviar crédito via PIX para a custódia do interno.
-                                    </p>
-                                </div>
-                            </div>
-                        ) : (settings?.allow_balance_purchases ?? true) === false && !isAdmin ? (
+                        {comprasSuspensas ? (
+                            <StoreSuspendedScreen
+                                institutionName={settings?.institutionName}
+                                saldo={currentUser?.walletBalance || 0}
+                                onSendCredit={() => { setIsDepositOpen(true); setStage('pay'); setDepositAmount(0); }}
+                            />
+                        ) : saldoSuspenso ? (
                             <div className="max-w-md mx-auto bg-slate-900 rounded-3xl border border-slate-700 shadow-xl p-8 text-white space-y-6">
                                 <div className="text-center">
                                     <span className="bg-amber-500/10 text-amber-500 border border-amber-500/20 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest animate-pulse">Compras Suspensas</span>
@@ -1352,15 +1366,15 @@ export const UserDashboard: React.FC = () => {
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
                         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
                             <div>
-                                <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5"><Clock size={22} className="text-[var(--primary-color)]"/> Histórico</h2>
-                                <p className="text-xs text-slate-500 mt-0.5">Acompanhamento em tempo real</p>
+                                <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5"><Clock size={22} className="text-[var(--primary-color)]"/> {soCredito ? 'Extrato' : 'Histórico'}</h2>
+                                <p className="text-xs text-slate-500 mt-0.5">{soCredito ? 'Depósitos e saldo' : 'Acompanhamento em tempo real'}</p>
                             </div>
-                            {(settings?.enablePrisonerWallet ?? true) && (
+                            {!soCredito && (settings?.enablePrisonerWallet ?? true) && (
                                 <button onClick={() => setViewingWalletHistory(!viewingWalletHistory)} className={`text-xs font-semibold px-4 py-2 rounded-lg transition-all border ${viewingWalletHistory ? 'bg-slate-900 border-slate-900 text-white' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}>Extrato</button>
                             )}
                         </div>
 
-                        {viewingWalletHistory ? (
+                        {(viewingWalletHistory || soCredito) ? (
                             <div className="space-y-4">
                                 {walletTxs.length === 0 ? (
                                     <div className="bg-[var(--bg-card)] p-10 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center gap-3 text-center">
@@ -1416,7 +1430,7 @@ export const UserDashboard: React.FC = () => {
                                         <p className="text-[10px] text-slate-400 font-bold">Seus pedidos aparecerão aqui assim que você fizer uma compra.</p>
                                     </div>
                                 )}
-                                {!loadingOrders && myOrders.map((order: any) => (
+                                {!loadingOrders && myOrders.slice(0, pedidosVisiveis).map((order: any) => (
                                     <div key={order.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
                                         <div className="flex justify-between items-center mb-4 pb-4 border-b border-slate-100">
                                             <div>
@@ -1480,6 +1494,19 @@ export const UserDashboard: React.FC = () => {
                                         )}
                                     </div>
                                 ))}
+                                {!loadingOrders && myOrders.length > pedidosVisiveis && (
+                                    <button
+                                        onClick={() => setPedidosVisiveis(v => v + 20)}
+                                        className="w-full py-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-600 font-black text-[11px] uppercase tracking-widest transition-all cursor-pointer"
+                                    >
+                                        Carregar mais ({myOrders.length - pedidosVisiveis} restantes)
+                                    </button>
+                                )}
+                                {!loadingOrders && myOrders.length >= 100 && pedidosVisiveis >= myOrders.length && (
+                                    <p className="text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                        Mostrando os 100 pedidos mais recentes
+                                    </p>
+                                )}
                             </div>
                         )}
                     </motion.div>
@@ -1577,15 +1604,25 @@ export const UserDashboard: React.FC = () => {
 
             {/* MOBILE BOTTOM NAV */}
             <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 flex justify-around items-center h-16 z-50 shadow-lg modal-bottom-sheet" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-                {((settings?.allow_balance_purchases ?? true) === false && !isAdmin) ? (
+                {soCredito ? (
                     <>
-                        <button onClick={() => { setActiveTab('store'); }} className={`flex flex-col items-center justify-center h-full flex-1 transition-colors ${activeTab === 'store' ? 'text-[var(--primary-color)]' : 'text-slate-400'}`}>
+                        <button
+                            onClick={() => {
+                                setActiveTab('store');
+                                if (comprasSuspensas) {
+                                    setIsDepositOpen(true);
+                                    setDepositStage('amount');
+                                    setDepositAmount(0);
+                                }
+                            }}
+                            className={`flex flex-col items-center justify-center h-full flex-1 transition-colors ${activeTab === 'store' ? 'text-[var(--primary-color)]' : 'text-slate-400'}`}
+                        >
                             <CreditCard size={20} />
-                            <span className="text-[10px] font-black uppercase mt-0.5">ENVIAR PIX</span>
+                            <span className="text-[10px] font-black uppercase mt-0.5">{comprasSuspensas ? 'ENVIAR CRÉDITO' : 'ENVIAR PIX'}</span>
                         </button>
-                        <button onClick={() => { setActiveTab('orders'); }} className={`flex flex-col items-center justify-center h-full flex-1 transition-colors ${activeTab === 'orders' ? 'text-[var(--primary-color)]' : 'text-slate-400'}`}>
-                            <Clock size={20} />
-                            <span className="text-[10px] font-black uppercase mt-0.5">HISTÓRICO</span>
+                        <button onClick={() => { setActiveTab('orders'); setViewingWalletHistory(true); }} className={`flex flex-col items-center justify-center h-full flex-1 transition-colors ${activeTab === 'orders' ? 'text-[var(--primary-color)]' : 'text-slate-400'}`}>
+                            <Wallet size={20} />
+                            <span className="text-[10px] font-black uppercase mt-0.5">EXTRATO</span>
                         </button>
                     </>
                 ) : (
@@ -1598,10 +1635,6 @@ export const UserDashboard: React.FC = () => {
                             <ShoppingCart size={20} />
                             {totalItensNoCarrinho > 0 && <span className="absolute top-1 right-[calc(50%-24px)] bg-red-500 text-white text-[10px] w-auto min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center font-black border border-white">{totalItensNoCarrinho}</span>}
                             <span className="text-[10px] font-black uppercase mt-0.5">CUPOM</span>
-                        </button>
-                        <button onClick={() => { setActiveTab('store'); setMobileView('payment'); }} className={`flex flex-col items-center justify-center h-full flex-1 transition-colors ${mobileView === 'payment' ? 'text-[var(--primary-color)]' : 'text-slate-400'}`}>
-                            <CreditCard size={20} />
-                            <span className="text-[10px] font-black uppercase mt-0.5">PAGAMENTO</span>
                         </button>
                         <button onClick={() => { setActiveTab('orders'); }} className={`flex flex-col items-center justify-center h-full flex-1 transition-colors ${activeTab === 'orders' ? 'text-[var(--primary-color)]' : 'text-slate-400'}`}>
                             <Clock size={20} />
@@ -1666,44 +1699,8 @@ export const UserDashboard: React.FC = () => {
                 </div>
             </ModalShell>
 
-            {/* MOBILE PAYMENT VIEW */}
-            {mobileView === 'payment' && (
-                <div className="md:hidden fixed inset-0 z-40 bg-black/40" onClick={() => setMobileView('catalog')}>
-                    <div className="absolute bottom-16 left-0 right-0 bg-white rounded-t-3xl shadow-2xl max-h-[70vh] overflow-y-auto p-4 pb-8" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }} onClick={e => e.stopPropagation()}>
-                        <div className="w-12 h-1.5 bg-slate-300 rounded-full mx-auto mb-4"></div>
-                        <p className="font-black text-xs uppercase text-slate-400 text-center tracking-widest mb-4"><Banknote size={12} className="inline-block mr-1.5 -mt-0.5" /> FINALIZAR PAGAMENTO</p>
-                        <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 mb-4">
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">DADOS DO CLIENTE</p>
-                            <p className="font-black text-sm text-slate-900 uppercase">{currentUser?.name || 'CONSUMIDOR FINAL'}</p>
-                            <p className="text-[10px] text-slate-500 font-bold">Saldo: R$ {formatarMoeda(currentUser?.walletBalance || 0)}</p>
-                        </div>
-                        <div className="bg-emerald-50 rounded-xl p-6 border border-emerald-100 text-center mb-6">
-                            <p className="text-[9px] font-black text-[var(--primary-color)] uppercase tracking-widest mb-2">TOTAL GERAL</p>
-                            <p className="font-black text-3xl text-slate-900">R$ {formatarMoeda(cartTotal)}</p>
-                        </div>
-                        <button onClick={cancelSale} className={`w-full py-3.5 min-h-[44px] rounded-xl font-bold text-sm text-white active:scale-95 mb-2 flex items-center justify-center gap-2 transition-all ${!isAdmin && confirmarLimpar ? 'bg-red-600 ring-4 ring-red-200 animate-pulse' : 'bg-red-500'}`}>
-                            <X size={14} className="inline-block mr-1.5 -mt-0.5" /> {isAdmin ? 'Cancelar' : (confirmarLimpar ? 'Toque de novo para confirmar' : 'Limpar Carrinho')}
-                        </button>
-                        {isAdmin && (
-                            <button onClick={() => {
-                                const cartNow = cartRef.current;
-                                if (cartNow.length > 0) {
-                                    const lastItem = cartNow[cartNow.length - 1];
-                                    setCart(prev => prev.filter(i => String(i.productId) !== String(lastItem.productId)));
-                                    showNotification('Último item removido!', 'success');
-                                }
-                            }} className="w-full py-3 rounded-xl font-bold text-sm bg-orange-500 text-white active:scale-95 mb-4 flex items-center justify-center gap-2">
-                                <RefreshCcw size={14} className="inline-block mr-1.5 -mt-0.5" /> Estorno (F9)
-                            </button>
-                        )}
-                        <button onClick={() => setIsCheckoutModalOpen(true)} disabled={cart.length === 0} className="w-full py-4 rounded-xl text-white font-black text-lg bg-emerald-600 active:scale-95 shadow-md disabled:bg-slate-300 disabled:cursor-not-allowed disabled:text-slate-500 transition-all">
-                            FINALIZAR COMPRA
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {totalItensNoCarrinho > 0 && (
+            {/* CART FAB — desktop */}
+            {totalItensNoCarrinho > 0 && !soCredito && (
                 <button onClick={() => setIsCartReviewOpen(true)} className="hidden md:flex fixed bottom-6 right-6 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-5 rounded-full shadow-2xl flex items-center gap-2 z-50 transition-all active:scale-95 cursor-pointer">
                     <span className="relative">
                         <ShoppingCart size={20} />
@@ -1964,8 +1961,11 @@ export const UserDashboard: React.FC = () => {
                                 remainingBalance={viewingOrderCupom.walletBalanceAfter}
                             />
                         </div>
-                        <div className="p-4 bg-white border-t border-slate-100 print:hidden">
-                            <button onClick={() => imprimirComPrioridadeFiscal({ type: 'CUPOM', data: viewingOrderCupom }, settings).catch(console.error)} className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black text-xs uppercase shadow-lg shadow-emerald-500/20">Imprimir Comprovante</button>
+                        <div className="p-4 bg-white border-t border-slate-100 print:hidden space-y-2">
+                            <button onClick={() => imprimirComPrioridadeFiscal({ type: 'CUPOM', data: viewingOrderCupom }, settings).catch(console.error)} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-black text-xs uppercase shadow-lg shadow-emerald-500/20 transition-all active:scale-95">Imprimir Comprovante</button>
+                            <button onClick={() => setViewingOrderCupom(null)} className="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 cursor-pointer">
+                                <X size={13} className="inline-block mr-1.5 -mt-0.5" /> Fechar
+                            </button>
                         </div>
                         <style>{`
                           @media print {

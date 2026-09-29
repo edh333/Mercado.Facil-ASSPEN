@@ -18,6 +18,7 @@ import { formatarMoeda, formatCPF, formatPhone } from '../../utils';
 import { getActiveSession } from '../../utils/cashSession';
 import { useApp } from '../../context/StoreContext';
 import { gerarRelatorioInadimplentes, imprimirCupom } from '../../utils/printUtils';
+import { celulaCsv } from '../../utils/csv';
 import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
 
 export function AdminCustomersTab() {
@@ -43,7 +44,7 @@ export function AdminCustomersTab() {
     if (debtors.length === 0) return;
     const headers = 'Nome,CPF,Telefone,Divida,Limite,Status\n';
     const rows = debtors.map(a =>
-      `"${a.nome}",${a.cpf || ''},"${a.telefone || ''}",${a.currentDebt || 0},${a.creditLimit || 0},${a.status}`
+      `"${celulaCsv(a.nome)}","${celulaCsv(a.cpf || '')}","${celulaCsv(a.telefone || '')}",${a.currentDebt || 0},${a.creditLimit || 0},"${celulaCsv(a.status)}"`
     ).join('\n');
     const bom = '\uFEFF';
     const blob = new Blob([bom + headers + rows], { type: 'text/csv;charset=utf-8;' });

@@ -314,7 +314,8 @@ export function AdminDashboard() {
   }, [currentUser, userRole, roleLoading, logout, isMaster]);
 
   // 5. Permission Helpers
-  const hasPermission = (perm: string) => {
+  // useCallback: identidade estável p/ deps de efeutos/filhos (evita re-run em loop).
+  const hasPermission = React.useCallback((perm: string) => {
     if (isMaster) return true;
     // Operador de caixa (vendedor): acesso fixo ao PDV e operação própria.
     if (userRole === 'operator') {
@@ -324,7 +325,7 @@ export function AdminDashboard() {
     if (perms === undefined) return true; // admin legado (sem campo) = acesso total
     if (perms.includes('all')) return true;
     return perms.includes(perm);
-  };
+  }, [isMaster, userRole, currentUser?.permissions]);
 
   // ATALHOS GLOBAIS F1-F12 + '?' — funcionam em qualquer aba do painel.
   // Guardas: nada de atalho com janela aberta, nem digitando em campos.
@@ -400,9 +401,10 @@ export function AdminDashboard() {
     fiado30UserId?: string,
     senhaPrimaria?: string,
     senhaSecundaria?: string,
-    sessaoCaixaId?: string
+    sessaoCaixaId?: string,
+    descontoPct?: number
   ) => {
-    const res = await adminDirectSale(targetUserId, items, paymentMethod, total, payments, change, customerAccountId, clientToken, jointWallet, cardBrand, fiado30UserId, senhaPrimaria, senhaSecundaria, sessaoCaixaId);
+    const res = await adminDirectSale(targetUserId, items, paymentMethod, total, payments, change, customerAccountId, clientToken, jointWallet, cardBrand, fiado30UserId, senhaPrimaria, senhaSecundaria, sessaoCaixaId, descontoPct);
     if (!res) {
       throw new Error('A venda não foi confirmada pelo servidor. Verifique sua internet e tente novamente.');
     }

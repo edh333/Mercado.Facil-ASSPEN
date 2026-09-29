@@ -44,6 +44,8 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ src, alt, onClose
       return;
     }
     doc.open();
+    // HTML estático: NUNCA interpolar `src` (injeção via URL de comprovante).
+    // O src é setado como propriedade do DOM abaixo — não quebra o HTML.
     doc.write(`
       <html>
         <head><title>Imprimir Comprovante</title>
@@ -53,7 +55,7 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ src, alt, onClose
           @media print { body { margin: 0; } img { max-width: 100%; max-height: 100vh; } }
         </style>
         </head>
-        <body><img src="${src}" /></body>
+        <body><img /></body>
       </html>
     `);
     doc.close();
@@ -68,6 +70,7 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ src, alt, onClose
       }
     };
     const img = doc.querySelector('img');
+    if (img) img.src = src;
     if (img && !img.complete) {
       img.onload = doPrint;
       img.onerror = doPrint;

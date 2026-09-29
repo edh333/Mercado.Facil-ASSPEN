@@ -9,8 +9,10 @@
  * Fluxo:
  *   1. Lê a versão de package.json e exige os executáveis em dist-electron/.
  *   2. Garante o Release da tag v{version} (cria se não existir; senão reusa).
- *   3. Envia/atualiza os assets: MercadoFacil-Usuario-Setup-*.exe,
- *      MercadoFacil-Admin-Setup-*.exe e apps/version.json.
+ *   3. Envia/atualiza os assets: MercadoFacil-Usuario-Setup-*.exe e
+ *      apps/version.json. O instalador ADMIN NUNCA é espelhado aqui (release é
+ *      pública): ele só sai do Storage pela Cloud Function baixarAppAdmin com
+ *      token de uso curto — assets admin de releases antigos são REMOVIDOS.
  *   4. Verifica cada asset pelo browser_download_url (HEAD real, compara size).
  *
  * Token (nesta ordem):
@@ -87,6 +89,16 @@ async function apiUpload(token, caminho, buffer) {
 }
 
 async function obterOuCriarRelease(token) {
+  // PRIMEIRO busca pela tag: o POST cria um SEGUNDO release (até mesmo com a
+  // tag já publicada — o GitHub aceita e retorna 201 com um rascunho novo),
+  // o que duplicava o release e derrubava a verificação (asset de rascunho
+  // dá 404 sem autenticação). Só cria rascunho se a tag não tiver release.
+  const existente = await apiJson(token, 'GET', `/repos/${REPO}/releases/tags/${TAG}`);
+  if (existente.status === 200 && existente.json?.id) {
+    console.log(`[release] existente ${TAG} id=${existente.json.id} (reutilizada)`);
+    return existente.json;
+  }
+
   const dadosRelease = {
     tag_name: TAG,
     name: TAG,
@@ -95,8 +107,9 @@ async function obterOuCriarRelease(token) {
       `Instaladores gerados pelo pipeline e publicados também no Firebase Storage ` +
       `(fonte primária — botão "Baixar App"). Este Release é o espelho oficial para ` +
       `download direto sem custo de banda.\n\n` +
-      `- **Usuário**: MercadoFacil-Usuario-Setup-${VERSION}.exe\n` +
-      `- **Admin**: MercadoFacil-Admin-Setup-${VERSION}.exe`,
+      `- **Usuário**: MercadoFacil-Usuario-Setup-${VERSION}.exe\n\n` +
+      `O instalador **Admin** não é espelhado aqui (release pública): ele é ` +
+      `distribuído apenas pelo sistema, com token de uso único.`,
     draft: true,
     prerelease: false,
   };
@@ -110,15 +123,9 @@ async function obterOuCriarRelease(token) {
     console.log(`[release] criada ${TAG} id=${criado.json.id}`);
     return criado.json;
   }
-  // Já existe (422 validation_failed/already_exists etc.) → busca pela tag.
-  const existente = await apiJson(token, 'GET', `/repos/${REPO}/releases/tags/${TAG}`);
-  if (existente.status === 200 && existente.json?.id) {
-    console.log(`[release] existente ${TAG} id=${existente.json.id} (reutilizada)`);
-    return existente.json;
-  }
   throw new Error(
-    `Não consegui criar/reusar o Release ${TAG} (create HTTP ${criado.status}, get HTTP ${existente.status}).\n` +
-    `create: ${criado.text.slice(0, 300)}\nget: ${existente.text.slice(0, 300)}`
+    `Não consegui criar o Release ${TAG} (create HTTP ${criado.status}).\n` +
+    `create: ${criado.text.slice(0, 300)}`
   );
 }
 
@@ -143,6 +150,27 @@ async function garantirAsset(token, releaseId, nomeArquivo, buffer) {
   return up.json;
 }
 
+// O instalador ADMIN nunca é espelhado no GitHub (a release é pública). Este
+// passo remove assets admin de releases ANTIGAS que ainda estejam publicados —
+// sem ele, a brecha de URL pública do exe admin continuaria de pé em releases
+// anteriores mesmo com o script novo.
+async function removerAssetsAdmin(token, releaseId) {
+  const assets = await apiJson(token, 'GET', `/repos/${REPO}/releases/${releaseId}/assets`);
+  if (assets.status !== 200) {
+    console.warn(RED(`  ! não consegui listar assets para limpar o admin (HTTP ${assets.status}) — seguindo.`));
+    return;
+  }
+  for (const a of assets.json || []) {
+    if (!/^MercadoFacil-Admin-Setup-.+\.exe$/.test(a.name)) continue;
+    const del = await apiDelete(token, `/repos/${REPO}/releases/assets/${a.id}`);
+    if (del.status === 204) {
+      console.log(`  - asset admin removido: ${a.name} (${(a.size / 1024 / 1024).toFixed(1)} MB)`);
+    } else {
+      console.warn(RED(`  ! falha ao remover asset admin ${a.name} (HTTP ${del.status})`));
+    }
+  }
+}
+
 async function main() {
   const token = await obterToken();
   if (!token) {
@@ -155,8 +183,8 @@ async function main() {
 
   const dir = path.join(ROOT, 'dist-electron');
   const exes = fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => EXE_PATTERN.test(f)) : [];
-  if (exes.length < 2) {
-    throw new Error(`Instaladores não encontrados em dist-electron/ (achei ${exes.length}). Rode: npm run electron-build`);
+  if (exes.length < 1) {
+    throw new Error(`Instalador não encontrado em dist-electron/ (achei ${exes.length}). Rode: npm run electron-build`);
   }
   const acharExe = (modo) => {
     // Versão EXATA de package.json — nunca "o maior": sort() lexicográfico
@@ -191,12 +219,13 @@ async function main() {
 
   const assets = [
     { name: acharExe('Usuario'), buf: fs.readFileSync(path.join(dir, acharExe('Usuario'))) },
-    { name: acharExe('Admin'), buf: fs.readFileSync(path.join(dir, acharExe('Admin'))) },
+    // Admin NÃO entra: release pública, exe admin só pelo sistema (token).
     { name: 'version.json', buf: versaoJson },
   ];
 
   console.log(`[github] publicando ${REPO} ${TAG} no GitHub Releases...`);
   const release = await obterOuCriarRelease(token);
+  await removerAssetsAdmin(token, release.id);
   const links = [];
   for (const { name, buf } of assets) {
     const asset = await garantirAsset(token, release.id, name, buf);
@@ -204,22 +233,31 @@ async function main() {
     console.log(`  ${GREEN('OK')} ${name} <- ${(buf.length / 1024 / 1024).toFixed(1)} MB ${asset.browser_download_url}`);
   }
 
-  // Verificação end-to-end pelo link público real (GET/HEAD com size igual).
+  // Verificação em duas camadas: 1) API (tamanho/state do asset — vale para
+  // rascunho E publicado; o Bearer é rejeitado em github.com por isso não dá
+  // pra checar rascunho via link público); 2) em release PUBLICADA, também o
+  // HEAD anônimo do browser_download_url (é exatamente o link que o sistema
+  // usa em urlPreferencialDownload).
   let tudoOk = true;
+  const listaAssets = await apiJson(token, 'GET', `/repos/${REPO}/releases/${release.id}/assets`);
   for (let i = 0; i < assets.length; i++) {
-    const url = links[i];
-    if (!url) { tudoOk = false; continue; }
-    try {
-      const r = await fetch(url, { method: 'HEAD' });
-      const tamanho = Number(r.headers.get('content-length'));
-      const esp = assets[i].buf.length;
-      const ok = r.status === 200 && tamanho === esp;
-      console.log(`  ${ok ? GREEN('OK') : RED('FALHOU')} verificação ${assets[i].name} (HTTP ${r.status}, ${(tamanho / 1024 / 1024).toFixed(1)} MB local vs esperado ${(esp / 1024 / 1024).toFixed(1)} MB)`);
-      if (!ok) tudoOk = false;
-    } catch (e) {
-      console.error(RED(`  FALHOU verificação ${assets[i].name}: ${e.message}`));
-      tudoOk = false;
+    const esperado = assets[i].buf.length;
+    const a = (listaAssets.json || []).find((x) => x.name === assets[i].name);
+    let ok = !!a && a.size === esperado && a.state === 'uploaded';
+    let det = ok ? 'API: tamanho/state ok' : 'API: asset ausente ou tamanho divergente';
+    if (ok && !release.draft) {
+      try {
+        const r = await fetch(links[i], { method: 'HEAD' });
+        const tamanho = Number(r.headers.get('content-length'));
+        ok = r.status === 200 && tamanho === esperado;
+        det = `HTTP ${r.status}, ${(tamanho / 1024 / 1024).toFixed(1)} MB público vs ${(esperado / 1024 / 1024).toFixed(1)} MB local`;
+      } catch (e) {
+        ok = false;
+        det = e.message;
+      }
     }
+    console.log(`  ${ok ? GREEN('OK') : RED('FALHOU')} verificação ${assets[i].name} (${det})`);
+    if (!ok) tudoOk = false;
   }
   if (!tudoOk) {
     throw new Error('Falha na verificação dos assets do GitHub Release.');
