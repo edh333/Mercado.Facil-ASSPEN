@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { X, Search, Barcode, ShoppingCart, Check, Lock, User as UserIcon, Plus, Minus, Package, Wallet, CreditCard, DollarSign, Trash2, LayoutGrid, List, Percent, XCircle, Printer, Eye, CheckCircle2, WifiOff } from 'lucide-react';
+import { X, Search, Barcode, ShoppingCart, Check, Lock, User as UserIcon, Plus, Minus, Package, Wallet, CreditCard, DollarSign, Trash2, LayoutGrid, List, Percent, XCircle } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Product, User, Order, AppConfig, UserRole } from '../../types';
 import { filtrarClientesPdv } from '../../utils/pdvSearch';
 import { formatarMoeda, parseMoeda, generatePixPayload as generatePix, isAdminRole } from '../../utils';
-import { montarPagamentoPdv, arredondarCentavos, MetodoPagamentoPDV, MetodoLancamento, rotuloPagamento, resumoPosVenda } from '../../utils/pdvPayment';
+import { montarPagamentoPdv, arredondarCentavos, MetodoPagamentoPDV, MetodoLancamento } from '../../utils/pdvPayment';
 import { imprimirSilenciosoFiscal, imprimirComPrioridadeFiscal } from '../../utils/printUtils';
 import { useApp } from '../../context/StoreContext';
 import { RefundSaleModal } from './RefundSaleModal';
+import { TelaPosVenda } from './TelaPosVenda';
 
 interface TelaPDVProps {
   isOpen: boolean;
@@ -734,10 +735,6 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
     return null;
   }, [formaPagamento, valorRecebido, valorMisto, totalFinal]);
 
-  // Resumo da venda concluída (derivado de forma pura em utils/pdvPayment, coberto
-  // por teste): a tela de pós-venda não recalcula dinheiro — ela exibe isto.
-  const resumo = useMemo(() => resumoPosVenda(ultimoPedido), [ultimoPedido]);
-
   if (!isOpen) return null;
 
   return (
@@ -892,7 +889,7 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
 
             {/* Campo 2: Código de Barras (margin-top garante que a lista acima não cubra) */}
             <div className="flex flex-col gap-1.5 mt-8">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              <label htmlFor="pdv-busca-produto" className="text-xs font-bold uppercase tracking-wider text-slate-500">
                 Código de Barras (F2) ou Nome do Produto
               </label>
               <form className="flex gap-2" onSubmit={adicionarProduto}>
@@ -900,6 +897,8 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
                   <Barcode className="absolute left-4 top-3.5 h-5 w-5 text-slate-400" />
                   <input
                     ref={produtoInputRef}
+                    id="pdv-busca-produto"
+                    aria-label="Código de Barras ou Nome do Produto"
                     type="text"
                     value={codigoProduto}
                     onChange={(e) => setCodigoProduto(e.target.value)}
@@ -1244,8 +1243,10 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
             )}
             {formaPagamento === 'CASH' && (
               <div className="flex flex-col gap-1.5 mb-3">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Valor Recebido</label>
+                <label htmlFor="pdv-valor-recebido" className="text-xs font-bold uppercase tracking-wider text-slate-500">Valor Recebido</label>
                 <input
+                  id="pdv-valor-recebido"
+                  aria-label="Valor Recebido"
                   type="text"
                   value={valorRecebido}
                   onChange={(e) => setValorRecebido(e.target.value)}
@@ -1529,147 +1530,17 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
       )}
 
       {/* ═══ TELA DE PÓS-VENDA ═══ */}
-      {/* Aparece SEMPRE que a venda é concluída (online ou offline),
-          independente do ajuste de impressão automática. O operador escolhe
-          entre imprimir, visualizar o cupom ou encerrar e já começar a próxima. */}
+      {/* Componente próprio (coberto por teste de renderização): aparece sempre,
+          com ou sem o ajuste de impressão automática. */}
       {ultimoPedido && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-slideUp">
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Venda concluída"
-            className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden"
-          >
-            {/* Cabeçalho */}
-            <div className="px-6 pt-7 pb-5 text-center bg-gradient-to-b from-emerald-50 to-white">
-              <div className="w-16 h-16 mx-auto rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/30">
-                <CheckCircle2 size={32} strokeWidth={2.5} />
-              </div>
-              <h2 className="mt-4 text-xl font-black uppercase tracking-widest text-slate-900">
-                Venda concluída
-              </h2>
-              <p className="mt-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                {resumo.idCurto || 'Pedido sem número'}
-              </p>
-            </div>
-
-            {/* Resumo financeiro */}
-            <div className="px-6 pb-5">
-              <div className="rounded-2xl bg-slate-50 border border-slate-200 p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                    Total
-                  </span>
-                  <span className="text-2xl font-black text-emerald-600 tabular-nums">
-                    {formatarMoeda(resumo.total)}
-                  </span>
-                </div>
-                <div className="mt-3 pt-3 border-t border-slate-200 space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-slate-500 uppercase tracking-wider">
-                      Pagamento
-                    </span>
-                    <span className="font-black text-slate-700">
-                      {resumo.metodoRotulo}
-                    </span>
-                  </div>
-                  {resumo.composicao.length > 0 && (
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-slate-500 uppercase tracking-wider">
-                        Composição
-                      </span>
-                      <span className="font-black text-slate-700 text-right">
-                        {resumo.composicao
-                          .map((p) => `${p.metodoRotulo} ${formatarMoeda(p.valor)}`)
-                          .join(' · ')}
-                      </span>
-                    </div>
-                  )}
-                  {resumo.troco > 0 && (
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-slate-500 uppercase tracking-wider">
-                        Troco
-                      </span>
-                      <span className="font-black text-amber-600 tabular-nums">
-                        {formatarMoeda(resumo.troco)}
-                      </span>
-                    </div>
-                  )}
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-slate-500 uppercase tracking-wider">
-                      Itens
-                    </span>
-                    <span className="font-black text-slate-700">
-                      {resumo.itens}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Avisos: impressão e venda ainda não sincronizada */}
-              <div className="mt-3 space-y-2">
-                {cupomImpressoAuto ? (
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-100">
-                    <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">
-                      Cupom impresso automaticamente
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-100">
-                    <Printer size={14} className="text-amber-600 shrink-0" />
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700">
-                      Cupom não impresso — imprima ou baixe agora
-                    </span>
-                  </div>
-                )}
-                {resumo.offline && (
-                  <div className="flex items-start gap-2 px-3 py-2 rounded-xl bg-sky-50 border border-sky-100">
-                    <WifiOff size={14} className="text-sky-600 shrink-0 mt-0.5" />
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-sky-700">
-                      Venda offline — na fila, será confirmada quando a internet voltar
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Ações */}
-              <div className="mt-4 grid grid-cols-1 gap-2.5">
-                <button
-                  onClick={reimprimirCupom}
-                  disabled={reimprimindo}
-                  className="h-12 w-full rounded-2xl bg-emerald-600 text-white font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-emerald-600/20 hover:bg-emerald-500 disabled:opacity-60 disabled:active:scale-100"
-                >
-                  <Printer size={16} />
-                  {reimprimindo ? 'Imprimindo...' : cupomImpressoAuto ? 'Reimprimir cupom' : 'Imprimir cupom'}
-                </button>
-
-                <div className="grid grid-cols-2 gap-2.5">
-                  <button
-                    onClick={() => {
-                      if (setPrintOrder) setPrintOrder(ultimoPedido);
-                    }}
-                    className="h-12 rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 hover:bg-slate-700"
-                  >
-                    <Eye size={16} />
-                    Visualizar
-                  </button>
-                  <button
-                    onClick={concluirVenda}
-                    className="h-12 rounded-2xl bg-white border-2 border-slate-300 text-slate-800 font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 hover:bg-slate-50"
-                  >
-                    <ShoppingCart size={16} />
-                    Nova venda
-                  </button>
-                </div>
-              </div>
-
-              <p className="mt-3 text-center text-[9px] font-bold uppercase tracking-widest text-slate-400">
-                Enter ou Esc para a próxima venda
-              </p>
-            </div>
-          </div>
-        </div>
+        <TelaPosVenda
+          pedido={ultimoPedido}
+          cupomImpressoAuto={cupomImpressoAuto}
+          reimprimindo={reimprimindo}
+          onImprimir={reimprimirCupom}
+          onVisualizar={() => { if (setPrintOrder) setPrintOrder(ultimoPedido); }}
+          onConcluir={concluirVenda}
+        />
       )}
 
       {/* Fim do overlay do PDV */}
