@@ -55,6 +55,83 @@ export interface MontagemPagamentoBloqueio {
 export const arredondarCentavos = (v: number): number =>
   Math.round((Number(v) || 0) * 100) / 100;
 
+/**
+ * Rótulos de forma de pagamento em PT-BR. Fonte ÚNICA: o PDV (tela de
+ * pós-venda) e o modal de relatórios mostravam o mesmo campo com mapas
+ * separados — qualquer ajuste de nomenclatura ("Créditos" x "Carteira") tinha
+ * de ser feito em dois lugares e um deles ficava para trás.
+ */
+export const PAYMENT_LABELS: Record<string, string> = {
+  PIX: 'PIX',
+  CASH: 'Dinheiro',
+  CARD: 'Cartão',
+  WALLET: 'Carteira',
+  FIADO: 'Fiado',
+  FIADO_30: 'Fiado 30 dias',
+  MIXED: 'Misto',
+};
+
+/** Rótulo legível da forma de pagamento; cai no código cru se for desconhecido. */
+export const rotuloPagamento = (metodo?: string | null): string => {
+  const chave = String(metodo || '').trim().toUpperCase();
+  if (!chave) return '—';
+  return PAYMENT_LABELS[chave] || String(metodo);
+};
+
+export interface ResumoPosVenda {
+  /** Identificador curto do pedido, para o operador conferir na comanda. */
+  idCurto: string;
+  total: number;
+  metodo: string;
+  metodoRotulo: string;
+  /** Troco a devolver — 0 quando não se aplica (só dinheiro/misto). */
+  troco: number;
+  itens: number;
+  /** Venda registrada na fila offline: ainda não confirmada pelo servidor. */
+  offline: boolean;
+  /** Composição do pagamento misto (vazia fora do misto). */
+  composicao: { metodo: string; metodoRotulo: string; valor: number }[];
+}
+
+/**
+ * Deriva o resumo que a tela de pós-venda mostra ao operador.
+ *
+ * Extraído do componente para ficar testável (o resto da tela é JSX): total,
+ * troco e composição são dinheiro na mão do cliente, então a regra mora em
+ * código puro e coberto por teste, em vez de espalhada pelo JSX.
+ *
+ * Robustez: o pedido da fila offline é montado à mão e pode ter campos
+ * ausentes, e o Firestore às vezes entrega numerais estruturados — aqui tudo é
+ * tolerado e convertido, em vez de a tela exibir "NaN" numa confirmação de venda.
+ * Por isso o parâmetro é `unknown`: quem chama pode passar o que o banco devolveu.
+ */
+export function resumoPosVenda(pedido: unknown): ResumoPosVenda {
+  const p = (pedido && typeof pedido === 'object' ? pedido : {}) as Record<string, any>;
+  const num = (v: unknown): number => {
+    const n = Number(v);
+    return Number.isFinite(n) ? arredondarCentavos(n) : 0;
+  };
+  const metodo = String(p.paymentMethod || '').trim().toUpperCase();
+  const pagamentos = Array.isArray(p.payments) ? p.payments : [];
+  return {
+    idCurto: String(p.id || p.clientToken || '').slice(0, 12),
+    total: num(p.total),
+    metodo,
+    metodoRotulo: rotuloPagamento(metodo),
+    troco: num(p.change) > 0 ? num(p.change) : 0,
+    itens: Array.isArray(p.items) ? p.items.length : 0,
+    offline: p.offlinePending === true || p.status === 'offline_pending',
+    composicao:
+      pagamentos.length > 1
+        ? pagamentos.map((x: any) => ({
+            metodo: String(x?.method || '').trim().toUpperCase(),
+            metodoRotulo: rotuloPagamento(x?.method),
+            valor: num(x?.amount),
+          }))
+        : [],
+  };
+}
+
 export const DENOMINACOES = [200, 100, 50, 20, 10, 5, 2, 1, 0.5, 0.25, 0.1, 0.05, 0.01];
 
 /** Quebra o troco nas cédulas/moedas disponíveis. Valor negativo → nenhuma (troco jamais negativo). */

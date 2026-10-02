@@ -7,19 +7,10 @@ import { formatBRL } from '../../utils/money';
 import { abrirJanelaImpressao } from '../../utils/printUtils';
 import { toDate } from '../../utils/dateUtils';
 import { getLocalDateStr, ehReceita } from './adminUtils';
+import { rotuloPagamento } from '../../utils/pdvPayment';
 import { buildMonthlyDre, buildSalesCsv, buildStockAbc, buildTopProducts, buildDailySales, buildSalesByCategory, buildLowStock, buildProductsCatalog, buildExtratoIndividual, buildDetalheVendas, buildRankingClientes, buildVendasOperador, buildFiadoVendas, buildContasReceberFiado, buildFiadoVencimentos } from '../../context/StoreContext';
 import { useReportData } from '../../hooks/useReportData';
 import { AlertTriangle, Loader2 } from 'lucide-react';
-
-const PAYMENT_LABELS: Record<string, string> = {
-    PIX: 'PIX',
-    CASH: 'Dinheiro',
-    CARD: 'Cartão',
-    WALLET: 'Carteira',
-    FIADO: 'Fiado',
-    FIADO_30: 'Fiado 30 dias',
-    MIXED: 'Misto'
-};
 
 // Tipos de relatório que respeitam os filtros de refinamento (forma de pagamento,
 // status, cliente e operador). Fonte ÚNICA — AdminReportsTab importa desta lista.
@@ -112,7 +103,7 @@ const buildDailyClosing = (orders: any[], expenses: any[], transactions: any[], 
         const primary = String(order.paymentMethod || 'PIX').toUpperCase();
         splits.forEach((split: any) => {
             const method = String(split.method || primary).toUpperCase();
-            const label = PAYMENT_LABELS[method] || method;
+            const label = rotuloPagamento(method);
             if (!methods[method]) methods[method] = { label, amount: 0, count: 0 };
             methods[method].amount += Number(split.amount) || 0;
             methods[method].count += 1;
@@ -1099,7 +1090,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                         v.interno,
                         v.cpf,
                         v.operador,
-                        v.formas.map((f: string) => PAYMENT_LABELS[f] || f).join(' / '),
+                        v.formas.map((f: string) => rotuloPagamento(f)).join(' / '),
                         rotuloStatus(v.status),
                         v.items.map((i: any) => `${i.qtd}x ${i.nome}`).join(' | '),
                         v.total.toFixed(2).replace('.', ',')
@@ -1115,7 +1106,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                     <div className="flex flex-wrap gap-2">
                         {formas.map((f: any) => (
                             <span key={f.metodo} className="px-3 py-1.5 rounded-xl bg-emerald-600/10 border border-emerald-600/20 text-[9px] font-black uppercase tracking-widest text-emerald-600">
-                                {PAYMENT_LABELS[f.metodo] || f.metodo}: <b>{fmt(f.valor)}</b> · {f.count} op.
+                                {rotuloPagamento(f.metodo)}: <b>{fmt(f.valor)}</b> · {f.count} op.
                             </span>
                         ))}
                     </div>
@@ -1210,7 +1201,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                                                                 </div>
                                                             ))}
                                                         </td>
-                                                        <td className="p-3 text-[10px] font-black uppercase text-[var(--text-muted)]">{v.formas.map((f: string) => PAYMENT_LABELS[f] || f).join(' / ')}</td>
+                                                        <td className="p-3 text-[10px] font-black uppercase text-[var(--text-muted)]">{v.formas.map((f: string) => rotuloPagamento(f)).join(' / ')}</td>
                                                         <td className="p-3 text-[10px] font-black uppercase text-[var(--text-muted)]">{v.operador}</td>
                                                         <td className="p-3 text-right text-[11px] font-black text-emerald-600 whitespace-nowrap">{fmt(v.total)}</td>
                                                     </tr>

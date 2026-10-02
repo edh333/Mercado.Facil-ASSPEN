@@ -194,6 +194,12 @@ approvedAt?: string; // Momento em que o admin aprovou (idade do cupom/comprovan
     firstWalletAmount?: number;
   };
   deleted?: boolean;
+  // ── Venda registrada na FILA OFFLINE (registrarVendaOffline) ──
+  // Ainda não confirmada pelo servidor: o `id` local É o clientToken usado no
+  // reenvio (idempotência). Esses campos existem só no cliente e deixam de valer
+  // quando a venda sincroniza — o Firestore passa a ter o id definitivo.
+  clientToken?: string;
+  offlinePending?: boolean;
 }
 
 export interface Supplier {

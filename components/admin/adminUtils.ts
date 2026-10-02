@@ -1,5 +1,9 @@
 import { OrderStatus } from '../../types';
 
+// Os rótulos de forma de pagamento (PAYMENT_LABELS / rotuloPagamento) foram
+// movidos para utils/pdvPayment: é o módulo PURO do domínio de pagamento, testável
+// e importável tanto pelo PDV quanto pelo modal de relatórios.
+
 export const translateStatus = (status: string | undefined) => {
     if (!status) return 'Indefinido';
     const s = String(status); 
