@@ -2137,16 +2137,26 @@ return false;
             // na tela do admin/usuário sem depender do snapshot (que atrasa).
             if (data?.novoSaldo !== undefined && data?.novoSaldo !== null && data?.userId) {
                 const novoSaldo = Number(data.novoSaldo);
-                if (data.userId === currentUser?.id) {
+                // `data` chega como any do callable; estreito o id para string
+                // ANTES de comparar, senão o map de `users` perde o tipo User e
+                // o TS rejeita o setState.
+                const alvoId = String(data.userId);
+                if (alvoId === currentUser?.id) {
                     setCreditoCliente(novoSaldo);
                     setCurrentUser(prev => prev ? ({ ...prev, walletBalance: novoSaldo }) : prev);
                 } else if (currentUser?.role === UserRole.ADMIN) {
-                    setUsers(prev => prev.map(u => u.id === data.userId ? ({ ...u, walletBalance: novoSaldo }) : u));
+                    setUsers(prev => prev.map(u => u.id === alvoId ? ({ ...u, walletBalance: novoSaldo }) : u));
                 }
             }
             showNotification("Depósito aprovado e crédito adicionado!", "success");
         } catch (e: any) {
-            showNotification("Erro ao aprovar depósito: " + mensagemErroChamada(e), "error");
+            // PROPAGA o erro. Antes o catch só notificava e resolvia: o chamador
+            // (AdminWalletTransactionModal) achava que a aprovação tinha dado
+            // certo e FECHAVA o modal, enquanto o depósito continuava pending —
+            // e o admin recebia um "erro" genérico sem saber o motivo real.
+            // O servidor já devolve a causa exata ("Comprovante já utilizado
+            // em outro depósito (#id)"); engolir aqui jogava essa informação fora.
+            throw e;
         }
     };
 
@@ -2155,7 +2165,9 @@ return false;
             await fnRejeitarDeposito({ transacaoId: tid });
             showNotification("Depósito recusado.", "info");
         } catch (e: any) {
-            showNotification("Erro ao recusar depósito: " + e.message, "error");
+            // Mesmo defeito da aprovação: engolir aqui fazia o modal fechar como
+            // se a recusa tivesse funcionado. Propaga para a tela avisar.
+            throw e;
         }
     };
 

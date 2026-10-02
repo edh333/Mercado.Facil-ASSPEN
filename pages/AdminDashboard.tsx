@@ -117,6 +117,7 @@ export function AdminDashboard() {
     preRegisteredInmates,
     approveWalletTransaction,
     rejectWalletTransaction,
+    getWalletTransactions,
     withdrawWalletCredit,
     adminDirectSale,
     addWalletCreditDirectly,
@@ -275,6 +276,21 @@ export function AdminDashboard() {
     });
     return () => unsubscribe();
   }, [currentUser?.role]);
+
+  // Recarrega a lista de transações sob demanda.
+  // Necessária quando a aprovação FALHA: o servidor pode ter mudado o status
+  // (ex.: comprovante duplicado → rejeitado automaticamente) mesmo devolvendo
+  // erro. O onSnapshot acima atualiza sozinho, mas pode atrasar; aqui o admin
+  // vê o estado real na hora.
+  const recarregarTransacoes = React.useCallback(async () => {
+    if (currentUser?.role !== UserRole.ADMIN) return;
+    try {
+      const txs = await getWalletTransactions();
+      setWalletTx(txs);
+    } catch (e) {
+      console.error("Erro ao recarregar transações da carteira:", e);
+    }
+  }, [currentUser?.role, getWalletTransactions]);
 
   // 4. Role-Based Access Control
   const { role: userRole, loading: roleLoading } = usePermissions(currentUser?.id);
@@ -1301,17 +1317,16 @@ export function AdminDashboard() {
           transaction={selectedWalletTx}
           onClose={() => setSelectedWalletTx(null)}
           onApprove={async (id) => {
-            if (selectedWalletTx) {
-              await approveWalletTransaction(id);
-              setSelectedWalletTx(null);
-            }
+            // NÃO fecha o modal aqui: em caso de erro o `catch` do próprio modal
+            // precisa rodar para traduzir a causa ("comprovante já utilizado")
+            // e manter a prova visível. Fechar aqui zerava a mensagem e o admin
+            // só veria um toast genérico. O modal fecha sozinho no SUCESSO.
+            await approveWalletTransaction(id);
           }}
           onReject={async (id) => {
-            if (selectedWalletTx) {
-              await rejectWalletTransaction(id);
-              setSelectedWalletTx(null);
-            }
+            await rejectWalletTransaction(id);
           }}
+          onRefresh={() => recarregarTransacoes()}
           appName={settings.appName || 'MERCADO FÁCIL'}
         />
       )}

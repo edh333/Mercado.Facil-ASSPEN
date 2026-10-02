@@ -1076,7 +1076,23 @@ exports.aprovarDeposito = onCall(async (request) => {
       pre.proofMime,
       tid // docIdAtual: ignora o PRÓPRIO depósito na dedup
     );
-    if (!validacao.ok) throw new Error(validacao.motivo);
+    if (!validacao.ok) {
+      // Duplicidade detectada ANTES da transação: sem a marcação abaixo o
+      // depósito ficaria "pending" para sempre e o admin veria a mesma parede
+      // a cada clique. Rejeita de uma vez, com a mesma semântica do caminho
+      // transacional (crédito nunca é liberado — nem chegou a existir).
+      if (/já utilizad|duplicad/i.test(validacao.motivo || "")) {
+        motivoDuplicado = validacao.motivo;
+        await db.collection("wallet_transactions").doc(tid).update({
+          status: "rejected",
+          rejectReason: motivoDuplicado,
+          rejectedBy: "SISTEMA",
+          rejectedAt: new Date().toISOString(),
+        }).catch(() => {});
+        throw new HttpsError("already-exists", validacao.motivo);
+      }
+      throw new Error(validacao.motivo);
+    }
     if (validacao.warning) logger.warn(`[aprovarDeposito] ${validacao.warning} tid=${tid}`);
 
     // ─── TRANSAÇÃO ATÔMICA ────────────────────────────────────────────────
@@ -1145,8 +1161,13 @@ exports.aprovarDeposito = onCall(async (request) => {
       }).catch(() => {});
       throw new HttpsError("already-exists", "Comprovante já utilizado em outro depósito. Depósito recusado automaticamente.");
     }
+    // HttpsError já carrega o código certo (already-exists = comprovante
+    // duplicado). O guard original só olhava o prefixo "functions/", que o
+    // HttpsError NÃO tem — então o código caía no if/regex de baixo e virava
+    // "invalid-argument", perdendo a semântica de duplicidade para a tela.
+    // Fica ANTES do log: duplicidade é uma recusa esperada, não uma falha.
+    if (e instanceof HttpsError || (e && e.code && String(e.code).startsWith("functions/"))) throw e;
     console.error("[aprovarDeposito] Falha ao aprovar depósito:", e && e.message, e && e.stack);
-    if (e && e.code && String(e.code).startsWith("functions/")) throw e;
     // NUNCA engolir o motivo real: o admin precisa saber POR QUE o comprovante
     // foi recusado (arquivo não encontrado, duplicado, pequeno, fora do padrão)
     // para agir e não pedir vistoria cega. Mensagens do validarComprovanteFlexivel

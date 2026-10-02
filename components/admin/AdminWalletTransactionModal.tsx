@@ -7,6 +7,7 @@ import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
 import { NotaPromissoriaA4 } from '../NotaPromissoriaA4';
 import ImagePreviewModal from '../ImagePreviewModal';
 import { useApp } from '../../context/StoreContext';
+import { explicarErroAprovacao } from '../../utils/erroAprovacao';
 
 // Escapa valores em HTML gerado para impressão (iframe same-origin) — sem
 // isso, payerName/inmateName maliciosos executariam script no contexto do app.
@@ -95,10 +96,12 @@ interface AdminWalletTransactionModalProps {
   onApprove: (id: string) => Promise<void>;
   onReject: (id: string) => Promise<void>;
   appName: string;
+  /** Recarrega a lista após uma falha — o status no servidor pode ter mudado. */
+  onRefresh?: () => void;
 }
 
 export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalProps> = ({
-  transaction, onClose, onApprove, onReject, appName
+  transaction, onClose, onApprove, onReject, appName, onRefresh
 }) => {
   const [isApproving, setIsApproving] = React.useState(false);
   const [isRejecting, setIsRejecting] = React.useState(false);
@@ -143,11 +146,19 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
     setIsApproving(true);
     try {
       await onApprove(transaction.id);
+      // Sucesso: a lista é recarregada pelo pai e o modal fecha.
       onClose();
     } catch (e: any) {
-      // Falha ao mover dinheiro NÃO fecha o modal: o admin precisa ver o erro.
+      // Falha ao mover dinheiro NÃO fecha o modal: o admin precisa ver o erro e
+      // a prova na tela para decidir. `explicarErroAprovacao` traduz o motivo
+      // real do servidor (comprovante já utilizado, arquivo pequeno, sem senha…)
+      // — antes saía "falha desconhecida" mesmo com a causa disponível.
       console.error('Erro ao aprovar:', e);
-      notifCtx('Erro ao aprovar: ' + (e?.message || 'falha desconhecida') + '. O modal permanecerá aberto. Tente novamente.', 'error');
+      const info = explicarErroAprovacao(e, 'aprovacao');
+      notifCtx(info.mensagem, 'error');
+      // Recarrega a lista: em duplicidade o servidor já marcou o depósito como
+      // rejected — sem isso o admin continuaria vendo "pendente" e tentaria de novo.
+      onRefresh?.();
     } finally {
       setIsApproving(false);
     }
@@ -161,7 +172,8 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
       onClose();
     } catch (e: any) {
       console.error('Erro ao rejeitar:', e);
-      notifCtx('Erro ao rejeitar: ' + (e?.message || 'falha desconhecida') + '. O modal permanecerá aberto. Tente novamente.', 'error');
+      notifCtx(explicarErroAprovacao(e, 'recusa').mensagem, 'error');
+      onRefresh?.();
     } finally {
       setIsRejecting(false);
     }
