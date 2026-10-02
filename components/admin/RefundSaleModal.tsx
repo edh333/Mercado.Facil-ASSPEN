@@ -29,6 +29,18 @@ const ESTADO_TERMINAL = (o: any) => {
   return s.startsWith('CANCEL') || ['REFUNDED', 'RETURNED', 'ESTORNADO', 'DEVOLVIDO', 'REEMBOLSADO', 'REJECTED', 'REJEITADO'].includes(s);
 };
 
+// Regra de negócio: CANCELAMENTO só até 5 dias após a compra (o servidor
+// revalida; aqui filtramos a lista para o operador não tentar o impossível).
+// Estorno/devolução (acao='estorno') não tem prazo. Constante em adminUtils.
+import { JANELA_CANCELAMENTO_DIAS } from './adminUtils';
+const idadeVendaDias = (o: any): number => {
+  // Parse IDÊNTICO ao do servidor (Date.parse puro): "YYYY-MM-DD" vira meia-noite
+  // UTC nos dois lados. O truque T23:59:59 deixava o client mais permissivo e
+  // listava vendas que o servidor recusaria na confirmação do cancelamento.
+  const ts = Date.parse(String(o?.createdAt || o?.date || ''));
+  return ts ? (Date.now() - ts) / 86400000 : 0; // sem data → não bloqueia
+};
+
 const combinaTermo = (o: any, term: string) => {
   if (!term) return true;
   const tCpf = term.replace(/\D/g, '');
@@ -60,6 +72,9 @@ export const RefundSaleModal: React.FC<RefundSaleModalProps> = ({
   const [processando, setProcessando] = useState(false);
   const [resultado, setResultado] = useState<{ ok: boolean; message: string } | null>(null);
   const [senhaMestraDefinida, setSenhaMestraDefinida] = useState<boolean | null>(null);
+  // Conta erros de senha DESTA operação: o aviso persiste mesmo após o
+  // acerto ("você tinha errado antes") para alertar tentativa indevida.
+  const [tentativasErradas, setTentativasErradas] = useState(0);
 
   // PADRÃO SEGURO: exige senha para TODOS, exceto quando a senha mestra ainda
   // não foi configurada e o operador é o admin principal.
@@ -82,12 +97,21 @@ export const RefundSaleModal: React.FC<RefundSaleModalProps> = ({
     if (!isOpen) return;
     setResultado(null);
     setProcessando(false);
+    setTentativasErradas(0);
     setServerResults(null);
     setServerLast('');
     setServerOffline(false);
     if (initialOrder) {
-      setSelected(initialOrder);
-      setSearch(String(initialOrder.id || '').slice(0, 12));
+      // Veio da aba de Pedidos com o pedido já escolhido: se passou da janela,
+      // NÃO oferece o painel de senha (o servidor recusaria só depois da senha).
+      if (acao === 'cancelar' && idadeVendaDias(initialOrder) > JANELA_CANCELAMENTO_DIAS) {
+        setSelected(null);
+        setSearch('');
+        setResultado({ ok: false, message: `Cancelamento bloqueado: esta venda foi feita há mais de ${JANELA_CANCELAMENTO_DIAS} dias. Para valores antigos, use o estorno pela aba de Pedidos.` });
+      } else {
+        setSelected(initialOrder);
+        setSearch(String(initialOrder.id || '').slice(0, 12));
+      }
     } else {
       setSelected(null);
       setSearch('');
@@ -98,17 +122,20 @@ export const RefundSaleModal: React.FC<RefundSaleModalProps> = ({
   // Resultados da janela já carregada
   const localResults = useMemo(() => {
     const term = search.trim().toLowerCase();
-    const base = (ordersBase || []).filter(o => o && !ESTADO_TERMINAL(o));
+    let base = (ordersBase || []).filter(o => o && !ESTADO_TERMINAL(o));
+    if (acao === 'cancelar') base = base.filter(o => idadeVendaDias(o) <= JANELA_CANCELAMENTO_DIAS);
     if (!term) return base.slice(0, 8);
     return base.filter(o => combinaTermo(o, term)).slice(0, 8);
-  }, [ordersBase, search]);
+  }, [ordersBase, search, acao]);
 
   // Mescla locais + servidor, deduplicando por id
   const combinedResults = useMemo(() => {
     const map = new Map<string, Order>();
     [...(localResults || []), ...(serverResults || [])].forEach(o => { if (o?.id) map.set(String(o.id), o); });
-    return Array.from(map.values()).slice(0, 20);
-  }, [localResults, serverResults]);
+    let lista = Array.from(map.values());
+    if (acao === 'cancelar') lista = lista.filter(o => idadeVendaDias(o) <= JANELA_CANCELAMENTO_DIAS);
+    return lista.slice(0, 20);
+  }, [localResults, serverResults, acao]);
 
   // Busca server-side com debounce (pedidos antigos fora da janela carregada)
   useEffect(() => {
@@ -147,11 +174,26 @@ export const RefundSaleModal: React.FC<RefundSaleModalProps> = ({
     if (exigirSenha) {
       if (!senha) { setResultado({ ok: false, message: 'Informe a senha do administrador.' }); return; }
       const okSenha = await validateMasterPassword(senha).catch(() => false);
-      if (!okSenha) { setResultado({ ok: false, message: 'Senha incorreta. Operação bloqueada.' }); return; }
+      if (!okSenha) {
+        const n = tentativasErradas + 1;
+        setTentativasErradas(n);
+        setResultado({ ok: false, message: `Senha incorreta. Operação bloqueada. (${n}ª tentativa errada nesta operação)` });
+        return;
+      }
     }
     setProcessando(true);
     try {
-      await estornarPedido(selected.id, motivo || 'Devolução administrativa');
+      await estornarPedido(
+        selected.id,
+        motivo || 'Devolução administrativa',
+        {
+          ...(acao === 'cancelar' ? { janelaDias: JANELA_CANCELAMENTO_DIAS } : {}),
+          // A senha vai para o servidor: a prova de 2º fator é conferida em
+          // estornarVenda, não apenas nesta tela. Sem ela, o servidor recusa
+          // quando existe senha mestra cadastrada.
+          ...(senha ? { senhaMestra: senha } : {}),
+        }
+      );
       const ehFiado = String(selected.paymentMethod || '').toUpperCase() === 'FIADO';
       setResultado({
         ok: true,
@@ -163,7 +205,9 @@ export const RefundSaleModal: React.FC<RefundSaleModalProps> = ({
       });
       onAfterSuccess?.(selected, motivo);
     } catch (e: any) {
-      setResultado({ ok: false, message: e?.message || 'Erro ao estornar o pedido. Tente novamente.' });
+      // HttpsError do callable pode vir com prefixo "(code)" — remove para exibir limpo
+      const msg = String(e?.message || 'Erro ao estornar o pedido. Tente novamente.').replace(/^\(.*?\)\s*/, '');
+      setResultado({ ok: false, message: msg });
     } finally {
       setProcessando(false);
     }
@@ -172,6 +216,7 @@ export const RefundSaleModal: React.FC<RefundSaleModalProps> = ({
   const resetSelecao = () => {
     setSelected(null);
     setResultado(null);
+    setTentativasErradas(0);
     setServerResults(null);
     setServerLast('');
     setSearch('');
@@ -185,8 +230,8 @@ export const RefundSaleModal: React.FC<RefundSaleModalProps> = ({
       onClose={onClose}
       closeOnBackdrop={!processando}
       tone={terminou ? 'success' : acao === 'cancelar' ? 'danger' : 'warning'}
-      title={terminou ? 'Operação Concluída' : 'Estorno de Venda'}
-      subtitle={selected && !terminou ? `Pedido #${String(selected.id || '').slice(0, 8).toUpperCase()}` : 'Devolução completa (estoque + valores)'}
+      title={terminou ? 'Operação Concluída' : acao === 'cancelar' ? 'Cancelar Venda' : 'Estorno de Venda'}
+      subtitle={selected && !terminou ? `Pedido #${String(selected.id || '').slice(0, 8).toUpperCase()}` : acao === 'cancelar' ? `Cancelamento permitido até ${JANELA_CANCELAMENTO_DIAS} dias após a compra` : 'Devolução completa (estoque + valores)'}
       icon={acao === 'cancelar' ? <AlertTriangle size={22} /> : <RotateCcw size={20} />}
       size="md"
       footer={
@@ -205,7 +250,7 @@ export const RefundSaleModal: React.FC<RefundSaleModalProps> = ({
               onClick={resetSelecao}
               className="flex-1 px-8 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25"
             >
-              <RotateCcw size={14} /> Estornar Outro Pedido
+              <RotateCcw size={14} /> {acao === 'cancelar' ? 'Cancelar Outra Venda' : 'Estornar Outro Pedido'}
             </button>
           )}
         </div>
@@ -267,9 +312,12 @@ export const RefundSaleModal: React.FC<RefundSaleModalProps> = ({
                 <RefreshCw size={16} className="animate-spin" /> Buscando…
               </div>
             ) : combinedResults.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 text-center">
+              <div className="flex flex-col items-center justify-center py-10 text-center px-4">
                 <SearchX size={24} className="text-slate-300 mb-2" />
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nenhum pedido ativo encontrado.</p>
+                {acao === 'cancelar' && (
+                  <p className="text-[9px] font-bold text-slate-400 mt-1.5">Vendas com mais de {JANELA_CANCELAMENTO_DIAS} dias não podem ser canceladas.</p>
+                )}
               </div>
             ) : (
               combinedResults.map(o => (
@@ -322,7 +370,7 @@ export const RefundSaleModal: React.FC<RefundSaleModalProps> = ({
       )}
 
       {terminou && selected && (
-        <div className="p-5">
+        <div className="p-5 space-y-3">
           <div className="bg-slate-50 rounded-2xl border border-slate-200 p-4 flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="font-black text-slate-900 text-xs uppercase truncate">#{String(selected.id || '').slice(0, 12)}</p>
@@ -330,6 +378,19 @@ export const RefundSaleModal: React.FC<RefundSaleModalProps> = ({
             </div>
             <span className="font-black text-emerald-600 text-sm shrink-0">R$ {formatarMoeda(selected.total)}</span>
           </div>
+          {tentativasErradas > 0 && (
+            <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-2xl p-4">
+              <AlertTriangle size={16} className="text-amber-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-wider text-amber-700">
+                  Atenção: houve {tentativasErradas} tentativa(s) de senha incorreta(s) antes desta confirmação
+                </p>
+                <p className="text-[11px] font-bold text-amber-600 mt-1">
+                  Se não foi você quem digitou, altere a senha do administrador imediatamente.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </ModalShell>

@@ -13,6 +13,7 @@ mascararCpf,
   isVendedorRole,
 } from '../utils';
 import { montarEscPos, gerarCupomEntregaRaw, gerarRelatorioInadimplentes } from '../utils/printUtils';
+import { toUserRole, UserRole } from '../types';
 
 describe('validateCPF', () => {
   it('aceita CPFs válidos', () => {
@@ -217,10 +218,59 @@ describe('montarEscPos (ESC/POS 80mm)', () => {
     expect(cupom).toContain('NAO E DOCUMENTO FISCAL');
     expect(cupom).toContain('TOTAL PEDIDO:');
     expect(cupom).toContain('TROCO');
-    expect(cupom).toContain('BOBINA 80MM');
     cupom.split('\n').forEach(linha => {
       expect(linha.length).toBeLessThanOrEqual(48);
     });
+  });
+
+  it('cupom não imprime CNPJ duplicado nem texto interno de bobina', () => {
+    const cupom = gerarCupomEntregaRaw({
+      id: 'TESTE123',
+      items: [{ name: 'ARROZ 5KG', quantity: 1, priceAtPurchase: 25.9 }],
+      total: 25.9,
+      payments: [{ method: 'PIX', amount: 25.9 }],
+    }, { institutionName: 'MERCADO FACIL', cnpj: '00.000.000/0001-00' });
+
+    // O CNPJ saía uma vez no cabeçalho e de novo no rodapé: mesma informação,
+    // uma linha inteira de papel a mais por venda.
+    expect((cupom.match(/CNPJ:/g) || []).length).toBe(1);
+
+    // "FIM DO CUPOM - BOBINA 80MM" era informação interna da impressora, não
+    // útil a quem recebe o cupom.
+    expect(cupom).not.toContain('BOBINA 80MM');
+
+    // O nome do documento já dizia "NAO FISCAL"; a linha seguinte repetia a
+    // mesma ideia. Fica só a linha legalmente útil.
+    expect(cupom).not.toContain('CUPOM DE ENTREGA - NAO FISCAL');
+
+    // Alimentação final curta: 3 linhas, não 6.
+    expect(cupom.endsWith('\n\n\n')).toBe(true);
+  });
+
+  it('cupom completo de venda cabe em 32 linhas (regressão de papel)', () => {
+    // Antes: 39 linhas + 16 linhas de feed duplicado num cupom simples.
+    // Trava o tamanho para impedir que texto redundante volte a crescer.
+    const cupom = gerarCupomEntregaRaw({
+      id: 'AB12CD34EF56',
+      operatorName: 'Joao',
+      items: [
+        { name: 'ARROZ 5KG', quantity: 2, priceAtPurchase: 25.9 },
+        { name: 'OLEO SOJA 900ML', quantity: 1, priceAtPurchase: 7.49 },
+      ],
+      total: 59.29,
+      payments: [{ method: 'CASH', amount: 60 }],
+      change: 0.71,
+    }, {
+      institutionName: 'MERCADO FACIL',
+      appName: 'MERCADO FACIL PDV',
+      cnpj: '12.345.678/0001-90',
+      contactPhone: '65 99999-8888',
+      address: 'AVENIDA BRASIL 1234 CENTRO VILENA MT',
+    });
+    const linhas = cupom.split('\n');
+    // +1 tolerância para a quebra do endereço conforme o texto cadastrado.
+    expect(linhas.length).toBeLessThanOrEqual(33);
+    expect(Math.max(...linhas.map(l => l.length))).toBeLessThanOrEqual(48);
   });
 });
 
@@ -297,5 +347,30 @@ describe('gerarRelatorioInadimplentes (antiguidade da divida)', () => {
   it('lista vazia nao quebra', () => {
     const r = gerarRelatorioInadimplentes([]);
     expect(r).toContain('Clientes com debito: 0');
+  });
+});
+describe('toUserRole', () => {
+  it('trata toda a equipe administrativa como ADMIN', () => {
+    expect(toUserRole('admin')).toBe(UserRole.ADMIN);
+    expect(toUserRole('master')).toBe(UserRole.ADMIN);
+    expect(toUserRole('MASTER')).toBe(UserRole.ADMIN);
+    expect(toUserRole('manager')).toBe(UserRole.ADMIN);
+    expect(toUserRole('Manager')).toBe(UserRole.ADMIN);
+  });
+
+  it('trata caixa como VENDEDOR', () => {
+    expect(toUserRole('vendedor')).toBe(UserRole.VENDEDOR);
+    expect(toUserRole('operator')).toBe(UserRole.VENDEDOR);
+  });
+
+  it('trata desconhecido e vazio como FAMILY', () => {
+    expect(toUserRole('family')).toBe(UserRole.FAMILY);
+    expect(toUserRole('')).toBe(UserRole.FAMILY);
+    expect(toUserRole(null)).toBe(UserRole.FAMILY);
+    expect(toUserRole(undefined)).toBe(UserRole.FAMILY);
+  });
+
+  it('manager NAO pode virar FAMILY (instalador admin e painel dependem disso)', () => {
+    expect(toUserRole('manager')).not.toBe(UserRole.FAMILY);
   });
 });

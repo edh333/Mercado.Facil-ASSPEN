@@ -1,6 +1,27 @@
 import React from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 
+/**
+ * Boundary global de erros.
+ *
+ * SEGURANÇA (corrigido): a tela dizia "Nossa equipe foi notificada", mas nada
+ * era notificado — só havia um console.error. Era uma tela que prometia um
+ * resguardo que não existia, enquanto o usuário perderia a venda acreditando que
+ * o registro tinha sido feito. Agora o texto é verdadeiro.
+ *
+ * O detalhe técnico (mensagem + componentStack) fica atrás de VITE_DEV_DEBUG_ERRORS:
+ * em produção não vaza caminho de arquivo, nome de componente nem mensagem
+ * interna de erro. Para plugar telemetria de verdade, passe a prop onError —
+ * o boundary só não inventa mais que houve notificação.
+ */
+const DEBUG = (() => {
+  try {
+    return import.meta.env.DEV || String(import.meta.env.VITE_DEV_DEBUG_ERRORS || '') === 'true';
+  } catch {
+    return false;
+  }
+})();
+
 export class ErrorBoundary extends React.Component<any, any> {
   static getDerivedStateFromError(error: Error) {
     return { hasError: true, error };
@@ -9,6 +30,12 @@ export class ErrorBoundary extends React.Component<any, any> {
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('[ErrorBoundary]', error, errorInfo);
     try { this.setState({ info: errorInfo }); } catch { /* estado imutável */ }
+
+    // Telemetria opcional fornecida pela aplicação (nunca inventada aqui).
+    const onError = (this as any).props?.onError;
+    if (typeof onError === 'function') {
+      try { onError(error, errorInfo); } catch { /* telemetria nunca quebra a UI */ }
+    }
 
     // AUTO-CURA de erros de "build misturado"/cache velho (#310, #418, chunk):
     // limpa SWs e caches obsoletos e recarrega uma vez por sessão — o app sai
@@ -51,16 +78,21 @@ export class ErrorBoundary extends React.Component<any, any> {
               Algo deu errado
             </h2>
             <p className="text-sm text-slate-500 mb-2">
-              Ocorreu um erro inesperado. Nossa equipe foi notificada.
+              O sistema encontrou um erro inesperado e interrompeu esta tela para não
+              salvar dados inconsistentes.
             </p>
-            {st.error && (
+            <p className="text-sm text-slate-500 mb-6">
+              Recarregue para continuar. Se o problema voltar, anote o que você
+              estava fazendo e informe ao suporte — <strong className="text-slate-700">nenhum dado foi enviado automaticamente</strong>.
+            </p>
+            {DEBUG && st.error && (
               <p className="text-[10px] font-mono text-red-500 bg-red-50 rounded-xl p-3 mb-6 break-all">
                 {st.error.message}
               </p>
             )}
-            {st.info?.componentStack && (
+            {DEBUG && st.info?.componentStack && (
               <details className="text-left text-[9px] font-mono text-slate-500 bg-slate-50 rounded-xl p-3 mb-4 break-all max-h-40 overflow-auto">
-                <summary className="cursor-pointer font-black uppercase tracking-wider mb-1">Componentes envolvidos</summary>
+                <summary className="cursor-pointer font-black uppercase tracking-wider mb-1">Componentes envolvidos (debug)</summary>
                 {String(st.info.componentStack).slice(0, 1500)}
               </details>
             )}

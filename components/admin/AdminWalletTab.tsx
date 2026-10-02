@@ -20,16 +20,13 @@ interface AdminWalletTabProps {
   financeFilters: { start: string; end: string; };
   setFinanceFilters: (filters: any) => void;
   loadingWallet: boolean;
-  approveWalletTransaction?: (id: string) => Promise<void>;
-  rejectWalletTransaction?: (id: string) => Promise<void>;
-  showNotification?: (msg: string, type: string) => void;
   onSelectTransaction?: (tx: any) => void;
   users?: any[];
 }
 
 export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
   walletTx, userSearch, setUserSearch, financeFilters, setFinanceFilters, loadingWallet,
-  approveWalletTransaction, rejectWalletTransaction, showNotification, onSelectTransaction, users = []
+  onSelectTransaction, users = []
 }) => {
   const [activeSubTab, setActiveSubTab] = React.useState<'ALL' | 'DEPOSITS' | 'WITHDRAWALS' | 'SALDOS'>('ALL');
   const [quickDateFilter, setQuickDateFilter] = React.useState<'ALL' | 'TODAY' | 'WEEK' | 'MONTH'>('ALL');
@@ -237,7 +234,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
   };
 
   return (
-    <div className="animate-slideUp space-y-6 pb-20">
+    <div className="animate-slideUp space-y-6">
 
       {/* ─── Summary Cards ─── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

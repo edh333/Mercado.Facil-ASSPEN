@@ -65,9 +65,11 @@ export const AppDownloadModal: React.FC<{ onClose: () => void }> = ({ onClose })
   const [erro, setErro] = useState('');
   const [baixando, setBaixando] = useState('');
 
-  // Equipe inteira (admin + vendedor) vê/baixa o App Admin — é o único app
-  // em que vendedor/operador conseguem entrar.
-  const ehAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'VENDEDOR';
+  // Espelha obterLinkDownloadApp (functions/index.js): a equipe inteira baixa o
+  // App Admin. Sem 'master'/'operator'/'manager' aqui, um admin master via pelo
+  // filtro do próprio modal e nunca enxergava o instalador.
+  const PAPEIS_EQUIPE = ['admin', 'master', 'vendedor', 'operator', 'manager'];
+  const ehAdmin = PAPEIS_EQUIPE.includes(String(currentUser?.role ?? '').toLowerCase());
   const logado = !!currentUser;
 
   const carregar = useCallback(async () => {
@@ -233,9 +235,10 @@ export const AppDownloadModal: React.FC<{ onClose: () => void }> = ({ onClose })
 
       {logado && !loading && apps && apps.length > 0 && (
         <div className="space-y-4">
-          {/* Filtro defensivo (além do backend obterLinkDownloadApp): o instalador
-              do painel ADMIN só pode aparecer para administradores/master. */}
-          {apps.filter(app => app.chave !== 'admin' || ehAdmin).map(app => (
+          {/* A lista JÁ vem filtrada pelo servidor (obterLinkDownloadApp ignora
+              o app admin para quem não é da equipe). Filtrar de novo aqui
+              duplicava a lista de papéis e escondia o instalador do master. */}
+          {apps.map(app => (
             <CardApp key={app.chave} app={app} admin={app.chave === 'admin'} />
           ))}
         </div>

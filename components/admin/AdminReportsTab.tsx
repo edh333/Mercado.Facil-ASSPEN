@@ -9,6 +9,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { gerarRelatorioCredito, imprimirCupom, imprimirRelatorioCreditoA4 } from '../../utils/printUtils';
 import { isAdminRole } from '../../utils';
 import { getLocalDateStr } from './adminUtils';
+import { FILTRAVEIS, REPORT_TYPES } from './AdminReportPreviewModal';
 
 interface AdminReportsTabProps {
   reportConfig: any;
@@ -18,14 +19,6 @@ interface AdminReportsTabProps {
   handleExportExcel: () => void;
   settings?: any;
 }
-
-// Tipos de relatório que aceitam os Filtros de Refinamento (forma de pagamento,
-// status, cliente e operador). MESMA lista usada dentro do AdminReportPreviewModal.
-const FILTRAVEIS = new Set([
-  'GENERAL', 'FINANCIAL', 'ACCOUNTABILITY', 'VENDAS_DIARIAS', 'COLLECTIVE_PURCHASES',
-  'SALES_BY_CATEGORY', 'DRE_MONTHLY', 'SALES_CSV', 'STOCK_ABC', 'TOP_PRODUCTS',
-  'DAILY_CLOSING', 'DETALHE_VENDAS', 'RANKING_CLIENTES', 'VENDAS_OPERADOR', 'FIADO_VENDAS'
-]);
 
 const PAGAMENTOS = ['TODAS', 'PIX', 'CASH', 'CARD', 'WALLET', 'FIADO', 'FIADO_30'];
 
@@ -125,51 +118,51 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
     {
       titulo: 'Gestão Financeira',
       options: [
-        { id: 'GENERAL', name: 'Resumo Geral', desc: 'Visão panorâmica do sistema e saúde financeira.', icon: <BarChart3 className="text-blue-500" size={24}/> },
-        { id: 'FINANCIAL', name: 'Fluxo de Caixa', desc: 'Detalhamento de todas as entradas e saídas.', icon: <TrendingUp className="text-emerald-500" size={24}/> },
-        { id: 'ACCOUNTABILITY', name: 'Prestação de Contas', desc: 'Relatório para auditoria e associados.', icon: <ClipboardList className="text-purple-500" size={24}/> },
-        { id: 'COLLECTIVE_PURCHASES', name: 'Compras Coletivas', desc: 'Consolidado de vendas por período.', icon: <CreditCard className="text-emerald-400" size={24}/> },
-        { id: 'DRE_MONTHLY', name: 'Fechamento Mensal (DRE)', desc: 'DRE simplificado: receita, custo das mercadorias e lucro líquido real.', icon: <Landmark className="text-teal-600" size={24}/> },
-        { id: 'DAILY_CLOSING', name: 'Fechamento do Dia', desc: 'Conferência de caixa diária: vendas por forma de pagamento, despesas e resultado.', icon: <Calculator className="text-cyan-600" size={24}/> },
-        { id: 'VENDAS_DIARIAS', name: 'Vendas Diárias (Detalhado)', desc: 'Evolução dia a dia: nº de vendas, itens vendidos, faturamento e ticket médio.', icon: <Landmark className="text-emerald-500" size={24}/> },
-        { id: 'DETALHE_VENDAS', name: 'Vendas do Dia (Lista Completa)', desc: 'Expansível por dia: quem comprou, o que comprou, valor, pagamento, operador e status — com CSV.', icon: <ListOrdered className="text-sky-500" size={24}/> },
+        { id: 'GENERAL', desc: 'Visão panorâmica do sistema e saúde financeira.', icon: <BarChart3 className="text-blue-500" size={24}/> },
+        { id: 'FINANCIAL', desc: 'Detalhamento de todas as entradas e saídas.', icon: <TrendingUp className="text-emerald-500" size={24}/> },
+        { id: 'ACCOUNTABILITY', desc: 'Relatório para auditoria e associados.', icon: <ClipboardList className="text-purple-500" size={24}/> },
+        { id: 'COLLECTIVE_PURCHASES', desc: 'Consolidado de vendas por período.', icon: <CreditCard className="text-emerald-400" size={24}/> },
+        { id: 'DRE_MONTHLY', desc: 'DRE simplificado: receita, custo das mercadorias e lucro líquido real.', icon: <Landmark className="text-teal-600" size={24}/> },
+        { id: 'DAILY_CLOSING', desc: 'Conferência de caixa diária: vendas por forma de pagamento, despesas e resultado.', icon: <Calculator className="text-cyan-600" size={24}/> },
+        { id: 'VENDAS_DIARIAS', desc: 'Evolução dia a dia: nº de vendas, itens vendidos, faturamento e ticket médio.', icon: <Landmark className="text-emerald-500" size={24}/> },
+        { id: 'DETALHE_VENDAS', desc: 'Expansível por dia: quem comprou, o que comprou, valor, pagamento, operador e status — com CSV.', icon: <ListOrdered className="text-sky-500" size={24}/> },
       ]
     },
     {
       titulo: 'Análise Comercial',
       options: [
-        { id: 'RANKING_CLIENTES', name: 'Ranking de Clientes', desc: 'Quem mais compra no período: valor, nº de compras e ticket médio.', icon: <Medal className="text-amber-500" size={24}/> },
-        { id: 'VENDAS_OPERADOR', name: 'Desempenho por Operador', desc: 'Faturamento, nº de vendas e ticket de cada operador/CAIXA.', icon: <UserCog className="text-violet-500" size={24}/> },
+        { id: 'RANKING_CLIENTES', desc: 'Quem mais compra no período: valor, nº de compras e ticket médio.', icon: <Medal className="text-amber-500" size={24}/> },
+        { id: 'VENDAS_OPERADOR', desc: 'Faturamento, nº de vendas e ticket de cada operador/CAIXA.', icon: <UserCog className="text-violet-500" size={24}/> },
       ]
     },
     {
       titulo: 'Créditos e Extratos',
       options: [
-        { id: 'USERS_CREDITS', name: 'Usuários e Saldos', desc: 'Relatório de familiares e créditos em conta.', icon: <Users className="text-indigo-600" size={24}/> },
-        { id: 'CREDITS_ALL', name: 'Todos os Créditos', desc: 'Listagem completa com filtro por com/sem crédito, individual e em lote.', icon: <Wallet className="text-emerald-500" size={24}/> },
-        { id: 'CREDITS_POSITIVE', name: 'Créditos Ativos (com Saldo)', desc: 'Familiares com crédito em conta > R$ 0, consulta individual e em lote.', icon: <Wallet className="text-emerald-500" size={24}/> },
-        { id: 'CREDITS_ZERO', name: 'Créditos Zerados (sem Saldo)', desc: 'Familiares sem crédito em conta, consulta individual e em lote.', icon: <Coins className="text-slate-500" size={24}/> },
-        { id: 'INDIVIDUAL', name: 'Extrato Individual', desc: 'Movimentações completas de um familiar.', icon: <Users className="text-orange-500" size={24}/> },
-        { id: 'FIADO_VENDAS', name: 'Vendas Fiadas (Período)', desc: 'Todas as vendas no fiado do período, com itens e clientes.', icon: <CreditCard className="text-teal-500" size={24}/> },
-        { id: 'FIADO_CONTAS', name: 'Contas a Receber (Fiado)', desc: 'Dívidas em aberto: valor, limite, vencimento e status de cada devedor.', icon: <Wallet className="text-rose-500" size={24}/> },
-        { id: 'FIADO_VENCIMENTOS', name: 'Vencimentos do Fiado', desc: 'Fiados agrupados por faixa: vencidos, desta semana, do mês, 60+ dias.', icon: <Calendar className="text-orange-500" size={24}/> },
+        { id: 'USERS_CREDITS', desc: 'Relatório de familiares e créditos em conta.', icon: <Users className="text-indigo-600" size={24}/> },
+        { id: 'CREDITS_ALL', desc: 'Listagem completa com filtro por com/sem crédito, individual e em lote.', icon: <Wallet className="text-emerald-500" size={24}/> },
+        { id: 'CREDITS_POSITIVE', desc: 'Familiares com crédito em conta > R$ 0, consulta individual e em lote.', icon: <Wallet className="text-emerald-500" size={24}/> },
+        { id: 'CREDITS_ZERO', desc: 'Familiares sem crédito em conta, consulta individual e em lote.', icon: <Coins className="text-slate-500" size={24}/> },
+        { id: 'INDIVIDUAL', desc: 'Movimentações completas de um familiar.', icon: <Users className="text-orange-500" size={24}/> },
+        { id: 'FIADO_VENDAS', desc: 'Todas as vendas no fiado do período, com itens e clientes.', icon: <CreditCard className="text-teal-500" size={24}/> },
+        { id: 'FIADO_CONTAS', desc: 'Dívidas em aberto: valor, limite, vencimento e status de cada devedor.', icon: <Wallet className="text-rose-500" size={24}/> },
+        { id: 'FIADO_VENCIMENTOS', desc: 'Fiados agrupados por faixa: vencidos, desta semana, do mês, 60+ dias.', icon: <Calendar className="text-orange-500" size={24}/> },
       ]
     },
     {
       titulo: 'Produtos e Estoque',
       options: [
-        { id: 'PRODUCTS_ALL', name: 'Catálogo de Produtos', desc: 'Lista completa de itens, preços e estoque.', icon: <Package className="text-blue-400" size={24}/> },
-        { id: 'STOCK_LOW', name: 'Reposição / Inventário', desc: 'Itens abaixo da margem de segurança.', icon: <Package className="text-red-500" size={24}/> },
-        { id: 'SALES_BY_CATEGORY', name: 'Vendas por Grupo', desc: 'Desempenho de categorias de produtos.', icon: <RefreshCcw className="text-indigo-500" size={24}/> },
-        { id: 'STOCK_ABC', name: 'Curva ABC de Estoque', desc: 'Giro dos produtos e valor do inventário parado para balanço patrimonial.', icon: <PieChart className="text-amber-600" size={24}/> },
-        { id: 'TOP_PRODUCTS', name: 'TOP Produtos (Mais Vendidos)', desc: 'Ranking por quantidade vendida e receita no período — o que mais saiu no caixa.', icon: <TrendingUp className="text-orange-500" size={24}/> },
-        { id: 'SALES_CSV', name: 'Movimentação de Vendas', desc: 'CSV/Excel para contador: data, cupom, CPF, pagamento, imposto e valor.', icon: <FileSpreadsheet className="text-green-600" size={24}/> },
+        { id: 'PRODUCTS_ALL', desc: 'Lista completa de itens, preços e estoque.', icon: <Package className="text-blue-400" size={24}/> },
+        { id: 'STOCK_LOW', desc: 'Itens abaixo da margem de segurança.', icon: <Package className="text-red-500" size={24}/> },
+        { id: 'SALES_BY_CATEGORY', desc: 'Desempenho de categorias de produtos.', icon: <RefreshCcw className="text-indigo-500" size={24}/> },
+        { id: 'STOCK_ABC', desc: 'Giro dos produtos e valor do inventário parado para balanço patrimonial.', icon: <PieChart className="text-amber-600" size={24}/> },
+        { id: 'TOP_PRODUCTS', desc: 'Ranking por quantidade vendida e receita no período — o que mais saiu no caixa.', icon: <TrendingUp className="text-orange-500" size={24}/> },
+        { id: 'SALES_CSV', desc: 'CSV/Excel para contador: data, cupom, CPF, pagamento, imposto e valor.', icon: <FileSpreadsheet className="text-green-600" size={24}/> },
       ]
     }
   ];
 
   return (
-    <div className="animate-slideUp space-y-8 pb-20">
+    <div className="animate-slideUp space-y-8">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm">
             <h2 className="text-xl font-bold text-[var(--text-main)] flex items-center gap-2 tracking-tight">
                 <ClipboardList size={24} className="text-emerald-400"/> Central de Relatórios
@@ -201,7 +194,7 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
                                     {opt.icon}
                                 </div>
                                 <div className="min-w-0">
-                                    <p className={`font-black text-xs uppercase tracking-tight mb-1 truncate ${reportConfig.type === opt.id ? 'text-white' : 'text-[var(--text-main)]'}`}>{opt?.name || 'Relatório'}</p>
+                                    <p className={`font-black text-xs uppercase tracking-tight mb-1 truncate ${reportConfig.type === opt.id ? 'text-white' : 'text-[var(--text-main)]'}`}>{REPORT_TYPES[opt.id] || 'Relatório'}</p>
                                     <p className={`text-[9px] font-medium leading-snug ${reportConfig.type === opt.id ? 'text-white/60' : 'text-[var(--text-muted)]'}`}>{opt.desc}</p>
                                 </div>
                             </button>

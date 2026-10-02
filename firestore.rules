@@ -92,6 +92,19 @@ function isAdmin() {
         !request.resource.data.diff(resource.data).affectedKeys().hasAny([
           'role', 'walletBalance', 'weeklySpent', 'authUid', 'mainAdmin',
           'isMainAdmin', 'permissions'
+          // CONCESSÃO DELIBERADA (pendência conhecida, rastreada):
+          // 'currentDebt' NÃO está na lista de campos sensíveis porque o
+          // fallback offline de recebimento de fiado (utils/customerUtils.ts)
+          // precisa abater a dívida quando o backend está inacessível.
+          // Consequência aceita: um admin SEM a permissão 'finance' consegue
+          // escrever currentDebt pelo cliente nesse cenário de indisponibilidade,
+          // embora a Cloud Function exigirAdminPermissao("finance")
+          // recusaria a mesma operação com o servidor no ar.
+          // Mitigações: só ocorre com o servidor fora do ar; o caminho normal
+          // é sempre a Function; e o registro fica marcado 'semServidor'.
+          // Correção definitiva (próxima iteração): o cliente escrever numa
+          // coleção 'pagamentos_pendentes' e o servidor reconciliar no
+          // reconectar, permitindo então bloquear currentDebt no cliente.
         ])) ||
         (userMatch(userId) &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
@@ -210,8 +223,18 @@ function isAdmin() {
     // no cliente — TODA mutação passa pela Cloud Function gerenciarSessaoCaixa
     // (admin SDK, autoritativa: confere papel, dono e atomicidade).
     match /cash_sessions/{sessionId} {
-      allow read: if isAuthenticated() && (userMatch(resource.data.operatorId) || isEquipe());
-      allow create, update, delete: if false;
+        // Leitura: o próprio operador SEMPRE (abrir/fechar a sessão dele e o
+        // comprovante de fechamento), e o admin em qualquer sessão.
+        // Antes era isEquipe() (= admin OU vendedor), o que deixava QUALQUER
+        // vendedor listar e ler saldo, saídas e divergência das sessões dos
+        // COLEGAS — dado financeiro de terceiros. O vendedor
+        // continua operando o próprio caixa normalmente; perde só a visão
+        // alheia, que é de gestão.
+        // ATENÇÃO: Firestore não filtra resultado de query por regra — a query
+        // é rejeitada por inteiro. Por isso utils/cashSession.ts faz o
+        // getRecentSessions com where("operatorId","==",<uid>) para não-admin.
+        allow read: if isAuthenticated() && (userMatch(resource.data.operatorId) || isAdmin());
+        allow create, update, delete: if false;
     }
 
     // ── TRAVAS OPERACIONAIS (abertura/fechamento atômico de caixa) ──
@@ -268,6 +291,15 @@ function isAdmin() {
       allow read, create: if isAdmin();
       allow update: if false;
       allow delete: if false;
+    }
+
+    // ── AUDITORIA DIÁRIA DE ANOMALIAS ──
+    // Gravado pela Cloud Function auditoriaDiaria (admin SDK — ignora estas
+    // regras). O painel lê via callable listarAuditorias, que valida a
+    // permissão 'finance' no servidor; o acesso direto fica restrito ao admin.
+    match /audit_diario/{dia} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
     }
 
     // ── ALERTAS DO FIREBASE (Alert Center) ──

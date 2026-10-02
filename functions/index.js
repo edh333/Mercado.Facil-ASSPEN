@@ -26,6 +26,7 @@ const {
   formatoTokenDownloadValido,
   motivoTokenDownloadInvalido,
   TOKEN_DOWNLOAD_TTL_MINUTOS,
+  detectarAnomalias,
 } = require("./logic");
 
 if (!admin.apps.length) {
@@ -454,6 +455,14 @@ exports.buscarLoginInfo = onCall(async (request) => {
   verificarRateLimit("buscarLoginInfo:" + ipDoRequest(request), 30);
   const identificador = String(request.data?.identificador || "").trim();
   if (!identificador) throw new HttpsError("invalid-argument", "Informe CPF ou e-mail.");
+
+  // 2º limite, POR IDENTIFICADOR. O de IP (30/min) não impede enumeração:
+  // com uma lista de CPFs, um atacante distribuía as consultas por vários IPs
+  // (ou por proxies) e descobria quais são contas ativas e quais são admin.
+  // Limitando o próprio identificador, cada CPF só pode ser sondado 5x/10min,
+  // e um e-mail-vizinho deixa de revelar o papel da conta. O fluxo de login
+  // legítimo (usuário errando a senha) continua funcionando.
+  verificarRateLimit("buscarLoginInfo:alvo:" + identificador.toLowerCase(), 5, 10 * 60 * 1000);
 
   let usuario = await usuarioPorCpf(identificador);
   if (!usuario && identificador.includes("@")) {
@@ -1403,20 +1412,102 @@ exports.sacarSaldoAdmin = onCall(async (request) => {
   return { ok: true, novoSaldo: novoSaldoFinal };
 });
 
-/** Autenticado — saque do próprio saldo. */
+/** Converte qualquer representação de data do Firestore (Date, Timestamp,
+ *  ISO string, epoch ms) em epoch ms. 0 quando ausente/inválido. */
+function dataParaMs(v) {
+  if (v === null || v === undefined) return 0;
+  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
+  if (typeof v === "object" && typeof v.toDate === "function") {
+    const d = v.toDate();
+    return d instanceof Date ? d.getTime() : 0;
+  }
+  if (v instanceof Date) {
+    const t = v.getTime();
+    return Number.isFinite(t) ? t : 0;
+  }
+  const t = Date.parse(String(v));
+  return Number.isFinite(t) ? t : 0;
+}
+
+/** Autenticado — saque do PRÓPRIO saldo.
+ *
+ *  SEGURANÇA (corrigido — era o P0 do sistema): antes, qualquer conta
+ *  autenticada podia sacar em segundos, sem 2º fator, sem rate limit e sem
+ *  teto. Bastava um token vazado para drenar 100% da carteira, e a transação
+ *  entrava com status "approved" hardcoded — indistinguível de um saque conferido
+ *  por um admin na conciliação.
+ *
+ *  Controles agora aplicados:
+ *   1. Rate limit por usuário: 5 saques/hora (defesa rápida, por instância).
+ *   2. TETO DIÁRIO autoritativo gravado em users/{id}.saqueDia dentro da MESMA
+ *      transação do débito — compartilhado entre instâncias, sem índice novo e
+ *      à prova de corrida. Configurável em
+ *      settings/general.limiteSaqueProprioDiario (padrão R$ 1.000/dia).
+ *   3. Idade mínima da conta (24h): barra o cenário "reset de senha público +
+ *      saque imediato" mesmo que os fatores semi-públicos sejam obtidos.
+ *   4. Audit log com saldo anterior (reconciliação) e marca precisaRevisao
+ *      acima de 1/3 do teto, alimentando a auditoria de anomalias.
+ *
+ *  O status segue "approved" porque o saldo é do PRÓPRIO usuário e o
+ *  destinatário é ele mesmo (não há conferência de gaveta involved, como no
+ *  sacarSaldoAdmin). A distingção de confiança fica no campo precisaRevisao +
+ *  audit_logs, não num "pending" sem tela para aprovar.
+ */
 exports.sacarSaldoProprio = onCall(async (request) => {
   const user = await exigirAutenticado(request);
   const valor = validarValor(request.data?.valor);
 
+  // 1. Rate limit por usuário — 5 saques por hora.
+  verificarRateLimit("sacarSaldoProprio:" + user.id, 5, 60 * 60 * 1000);
+
+  // 3. Idade mínima da conta (24h) — corta tomada de conta + saque imediato.
+  const criadoMs = dataParaMs(user.createdAt || user.criadoEm || user.registrationDate || user.dataCriacao);
+  if (criadoMs > 0 && Date.now() - criadoMs < 24 * 60 * 60 * 1000) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Conta muito nova para saques. Aguarde 24 horas após o cadastro para liberar a retirada."
+    );
+  }
+
+  // 2. Teto diário, configurável pelo admin.
+  const genSnap = await db.collection("settings").doc("general").get();
+  const genCfg = genSnap.exists ? genSnap.data() : {};
+  const cfgTeto = Number(genCfg.limiteSaqueProprioDiario);
+  const tetoDia = Number.isFinite(cfgTeto) && cfgTeto >= 0 ? arredondar(cfgTeto) : 1000;
+
+  const hoje = new Date().toISOString().slice(0, 10);
   let novoSaldoFinal = null;
+  let saldoAnterior = null;
+  let totalDia = 0;
+  let precisaRevisao = false;
+
   await db.runTransaction(async (t) => {
     const uRef = db.collection("users").doc(user.id);
     const uSnap = await t.get(uRef);
-    if (!uSnap.exists) throw new Error("Usuário não encontrado.");
+    if (!uSnap.exists) throw new HttpsError("not-found", "Usuário não encontrado.");
     const ud = uSnap.data();
-    validarSaldoSuficiente(ud.walletBalance || 0, valor);
-    novoSaldoFinal = calcularNovoSaldo(ud.walletBalance || 0, valor);
-    t.update(uRef, { walletBalance: admin.firestore.FieldValue.increment(-arredondar(valor)) });
+
+    saldoAnterior = arredondar(Number(ud.walletBalance || 0));
+    validarSaldoSuficiente(saldoAnterior, valor);
+
+    // Contador diário atômico (mesma transação do débito).
+    const diaRec = (ud.saqueDia && typeof ud.saqueDia === "object") ? ud.saqueDia : {};
+    const jaSacado = String(diaRec.dia || "") === hoje ? arredondar(Number(diaRec.total || 0)) : 0;
+    const novoTotal = arredondar(jaSacado + valor);
+    if (novoTotal > tetoDia + 1e-9) {
+      throw new HttpsError(
+        "resource-exhausted",
+        `Limite diário de saques atingido (R$ ${tetoDia.toFixed(2).replace(".", ",")}). Faça novamente amanhã ou solicite atendimento.`
+      );
+    }
+    totalDia = novoTotal;
+    precisaRevisao = tetoDia > 0 && novoTotal > tetoDia / 3;
+
+    novoSaldoFinal = calcularNovoSaldo(saldoAnterior, valor);
+    t.update(uRef, {
+      walletBalance: admin.firestore.FieldValue.increment(-arredondar(valor)),
+      saqueDia: { dia: hoje, total: novoTotal },
+    });
     await registrarTransacaoCarteira(t, db.collection("wallet_transactions").doc(), {
       userId: user.id,
       inmateCpf: cleanCpf(ud.inmateCpf || ud.prisonerCpf || ud.cpf),
@@ -1428,15 +1519,27 @@ exports.sacarSaldoProprio = onCall(async (request) => {
       description: "Saque realizado pelo usuário",
       payerName: user.name || "",
       payerId: user.id,
+      autoAprovado: true,
+      precisaRevisao,
     });
   });
 
-  await registrarAudit(user.id, "SAQUE_PROPRIO", null, {
+  await registrarAudit(user.id, "SAQUE_PROPRIO", {
+    usuarioId: user.id,
+    nome: user.name || "",
+    saldoAnterior,
+  }, {
+    usuarioId: user.id,
     valor,
     novoSaldo: novoSaldoFinal,
+    totalDia,
+    limiteDia: tetoDia,
+    precisaRevisao,
   });
 
-  return { ok: true, novoSaldo: novoSaldoFinal };
+  logger.info(`[sacarSaldoProprio] usuario=${user.id} valor=${valor} totalDia=${totalDia}/${tetoDia} revisao=${precisaRevisao}`);
+
+  return { ok: true, novoSaldo: novoSaldoFinal, totalDia, limiteDia: tetoDia, precisaRevisao };
 });
 
 // ──────────────────────────────────────────────
@@ -1663,14 +1766,16 @@ function refSessaoCaixa(sessao) {
 
 async function getSessaoCaixaAberta(operatorId) {
   // 1) PDV moderno (coleção cash_sessions, status minúsculo "open").
-  //    Filtro de status feito em memória para não depender de índice composto.
-  //    Janela 500 (não 100): com muitas sessões históricas, a ativa podia ficar
-  //    fora da página de 100 (IDs aleatórios, sem orderBy) → "Nenhuma sessão".
+  //    Filtro de status NO SERVIDOR + limit(1) — mesma query do getActiveSession
+  //    do client: equality-only não exige índice composto e evita arrastar até
+  //    500 docs históricos a cada chamada (eram ~500 leituras por conferência
+  //    de caixa; agora é 1). Escrita é sempre "open"/"closed" (server e client).
   const snap1 = await db.collection("cash_sessions")
     .where("operatorId", "==", operatorId)
-    .limit(500)
+    .where("status", "==", "open")
+    .limit(1)
     .get();
-  const ativa1 = snap1.docs.find((d) => String(d.data().status || "").toLowerCase() === "open");
+  const ativa1 = snap1.docs[0];
   if (ativa1) {
     return { id: ativa1.id, colecao: "cash_sessions", ...ativa1.data() };
   }
@@ -2752,9 +2857,29 @@ exports.buscarPedidosParaEstorno = onCall(async (request) => {
 /** Admin — estorno/devolução de pedido com carteira. */
 exports.estornarVenda = onCall(async (request) => {
   const caller = await exigirAdminPermissao(request, "sales");
+  verificarRateLimit("estornarVenda:" + caller.id, 10);
   const orderId = String(request.data?.orderId || "");
   const motivo = String(request.data?.motivo || "Devolução administrativa").slice(0, 200);
+  // Janela de CANCELAMENTO (ex.: PDV cancela apenas vendas dos últimos 5 dias).
+  // Chamadas sem janelaDias (estorno/devolução pela aba de Pedidos) não são afetadas.
+  const janelaDias = Number(request.data?.janelaDias) || 0;
   if (!orderId) throw new HttpsError("invalid-argument", "Pedido inválido.");
+
+  // Segundo fator no SERVIDOR. A UI (RefundSaleModal) já validava a senha
+  // antes de chamar, mas essa validação era só de cliente: chamar a Function
+  // direto permitia a um admin com apenas a permissão 'sales' estornar
+  // vendas — o que credita carteira, devolve estoque e mexe no caixa — sem
+  // a senha que o próprio sistema exige em creditar saldo, sacar e
+  // restaurar backup. Aqui a prova é conferida de novo, no servidor.
+  // Se não houver senha mestra CADASTRADA, não se exige nada (sistema legado
+  // ainda sem senha definida continua funcionando).
+  {
+    const privSnap = await db.collection("settings").doc("private").get();
+    const priv = privSnap.exists ? privSnap.data() : {};
+    if (priv.masterPasswordHash) {
+      await verificarSenhaMestra(request.data?.senhaMestra);
+    }
+  }
 
   try {
     // Resolve a sessão de caixa ANTES da transação (queries não são permitidas dentro dela)
@@ -2777,6 +2902,14 @@ exports.estornarVenda = onCall(async (request) => {
       const statusAtual = String(pedido.status || "").toUpperCase();
       if (pedido.deleted) {
         throw new Error("Este pedido foi excluído (lixeira). O estoque já foi devolvido; restaure o pedido antes de estornar.");
+      }
+      // Prazo de cancelamento: venda mais antiga que a janela NÃO pode ser
+      // cancelada (regra dos 5 dias). Data ausente não bloqueia (legacy).
+      if (janelaDias > 0) {
+        const criadoTs = Date.parse(String(pedido.createdAt || pedido.date || ""));
+        if (criadoTs && (Date.now() - criadoTs) > janelaDias * 86400000) {
+          throw new Error(`Cancelamento bloqueado: esta venda foi feita há mais de ${janelaDias} dias e não pode mais ser cancelada. Para valores antigos, use o estorno pela aba de Pedidos.`);
+        }
       }
       // Bloqueia TODOS os aliases de cancelado/devolvido/estornado (PT/EN)
       // Impede double-refund se admin fez updateOrderStatus direto com termo variante.
@@ -3057,6 +3190,117 @@ exports.registrarPagamentoConta = onCall({
   await registrarAudit(caller.id, "PAGAR_CONTA_FIADO", { clienteId: customerAccountId, amount }, resultado);
 
   return { ok: true, ...resultado };
+});
+
+// ============================================================
+// DESPESA COM DÉBITO NO CAIXA FÍSICO (server-side, atômico)
+// ============================================================
+// O cliente gravava a despesa E a sangria numa transação Web SDK sobre
+// 'cash_sessions'. As regras zeram essa coleção para o cliente
+// (`allow create, update, delete: if false` em firestore.rules), então essa
+// escrita NUNCA foi aceita: 'Nova Despesa' — cujo campo 'debitAccount' tem
+// CAIXA como PADRÃO no formulário — falhava com permission-denied, e por ser
+// transação atômica a despesa também não era criada. Não havia caminho que
+// funcionasse.
+//
+// Aqui a operação roda no Admin SDK: sem regra, com status da sessão e saldo
+// revalidados DENTRO da transação, e o saldo nunca fica negativo. O cliente
+// só orquestra; a verdade é do servidor.
+exports.registrarDespesa = onCall({ timeoutSeconds: 60 }, async (request) => {
+  const caller = await exigirAdminPermissao(request, "finance");
+
+  const despesa = request.data?.despesa && typeof request.data.despesa === "object"
+    ? request.data.despesa : {};
+  const valor = arredondar(Number(despesa.amount));
+  if (!despesa.id || String(despesa.id).trim() === "") {
+    throw new HttpsError("invalid-argument", "Identificador da despesa ausente.");
+  }
+  if (!Number.isFinite(valor) || valor <= 0) {
+    throw new HttpsError("invalid-argument", "Valor da despesa deve ser maior que zero.");
+  }
+  if (valor > 100000) {
+    throw new HttpsError("invalid-argument", "Valor acima do limite permitido (R$ 100.000,00).");
+  }
+  const debitadaNoCaixa = String(despesa.debitAccount || "").toUpperCase() === "CAIXA";
+  const despesaRef = db.collection("expenses").doc(String(despesa.id));
+
+  // Sanitização do payload: o cliente envia um lançamento de despesa (contrato
+  // Expense: description/date/category/type/debitAccount...), NÃO um registro de
+  // auditoria. A ATRIBUIÇÃO é sempre do servidor — sem isto, um admin com a
+  // permissão 'finance' grava operatorId/userId de terceiros e a origem da
+  // despesa aparece errada nos relatórios. O dinheiro em si já é atribuído ao
+  // operador logado (sessão resolvida por caller.id) e o rastro real fica em
+  // registrarAudit; aqui só blindamos os campos do doc.
+  const despesaPayload = {
+    ...despesa,
+    amount: valor,
+    valor,
+    createdBy: caller.id,
+    createdAt: admin.firestore.Timestamp.now(),
+  };
+  delete despesaPayload.operatorId;
+  delete despesaPayload.userId;
+
+  // O id da despesa vem do CLIENTE. Sem esta trava, um set() com um id já
+  // existente APAGARIA o lançamento anterior e o substituiria pelo novo
+  // valor — destruindo um registro financeiro em vez de criar outro.
+  // Por isso toda escrita de despesa passa por create() e falha se o doc existir.
+  const jaExiste = await despesaRef.get();
+  if (jaExiste.exists) {
+    throw new HttpsError("already-exists", "Já existe uma despesa com este identificador. Recarregue a tela e tente novamente.");
+  }
+
+  // Sem débito no caixa: grava direto (não há o que transacionar).
+  if (!debitadaNoCaixa) {
+    await despesaRef.create({ ...despesaPayload });
+    await registrarAudit(caller.id, "REGISTRAR_DESPESA", null, { despesaId: despesa.id, valor, debito: "CONTA" });
+    return { ok: true, id: String(despesa.id) };
+  }
+
+  // Débito no caixa físico: sempre a sessão do OPERADOR LOGADO, nunca uma
+  // enviada pelo cliente (evita abater o caixa de outro operador).
+  let sessao = null;
+  try { sessao = await getSessaoCaixaAberta(caller.id); } catch (e) { /* tratado abaixo */ }
+  if (!sessao || !sessao.id) {
+    throw new HttpsError("failed-precondition", "Nenhuma sessão de caixa aberta. Abra o caixa antes de lançar despesa debitada no caixa físico.");
+  }
+  const colecaoSessao = sessao.colecao || "cash_sessions";
+  const sessaoRef = db.collection(colecaoSessao).doc(sessao.id);
+
+  try {
+    await db.runTransaction(async (t) => {
+      const sessaoSnap = await t.get(sessaoRef);
+      if (!sessaoSnap.exists) throw new HttpsError("not-found", "Sessão de caixa não encontrada.");
+      if (String(sessaoSnap.data().status || "").toUpperCase() !== "OPEN") {
+        throw new HttpsError("failed-precondition", "A sessão de caixa foi fechada. Reabra o caixa antes de lançar a despesa.");
+      }
+      const saldoAtual = Number(sessaoSnap.data().currentBalance || 0);
+      if (!(saldoAtual >= valor)) {
+        throw new HttpsError("failed-precondition",
+          `Saldo em caixa insuficiente para despesa de R$ ${valor.toFixed(2).replace(".", ",")} — disponível: R$ ${saldoAtual.toFixed(2).replace(".", ",")}.`);
+      }
+      t.create(despesaRef, { ...despesaPayload });
+      t.update(sessaoRef, {
+        // Forma longa: os atalhos FIELD_INCREMENTO/FIELD_ARRAYUNION são
+        // declarados mais abaixo (const não sofre hoisting) e esta função
+        // roda já no deploy.
+        currentBalance: admin.firestore.FieldValue.increment(-valor),
+        withdrawals: admin.firestore.FieldValue.arrayUnion({
+          amount: valor,
+          reason: `Despesa: ${despesa.description || "Lançamento"}`,
+          timestamp: admin.firestore.Timestamp.now(),
+        }),
+      });
+    });
+  } catch (e) {
+    if (e instanceof HttpsError) throw e;
+    throw new HttpsError("internal", "Erro ao registrar a despesa no caixa.");
+  }
+
+  await registrarAudit(caller.id, "REGISTRAR_DESPESA", null, {
+    despesaId: despesa.id, valor, debito: "CAIXA", sessaoId: sessao.id, legado: colecaoSessao === "cashier",
+  });
+  return { ok: true, id: String(despesa.id) };
 });
 
 /**
@@ -3834,8 +4078,14 @@ exports.obterLinkDownloadApp = onCall({
   timeoutSeconds: 60,
 }, async (request) => {
   const user = await exigirAutenticado(request);
-  // Equipe inteira (admin, master, vendedor, operador) baixa o App Admin —
-  // o próprio app admin é o único que aceita vendedor/operator no login.
+  // Equipe inteira (admin, master, vendedor, operador, gerente) baixa o App Admin
+  // — o próprio app admin é o único que aceita vendedor/operator no login.
+  // ATENÇÃO: 'manager' existe no tipo de UI SystemRole ('admin'|'manager'|
+  // 'operator'|'user') e o painel trata gerente como equipe, então NÃO pode ser
+  // removido daqui. Inconsistência REAL a resolver: o enum UserRole de types.ts
+  // (ADMIN|VENDEDOR|FAMILY) não tem 'manager'/'operator', enquanto a UI e o
+  // servidor os usam. Dois sistemas de papel paralelos — unificar é decisão de
+  // produto, não um bug de digitação.
   const ehAdmin = ["admin", "master", "vendedor", "operator", "manager"].includes(String(user.role || "").toLowerCase());
 
   const bucket = admin.storage().bucket(FUNC_BUCKET);
@@ -3894,7 +4144,8 @@ exports.gerarLinkDownloadAdmin = onCall({
 }, async (request) => {
   const user = await exigirAutenticado(request);
   // Equipe inteira pode baixar: o instalador admin é o ÚNICO app em que
-  // vendedor/operador conseguem entrar (o App Usuário os bloqueia).
+  // vendedor/operador/gerente conseguem entrar (o App Usuário os bloqueia).
+  // Ver nota sobre o tipo de papel em listarDownloadsAdmin.
   const ehEquipe = ["admin", "master", "vendedor", "operator", "manager"].includes(String(user.role || "").toLowerCase());
   if (!ehEquipe) {
     throw new HttpsError("permission-denied", "Acesso restrito à equipe administrativa.");
@@ -4205,6 +4456,37 @@ exports.limparComprovantesExpirados = onSchedule({
     }
   }
   logger.info(`[TTL] Comprovantes apagados=${apagados} | docs limpos=${docsLimpos}`);
+
+  // ── Retenção do log de auditoria ──
+  // audit_logs recebia um documento por ação sensível e nunca era podado:
+  // crescia sem teto (dezenas de milhares de docs/ano). A trilha de auditoria
+  // tem valor legal por prazo limitado — guardar 5 anos só encarece a leitura.
+  // 2 anos cobrem com folga qualquer prestação de contas, e as regras de
+  // anomalia só analisam as últimas 24h.
+  try {
+    const CORTE_AUDITORIA = new Date(Date.now() - 730 * 24 * 60 * 60 * 1000).toISOString();
+    let apagadosAudit = 0;
+    // Range em 'timestamp' resolve com índice simples — nenhum índice
+    // composto precisa ser criado para esta limpeza.
+    for (;;) {
+      const pagina = await db.collection("audit_logs")
+        .where("timestamp", "<=", CORTE_AUDITORIA)
+        .orderBy("timestamp")
+        .limit(400)
+        .get();
+      if (pagina.empty) break;
+      const batch = db.batch();
+      pagina.docs.forEach((d) => { batch.delete(d.ref); apagadosAudit++; });
+      await batch.commit();
+      logger.info(`[TTL] audit_logs: ${apagadosAudit} registros antigos removidos`);
+      if (pagina.size < 400) break;
+    }
+  } catch (e) {
+    // Falha aqui é COSMÉTICA (log antigo a mais), nunca deve derrubar a
+    // limpeza de comprovantes, que é a parte regulatória.
+    logger.warn("[TTL] Erro ao podar audit_logs:", e.message);
+  }
+
   return { ok: true, apagados, docsLimpos };
 });
 exports.backupSemanalAutomatico = onSchedule({
@@ -4594,6 +4876,158 @@ exports.gerenciarSessaoCaixa = onCall(async (request) => {
   }
 
   throw new HttpsError("invalid-argument", 'Ação desconhecida: use open, supplement, withdrawal ou close.');
+});
+
+
+// ============================================================
+// AUDITORIA DIÁRIA DE ANOMALIAS
+// ============================================================
+// Roda 1x por dia e relê o comportamento agregado do dia anterior. O sistema
+// validava cada operação isoladamente (senha, saldo, estoque), mas NADA
+// observava o conjunto: estorno em rajada, dinheiro físico sem sessão de
+// caixa, fechamentos que somem dinheiro, depósitos que oscilam, venda no
+// prejuízo e crédito manual alto passavam batidos.
+//
+// As regras são puras e determinísticas (functions/logic.js, detecting com
+// hora injetada) e estão cobertas por testes. Aqui só coletamos os dados,
+// rodamos o motor e gravamos o resultado.
+//
+// IMPORTANTE: esta rotina NUNCA bloqueia nada. Ela apenas observa e relata —
+// quem decide é o admin, na aba "Auditoria".
+exports.auditoriaDiaria = onSchedule({
+  schedule: "0 5 * * *",
+  timeZone: "America/Sao_Paulo",
+  timeoutSeconds: 540,
+  memory: "512MiB"
+}, async () => {
+  const agoraMs = Date.now();
+  const desdeIso = new Date(agoraMs - 24 * 3600 * 1000).toISOString();
+  const hojeIso = new Date(agoraMs).toISOString();
+  const ref = db.collection("audit_diario").doc(hojeIso.slice(0, 10));
+
+  try {
+    // 1) Ações de auditoria do período. orderBy('timestamp') usa índice simples.
+    const auditLogs = (await db.collection("audit_logs")
+      .where("timestamp", ">=", desdeIso)
+      .orderBy("timestamp", "desc")
+      .limit(1500)
+      .get()).docs.map((d) => ({ id: d.id, ...d.data() }));
+
+    // 2) Pedidos do período (createdAt é ISO string — mesma convenção do
+    //    backup, ordenação lexicográfica == cronológica).
+    const pedidos = (await db.collection("orders")
+      .where("createdAt", ">=", desdeIso)
+      .orderBy("createdAt", "desc")
+      .limit(2000)
+      .get()).docs.map((d) => ({ id: d.id, ...d.data() }));
+
+    // 3) Sessões de caixa: as do período (para a regra de venda sem caixa) e as
+    //    fechadas COM divergência (para a regra de divergência recorrente).
+    //    Filtra por hasDiscrepancy em vez de status=='closed' porque é o índice
+    //    (hasDiscrepancy, closedAt) que já existe — um where por 'status'
+    //    exigiria um índice composto novo e a rotina quebraria em produção.
+    //    A regra já descarta diff === 0, então nada se perde no filtro.
+    const sessoesPeriodo = (await db.collection("cash_sessions")
+      .where("openedAt", ">=", admin.firestore.Timestamp.fromDate(new Date(desdeIso)))
+      .limit(300)
+      .get()).docs.map((d) => ({ id: d.id, ...d.data() }));
+    // Firestore ordena por TIPO antes de ordenar por valor (null < bool < number
+    // < string < timestamp). Logo, `openedAt >= Timestamp` NUNCA devolve uma
+    // sessão legada em que openedAt foi gravado como string ISO — elas ficariam
+    // invisíveis para a regra de venda sem caixa, e um venda com caixa "invisível"
+    // aparece como venda FORA de sessão. Segunda query, com limite ISO string,
+    // cobre esse histórico. onde = string satisfaz o índice de campo único.
+    let sessoesLegadas = [];
+    try {
+      sessoesLegadas = (await db.collection("cash_sessions")
+        .where("openedAt", ">=", desdeIso)
+        .limit(300)
+        .get()).docs.map((d) => ({ id: d.id, ...d.data() }));
+    } catch (e) {
+      console.warn("[auditoriaDiaria] sessões legadas (openedAt ISO) não lidas", e);
+    }
+    const sessoesFechadas = (await db.collection("cash_sessions")
+      .where("hasDiscrepancy", "==", true)
+      .orderBy("closedAt", "desc")
+      .limit(60)
+      .get()).docs.map((d) => ({ id: d.id, ...d.data() }));
+    const sessoes = [...new Map([...sessoesPeriodo, ...sessoesLegadas, ...sessoesFechadas].map((s) => [s.id, s])).values()];
+
+    // 4) Custos dos produtos, só para os que realmente venderam no período.
+    //    Busca pontual por id: ler o catálogo inteiro (2.000 docs) todo dia
+    //    seria desperdício quando a regra só precisa de algumas dezenas.
+    const productIds = [...new Set(pedidos.flatMap((o) =>
+      (Array.isArray(o.items) ? o.items : []).map((i) => i && i.productId)
+    ).filter(Boolean))].slice(0, 300);
+    const produtosPorId = {};
+    for (let i = 0; i < productIds.length; i += 20) {
+      const lote = productIds.slice(i, i + 20);
+      const docs = await db.getAll(...lote.map((pid) => db.collection("products").doc(pid)));
+      docs.forEach((doc) => {
+        const custo = Number(doc.data() && doc.data().costPrice);
+        if (doc.exists && Number.isFinite(custo) && custo > 0) produtosPorId[doc.id] = custo;
+      });
+    }
+
+    const achados = detectarAnomalias({
+      auditLogs, pedidos, sessoes, produtosPorId, horas: 24, agoraMs,
+    });
+
+    const resumo = achados.reduce((acc, a) => {
+      acc[a.severidade] = (acc[a.severidade] || 0) + 1;
+      return acc;
+    }, {});
+
+    await ref.set({
+      data: hojeIso.slice(0, 10),
+      geradoEm: new Date(agoraMs).toISOString(),
+      janela: { desde: desdeIso, ate: hojeIso },
+      volume: { auditLogs: auditLogs.length, pedidos: pedidos.length, sessoes: sessoes.length },
+      resumo: {
+        CRITICO: resumo.CRITICO || 0,
+        ALTO: resumo.ALTO || 0,
+        MEDIO: resumo.MEDIO || 0,
+        BAIXO: resumo.BAIXO || 0,
+        total: achados.length,
+      },
+      achados,
+      ok: true,
+    });
+
+    logger.info("[auditoriaDiaria] Concluída", {
+      achados: achados.length,
+      critico: resumo.CRITICO || 0,
+    });
+  } catch (e) {
+    // Nunca deixa a rotina morrer em silêncio: o admin precisa saber que a
+    // auditoria NÃO rodou, senão "nenhum alerta" vira falsa segurança.
+    logger.error("[auditoriaDiaria] Falhou", { erro: e && e.message });
+    try {
+      await ref.set({
+        data: hojeIso.slice(0, 10),
+        geradoEm: new Date(agoraMs).toISOString(),
+        ok: false,
+        erro: String((e && e.message) || "falha desconhecida"),
+        resumo: { CRITICO: 0, ALTO: 0, MEDIO: 0, BAIXO: 0, total: 0 },
+        achados: [],
+      });
+    } catch (e2) {
+      logger.error("[auditoriaDiaria] Falha ao gravar o erro", { erro: e2 && e2.message });
+    }
+  }
+});
+
+/** Admin — histórico de auditorias diárias (últimos N dias). */
+exports.listarAuditorias = onCall(async (request) => {
+  await exigirAdminPermissao(request, "finance");
+  const limite = Math.min(Math.max(Number(request.data?.limite) || 30, 1), 90);
+  const snap = await db.collection("audit_diario")
+    .orderBy("data", "desc")
+    .limit(limite)
+    .get();
+  return {
+    auditorias: snap.docs.map((d) => ({ id: d.id, ...d.data() })),
+  };
 });
 
 

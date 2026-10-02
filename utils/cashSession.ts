@@ -211,15 +211,57 @@ export async function getActiveSession(
 // ──────────────────────────────────────────────
 
 /**
+ * O próprio usuário sempre pode ler o próprio doc em users/{uid}. Usado só
+ * para decidir o escopo de leitura de cash_sessions. Falha de rede/permissão
+ * devolve false (menor privilégio): o usuário vê apenas a própria sessão em
+ * vez de a query ser rejeitada por trying ler sessão de terceiro.
+ */
+let _ehAdminCache: boolean | null = null;
+let _ehAdminCacheUid: string | null = null;
+async function ehAdminLocal(): Promise<boolean> {
+  try {
+    const uid = getAuth().currentUser?.uid;
+    if (!uid) return false;
+    // Cache POR USUÁRIO: trocar de conta no mesmo navegador (logout/login) invalida.
+    // Sem isso o novo operador herdava o escopo de leitura do anterior — um admin
+    // que saía deixava o vendedor seguinte com query sem filtro (permission-denied).
+    if (_ehAdminCache !== null && _ehAdminCacheUid === uid) return _ehAdminCache;
+    const snap = await getDocs(query(collection(db, "users"), where("authUid", "==", uid), limit(1)));
+    if (snap.empty) return false;
+    const role = String((snap.docs[0].data() as any)?.role || "").toUpperCase();
+    // Alinhado com isAdmin() do firestore.rules, que também aceita 'master'.
+    // Antes só 'ADMIN' contava e o administrador master perdia a visão das sessões.
+    _ehAdminCache = role === "ADMIN" || role === "MASTER";
+    _ehAdminCacheUid = uid;
+    return _ehAdminCache;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Returns the last 20 sessions, ordered by open date descending.
  */
 export async function getRecentSessions(maxSessions = 20): Promise<CashSession[]> {
   try {
-    const q = query(
-      collection(db, "cash_sessions"),
-      orderBy("openedAt", "desc"),
-      limit(maxSessions)
-    );
+    const uid = getAuth().currentUser?.uid || null;
+    // Firestore NÃO filtra query por regra: um where que volte doc de terceiro
+    // faz a query INTEIRA ser rejeitada (permission-denied), não só o doc.
+    // Como a regra de cash_sessions só deixa o vendedor ler a PRÓPRIA sessão,
+    // um não-admin tem de filtrar por operatorId no próprio request. Admin
+    // continua vendo tudo, como antes.
+    const q = uid && !(await ehAdminLocal())
+      ? query(
+          collection(db, "cash_sessions"),
+          where("operatorId", "==", uid),
+          orderBy("openedAt", "desc"),
+          limit(maxSessions)
+        )
+      : query(
+          collection(db, "cash_sessions"),
+          orderBy("openedAt", "desc"),
+          limit(maxSessions)
+        );
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ id: d.id, ...(d.data() as Omit<CashSession, "id">) }));
   } catch (e: any) {

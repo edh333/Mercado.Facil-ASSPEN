@@ -98,7 +98,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
   const pendingTx = (walletTx || []).filter(tx => tx.status === 'pending');
 
   return (
-    <div className="space-y-3.5 animate-slideUp pb-20">
+    <div className="space-y-3.5 animate-slideUp">
       {/* BARRA DE ATALHOS RÁPIDOS OPERACIONAIS */}
       <div className="flex flex-wrap items-center gap-2.5 bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] p-3 shadow-sm">
         <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mr-1"><Zap size={10} className="inline-block mr-1 -mt-0.5 text-amber-500" />Ações Rápidas</span>

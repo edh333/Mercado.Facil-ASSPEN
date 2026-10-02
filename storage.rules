@@ -2,9 +2,9 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
-    // Imagens de produtos — qualquer usuário autenticado pode ler;
-    // escrita apenas por administradores (Custom Claims OU doc users).
-function isAdmin() {
+    // Product images: any authenticated user may read;
+    // write only for admins (custom claims OR users doc).
+    function isAdmin() {
       return request.auth != null && (
         request.auth.token.admin == true ||
         (firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
@@ -24,16 +24,34 @@ function isAdmin() {
       );
     }
 
-    // Dados do usuário autenticado (para regras que exigem acesso gran).
+    // Explicitly SUSPENDED account. Used only to BLOCK WRITES.
+    // Deliberately does NOT require status == 'active': during signup the user
+    // is still 'pending' and must upload the identity document and make the
+    // first deposit -- requiring 'active' would break onboarding. A suspended
+    // account, however, has no reason to write: besides being unable to
+    // transact anyway (exigirAutenticado rejects it in Functions), it must not
+    // be able to host arbitrary content on the project's public domain
+    // (abuse/phishing + Storage cost).
+    function isSuspenso() {
+      return firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+             firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.status == 'suspended';
+    }
+
+    // Allowed to write: a non-suspended owner, or an admin.
+    function podeGravar(uid) {
+      return (isOwner(uid) || isAdmin()) && !isSuspenso();
+    }
+
+    // Authenticated user data (for rules that need a fine-grained check).
     function dadosUsuario() {
       return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
     }
 
-    // Publicação de instaladores (pasta apps/): além de admin, exige permissão
-    // explícita 'apps' ou 'all'. Admins principais (custom claim admin) e legados
-    // sem o campo permissions seguem com acesso total. Impede que um admin
-    // secundário restrito substitua o instalador distribuído (vetor de
-    // supply-chain).
+    // Installer publishing (apps/ folder): besides admin, requires the explicit
+    // 'apps' or 'all' permission. Main admins (admin custom claim) and legacy
+    // admins without a permissions field keep full access. Prevents a restricted
+    // secondary admin from replacing the distributed installer (supply-chain
+    // vector).
     function isAdminPublicadora() {
       return request.auth != null && (
         request.auth.token.admin == true ||
@@ -53,52 +71,52 @@ function isAdmin() {
       allow delete: if isAdmin();
     }
 
-    // Arquivos privados por usuÃ¡rio â€” estrutura {pasta}/{uid}/{arquivo}:
-    // leitura apenas do dono (ou admin); escrita apenas do dono.
+    // Private per-user files -- layout {folder}/{uid}/{fileName}:
+    // read only by the owner (or an admin); write only by a non-suspended owner.
 
-    // Comprovantes de depÃ³sito (wallet_proofs) â€” atÃ© 8MB
+    // Deposit proofs (wallet_proofs) -- up to 8MB
     match /wallet_proofs/{uid}/{fileName} {
       allow read: if isOwner(uid) || isAdmin();
-      allow write: if (isOwner(uid) || isAdmin())
+      allow write: if podeGravar(uid)
         && request.resource.size < 8 * 1024 * 1024
         && (request.resource.contentType.matches('image/(png|jpeg|jpg|heic|heif|webp|bmp)') || request.resource.contentType.matches('application/pdf'));
       allow delete: if false;
     }
 
-    // Documentos de identidade (cadastro) â€” atÃ© 8MB
+    // Identity documents (signup) -- up to 8MB
     match /docs/{uid}/{fileName} {
       allow read: if isOwner(uid) || isAdmin();
-      allow write: if (isOwner(uid) || isAdmin())
+      allow write: if podeGravar(uid)
         && request.resource.size < 8 * 1024 * 1024
         && (request.resource.contentType.matches('image/(png|jpeg|jpg|heic|heif|webp|bmp)') || request.resource.contentType.matches('application/pdf'));
       allow delete: if isAdmin();
     }
 
-    // Comprovantes de pagamento PIX (pedidos) â€” atÃ© 8MB
+    // PIX payment proofs (orders) -- up to 8MB
     match /comprovantes_pix/{uid}/{fileName} {
       allow read: if isOwner(uid) || isAdmin();
-      allow write: if (isOwner(uid) || isAdmin())
+      allow write: if podeGravar(uid)
         && request.resource.size < 8 * 1024 * 1024
         && (request.resource.contentType.matches('image/(png|jpeg|jpg|heic|heif|webp|bmp)') || request.resource.contentType.matches('application/pdf'));
       allow delete: if false;
     }
 
-    // Comprovantes diversos â€” 5MB max (apenas imagens/PDF)
+    // Miscellaneous proofs -- 5MB max (images/PDF only)
     match /receipts/{uid}/{fileName} {
       allow read: if isOwner(uid) || isAdmin();
-      allow write: if (isOwner(uid) || isAdmin())
+      allow write: if podeGravar(uid)
         && request.resource.size < 5 * 1024 * 1024
         && (request.resource.contentType.matches('image/(png|jpeg|jpg|heic|heif|webp|bmp)') || request.resource.contentType.matches('application/pdf'));
       allow delete: if false;
     }
 
-    // Instaladores dos aplicativos desktop (pasta apps/) — públicos para LEITURA;
-    // escrita/deleção APENAS por administradores (a pasta não pode ser
-    // corrompida por usuário comum — vetor de supply-chain).
-    // LEITURA pública somente do manifest e do instalador de USUÁRIO (a
-    // Landing e o atualizador desktop dependem deles). O instalador ADMIN é
-    // servido exclusivamente pela Cloud Function baixarAppAdmin, que consome
-    // um token de uso curto — URL pública do admin = vazamento da ferramenta.
+    // Desktop app installers (apps/ folder) -- publicly readable;
+    // write/delete ONLY by admins (the folder must not be corrupted by a
+    // regular user -- supply-chain vector).
+    // Public READ only for the manifest and the USER installer (the Landing
+    // page and the desktop updater depend on them). The ADMIN installer is
+    // served exclusively by the baixarAppAdmin Cloud Function, which consumes
+    // a short-lived token -- a public admin URL would leak the tool.
     match /apps/{fileName} {
       allow read, list: if fileName == 'version.json' || fileName == 'MercadoFacil-Usuario-Setup.exe';
       allow write: if isAdminPublicadora()
@@ -107,7 +125,7 @@ function isAdmin() {
       allow delete: if isAdminPublicadora();
     }
 
-    // Regra de seguranÃ§a (Fallback): bloqueia qualquer pasta nÃ£o listada acima
+    // Safety fallback: deny any folder not listed above
     match /{allPaths=**} {
       allow read, write: if false;
     }

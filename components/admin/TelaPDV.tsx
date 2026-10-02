@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { X, Search, Barcode, ShoppingCart, Check, Lock, User as UserIcon, Plus, Minus, Package, Wallet, CreditCard, DollarSign, Trash2, LayoutGrid, List, Percent } from 'lucide-react';
+import { X, Search, Barcode, ShoppingCart, Check, Lock, User as UserIcon, Plus, Minus, Package, Wallet, CreditCard, DollarSign, Trash2, LayoutGrid, List, Percent, XCircle } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Product, User, Order, AppConfig, UserRole } from '../../types';
 import { filtrarClientesPdv } from '../../utils/pdvSearch';
@@ -7,6 +7,7 @@ import { formatarMoeda, parseMoeda, generatePixPayload as generatePix, isAdminRo
 import { montarPagamentoPdv, arredondarCentavos, MetodoPagamentoPDV, MetodoLancamento } from '../../utils/pdvPayment';
 import { imprimirSilenciosoFiscal } from '../../utils/printUtils';
 import { useApp } from '../../context/StoreContext';
+import { RefundSaleModal } from './RefundSaleModal';
 
 interface TelaPDVProps {
   isOpen: boolean;
@@ -43,7 +44,7 @@ const METODOS: { key: MetodoPagamentoPDV; rotulo: string; icon: any }[] = [
 export const TelaPDV: React.FC<TelaPDVProps> = ({
   isOpen, onClose, users, products, orders = [], onConfirm, onConfirmOffline, setPrintOrder, settings, currentUser,
 }) => {
-  const { showNotification, validateAnyMasterPassword, validateDualMasterPassword, sessaoCaixaAtiva, refreshSessaoCaixa } = useApp();
+  const { showNotification, validateAnyMasterPassword, validateDualMasterPassword, sessaoCaixaAtiva, refreshSessaoCaixa, sendSystemMessage } = useApp();
 
   // ── Estado do carrinho / venda ──
   const [carrinho, setCarrinho] = useState<any[]>([]);
@@ -91,6 +92,8 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
 
   const [produtoPrecoDinamico, setProdutoPrecoDinamico] = useState<{ produto: Product; preco: string } | null>(null);
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
+  // Cancelamento de venda anterior (janela de 5 dias + senha) — só admin/master.
+  const [cancelarAberto, setCancelarAberto] = useState(false);
   const [modoVisao, setModoVisao] = useState<'grade' | 'lista'>('grade');
   // Autorização de supervisor para vendas em Créditos (WALLET) — validação síncrona.
   const [senhaSupervisor, setSenhaSupervisor] = useState('');
@@ -150,6 +153,7 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
     setSenhaSupervisaoErro('');
     setFormaPagamento('WALLET');
     setProdutoPrecoDinamico(null);
+    setCancelarAberto(false);
     limparDesconto();
     refreshSessaoCaixa();
     setTimeout(() => clienteInputRef.current?.focus(), 100);
@@ -176,7 +180,9 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
         e.preventDefault();
         produtoInputRef.current?.focus();
       } else if (e.key === 'Escape') {
-        if (descontoAberto) setDescontoAberto(false);
+        if (cancelarAberto) {
+          // ModalShell (portal) fecha o modal sozinho — não fecha o PDV junto.
+        } else if (descontoAberto) setDescontoAberto(false);
         else if (produtoPrecoDinamico) setProdutoPrecoDinamico(null);
         else if (mostrarListaClientes) setMostrarListaClientes(false);
         else onClose();
@@ -184,9 +190,17 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [isOpen, descontoAberto, produtoPrecoDinamico, mostrarListaClientes, onClose]);
+  }, [isOpen, cancelarAberto, descontoAberto, produtoPrecoDinamico, mostrarListaClientes, onClose]);
 
   // ── Derivação de dados ──
+  // O servidor exige a permissão "sales" para estornar (exigirAdminPermissao).
+  // Mesmo critério do painel (perms ausente = acesso total): sem este gate, um
+  // admin restrito digita a senha e só então recebe "acesso restringido".
+  const podeCancelarVenda = isAdminRole(currentUser?.role) && (() => {
+    const perms = (currentUser as any)?.permissions;
+    if (perms === undefined || perms === null) return true;
+    return Array.isArray(perms) && (perms.includes('all') || perms.includes('sales'));
+  })();
   const consumidorGeral: User = {
     id: 'consumidor_geral', name: 'CONSUMIDOR GERAL', email: 'venda@balcao.com', role: UserRole.FAMILY,
     status: 'active', approved: true, cpf: '000.000.000-00', inmateName: 'CONSUMIDOR', inmateCpf: '000.000.000-00',
@@ -661,6 +675,14 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
           <span className="text-xs font-medium text-slate-400 hidden sm:inline">· F2 para código de barras</span>
         </div>
         <div className="flex items-center gap-2">
+          {podeCancelarVenda && (
+            <button
+              onClick={() => setCancelarAberto(true)}
+              className="text-xs px-3 py-1.5 rounded-lg border border-rose-200 bg-rose-50 text-rose-600 font-bold hover:bg-rose-100 hover:border-rose-300 transition-colors flex items-center gap-1.5"
+            >
+              <XCircle size={13} /> Cancelar Venda
+            </button>
+          )}
           <button
             onClick={() => setIsSoundEnabled(s => !s)}
             className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 font-medium hover:bg-slate-50 transition-colors"
@@ -676,6 +698,26 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Cancelar venda anterior — senha + janela de 5 dias (revalidados no servidor) */}
+      {podeCancelarVenda && (
+        <RefundSaleModal
+          isOpen={cancelarAberto}
+          acao="cancelar"
+          ordersBase={orders}
+          onClose={() => setCancelarAberto(false)}
+          onAfterSuccess={(o, motivo) => {
+            if (o?.userId && o.userId !== 'balcao_anonimo') {
+              sendSystemMessage({
+                title: `Pedido #${String(o.id || '').slice(0, 6)} Cancelado`,
+                content: `Seu pedido foi cancelado. Motivo: ${motivo}`,
+                targetUserId: o.userId,
+                type: 'error',
+              });
+            }
+          }}
+        />
+      )}
 
       <div className="w-full p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* 🛠️ BLOCO DA ESQUERDA (8 Colunas) */}

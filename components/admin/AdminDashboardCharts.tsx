@@ -64,7 +64,12 @@ export const AdminDashboardCharts: React.FC = () => {
           getDocs(query(collection(db, 'orders'), where('createdAt', '>=', cutoff), orderBy('createdAt', 'desc'), limit(10000))),
           getDocs(query(collection(db, 'historico_geral'), where('origem', '==', 'orders'), where('arquivadoEm', '>=', cutoff), orderBy('arquivadoEm', 'desc'), limit(10000))),
           // Quebras acumulam para sempre; as 500 mais recentes bastam para o alerta.
-          getDocs(query(collection(db, 'cash_sessions'), where('hasDiscrepancy', '==', true), limit(500))),
+          // Isolado em catch próprio (antes, compartilhava o Promise.all): a regra de
+          // cash_sessions só deixa o vendedor ler a PRÓPRIA sessão, então esta
+          // query é permission-denied para não-admin e derrubava TODO o
+          // dashboard junto com os pedidos, que o vendedor PODE ler.
+          getDocs(query(collection(db, 'cash_sessions'), where('hasDiscrepancy', '==', true), limit(500)))
+            .catch((e) => { console.warn('[Dashboard] sessões com divergência indisponíveis', e?.message); return { docs: [] } as any; }),
         ]);
 
         const activeOrders = activeOrdersSnap.docs.map(d => ({ id: d.id, ...d.data() } as Order));
@@ -183,7 +188,7 @@ export const AdminDashboardCharts: React.FC = () => {
   const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } = RC;
 
   return (
-    <div className="space-y-6 animate-fadeIn pb-20">
+    <div className="space-y-6 animate-fadeIn">
       {/* Header */}
       <div className="flex items-center gap-4 mb-2">
         <div className="p-3 bg-emerald-100 rounded-2xl">

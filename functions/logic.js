@@ -255,6 +255,382 @@ function motivoTokenDownloadInvalido(doc, agoraMs) {
   return null;
 }
 
+// ──────────────────────────────────────────────
+// AUDITORIA DE ANOMALIAS (regras puras e determinísticas)
+// ──────────────────────────────────────────────
+// O sistema validava a ENTRADA de cada operação (senha, saldo, estoque), mas
+// não observava o COMPORTAMENTO ao longo do dia. Estas regras olham a soma
+// do que aconteceu e acusam padrões que dinheiro some sem ninguém perceber.
+//
+// Princípios (importantes para a auditoria do código):
+//  - Nenhuma dependência de Firebase: recebe arrays planos e devolve achados.
+//  - Determinístico: mesma entrada => mesma saída. Sem aleatoriedade, sem hora
+//    do sistema (o corte é um parâmetro), sem rede. Testável sem mocks.
+//  - NUNCA bloqueia nada. Esta função só OBSERVA e relata. Quem decide é o admin.
+//  - Severidade ordena a fila: CRITICO > ALTO > MEDIO > BAIXO.
+
+const SEVERIDADES = { CRITICO: 3, ALTO: 2, MEDIO: 1, BAIXO: 0 };
+
+const TOLERANCIA_CAIXA_CENTAVOS = 500; // R$ 5,00
+
+/** Converte qualquer data do Firestore (ISO, Timestamp, Date, epoch) em ms.
+ *  Devolve NaN quando não dá para interpretar — nunca lança. */
+function paraMs(valor) {
+  if (valor === null || valor === undefined) return NaN;
+  if (typeof valor === "number") return Number.isFinite(valor) ? valor : NaN;
+  // Firestore Timestamp do Admin SDK: tem toMillis(); do Web SDK, toDate().
+  if (typeof valor.toMillis === "function") {
+    try { return valor.toMillis(); } catch { /* segue para o fallback */ }
+  }
+  if (typeof valor.toDate === "function") {
+    try { return valor.toDate().getTime(); } catch { /* segue para o fallback */ }
+  }
+  if (valor instanceof Date) {
+    const t = valor.getTime();
+    return Number.isFinite(t) ? t : NaN;
+  }
+  if (typeof valor === "object" && typeof valor.seconds === "number") {
+    return valor.seconds * 1000;
+  }
+  const t = Date.parse(String(valor));
+  return Number.isFinite(t) ? t : NaN;
+}
+
+function textoDe(valor, padrao = "desconhecido") {
+  const s = String(valor === null || valor === undefined ? "" : valor).trim();
+  return s || padrao;
+}
+
+/** A venda envolveu dinheiro físico? (PIX/CARD/WALLET não entram no caixa.) */
+function ehVendaEmDinheiro(pedido) {
+  if (!pedido || typeof pedido !== "object") return false;
+  if (String(pedido.paymentMethod || "").toUpperCase() === "CASH") return true;
+  return Array.isArray(pedido.payments) &&
+    pedido.payments.some((p) => String(p && p.method).toUpperCase() === "CASH");
+}
+
+/**
+ * REGRA 1 — Estorno em rajada.
+ * Mesmo operador cancelando várias vendas em pouco tempo é o padrão de quem
+ * está corrigindo a própria venda indevida (erro de operação) ou de desvio.
+ * Regra de FREQUÊNCIA, não de valor: conta ocorrências numa janela.
+ */
+function regraEstornoEmRajada(auditLogs, opcoes) {
+  const { agoraMs, janelaHoras = 24, minimo = 3 } = opcoes;
+  const desde = agoraMs - janelaHoras * 3600000;
+  const porOperador = new Map();
+
+  (auditLogs || []).forEach((log) => {
+    if (String(log && log.acaoTipo) !== "ESTORNAR_VENDA") return;
+    const t = paraMs(log.timestamp);
+    if (!Number.isFinite(t) || t < desde || t > agoraMs) return;
+    const op = textoDe(log.operadorUid);
+    if (!porOperador.has(op)) porOperador.set(op, []);
+    porOperador.get(op).push({ t, log });
+  });
+
+  const achados = [];
+  porOperador.forEach((lista, operador) => {
+    if (lista.length < minimo) return;
+    lista.sort((a, b) => b.t - a.t);
+    achados.push({
+      regra: "ESTORNO_EM_RAJADA",
+      severidade: lista.length >= minimo * 2 ? "CRITICO" : "ALTO",
+      operador,
+      quantidade: lista.length,
+      janelaHoras,
+      titulo: `${lista.length} estornos em ${janelaHoras}h`,
+      detalhe: `O mesmo operador realizou ${lista.length} estornos nas últimas ${janelaHoras} horas.`,
+      evidencia: lista.slice(0, 10).map((x) => ({
+        quando: new Date(x.t).toISOString(),
+        pedidoId: (x.log.payloadDepois && x.log.payloadDepois.pedidoId) || (x.log.payloadAntes && x.log.payloadAntes.pedidoId) || "",
+        motivo: (x.log.payloadDepois && x.log.payloadDepois.motivo) || "",
+      })),
+    });
+  });
+  return achados;
+}
+
+/**
+ * REGRA 2 — Venda em dinheiro sem sessão de caixa.
+ * Dinheiro físico que não entra em nenhuma gaveta é dinheiro que some do
+ * relatório. Uma venda CASH só é legítima se a sessão do operador existia
+ * ABERTA no instante da venda.
+ */
+function regraVendaSemCaixa(pedidos, sessoes, opcoes) {
+  const achados = [];
+  const porOperador = new Map();
+
+  (pedidos || []).forEach((pedido) => {
+    if (!ehVendaEmDinheiro(pedido)) return;
+    const t = paraMs(pedido.createdAt || pedido.date);
+    if (!Number.isFinite(t)) return;
+    const operador = textoDe(pedido.operatorId);
+    const sessao = (sessoes || []).find((s) => {
+      if (textoDe(s.operatorId) !== operador) return false;
+      const abertura = paraMs(s.openedAt);
+      const fechamento = paraMs(s.closedAt);
+      if (!Number.isFinite(abertura) || abertura > t) return false;
+      // Sessão ainda aberta cobre qualquer instante posterior à abertura.
+      if (!Number.isFinite(fechamento)) return true;
+      return fechamento >= t;
+    });
+    if (sessao) return;
+    if (!porOperador.has(operador)) porOperador.set(operador, []);
+    porOperador.get(operador).push({ t, pedido });
+  });
+
+  porOperador.forEach((lista, operador) => {
+    const total = arredondar(lista.reduce((s, x) => s + Number(x.pedido.total || 0), 0));
+    achados.push({
+      regra: "VENDA_SEM_SESSAO_CAIXA",
+      severidade: total >= 500 ? "CRITICO" : "ALTO",
+      operador,
+      quantidade: lista.length,
+      titulo: `${lista.length} venda(s) em dinheiro sem caixa`,
+      detalhe: `R$ ${total.toFixed(2)} em vendas CASH sem sessão de caixa aberta no instante da venda.`,
+      evidencia: lista.slice(0, 10).map((x) => ({
+        quando: new Date(x.t).toISOString(),
+        pedidoId: textoDe(x.pedido.id, ""),
+        total: Number(x.pedido.total || 0),
+      })),
+    });
+  });
+  return achados;
+}
+
+/**
+ * REGRA 3 — Divergência de caixa recorrente.
+ * Uma sessão com diferença de centavos é normal (erro de contagem). Três ou
+ * mais seguidas do MESMO operador suggestem padrão — e dinheiro faltando é a
+ * hipótese mais provável. Ignora o valor: sinaliza a repetição.
+ */
+function regraDivergenciaRecorrente(sessoes, opcoes) {
+  const { minimoSessoes = 3, toleranciaCentavos = TOLERANCIA_CAIXA_CENTAVOS } = opcoes;
+  // ATENÇÃO: balanceDiff é gravado em REAIS (ver gerenciarSessaoCaixa), mas a
+  // tolerância é configurada em CENTAVOS (R$ 5,00 = 500). Comparar as duas
+  // grandezas sem converter faz toda diferença real parecer "erro de contagem"
+  // e some com a regra inteira.
+  const toleranciaReais = toleranciaCentavos / 100;
+  const porOperador = new Map();
+
+  (sessoes || []).forEach((s) => {
+    if (String(s && s.status) !== "closed") return;
+    const diff = Number(s.balanceDiff);
+    if (!Number.isFinite(diff) || diff === 0) return;
+    if (Math.abs(diff) < toleranciaReais) return;
+    const op = textoDe(s.operatorId);
+    if (!porOperador.has(op)) porOperador.set(op, []);
+    porOperador.get(op).push({ s, diff });
+  });
+
+  const achados = [];
+  porOperador.forEach((lista, operador) => {
+    if (lista.length < minimoSessoes) return;
+    const soma = arredondar(lista.reduce((t, x) => t + x.diff, 0));
+    const nome = textoDe(lista[0].s.operatorName, operador);
+    achados.push({
+      regra: "DIVERGENCIA_CAIXA_RECORRENTE",
+      severidade: Math.abs(soma) >= 100 ? "CRITICO" : "ALTO",
+      operador,
+      quantidade: lista.length,
+      titulo: `${lista.length} fechamentos com divergência`,
+      detalhe: `${nome} fechou ${lista.length} sessões com diferença acima de R$ ${toleranciaReais.toFixed(2)}. Saldo somado: R$ ${soma.toFixed(2)}.`,
+      evidencia: lista.slice(0, 10).map((x) => ({
+        sessaoId: textoDe(x.s.id, ""),
+        quando: paraMs(x.s.closedAt) ? new Date(paraMs(x.s.closedAt)).toISOString() : "",
+        expected: Number(x.s.expectedBalance || 0),
+        fechado: Number(x.s.closedBalance || 0),
+        diferenca: x.diff,
+      })),
+    });
+  });
+  return achados;
+}
+
+/**
+ * REGRA 4 — Depósito aprovado e recusado no mesmo dia, para o mesmo usuário.
+ * Aprova, recusa, aprova de novo: ou o depósito foi liberado por influência,
+ * ou o próprio requerente o contestou.
+ * deposit disputed by whoever asked. Mesmo par dentro da janela é movimento.
+ */
+function regraDepositoAprovadoERecusado(auditLogs, opcoes) {
+  const { agoraMs, janelaHoras = 24 } = opcoes;
+  const desde = agoraMs - janelaHoras * 3600000;
+  const eventos = new Map(); // userId -> { aprovacoes, recusas }
+
+  const usuarioDoLog = (log) => {
+    const depois = log && log.payloadDepois;
+    const antes = log && log.payloadAntes;
+    return textoDe((depois && depois.userId) || (antes && antes.userId), "");
+  };
+
+  (auditLogs || []).forEach((log) => {
+    const tipo = String(log && log.acaoTipo || "");
+    if (tipo !== "LIBERAR_CREDITO_DEPOSITO" && tipo !== "REJEITAR_DEPOSITO") return;
+    const t = paraMs(log.timestamp);
+    if (!Number.isFinite(t) || t < desde || t > agoraMs) return;
+    const uid = usuarioDoLog(log);
+    if (!uid) return;
+    if (!eventos.has(uid)) eventos.set(uid, { aprovacoes: [], recusas: [] });
+    const slot = tipo === "LIBERAR_CREDITO_DEPOSITO" ? "aprovacoes" : "recusas";
+    eventos.get(uid)[slot].push(t);
+  });
+
+  const achados = [];
+  eventos.forEach(({ aprovacoes, recusas }, uid) => {
+    if (!aprovacoes.length || !recusas.length) return;
+    const contra = aprovacoes.length + recusas.length;
+    achados.push({
+      regra: "DEPOSITO_OSCILANTE",
+      severidade: contra >= 4 ? "ALTO" : "MEDIO",
+      operador: "",
+      alvo: uid,
+      quantidade: contra,
+      titulo: `${aprovacoes.length} aprovação(ões) e ${recusas.length} recusa(s)`,
+      detalhe: `O mesmo depósito do usuário foi decidido ${contra} vezes em ${janelaHoras}h. Reprovação e liberação alternadas exigem conferência manual.`,
+      evidencia: [
+        ...aprovacoes.map((t) => ({ quando: new Date(t).toISOString(), decisao: "aprovado" })),
+        ...recusas.map((t) => ({ quando: new Date(t).toISOString(), decisao: "recusado" })),
+      ].sort((a, b) => a.quando.localeCompare(b.quando)),
+    });
+  });
+  return achados;
+}
+
+/**
+ * REGRA 5 — Venda abaixo do custo.
+ * O PDV calcula tudo no servidor a partir de priceAtPurchase; se o preço pago
+ * ficou abaixo do custo do produto, ou a venda saiu por um preço manual
+ * questionável, o prejuízo é silencioso. Tolerância de 1% absorve arredondamento.
+ */
+function regraVendaNoPrejuizo(pedidos, produtosPorId, opcoes) {
+  const { toleranciaPct = 0.01 } = opcoes;
+  const achados = [];
+  const porProduto = new Map();
+
+  (pedidos || []).forEach((pedido) => {
+    if (String(pedido && pedido.status || "").toUpperCase() === "CANCELLED") return;
+    const itens = Array.isArray(pedido.items) ? pedido.items : [];
+    itens.forEach((item) => {
+      const custo = Number(produtosPorId && produtosPorId[item.productId]);
+      if (!Number.isFinite(custo) || custo <= 0) return; // custo desconhecido: sem julgamento
+      const pago = Number(item.priceAtPurchase !== undefined ? item.priceAtPurchase : item.price);
+      if (!Number.isFinite(pago) || pago <= 0) return;
+      // A tolerância é folga PARA BAIXO: pagando até 1% menos que o custo é
+      // arredondamento, não prejuízo. Só vira alerta quando passa disso.
+      const piso = custo * (1 - toleranciaPct);
+      if (pago >= piso) return;
+      const perda = arredondar((custo - pago) * (Number(item.quantity) || 1));
+      if (perda <= 0) return;
+      const chave = item.productId;
+      if (!porProduto.has(chave)) porProduto.set(chave, { perda: 0, itens: [] });
+      const acc = porProduto.get(chave);
+      acc.perda = arredondar(acc.perda + perda);
+      acc.itens.push({
+        quando: paraMs(pedido.createdAt || pedido.date)
+          ? new Date(paraMs(pedido.createdAt || pedido.date)).toISOString() : "",
+        pedidoId: textoDe(pedido.id, ""),
+        nome: textoDe(item.name, ""),
+        pago,
+        custo,
+        perda,
+      });
+    });
+  });
+
+  porProduto.forEach((acc, productId) => {
+    if (acc.itens.length < 1) return;
+    achados.push({
+      regra: "VENDA_ABAIXO_DO_CUSTO",
+      severidade: acc.perda >= 100 ? "ALTO" : "MEDIO",
+      operador: "",
+      alvo: productId,
+      quantidade: acc.itens.length,
+      titulo: `Perda de R$ ${acc.perda.toFixed(2)} em "${textoDe(acc.itens[0].nome, productId)}"`,
+      detalhe: `${acc.itens.length} venda(s) abaixo do custo do produto. Prejuízo total estimado: R$ ${acc.perda.toFixed(2)}.`,
+      evidencia: acc.itens.slice(0, 10),
+    });
+  });
+  return achados;
+}
+
+/**
+ * REGRA 6 — Crédito manual elevado.
+ * Creditar saldo na mão é o caminho mais curto para desvio. Não é proibido
+ * (o admin precisa disso), mas um valor acima do normal merece registro.
+ * `limitePadraoCredito` é o que a casa considera grande; sem ele, R$ 500.
+ */
+function regraCreditoManualElevado(auditLogs, opcoes) {
+  const { agoraMs, janelaHoras = 24, limitePadraoCredito = 500 } = opcoes;
+  const desde = agoraMs - janelaHoras * 3600000;
+  const achados = [];
+
+  (auditLogs || []).forEach((log) => {
+    if (String(log && log.acaoTipo) !== "CREDITO_MANUAL") return;
+    const t = paraMs(log.timestamp);
+    if (!Number.isFinite(t) || t < desde || t > agoraMs) return;
+    const depois = log.payloadDepois || {};
+    const valor = Number(depois.valor !== undefined ? depois.valor : depois.amount);
+    if (!Number.isFinite(valor) || valor < limitePadraoCredito) return;
+    achados.push({
+      regra: "CREDITO_MANUAL_ELEVADO",
+      severidade: valor >= limitePadraoCredito * 4 ? "ALTO" : "MEDIO",
+      operador: textoDe(log.operadorUid),
+      alvo: textoDe(depois.userId, ""),
+      quantidade: 1,
+      titulo: `Crédito manual de R$ ${valor.toFixed(2)}`,
+      detalhe: `Crédito liberado manualmente acima de R$ ${limitePadraoCredito.toFixed(2)}. Conferir se havia depósito aprovado correspondente.`,
+      evidencia: [{ quando: new Date(t).toISOString(), valor, motivo: textoDe(depois.motivo, "") }],
+    });
+  });
+  return achados;
+}
+
+/**
+ * Motor principal: roda TODAS as regras e devolve os achados ordenados por
+ * severidade (e, dentro da mesma severidade, pela perda/quantia).
+ *
+ * @param {object} entrada
+ * @param {Array}  entrada.auditLogs    - ações de auditoria do período
+ * @param {Array}  entrada.pedidos      - pedidos do período
+ * @param {Array}  entrada.sessoes      - sessões de caixa (abertas e fechadas)
+ * @param {object} entrada.produtosPorId- mapa { productId: custo }
+ * @param {number} entrada.horas        - janela de análise (padrão 24)
+ * @param {number} entrada.agoraMs      - instante de corte (injetado nos testes)
+ * @returns {Array} achados ordenados
+ */
+function detectarAnomalias(entrada) {
+  const {
+    auditLogs = [], pedidos = [], sessoes = [],
+    produtosPorId = {}, horas = 24, agoraMs = Date.now(),
+    minimoEstornos = 3, minimoSessoesDivergentes = 3,
+    toleranciaCaixaCentavos = TOLERANCIA_CAIXA_CENTAVOS,
+    toleranciaPrejuizoPct = 0.01, limitePadraoCredito = 500,
+  } = entrada || {};
+  const opcoes = {
+    agoraMs, janelaHoras: horas, minimo: minimoEstornos,
+    minimoSessoes: minimoSessoesDivergentes,
+    toleranciaCentavos: toleranciaCaixaCentavos,
+    toleranciaPct: toleranciaPrejuizoPct,
+    limitePadraoCredito,
+  };
+
+  const achados = []
+    .concat(regraEstornoEmRajada(auditLogs, opcoes))
+    .concat(regraVendaSemCaixa(pedidos, sessoes, opcoes))
+    .concat(regraDivergenciaRecorrente(sessoes, opcoes))
+    .concat(regraDepositoAprovadoERecusado(auditLogs, opcoes))
+    .concat(regraVendaNoPrejuizo(pedidos, produtosPorId, opcoes))
+    .concat(regraCreditoManualElevado(auditLogs, opcoes));
+
+  return achados.sort((a, b) => {
+    const sev = SEVERIDADES[b.severidade] - SEVERIDADES[a.severidade];
+    if (sev !== 0) return sev;
+    return (b.quantidade || 0) - (a.quantidade || 0);
+  });
+}
+
 module.exports = {
   arredondar,
   cleanCpf,
@@ -273,4 +649,7 @@ module.exports = {
   motivoTokenDownloadInvalido,
   TOKEN_DOWNLOAD_TTL_MINUTOS,
   TOKEN_DOWNLOAD_MAX_USOS,
+  detectarAnomalias,
+  paraMs,
+  TOLERANCIA_CAIXA_CENTAVOS,
 };

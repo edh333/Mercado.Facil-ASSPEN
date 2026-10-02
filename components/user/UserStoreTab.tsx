@@ -18,7 +18,7 @@ export const UserStoreTab: React.FC<UserStoreTabProps> = ({
   searchTerm, setSearchTerm, viewMode, setViewMode, filteredProducts, addToCart, theme
 }) => {
   return (
-    <div className="animate-fadeIn pb-24">
+    <div className="animate-fadeIn">
       {/* Barra de Busca */}
       <div
         className="p-4 md:p-5 sticky top-20 md:top-24 z-20 border-b"

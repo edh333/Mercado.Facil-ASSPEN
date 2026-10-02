@@ -107,8 +107,15 @@ export function montarEscPos(texto: string, config?: any): string {
   return btoa(String.fromCharCode(...bytes));
 }
 
+/**
+ * Alimentação de papel no fim da bobina, para a guilhotina cortar.
+ *
+ * 3 linhas ≈ 12mm: suficiente para o corte sem desperdício.
+ * Antes eram 8 linhas AQUI + 8 em imprimirCupom() = 16 linhas em branco
+ * (≈6cm de bobina) impressas no fim de cada cupom.
+ */
 function adicionarFeed(): string {
-  return "\n".repeat(8);
+  return "\n".repeat(3);
 }
 
 export function gerarCupomFechamento(dadosCaixa: any, config?: any): string {
@@ -181,7 +188,12 @@ export function imprimirCupom(conteudo: string): void {
   container.id = 'print-root';
   container.className = 'cupom-gerencial-print guilhotina';
   const pre = document.createElement('pre');
-  pre.textContent = (conteudo + adicionarFeed()).toUpperCase(); // Garantir caps para impressoras térmicas
+  // Feed em UM único ponto. gerarCupomFechamento() já devolve o cupom com a
+  // alimentação final; somar de novo aqui duplicava o papel em branco.
+  // Este ponto é o fallback para quem chama imprimirCupom() com um conteúdo
+  // que não passou por um gerador (ex.: gerarListaReposicao).
+  const precisaFeed = !conteudo.endsWith('\n\n\n');
+  pre.textContent = (precisaFeed ? conteudo + adicionarFeed() : conteudo).toUpperCase(); // Garantir caps para impressoras térmicas
   container.appendChild(pre);
   document.body.appendChild(container);
 
@@ -472,7 +484,7 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
   const fiscalEmission = config?.fiscalEmission === true;
   const docName = limparLinha(
     config?.customReceiptDocName ||
-    (fiscalEmission ? `CUPOM FISCAL - ${String(config?.fiscalModel || 'NF-E')}` : 'CUPOM DE ENTREGA - NAO FISCAL')
+    (fiscalEmission ? `CUPOM FISCAL - ${String(config?.fiscalModel || 'NF-E')}` : 'CUPOM DE ENTREGA')
   );
   // Só monta o número fiscal se houver número configurado — evita "N000000000"
   // e "SERIE " vazios em cupons fiscais sem numeração cadastrada.
@@ -568,9 +580,8 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
     const nomeLinha = nome.length > espacoNome
       ? (espacoNome > 3 ? nome.substring(0, espacoNome - 3) + '...' : nome.substring(0, espacoNome))
       : nome.padEnd(espacoNome);
-    cupom += `${nomeLinha}${pontoQtd}${pontoTotal}\n`;
+    cupom += nomeLinha + pontoQtd + pontoTotal + "\n";
   }
-  cupom += `${divisor}\n`;
   if (itens.length > 0) {
     const totalQtd = itens.reduce((s, i) => s + (Number(i?.quantity) || 1), 0);
     cupom += formatarLinhaDupla(`${itens.length} ${itens.length === 1 ? 'ITEM' : 'ITENS'} (${totalQtd} UN)`, '', 48) + "\n";
@@ -588,8 +599,10 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
     } else {
       cupom += formatarLinhaDupla("ACRESCIMO:", `R$ ${Math.abs(desconto).toFixed(2).replace('.', ',')}`, 48) + "\n";
     }
-    cupom += `${divisor}\n`;
   }
+  // Regra dupla só uma vez: ela já separa o bloco de itens/desconto do TOTAL.
+  // Antes havia `divisor` logo após a lista E `divisorDuplo` aqui, produzindo
+  // duas linhas quase iguais em sequência.
   cupom += `${divisorDuplo}\n`;
   cupom += formatarLinhaDupla("TOTAL PEDIDO:", `R$ ${total.toFixed(2).replace('.', ',')}`, 48) + "\n";
   cupom += `${divisorDuplo}\n`;
@@ -610,7 +623,7 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
 
   const payments = Array.isArray(data.payments) ? data.payments : [];
   if (payments.length > 0) {
-    cupom += `${divisor}\n`;
+    // Sem divisor: a `divisorDuplo` do TOTAL PEDIDO já fecha o bloco anterior.
     cupom += `FORMAS DE PAGAMENTO\n`;
     const nomesMetodo: any = { PIX: 'PIX', WALLET: 'CARTEIRA', CASH: 'DINHEIRO', CARD: 'CARTAO', FIADO: 'FIADO' };
     for (const p of payments) {
@@ -652,12 +665,13 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
   const idClean = String(data.id || 'XXXX').replace(/-/g, '').toUpperCase();
   const seedA = idClean.slice(0, 8).padEnd(8, '0');
   const seedB = (seedA.split('').reverse().join('') + seedA).slice(0, 8).padEnd(8, '0');
-  const authHash = `SEC-${seedA}-${seedB}`;
-  cupom += `${centrarTexto(`AUTH: ${authHash}`, 48)}\n`;
-  if (cnpj) cupom += `${centrarTexto(`CNPJ: ${cnpj}`, 48)}\n`;
+  cupom += `${centrarTexto(`AUTH: SEC-${seedA}-${seedB}`, 48)}\n`;
   cupom += `${divisorDuplo}\n`;
-  cupom += `${centrarTexto('FIM DO CUPOM - BOBINA 80MM', 48)}\n`;
-  cupom += `\n`.repeat(6);
+  // Alimentação final da bobina. O CNPJ NÃO é repetido aqui (já sai no
+  // cabeçalho) e a linha "FIM DO CUPOM - BOBINA 80MM" foi removida: era
+  // informação interna de impressão, não útil a quem recebe o cupom, e
+  // ocupava uma linha inteira de papel em cada venda.
+  cupom += `\n`.repeat(3);
   return cupom;
 }
 

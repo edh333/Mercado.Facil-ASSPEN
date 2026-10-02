@@ -9,6 +9,7 @@ import {
   writeBatch,
   arrayUnion,
   increment,
+  deleteField,
   Timestamp,
   query,
   orderBy,
@@ -114,9 +115,17 @@ export async function deleteCustomerAccount(id: string): Promise<void> {
   }
 }
 
+export type ResultadoRecebimentoFiado = {
+  ok: boolean;
+  dividaAnterior: number;
+  novoDebito: number;
+  quitou?: boolean;
+  semServidor?: boolean;
+};
+
 // 1. Receber Pagamento de Conta — abate a dívida NO SERVIDOR (atômico, clamp,
 // nunca fica negativa). Fallback local apenas quando a função ainda não existe.
-export async function receiveCustomerPayment(customerId: string, amount: number, sessionId?: string) {
+export async function receiveCustomerPayment(customerId: string, amount: number, sessionId?: string): Promise<ResultadoRecebimentoFiado> {
   const valor = Math.round(Number(amount) * 100) / 100;
   if (!(valor > 0)) throw new Error("Valor do pagamento deve ser maior que zero.");
 
@@ -127,9 +136,30 @@ export async function receiveCustomerPayment(customerId: string, amount: number,
     if (data?.ok) return data;
   } catch (e: any) {
     const code = e?.code || '';
-    if (code && code !== 'functions/not-found' && code !== 'functions/internal' && code !== 'functions/unavailable') {
+    // 'functions/internal' = exceção NÃO tratada dentro da Function (bug real do
+    // servidor). NÃO pode cair no fallback local: transformaria uma falha de
+    // código numa escrita silenciosa no cliente, sem creditar o caixa e sem
+    // auditoria. Só 'unavailable' (backend inalcançável) e 'not-found' (deploy
+    // antigo, ainda sem a Function) contam como "sem servidor".
+    const SEM_SERVIDOR = ['functions/unavailable', 'functions/not-found'];
+    if (!SEM_SERVIDOR.includes(code)) {
       throw new Error(e?.message || "Erro ao processar pagamento.");
     }
+  }
+
+  // Fallback local: SÓ quando o servidor realmente não está acessível (função
+  // ausente em deploy antigo ou backend inalcançável). Precisa abater a dívida
+  // sem tocar em 'cash_sessions' — as regras bloqueiam escrita nessa coleção no
+  // cliente (firestore.rules: allow create, update, delete: if false), então o
+  // batch antigo era SEMPRE rejeitado e o abatimento nunca acontecia.
+  //
+  // LIMITE CONHECIDO E AGORA VISÍVEL: sem sessão de caixa a dívida abate mas o
+  // caixa físico NÃO é creditado. Isso não pode ser silencioso — por isso cada
+  // pagamento feito por este caminho é marcado com 'semServidor' e o operador
+  // recebe um aviso para conferir o fechamento. Um bug do servidor, por outro
+  // lado, nunca chega aqui.
+  if (sessionId) {
+    throw new Error("Não foi possível contatar o servidor para creditar o caixa. Tente novamente — o abatimento não foi registrado para não deixar a dívida e o caixa divergentes.");
   }
 
   try {
@@ -142,31 +172,24 @@ export async function receiveCustomerPayment(customerId: string, amount: number,
     if (valor > dividaAtual) throw new Error(`O pagamento (R$ ${valor.toFixed(2)}) supera a dívida (R$ ${dividaAtual.toFixed(2)}). Abate no máximo o valor devido.`);
 
     const novoDebito = Math.round((dividaAtual - valor) * 100) / 100;
+    const quitou = novoDebito <= 0;
 
-    const batch = writeBatch(db);
-    batch.update(customerRef, {
+    await updateDoc(customerRef, {
       currentDebt: novoDebito,
+      // Espelha o servidor (index.js:3140-3143): ao zerar a dívida, limpa os
+      // marcadores de vencimento. Sem isso o cliente continuava aparecendo como
+      // "vencido" em Contas a Receber mesmo já tendo quitado.
+      ...(quitou ? { debtStartedAt: deleteField(), debtDueAt: deleteField() } : {}),
       transactions: arrayUnion({
         type: "payment",
         amount: valor,
-        timestamp: Timestamp.now()
+        timestamp: Timestamp.now(),
+        semServidor: true,
+        by: "local",
       })
     });
 
-    if (sessionId) {
-      const sessionRef = doc(db, "cash_sessions", sessionId);
-      batch.update(sessionRef, {
-        currentBalance: increment(valor),
-        supplements: arrayUnion({
-          amount: valor,
-          reason: `Recebimento de Fiado - Cliente ID: ${customerId}`,
-          timestamp: Timestamp.now()
-        })
-      });
-    }
-
-    await batch.commit();
-    return { ok: true, dividaAnterior: dividaAtual, novoDebito };
+    return { ok: true, dividaAnterior: dividaAtual, novoDebito, semServidor: true, quitou };
   } catch (e: any) {
     console.error("[receiveCustomerPayment]", e.message);
     throw new Error(e?.message || "Erro ao processar pagamento.");

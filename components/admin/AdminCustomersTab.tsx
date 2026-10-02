@@ -138,16 +138,34 @@ export function AdminCustomersTab() {
     setPaying(true);
     try {
       const session = await getActiveSession(currentUser?.id || '');
-      await receiveCustomerPayment(
+      const res = await receiveCustomerPayment(
         payModal.customer.id,
         parseFloat(payAmount),
         session?.id
       );
+      // Pagamento registrado SEM servidor: a dívida abateu, mas o caixa digital
+      // não foi creditado (sem sessão de caixa). Isso precisa aparecer para o
+      // operador conferir o fechamento — divergência silenciosa é dinheiro
+      // que some da reconciliação.
+      if (res?.semServidor) {
+        showNotification(
+          'Pagamento registrado SEM internet: a dívida foi abatida, mas o caixa digital NÃO foi creditado. Confira o fechamento e sincronize depois.',
+          'info'
+        );
+      } else {
+        showNotification('Pagamento recebido com sucesso!', 'success');
+      }
       setPayModal(null);
       setPayAmount('');
       await loadAccounts();
     } catch (e) {
+      // Antes isto só ia para o console: o operador recebia um pagamento inválido,
+      // a tela não mudava e nada era informado — parecendo que o sistema travou.
       console.error('Erro ao receber pagamento:', e);
+      showNotification(
+        (e instanceof Error ? e.message : 'Erro ao registrar o pagamento') + '',
+        'error'
+      );
     } finally {
       setPaying(false);
     }

@@ -212,7 +212,7 @@ export const MaintenanceCenter: React.FC<Props> = ({
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
         className={
-          'w-full rounded-2xl border p-3.5 shadow-lg flex flex-col gap-2.5 backdrop-blur-xl ' +
+          'w-full rounded-2xl border p-3.5 shadow-lg flex flex-col gap-2.5 backdrop-blur-xl mx-6 mt-4 ' +
           (temCritico ? 'bg-red-950/95 border-red-500/40' : 'bg-amber-950/95 border-amber-500/40')
         }
       >

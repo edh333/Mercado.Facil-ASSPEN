@@ -12,6 +12,7 @@ import ImagePreviewModal from '../ImagePreviewModal';
 import { useApp } from '../../context/StoreContext';
 import { toDate } from '../../utils/dateUtils';
 import AdminRefundPasswordModal from './AdminRefundPasswordModal';
+import { JANELA_CANCELAMENTO_DIAS } from './adminUtils';
 
 const ComprovanteImg: React.FC<{ src: string }> = ({ src }) => {
   const [erro, setErro] = React.useState(false);
@@ -132,7 +133,9 @@ export const AdminOrderDetailsModal: React.FC<AdminOrderDetailsModalProps> = ({
     setConfirmErro('');
     setIsRefunding(true);
     try {
-      await refundOrder(order.id, motivo);
+      // Cancelamento respeita a janela de 5 dias (revalidada no servidor);
+      // estorno/devolução não tem prazo.
+      await refundOrder(order.id, motivo, confirmAcao === 'cancelar' ? { janelaDias: JANELA_CANCELAMENTO_DIAS } : undefined);
       // Notifica o familiar sobre a ação financeira
       await sendSystemMessage({
         title: confirmAcao === 'cancelar' ? `Pedido #${order.id.slice(0, 6)} Cancelado` : `Pedido #${order.id.slice(0, 6)} Reembolsado`,
@@ -146,7 +149,7 @@ export const AdminOrderDetailsModal: React.FC<AdminOrderDetailsModalProps> = ({
       setConfirmAcao(null);
       onClose();
     } catch (e: any) {
-      setConfirmErro(e?.message || 'Erro ao processar a operação.');
+      setConfirmErro(String(e?.message || 'Erro ao processar a operação.').replace(/^\(.*?\)\s*/, ''));
     } finally {
       setIsRefunding(false);
     }

@@ -49,7 +49,7 @@ export const UserOrdersTab: React.FC<UserOrdersTabProps> = ({
   });
 
   return (
-    <div className="p-5 animate-fadeIn pb-24">
+    <div className="p-5 animate-fadeIn">
       <div className="flex justify-between items-center mb-6">
           <h2 className="font-black text-xl text-white flex items-center gap-2">
               <Clock className="text-white" /> Histórico

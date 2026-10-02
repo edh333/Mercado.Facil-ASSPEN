@@ -342,7 +342,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
   );
 
   return (
-    <div className="space-y-6 animate-slideUp pb-20">
+    <div className="space-y-6 animate-slideUp">
       {/* Upper Dashboard */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm relative overflow-hidden">
         <div className="absolute top-0 left-0 w-32 h-32 bg-emerald-600 rounded-full blur-[60px] -ml-16 -mt-16 opacity-10"></div>
@@ -402,7 +402,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-[var(--bg-card)] p-8 rounded-[3rem] border border-[var(--border-color)] shadow-xl relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-600 opacity-5 rounded-full -mr-16 -mt-16 group-hover:scale-125 transition-transform"></div>
-              <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-[0.3em] mb-2">Saldo Consolidado</p>
+              <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-[0.3em] mb-2">Saldo Consolidado <span className="opacity-50 tracking-normal normal-case">· histórico total (ignora os filtros de período abaixo)</span></p>
               <h3 className="text-4xl font-black text-[var(--text-main)] tracking-tighter">
                 <span className="text-sm opacity-30 mr-1">R$</span>
                 {(totalEntries - totalExits).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -799,11 +799,14 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
             </>
           }
         >
-          <form id="expense-form" onSubmit={handleExpenseSubmit} className="p-8 space-y-8">
+          {/* Espaçamento mais enxuto: p-8 + space-y-8 + gap-8 + campos com p-6
+              empilhavam quatro níveis de respiro dentro do modal e deixavam o
+              formulário de despesa altíssimo, com o botão no fim fora da tela. */}
+          <form id="expense-form" onSubmit={handleExpenseSubmit} className="p-4 md:p-5 space-y-4">
             <button type="submit" id="expense-form-submit" className="hidden" />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="md:col-span-2 p-6 rounded-3xl border-2 border-red-200 bg-white focus-within:border-red-500 transition-all shadow-sm">
-                <label className="text-[var(--text-main)] font-black text-[10px] uppercase mb-3 block tracking-widest ml-1">Finalidade da Despesa *</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2 p-4 rounded-2xl border-2 border-red-200 bg-white focus-within:border-red-500 transition-all shadow-sm">
+                <label className="text-[var(--text-main)] font-black text-[10px] uppercase mb-1.5 block tracking-widest ml-1">Finalidade da Despesa *</label>
                 <input
                   className="w-full bg-transparent font-black text-xl text-[var(--text-main)] focus:outline-none uppercase placeholder:text-[var(--text-muted)] placeholder:uppercase placeholder:tracking-widest"
                   required
@@ -813,8 +816,8 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
                 />
               </div>
 
-              <div className="p-6 rounded-3xl border-2 border-red-200 bg-white focus-within:border-red-500 transition-all shadow-sm">
-                <label className="text-[var(--text-main)] font-black text-[10px] uppercase mb-2 block tracking-widest ml-1">Valor Total (R$) *</label>
+              <div className="p-4 rounded-2xl border-2 border-red-200 bg-white focus-within:border-red-500 transition-all shadow-sm">
+                <label className="text-[var(--text-main)] font-black text-[10px] uppercase mb-1.5 block tracking-widest ml-1">Valor Total (R$) *</label>
                 <input
                   type="text"
                   inputMode="decimal"
@@ -826,8 +829,8 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
                 />
               </div>
 
-              <div className="p-6 rounded-3xl border-2 border-red-200 bg-white focus-within:border-red-500 transition-all shadow-sm">
-                <label className="text-[var(--text-main)] font-black text-[10px] uppercase mb-2 block tracking-widest ml-1">Categoria de Custo</label>
+              <div className="p-4 rounded-2xl border-2 border-red-200 bg-white focus-within:border-red-500 transition-all shadow-sm">
+                <label className="text-[var(--text-main)] font-black text-[10px] uppercase mb-1.5 block tracking-widest ml-1">Categoria de Custo</label>
                 <select
                   className="w-full bg-transparent font-black text-sm text-[var(--text-main)] focus:outline-none uppercase appearance-none cursor-pointer"
                   value={expenseForm.category}
@@ -840,8 +843,8 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
                 </select>
               </div>
 
-              <div className="p-6 rounded-3xl border-2 border-red-200 bg-white focus-within:border-red-500 transition-all shadow-sm">
-                <label className="text-[var(--text-main)] font-black text-[10px] uppercase mb-2 block tracking-widest ml-1">Nome do Recebedor *</label>
+              <div className="p-4 rounded-2xl border-2 border-red-200 bg-white focus-within:border-red-500 transition-all shadow-sm">
+                <label className="text-[var(--text-main)] font-black text-[10px] uppercase mb-1.5 block tracking-widest ml-1">Nome do Recebedor *</label>
                 <input
                   className="w-full bg-transparent font-black text-sm text-[var(--text-main)] focus:outline-none uppercase placeholder:text-[var(--text-muted)] placeholder:uppercase placeholder:tracking-widest"
                   required
@@ -851,8 +854,8 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
                 />
               </div>
 
-              <div className="p-6 rounded-3xl border-2 border-red-200 bg-white focus-within:border-red-500 transition-all shadow-sm">
-                <label className="text-[var(--text-main)] font-black text-[10px] uppercase mb-2 block tracking-widest ml-1">Documento do Recebedor (CPF/CNPJ)</label>
+              <div className="p-4 rounded-2xl border-2 border-red-200 bg-white focus-within:border-red-500 transition-all shadow-sm">
+                <label className="text-[var(--text-main)] font-black text-[10px] uppercase mb-1.5 block tracking-widest ml-1">Documento do Recebedor (CPF/CNPJ)</label>
                 <input
                   className="w-full bg-transparent font-black text-sm text-[var(--text-main)] focus:outline-none uppercase placeholder:text-[var(--text-muted)] placeholder:uppercase placeholder:tracking-widest"
                   placeholder="OPCIONAL — 000.000.000-00"
@@ -861,8 +864,8 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
                 />
               </div>
 
-              <div className="p-6 rounded-3xl border-2 border-red-200 bg-white focus-within:border-red-500 transition-all shadow-sm">
-                <label className="text-[var(--text-main)] font-black text-[10px] uppercase mb-2 block tracking-widest ml-1">Conta Débito</label>
+              <div className="p-4 rounded-2xl border-2 border-red-200 bg-white focus-within:border-red-500 transition-all shadow-sm">
+                <label className="text-[var(--text-main)] font-black text-[10px] uppercase mb-1.5 block tracking-widest ml-1">Conta Débito</label>
                 <select
                   className="w-full bg-transparent font-black text-sm text-[var(--text-main)] focus:outline-none uppercase appearance-none cursor-pointer"
                   value={expenseForm.debitAccount}
@@ -874,8 +877,8 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
                 </select>
               </div>
 
-              <div className="md:col-span-2 p-6 rounded-3xl border-2 border-red-200 bg-white focus-within:border-red-500 transition-all shadow-sm">
-                <label className="text-[var(--text-main)] font-black text-[10px] uppercase mb-2 block tracking-widest ml-1">Observações Adicionais</label>
+              <div className="md:col-span-2 p-4 rounded-2xl border-2 border-red-200 bg-white focus-within:border-red-500 transition-all shadow-sm">
+                <label className="text-[var(--text-main)] font-black text-[10px] uppercase mb-1.5 block tracking-widest ml-1">Observações Adicionais</label>
                 <textarea
                   className="w-full bg-transparent font-black text-sm text-[var(--text-main)] focus:outline-none h-24 resize-none placeholder:text-[var(--text-muted)] placeholder:uppercase placeholder:tracking-widest uppercase"
                   placeholder="DETALHES IMPORTANTES DO LANÇAMENTO..."

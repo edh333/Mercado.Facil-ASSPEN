@@ -42,14 +42,20 @@ const ROOT = path.join(__dirname, '..');
 const RED = (s) => `\x1b[31m${s}\x1b[0m`;
 const GREEN = (s) => `\x1b[32m${s}\x1b[0m`;
 
+// Sem isto o script publicava SEMPRE em produção, mesmo depois de um
+// `deploy.bat --homolog`: o bucket vinha do .env e a webUrl era fixa.
+const HOMOLOG = process.argv.includes('--homolog') || process.argv.includes('-m');
+const ENV_FILE = HOMOLOG ? '.env.homolog' : '.env';
+
 const BUCKET = (() => {
+  if (process.env.FIREBASE_STORAGE_BUCKET) return process.env.FIREBASE_STORAGE_BUCKET;
   try {
-    const envRaw = fs.readFileSync(path.join(ROOT, '.env'), 'utf-8');
+    const envRaw = fs.readFileSync(path.join(ROOT, ENV_FILE), 'utf-8');
     const linha = envRaw.split(/\r?\n/).find((l) => l.startsWith('VITE_FIREBASE_STORAGE_BUCKET='));
     const v = linha?.split('=').slice(1).join('=').trim();
     if (v) return v;
-  } catch { /* .env ausente — usa padrão */ }
-  return 'mercado-facil-mt.firebasestorage.app';
+  } catch { /* env ausente — usa padrão */ }
+  return HOMOLOG ? 'mercado-facil-homolog.firebasestorage.app' : 'mercado-facil-mt.firebasestorage.app';
 })();
 
 // Client id/secret PÚBLICOS embutidos no firebase-tools 15.x (lib/api.js) —
@@ -57,7 +63,9 @@ const BUCKET = (() => {
 const GOOGLE_CLIENT_ID = '563584335869-fgrhgmd47bqnekij5i8b5pr03ho849e6.apps.googleusercontent.com';
 const GOOGLE_CLIENT_SECRET = 'j9iVZfS8kkCEFUPaAeJV0sAi';
 const CONFIGSTORE = path.join(os.homedir(), '.config', 'configstore', 'firebase-tools.json');
-const WEB_URL = 'https://mercado-facil-mt.web.app';
+const WEB_URL = process.env.FIREBASE_WEB_URL || (HOMOLOG ? 'https://mercado-facil-homolog.web.app' : 'https://mercado-facil-mt.web.app');
+
+console.log(`\n  Alvo: ${HOMOLOG ? 'HOMOLOGACAO' : 'PRODUCAO'}  bucket=${BUCKET}\n`);
 
 const VERSION = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf-8')).version;
 const EXE_PATTERN = /^MercadoFacil-(Usuario|Admin)-Setup-(.+)\.exe$/;

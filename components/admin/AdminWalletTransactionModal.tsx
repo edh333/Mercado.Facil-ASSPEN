@@ -431,7 +431,7 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
                         </p>
                     </div>
                 )}
-                {transaction.status === 'pending' && (
+                {transaction.status === 'pending' && transaction.type === 'deposit' && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <button
                         onClick={() => setConfirmAction('reject')}
@@ -549,7 +549,7 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
         isOpen={confirmAction !== null}
         titulo={confirmAction === 'reject' ? 'Recusar Depósito' : 'Confirmar Recebimento'}
         descricao={confirmAction === 'reject'
-          ? 'O valor não será creditado na conta do interno. Impacta o saldo do familiar pagador.'
+          ? 'Nenhum valor será creditado na carteira do interno. O depósito ficará registrado como RECUSADO no extrato da carteira.'
           : `O saldo de R$ ${formatarMoeda(transaction.amount)} será creditado imediatamente na conta do interno ${transaction.inmateName || '—'}.`}
         palavraChave={confirmAction === 'reject' ? 'RECUSAR' : undefined}
         semDigitar={confirmAction === 'approve'}

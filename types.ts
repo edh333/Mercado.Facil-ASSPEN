@@ -8,7 +8,11 @@ export enum UserRole {
 /** Normaliza o role salvo no Firestore (pode vir como 'admin' minúsculo ou 'ADMIN') para o enum do app. */
 export function toUserRole(role?: string | null | undefined): UserRole {
   const r = String(role || '').toLowerCase();
-  if (r === 'admin' || r === 'master') return UserRole.ADMIN;
+  // 'manager' é equipe no backend (obterLinkDownloadApp/gerarLinkDownloadAdmin)
+  // e o painel exige UserRole.ADMIN para entrar (AdminDashboard.tsx:260).
+  // Sem esta linha o manager caía em FAMILY: perdia o painel admin E o modal
+  // de download escondia o instalador admin.
+  if (r === 'admin' || r === 'master' || r === 'manager') return UserRole.ADMIN;
   if (r === 'vendedor' || r === 'operator') return UserRole.VENDEDOR;
   return UserRole.FAMILY;
 }
@@ -131,6 +135,20 @@ export interface InmateLocation {
   cela: string; // Alias cell
   cell?: string;
   isWorker?: boolean;
+}
+
+/** Interno pré-cadastrado (aba "Cadastro de Internos" do admin).
+ *  Coleção: pre_registered_inmates — name/cpf obrigatórios; unit/cell/gallery/
+ *  observations opcionais; status sempre ATIVO no fluxo atual. */
+export interface PreRegisteredInmate {
+  id: string;
+  name: string;
+  cpf: string;
+  unit?: string;
+  gallery?: string;
+  cell?: string;
+  observations?: string;
+  status?: 'ATIVO' | 'INATIVO';
 }
 
 export interface Order {

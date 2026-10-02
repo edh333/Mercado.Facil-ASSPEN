@@ -52,9 +52,9 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
                 {logo && <img src={logo} alt="Logo" className="h-16 w-16 object-contain shrink-0" />}
                 <div className="min-w-0">
                     <h1 className="text-[22px] font-black uppercase tracking-tighter leading-none">{instituicao}</h1>
-                    <p className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-700 mt-2">{report.title}</p>
+                    <p className="text-[11px] font-black uppercase tracking-[0.25em] text-emerald-700 mt-2">{report.title}</p>
                     {(cnpj || telefone) && (
-                        <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mt-1">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-1">
                             {cnpj ? `CNPJ: ${cnpj}` : ''}
                             {cnpj && telefone ? ' · ' : ''}
                             {telefone ? `Tel: ${telefone}` : ''}
@@ -63,17 +63,17 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
                 </div>
             </div>
             <div className="text-right shrink-0 print-avoid-break">
-                <p className="text-[9px] font-black uppercase text-slate-500 mb-1">Emitido em</p>
+                <p className="text-[10px] font-black uppercase text-slate-500 mb-1">Emitido em</p>
                 <p className="text-sm font-black text-slate-800 leading-none">{dataEmissao}</p>
-                <p className="text-[9px] font-bold text-slate-500 mt-1">às {horaEmissao}</p>
-                <p className="text-[9px] font-black text-slate-500 mt-2 uppercase tracking-widest">Período: {report.period}</p>
+                <p className="text-[10px] font-bold text-slate-500 mt-1">às {horaEmissao}</p>
+                <p className="text-[10px] font-black text-slate-500 mt-2 uppercase tracking-widest">Período: {report.period}</p>
             </div>
         </div>
     );
 
     const CardResumo = ({ label, valor, destaque }: { label: string; valor: string; destaque?: 'positivo' | 'negativo' | 'neutro' }) => (
         <div className={`border-2 rounded-xl p-4 ${destaque === 'positivo' ? 'border-emerald-600 bg-emerald-50' : destaque === 'negativo' ? 'border-red-600 bg-red-50' : 'border-slate-200 bg-slate-50'}`}>
-            <p className="text-[8px] font-black uppercase text-slate-500 mb-1 tracking-widest">{label}</p>
+            <p className="text-[9px] font-black uppercase text-slate-500 mb-1 tracking-widest">{label}</p>
             <p className={`text-lg font-black leading-tight ${destaque === 'positivo' ? 'text-emerald-700' : destaque === 'negativo' ? 'text-red-700' : 'text-slate-900'}`}>{valor}</p>
         </div>
     );
@@ -95,7 +95,7 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
                 >
                     {texto}
                     {typeof cell !== 'string' && cell.sub && (
-                        <span className="block text-[8px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">{cell.sub}</span>
+                        <span className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">{cell.sub}</span>
                     )}
                 </td>
             );
@@ -105,7 +105,7 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
                 <thead>
                     <tr className="bg-slate-900 text-white">
                         {colunas.map((c, i) => (
-                            <th key={i} className={`px-3 py-2.5 text-[8px] font-black uppercase tracking-widest ${aligns[i] === 'right' ? 'text-right' : aligns[i] === 'center' ? 'text-center' : 'text-left'}`}>{c}</th>
+                            <th key={i} className={`px-3 py-2.5 text-[9px] font-black uppercase tracking-widest ${aligns[i] === 'right' ? 'text-right' : aligns[i] === 'center' ? 'text-center' : 'text-left'}`}>{c}</th>
                         ))}
                     </tr>
                 </thead>
@@ -132,13 +132,13 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
 
     const BoxTitulo = ({ titulo, extra }: { titulo: string; extra?: string }) => (
         <div className="flex items-center justify-between mb-3 print-avoid-break">
-            <h2 className="text-[9px] font-black uppercase tracking-[0.2em] text-white bg-slate-900 px-4 py-2 rounded-md shadow-md">{titulo}</h2>
-            {extra && <span className="text-[8px] font-black uppercase tracking-widest text-slate-500">{extra}</span>}
+            <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-white bg-slate-900 px-4 py-2 rounded-md shadow-md">{titulo}</h2>
+            {extra && <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">{extra}</span>}
         </div>
     );
 
     const Legenda = ({ texto }: { texto: string }) => (
-        <p className="mt-2 text-[8px] font-bold text-slate-500 uppercase tracking-wider leading-relaxed">{texto}</p>
+        <p className="mt-2 text-[9px] font-bold text-slate-500 uppercase tracking-wider leading-relaxed">{texto}</p>
     );
 
     // ── Renderizadores por tipo ─────────────────────────────────────────
@@ -916,14 +916,14 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
                 <div className="flex justify-between items-end gap-20">
                     <div className="flex-1 text-center print-avoid-break">
                         <div className="border-b-2 border-slate-400 h-8"></div>
-                        <p className="text-[8px] font-black uppercase text-slate-500 tracking-widest mt-1">Assinatura do Responsável</p>
+                        <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest mt-1">Assinatura do Responsável</p>
                     </div>
                     <div className="flex-1 text-center print-avoid-break">
                         <div className="border-b-2 border-slate-400 h-8"></div>
-                        <p className="text-[8px] font-black uppercase text-slate-500 tracking-widest mt-1">Conferência / Auditoria</p>
+                        <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest mt-1">Conferência / Auditoria</p>
                     </div>
                 </div>
-                <p className="mt-10 text-center text-[8px] font-bold text-slate-500 uppercase tracking-tight leading-relaxed">
+                <p className="mt-10 text-center text-[9px] font-bold text-slate-500 uppercase tracking-tight leading-relaxed">
                     {appName} · {sistema} — Documento gerado eletronicamente. Não é documento fiscal.<br />
                     Código de Autenticação: {codigoAutenticacao} · Emitido em {dataEmissao} às {horaEmissao} · Período: {report.period}
                 </p>

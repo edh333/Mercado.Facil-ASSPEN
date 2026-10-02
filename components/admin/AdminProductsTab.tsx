@@ -289,7 +289,7 @@ export const AdminProductsTab: React.FC<AdminProductsTabProps> = ({
   };
 
 return (
-    <div className="space-y-6 animate-slideUp pb-20">
+    <div className="space-y-6 animate-slideUp">
       {/* Stats Board — base neutra, cor apenas em estados de atenção */}
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-4">
           <div className="bg-[var(--bg-card)] p-4 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-slate-300">

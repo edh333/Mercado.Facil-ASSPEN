@@ -223,7 +223,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
   };
 
   return (
-    <div className="animate-slideUp space-y-6 pb-20">
+    <div className="animate-slideUp space-y-6">
 
       {/* ─── Main Tab Toggle ─── */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">

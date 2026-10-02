@@ -1264,7 +1264,10 @@ export const UserDashboard: React.FC = () => {
                 )}
             </AnimatePresence>
 
-            <main className={`flex-1 min-h-0 w-full px-4 sm:px-6 py-6 md:py-8 pb-24 z-10 relative ${isAdmin ? 'max-w-7xl' : 'max-w-5xl mx-auto'}`}>
+            {/* pb-12 em vez de pb-24: as abas do usuário (UserOrdersTab/UserStoreTab)
+            somavam mais 96px por baixo, dando 192px de área morta. Não há
+            barra fixa inferior a compensar. */}
+      <main className={`flex-1 min-h-0 w-full px-4 sm:px-6 py-6 md:py-8 pb-12 z-10 relative ${isAdmin ? 'max-w-7xl' : 'max-w-5xl mx-auto'}`}>
                 {activeTab === 'store' && (
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                         {comprasSuspensas ? (

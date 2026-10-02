@@ -19,6 +19,7 @@ import { Menu, X, Banknote, Trash2, BarChart3, FileText, AlertTriangle, ArrowUpR
 import { AdminSidebar } from '../components/admin/AdminSidebar';
 import { AdminHomeTab } from '../components/admin/AdminHomeTab';
 import { AdminMaintenanceTab } from '../components/admin/AdminMaintenanceTab';
+import { AdminAuditTab } from '../components/admin/AdminAuditTab';
 import { AdminShortcutsModal } from '../components/admin/AdminShortcutsModal';
 import { AdminOrdersTab } from '../components/admin/AdminOrdersTab';
 import { AdminProductsTab } from '../components/admin/AdminProductsTab';
@@ -46,6 +47,7 @@ import { ManualCreditModal } from '../components/admin/ManualCreditModal';
 import { abrirJanelaImpressao } from '../utils/printUtils';
 import { toDate } from '../utils/dateUtils';
 import { usePermissions } from '../hooks/usePermissions';
+import { carregarPedidosDoPeriodo } from '../hooks/useReportData';
 
 const ForbiddenMessage = () => (
   <div className="flex flex-col items-center justify-center py-24 text-center">
@@ -185,7 +187,7 @@ export function AdminDashboard() {
   const [xmlFile, setXmlFile] = useState<File | null>(null);
   const [margin, setMargin] = useState('30');
   
-  const [newInmate, setNewInmate] = useState({ name: '', cpf: '' });
+  const [newInmate, setNewInmate] = useState({ name: '', cpf: '', unit: '' });
   
   const [userSearch, setUserSearch] = useState('');
   const [userDateFilter, setUserDateFilter] = useState('');
@@ -290,11 +292,11 @@ export function AdminDashboard() {
   useEffect(() => {
     if (roleLoading) return;
     if (userRole === 'operator' && !isMaster) {
-      if (['bi', 'customers', 'settings', 'maintenance'].includes(activeTab)) {
+      if (['bi', 'customers', 'settings', 'maintenance', 'audit'].includes(activeTab)) {
         setActiveTab('home');
       }
     } else if (userRole === 'manager' && !isMaster) {
-      if (['cash', 'inmates', 'users', 'messages', 'finance', 'wallet', 'customers', 'reports', 'bi', 'settings', 'maintenance'].includes(activeTab)) {
+      if (['cash', 'inmates', 'users', 'messages', 'finance', 'wallet', 'customers', 'reports', 'bi', 'settings', 'maintenance', 'audit'].includes(activeTab)) {
         setActiveTab('home');
       }
     }
@@ -440,9 +442,9 @@ export function AdminDashboard() {
       return;
     }
     try {
-      await addPreRegisteredInmate({ name: newInmate.name, cpf: newInmate.cpf });
-      setNewInmate({ name: '', cpf: '' });
-      showNotification('Interno cadastrado com sucesso!', 'success');
+      const ok = await addPreRegisteredInmate({ name: newInmate.name, cpf: newInmate.cpf, unit: newInmate.unit || '' });
+      // O contexto já exibe o toast de sucesso/erro; limpa o form só em sucesso.
+      if (ok) setNewInmate({ name: '', cpf: '', unit: '' });
     } catch (error: any) {
       showNotification(error.message || 'Erro ao cadastrar interno.', 'error');
     }
@@ -608,7 +610,10 @@ export function AdminDashboard() {
     setShowReportModal(true);
   };
 
-  const handleExportExcel = (typeOverride?: string, startDate?: string, endDate?: string) => {
+  // Exporta o CSV direto do Firestore, não do array `orders` do contexto: esse
+  // array é truncado (50) para o painel não pesar, e um CSV do contador com
+  // total subestimado é um erro contábil difícil de detectar depois.
+  const handleExportExcel = async (typeOverride?: string, startDate?: string, endDate?: string) => {
     const tipo = typeOverride || reportConfig.type;
     const ini = startDate ?? reportConfig.startDate;
     const fim = endDate ?? reportConfig.endDate;
@@ -617,7 +622,16 @@ export function AdminDashboard() {
       setShowReportModal(true);
       return;
     }
-    const csv = buildSalesCsv(orders, users, ini, fim);
+    showNotification('Gerando CSV do período completo...', 'info');
+    const { itens, erro } = await carregarPedidosDoPeriodo(ini, fim);
+        // Sem este bloqueio, uma falha de índice/permissão gerava um CSV com
+        // apenas as vendas do cache local e a notificação dizia "gerado com N
+        // vendas" — o contador receberia um arquivo incompleto sem aviso.
+        if (erro) {
+          console.error('[CSV vendas] leitura do período falhou', erro);
+          return showNotification('Não foi possível ler o período completo. O CSV não foi gerado para evitar totais incorretos. Verifique os índices do Firestore.', 'error');
+        }
+        const csv = buildSalesCsv(itens, users, ini, fim);
     if (!csv || !csv.csv || csv.linhas.length === 0) return showNotification('Nenhuma venda encontrada para o período.', 'error');
     const blob = new Blob([csv.csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -826,24 +840,23 @@ export function AdminDashboard() {
           </div>
         )}
         
-        {/* Vendas OFFLINE pendentes/sincronização */}
-        <div className="px-6 pt-4">
-          <OfflineSalesBanner />
-        </div>
+        {/* Vendas OFFLINE pendentes/sincronização.
+            O respiro fica DENTRO do banner: quando ele não tem nada a
+            mostrar (retorna null, caso normal), o wrapper sem padding some
+            junto. Antes sobravam 32px vazios no topo de toda tela. */}
+        <OfflineSalesBanner />
 
         {/* Manutenção: faixa compacta com avisos automáticos + checklist (admin-only) */}
-        <div className="px-6 pt-4">
-          <MaintenanceCenter
-            variant="banner"
-            products={products}
-            orders={orders}
-            walletTx={walletTx}
-            users={users}
-            cotaCritica={cotaCritica}
-            currentUser={currentUser}
-            onNavigate={goToTab}
-          />
-        </div>
+        <MaintenanceCenter
+          variant="banner"
+          products={products}
+          orders={orders}
+          walletTx={walletTx}
+          users={users}
+          cotaCritica={cotaCritica}
+          currentUser={currentUser}
+          onNavigate={goToTab}
+        />
 
         {/* Dynamic Header */}
         <PageHeader
@@ -870,9 +883,10 @@ export function AdminDashboard() {
               {activeTab === 'reports' && 'Relatórios do Sistema'}
               {activeTab === 'bi' && 'Dashboard de Business Intelligence'}
               {activeTab === 'stock_alerts' && 'Alertas de Reposição'}
-              {activeTab === 'customers' && 'Conta de Clientes (Fiado / Crédito)'}
+              {activeTab === 'customers' && 'Contas a Pagar (Fiado / Crédito)'}
               {activeTab === 'settings' && 'Parâmetros Administrativos'}
               {activeTab === 'maintenance' && 'Centro de Manutenção'}
+              {activeTab === 'audit' && 'Auditoria de Anomalias'}
             </>
           }
           subtitle={((settings as any)?.institutionName || 'Mercado Fácil ASSPEN') + ' • Sistema de Gestão Penitenciária'}
@@ -886,7 +900,11 @@ export function AdminDashboard() {
         />
 
         {/* Dynamic Page/Tab Content Switcher */}
-        <main className="flex-1 min-w-0 w-full p-4 sm:p-6 lg:p-8 pb-24">
+        {/* Padding de respiro fica AQUI, em um único nível. Antes este <main>
+            tinha pb-24 (96px) e cada aba somava mais pb-20 (80px) — 176px de
+            área morta no fim de TODA tela. Não existe barra fixa inferior para
+            compensar (a sidebar é lateral), então o extra não servia a nada. */}
+        <main className="flex-1 min-w-0 w-full p-4 sm:p-6 lg:p-8 lg:pb-12">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
@@ -1075,9 +1093,6 @@ export function AdminDashboard() {
                   financeFilters={financeFilters}
                   setFinanceFilters={setFinanceFilters}
                   loadingWallet={loadingWallet}
-                  approveWalletTransaction={approveWalletTransaction}
-                  rejectWalletTransaction={rejectWalletTransaction}
-                  showNotification={showNotification}
                   onSelectTransaction={setSelectedWalletTx}
                 />
               )}
@@ -1155,6 +1170,8 @@ export function AdminDashboard() {
                   onNavigate={goToTab}
                 />
               )}
+
+              {activeTab === 'audit' && hasPermission('finance') && <AdminAuditTab />}
 
               {activeTab === 'settings' && (isMaster || userRole === 'admin') && (
                 <AdminSettingsTab

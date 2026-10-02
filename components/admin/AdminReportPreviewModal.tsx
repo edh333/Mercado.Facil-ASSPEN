@@ -8,6 +8,8 @@ import { abrirJanelaImpressao } from '../../utils/printUtils';
 import { toDate } from '../../utils/dateUtils';
 import { getLocalDateStr, ehReceita } from './adminUtils';
 import { buildMonthlyDre, buildSalesCsv, buildStockAbc, buildTopProducts, buildDailySales, buildSalesByCategory, buildLowStock, buildProductsCatalog, buildExtratoIndividual, buildDetalheVendas, buildRankingClientes, buildVendasOperador, buildFiadoVendas, buildContasReceberFiado, buildFiadoVencimentos } from '../../context/StoreContext';
+import { useReportData } from '../../hooks/useReportData';
+import { AlertTriangle, Loader2 } from 'lucide-react';
 
 const PAYMENT_LABELS: Record<string, string> = {
     PIX: 'PIX',
@@ -20,12 +22,42 @@ const PAYMENT_LABELS: Record<string, string> = {
 };
 
 // Tipos de relatório que respeitam os filtros de refinamento (forma de pagamento,
-// status, cliente e operador). O painel de filtros no AdminReportsTab usa a MESMA lista.
-const FILTRAVEIS = new Set([
+// status, cliente e operador). Fonte ÚNICA — AdminReportsTab importa desta lista.
+export const FILTRAVEIS = new Set([
     'GENERAL', 'FINANCIAL', 'ACCOUNTABILITY', 'VENDAS_DIARIAS', 'COLLECTIVE_PURCHASES',
     'SALES_BY_CATEGORY', 'DRE_MONTHLY', 'SALES_CSV', 'STOCK_ABC', 'TOP_PRODUCTS',
     'DAILY_CLOSING', 'DETALHE_VENDAS', 'RANKING_CLIENTES', 'VENDAS_OPERADOR', 'FIADO_VENDAS'
 ]);
+
+// TÍTULOS CANÔNICOS: fonte ÚNICA de verdade — usados no cartão da Central de
+// Relatórios (AdminReportsTab) E no cabeçalho do documento A4 (RelatorioA4).
+// Assim o que o admin escolhe é exatamente o que sai impresso.
+export const REPORT_TYPES: Record<string, string> = {
+    'GENERAL': 'Resumo Geral',
+    'FINANCIAL': 'Fluxo de Caixa',
+    'ACCOUNTABILITY': 'Prestação de Contas',
+    'PRODUCTS_ALL': 'Catálogo de Produtos',
+    'USERS_CREDITS': 'Usuários e Saldos',
+    'INDIVIDUAL': 'Extrato Individual',
+    'COLLECTIVE_PURCHASES': 'Compras Coletivas',
+    'STOCK_LOW': 'Reposição / Inventário',
+    'SALES_BY_CATEGORY': 'Vendas por Grupo',
+    'DRE_MONTHLY': 'Fechamento Mensal (DRE Simplificado)',
+    'SALES_CSV': 'Movimentação de Vendas (CSV/Excel)',
+    'STOCK_ABC': 'Curva ABC de Estoque',
+    'TOP_PRODUCTS': 'TOP Produtos (Mais Vendidos)',
+    'DAILY_CLOSING': 'Fechamento do Dia (Conferência de Caixa)',
+    'VENDAS_DIARIAS': 'Vendas Diárias (Detalhado)',
+    'DETALHE_VENDAS': 'Vendas do Dia (Lista Completa)',
+    'RANKING_CLIENTES': 'Ranking de Clientes',
+    'VENDAS_OPERADOR': 'Desempenho por Operador',
+    'FIADO_VENDAS': 'Vendas Fiadas (Período)',
+    'FIADO_CONTAS': 'Contas a Receber (Fiado)',
+    'FIADO_VENCIMENTOS': 'Vencimentos do Fiado',
+    'CREDITS_ALL': 'Todos os Créditos',
+    'CREDITS_POSITIVE': 'Créditos Ativos (com Saldo)',
+    'CREDITS_ZERO': 'Créditos Zerados (sem Saldo)',
+};
 
 // Falha de segurança: download de CSV SEM o BOM UTF-8 abre com acentos corrompidos no
 // Excel (café vira "cafÃ©"). O prefixo \ufeff força o Excel a interpretar UTF-8.
@@ -121,6 +153,15 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
     const [thermalMode, setThermalMode] = React.useState(false);
     const [fontSize, setFontSize] = React.useState(14);
 
+    // Os arrays do contexto vêm truncados (50 pedidos) para o painel não
+    // pesar. O relatório, porém, precisa do período INTEIRO: um total
+    // subestimado num PDF de prestação de contas é pior que lentidão. Busca
+    // própria e paginada; enquanto não volta, usa o que já tinha em memória
+    // (nunca mostra zero enquanto carrega).
+    const dadosRelatorio = useReportData(isOpen, config?.startDate, config?.endDate);
+    const pedidosRelatorio = dadosRelatorio.pedidos ?? orders;
+    const despesasRelatorio = dadosRelatorio.despesas ?? expenses;
+
     // Dias expandidos no Detalhamento de Vendas (resetados quando o relatório muda).
     const [diasAbertos, setDiasAbertos] = React.useState<Record<string, boolean>>({});
     useEffect(() => { setDiasAbertos({}); }, [config?.type, config?.startDate, config?.endDate]);
@@ -141,7 +182,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
         : (users || []).find((u: User) => String(u.id) === String(config?.selectedUserId)) || null;
 
     const report = useMemo(() => {
-        if (!config || !orders || !expenses) return null;
+        if (!config || !pedidosRelatorio || !despesasRelatorio) return null;
 
         // FUSO LOCAL nos DOIS lados: 'YYYY-MM-DD' puro era parseado como UTC meia-noite
         // (= 21h do dia anterior no Brasil) e esticava o início do relatório.
@@ -158,7 +199,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
         const statusFilter = String(config?.statusFilter || 'TODOS').toUpperCase();
         const clienteFilter = String(config?.clienteFilter || '').trim().toLowerCase();
         const operadorFilter = String(config?.operadorFilter || '').trim().toLowerCase();
-        const ordens = (orders || []).filter(o => {
+        const ordens = (pedidosRelatorio || []).filter(o => {
             if (!usaFiltros) return true;
             if (paymentFilter !== 'TODAS') {
                 const pm = String(o.paymentMethod || '').toUpperCase();
@@ -179,7 +220,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
         });
 
         const totalEntries = ordens.filter(o => statusReceita(o.status)).reduce((a, b) => a + (Number(b.total) || 0), 0);
-        const totalExits = (expenses || []).reduce((a, b) => a + (Number(b.amount) || 0), 0);
+        const totalExits = (despesasRelatorio || []).reduce((a, b) => a + (Number(b.amount) || 0), 0);
         const ordersCount = ordens.filter(o => statusReceita(o.status)).length;
         const newUsers = (users || []).filter((u: User) => !isAdminRole(u.role) && u.createdAt && (toDate(u.createdAt)?.getTime() || 0) >= Date.now() - 30 * 86400000).length;
         const outOfStock = (products || []).filter((p: any) => (p.stock || 0) <= 0).length;
@@ -187,7 +228,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
 
         let items: any[] = [];
         if (config?.type === 'FINANCIAL' || config?.type === 'GENERAL' || config?.type === 'ACCOUNTABILITY') {
-            const filteredExpenses = (expenses || []).filter(e => {
+            const filteredExpenses = (despesasRelatorio || []).filter(e => {
                 const d = toDate(e.date);
                 return d && d >= new Date(startDateStr + 'T00:00:00') && d <= new Date(endDateStr + 'T23:59:59');
             }).map(e => ({
@@ -215,36 +256,12 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
             items = [...filteredOrders, ...filteredExpenses].sort((a, b) => (toDate(b.date)?.getTime() || 0) - (toDate(a.date)?.getTime() || 0));
         }
 
-        const reportTypes: Record<string, string> = {
-            'GENERAL': 'Resumo Geral',
-            'FINANCIAL': 'Fluxo de Caixa',
-            'ACCOUNTABILITY': 'Prestação de Contas',
-            'PRODUCTS_ALL': 'Catálogo de Produtos',
-            'USERS_CREDITS': 'Usuários e Saldos',
-            'INDIVIDUAL': 'Extrato Individual',
-            'COLLECTIVE_PURCHASES': 'Compras Coletivas',
-            'STOCK_LOW': 'Reposição / Inventário',
-            'SALES_BY_CATEGORY': 'Vendas por Grupo',
-            'DRE_MONTHLY': 'Fechamento de Caixa Mensal (DRE Simplificado)',
-            'SALES_CSV': 'Arquivo de Movimentação de Vendas (CSV/Excel)',
-            'STOCK_ABC': 'Curva ABC de Estoque',
-            'TOP_PRODUCTS': 'TOP Produtos (Mais Vendidos)',
-            'DAILY_CLOSING': 'Fechamento do Dia (Conferência de Caixa)',
-            'VENDAS_DIARIAS': 'Vendas Diárias Detalhado',
-            'DETALHE_VENDAS': 'Vendas do Dia (Quem / O quê / Valor)',
-            'RANKING_CLIENTES': 'Ranking de Clientes do Período',
-            'VENDAS_OPERADOR': 'Desempenho por Operador',
-            'FIADO_VENDAS': 'Vendas Fiadas do Período',
-            'FIADO_CONTAS': 'Contas a Receber (Fiado)',
-            'FIADO_VENCIMENTOS': 'Vencimentos do Fiado'
-        };
-
         const dailyClosing = config?.type === 'DAILY_CLOSING'
-            ? buildDailyClosing(ordens, expenses, transactions, startDateStr, endDateStr)
+            ? buildDailyClosing(ordens, despesasRelatorio, transactions, startDateStr, endDateStr)
             : null;
 
         const dre = config?.type === 'DRE_MONTHLY'
-            ? buildMonthlyDre(ordens, expenses, products, startDateStr, endDateStr)
+            ? buildMonthlyDre(ordens, despesasRelatorio, products, startDateStr, endDateStr)
             : null;
 
         const salesCsv = config?.type === 'SALES_CSV'
@@ -324,7 +341,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
 
         return {
             type: config?.type || 'GENERAL',
-            title: reportTypes[config?.type] || 'Relatório',
+            title: REPORT_TYPES[config?.type] || 'Relatório',
             period: periodLabel,
             dre,
             salesCsv,
@@ -356,9 +373,49 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
             },
             items
         };
-    }, [config, orders, expenses, users, products, settings, transactions]);
+    }, [config, pedidosRelatorio, despesasRelatorio, users, products, settings, transactions]);
 
     if (!isOpen || !report) return null;
+
+    // Honestidade sobre a integridade do número: o admin precisa saber se o
+    // que está na tela é o período completo ou um recorte. E, se a LEITURA
+    // falhou, o PDF/PDF-ready não pode sair como se estivesse completo —
+    // erro de índice ausente ou permissão negada viraria total errado em silêncio.
+    const avisoIntegridade = dadosRelatorio.erro ? (
+        <div className="mb-4 flex items-start gap-3 p-4 rounded-2xl border border-red-500/40 bg-red-500/10">
+            <AlertTriangle size={18} className="text-red-500 shrink-0 mt-0.5" />
+            <div className="text-xs text-[var(--text-main)] leading-relaxed">
+                <p>
+                    <strong>Falha ao carregar o período completo.</strong> Os números abaixo
+                    podem estar <strong>subestimados</strong> e não devem ser usados para fechar
+                    o caixa nem para análise financeira.
+                </p>
+                <p className="mt-1 opacity-70 break-words">{dadosRelatorio.erro}</p>
+                <p className="mt-1 opacity-70">
+                    Causa provável: índice composto ainda não publicado ou permissão negada.
+                    Feche e abra o relatório novamente depois de publicar os índices
+                    (<code className="opacity-80">firestore deploy --only=firestore:indexes</code>).
+                </p>
+            </div>
+        </div>
+    ) : dadosRelatorio.truncadoPedidos ? (
+        <div className="mb-4 flex items-start gap-3 p-4 rounded-2xl border border-amber-500/30 bg-amber-500/10">
+            <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+            <p className="text-xs text-[var(--text-main)] leading-relaxed">
+                <strong>Relatório parcial.</strong> O período tem mais de 10.000 pedidos e o
+                total acima <strong>não está completo</strong>. Divida o período em partes
+                menores para o número fechar.
+            </p>
+        </div>
+    ) : dadosRelatorio.carregando ? (
+        <div className="mb-4 flex items-center gap-3 p-3 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-main)]">
+            <Loader2 size={16} className="animate-spin text-[var(--text-muted)] shrink-0" />
+            <p className="text-xs text-[var(--text-muted)]">
+                Carregando o período completo do servidor…
+                {report.summary.ordersCount === 0 && ' (exibindo dados em memória enquanto isso)'}
+            </p>
+        </div>
+    ) : null;
 
     const renderGeneral = () => (
         <div className="space-y-8 animate-fadeIn">
@@ -1648,6 +1705,11 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                     </div>
                 </div>
 
+                {/* Aviso de integridade: fica NO MODAL, nunca no PDF impresso.
+                    O documento impresso é o entregável oficial — contaminá-lo com
+                    um aviso de "total parcial" mudaria a leitura de quem recebe. */}
+                {avisoIntegridade && <div className="px-6 pt-4 shrink-0">{avisoIntegridade}</div>}
+
                 {/* Content — 80mm thermal when active. overflow-x: tabelas de
                     relatório em tablet cortavam sem barra de rolagem lateral. */}
                 <div className={`flex-1 overflow-y-auto overflow-x-auto custom-scrollbar ${thermalMode ? 'bg-white' : 'bg-[var(--bg-main)]/20 p-8 lg:p-12'}`}>
@@ -1686,7 +1748,11 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                         </p>
                     </div>
                     <div className="flex gap-3 w-full sm:w-auto">
-                        <button onClick={() => {
+                        <button disabled={!!dadosRelatorio.erro || dadosRelatorio.carregando} title={dadosRelatorio.erro ? 'Bloqueado: a leitura do período falhou e o relatório está incompleto.' : undefined} onClick={() => {
+                            if (dadosRelatorio.erro) {
+                                alert('A leitura do período falhou. O relatório está incompleto e a exportação foi bloqueada para não gerar um arquivo com totais errados.\n\n' + dadosRelatorio.erro);
+                                return;
+                            }
                             const jsonStr = JSON.stringify(report, null, 2);
                             const blob = new Blob([jsonStr], { type: 'application/json' });
                             const url = URL.createObjectURL(blob);
@@ -1700,7 +1766,13 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                         }} className="flex-1 sm:flex-none px-6 py-3 bg-emerald-600/10 text-emerald-600 border border-emerald-600/20 font-black rounded-2xl hover:bg-emerald-600 hover:text-white transition-all text-[9px] uppercase tracking-widest flex items-center justify-center gap-2">
                             <Download size={16}/> JSON
                         </button>
-                        <button onClick={() => abrirJanelaImpressao({ type: 'RELATORIO', data: report }, settings)} className="flex-1 sm:flex-none px-8 py-3 bg-[var(--text-main)] text-[var(--bg-card)] font-black rounded-2xl shadow-xl hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2 text-[9px] uppercase tracking-[0.2em]">
+                        <button disabled={!!dadosRelatorio.erro || dadosRelatorio.carregando} title={dadosRelatorio.erro ? 'Bloqueado: a leitura do período falhou e o relatório está incompleto.' : undefined} onClick={() => {
+                            if (dadosRelatorio.erro) {
+                                alert('A leitura do período falhou. O relatório está incompleto e a impressão foi bloqueada para não gerar um PDF com totais errados.\n\n' + dadosRelatorio.erro);
+                                return;
+                            }
+                            abrirJanelaImpressao({ type: 'RELATORIO', data: report }, settings);
+                        }} className={`flex-1 sm:flex-none px-8 py-3 font-black rounded-2xl shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 text-[9px] uppercase tracking-[0.2em] ${dadosRelatorio.erro || dadosRelatorio.carregando ? 'opacity-40 cursor-not-allowed' : 'bg-[var(--text-main)] text-[var(--bg-card)] hover:brightness-110'}`}>
                             <Printer size={18}/> IMPRIMIR / SALVAR PDF
                         </button>
                     </div>

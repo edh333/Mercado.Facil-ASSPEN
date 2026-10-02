@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode, useRef } from 'react';
 import { User, Product, Order, PrisonUnit, UserRole, CartItem, OrderStatus, AppConfig, Supplier, Expense, AuditLog, InmateLocation, SystemMessage, ThemeOption, Message, Notification, WalletTransaction, toUserRole } from '../types';
 import { cleanProductName, normalizeName, stringSimilarity, compressImageFile, fileToBase64, formatarMoeda, getNetworkTime } from '../utils';
-import { listarVendasOffline, salvarVendaOffline, removerVendaOffline, marcarErroVendaOffline, marcarAjustadaVendaOffline, VendaOffline } from '../utils/offlineQueue';
+import { listarVendasOffline, salvarVendaOffline, removerVendaOffline, marcarErroVendaOffline, marcarAjustadaVendaOffline, descartarVendaOffline, rearmarVendaOffline, podeTentarSync, LIMITE_FILA, VendaOffline } from '../utils/offlineQueue';
+import { verificarInternetReal } from '../utils/netStatus';
 import {
     setOfflineCredential as salvarCredencialOffline,
     verifyOfflinePassword as verificarSenhaOffline,
@@ -194,15 +195,15 @@ interface StoreContextType {
     buscarPedidosParaEstorno: (opts?: { term?: string; startAfter?: string }) => Promise<{ results: Order[]; hasMore: boolean; last: string }>;
 
     preRegisteredInmates: { id: string, name: string, cpf: string, unit?: string, gallery?: string, cell?: string, observations?: string, status?: 'ATIVO' | 'INATIVO' }[];
-    addPreRegisteredInmate: (inmate: { name: string, cpf: string, unit?: string, gallery?: string, cell?: string, observations?: string }) => Promise<void>;
-    updatePreRegisteredInmate: (id: string, data: { name?: string, cpf?: string, unit?: string, gallery?: string, cell?: string, observations?: string, status?: 'ATIVO' | 'INATIVO' }) => Promise<void>;
+    addPreRegisteredInmate: (inmate: { name: string, cpf: string, unit?: string, gallery?: string, cell?: string, observations?: string }) => Promise<boolean>;
+    updatePreRegisteredInmate: (id: string, data: { name?: string, cpf?: string, unit?: string, gallery?: string, cell?: string, observations?: string, status?: 'ATIVO' | 'INATIVO' }) => Promise<boolean>;
     deletePreRegisteredInmate: (id: string) => Promise<void>;
 
     creditoCliente: number;
     realizarSaque: (valor: number) => Promise<boolean>;
     verificarCredito: (valor: number) => boolean;
-    refundOrder: (orderId: string, reason?: string) => Promise<void>;
-    estornarPedido: (orderId: string, motivo: string) => Promise<void>;
+    refundOrder: (orderId: string, reason?: string, opts?: { janelaDias?: number }) => Promise<void>;
+    estornarPedido: (orderId: string, motivo: string, opts?: { janelaDias?: number; senhaMestra?: string }) => Promise<void>;
     resetCredits: () => Promise<void>;
     mergeDuplicateProducts: () => Promise<void>;
     adminDirectSale: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30', total: number, payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30'; amount: number }[], change?: number, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string, fiado30UserId?: string, senhaPrimaria?: string, senhaSecundaria?: string, sessaoCaixaId?: string, descontoPct?: number) => Promise<Order | null>;
@@ -226,7 +227,11 @@ interface StoreContextType {
     registrarVendaOffline: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30', total: number, payments?: { method: string; amount: number }[], change?: number, customerAccountId?: string, cardBrand?: string, sessaoCaixaId?: string, clientToken?: string) => Promise<Order | null>;
     sincronizarVendasOffline: (incluirErros?: boolean) => Promise<{ ok: boolean; sincronizadas: number; comErro: number; total: number; offline?: boolean }>;
     vendasOfflinePendentes: number;
+    vendasOffline: VendaOffline[];
     vendasOfflineComErro: number;
+    vendasOfflineAjustadas: number;
+    rearmarVendaOffline: (id: string) => void;
+    descartarVendaOffline: (id: string) => void;
 
     // Sessão de caixa física ATIVA do operador logado (fonte global reativa).
     // O PDV usa sessaoCaixaAtiva.id no payload CASH — o ID nunca nasce vazio
@@ -383,7 +388,11 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     // localStorage — sobrevive a reloads e reinícios sem mexer em código.
     const CHAVE_CAPACIDADE = 'mf_capacidade_limites';
     const limitesSalvos = (): { users: number; products: number; orders: number; expenses: number; suppliers: number; inmates: number } => {
-        const padrao = { users: 2000, products: 500, orders: 50, expenses: 50, suppliers: 100, inmates: 200 };
+        // products 2000 (não 500): demanda real de 1.000-2.000 itens no
+        // catálogo — com 500 o admin ficava sem os demais até subir a cota
+        // no Painel de Capacidade. Math.max com o valor salvo preserva cotas
+        // maiores já configuradas.
+        const padrao = { users: 2000, products: 2000, orders: 50, expenses: 50, suppliers: 100, inmates: 200 };
         try {
             const bruto = localStorage.getItem(CHAVE_CAPACIDADE);
             if (!bruto) return padrao;
@@ -1158,15 +1167,23 @@ return false;
         }
     };
 
-    const refundOrder = async (orderId: string, reason: string = 'Devolução administrativa') => {
+    const refundOrder = async (orderId: string, reason: string = 'Devolução administrativa', opts?: { janelaDias?: number; senhaMestra?: string }) => {
         if (!currentUser) return;
         const order = orders.find(o => o.id === orderId);
         if (!order) throw new Error("Pedido não encontrado.");
         if (order.status === OrderStatus.CANCELLED) throw new Error("Este pedido já foi cancelado/devolvido.");
 
         try {
-            // Estorno processado NO SERVIDOR (restaura estoque + carteira + status)
-            await fnEstornarVenda({ orderId, motivo: reason });
+            // Estorno processado NO SERVIDOR (restaura estoque + carteira + status).
+            // A senha mestra vai junto para a prova de segundo fator ser
+            // conferida no servidor — validar só na UI não impede chamar a
+            // Function direto.
+            await fnEstornarVenda({
+                orderId,
+                motivo: reason,
+                ...(opts?.janelaDias ? { janelaDias: opts.janelaDias } : {}),
+                ...(opts?.senhaMestra ? { senhaMestra: opts.senhaMestra } : {}),
+            });
             setOrders(prev => prev.map(o =>
                 o.id === orderId ? { ...o, status: OrderStatus.CANCELLED, refundReason: reason } : o
             ));
@@ -1183,8 +1200,14 @@ return false;
         }
     };
 
-    const estornarPedido = async (orderId: string, motivo: string = 'Devolução administrativa') => {
-        await fnEstornarVenda({ orderId, motivo });
+    const estornarPedido = async (orderId: string, motivo: string = 'Devolução administrativa', opts?: { janelaDias?: number; senhaMestra?: string }) => {
+        // A senha mestra segue para o servidor: a prova de segundo fator é
+        // conferida lá dentro, não só na UI.
+        await fnEstornarVenda({
+            orderId, motivo,
+            ...(opts?.janelaDias ? { janelaDias: opts.janelaDias } : {}),
+            ...(opts?.senhaMestra ? { senhaMestra: opts.senhaMestra } : {}),
+        });
         setOrders(prev => prev.map(o =>
             o.id === orderId ? { ...o, status: OrderStatus.CANCELLED, refundReason: motivo } : o
         ));
@@ -2015,13 +2038,19 @@ return false;
                 showNotification("Não é possível zerar o financeiro com sessão de caixa ABERTA. Feche todos os caixas antes de limpar.", "error");
                 return;
             }
-            const [expSnap, cashSnap, cashSessionsSnap] = await Promise.all([
+            // cash_sessions NAO entra: as regras bloqueiam delete no cliente
+            // (firestore.rules: allow delete: if false). Incluir aqui fazia o
+            // batch ser REJEITADO — as despesas e o caixa legado já tinham
+            // sido apagados nos lotes anteriores (o erro só aparecia no fim),
+            // sobrando um financeiro pela metade e sem trilha de auditoria.
+            // O caixa físico tem auto-fechamento no servidor; zerar o
+            // financeiro é zerar despesa, não o histórico de sessões.
+            const [expSnap, cashSnap] = await Promise.all([
                 getDocs(collection(db, 'expenses')),
-                getDocs(collection(db, 'cashier')),
-                getDocs(collection(db, 'cash_sessions'))
+                getDocs(collection(db, 'cashier'))
             ]);
-            const antes = { despesas: expSnap.size, sessoesCaixa: cashSnap.size, sessoesCaixaNovas: cashSessionsSnap.size };
-            const allRefs = [...expSnap.docs, ...cashSnap.docs, ...cashSessionsSnap.docs].map(d => d.ref);
+            const antes = { despesas: expSnap.size, sessoesCaixa: cashSnap.size };
+            const allRefs = [...expSnap.docs, ...cashSnap.docs].map(d => d.ref);
             for (let i = 0; i < allRefs.length; i += 500) {
                 const batch = writeBatch(db);
                 const chunk = allRefs.slice(i, i + 500);
@@ -2203,42 +2232,26 @@ return false;
     const addExpense = async (e: Expense) => {
         try {
             const id = e.id || crypto.randomUUID();
-            const expenseRef = doc(db, 'expenses', id);
             const valor = Math.round((Number(e.amount) || 0) * 100) / 100;
 
-            // Despesa debitada do CAIXA FÍSICO: grava a despesa E a sangria na MESMA
-            // transação (atômico) — nunca uma fica sem a outra. Exige sessão aberta.
+            // A despesa com débito no CAIXA FÍSICO é gravada NO SERVIDOR
+            // (registrarDespesa). O caminho antigo usava uma transação Web SDK
+            // sobre 'cash_sessions', que as regras bloqueiam para o cliente
+            // (firestore.rules: allow create, update, delete: if false) — ou
+            // seja, NUNCA funcionou em produção: 'Nova Despesa' (que tem CAIXA
+            // como conta de débito padrão) falhava e, por ser transação
+            // atômica, a despesa também não era criada. O servidor revalida
+            // status e saldo, e o saldo do caixa nunca fica negativo.
             if (e.debitAccount === 'CAIXA' && currentUser) {
-                const sessao = await getActiveSession(currentUser.id);
-                if (!sessao) {
-                    throw new Error('Nenhuma sessão de caixa aberta para este operador. Abra o caixa antes de lançar despesa debitada no caixa físico.');
-                }
-                const sessaoRef = doc(db, 'cash_sessions', sessao.id);
-                await runTransaction(db, async (tx) => {
-                    const sessaoSnap = await tx.get(sessaoRef);
-                    if (!sessaoSnap.exists() || String(sessaoSnap.data()?.status || '').toUpperCase() !== 'OPEN') {
-                        throw new Error('A sessão de caixa foi fechada. Reabra o caixa antes de lançar a despesa.');
-                    }
-                    const saldoAtual = Number(sessaoSnap.data()?.currentBalance || 0);
-                    if (!(saldoAtual >= valor)) {
-                        throw new Error(`Saldo em caixa insuficiente para despesa de R$ ${valor.toFixed(2).replace('.', ',')} — disponível: R$ ${saldoAtual.toFixed(2).replace('.', ',')}.`);
-                    }
-                    tx.set(expenseRef, { ...e, id, amount: valor });
-                    tx.update(sessaoRef, {
-                        currentBalance: increment(-valor),
-                        withdrawals: arrayUnion({
-                            amount: valor,
-                            reason: `Despesa: ${e.description || 'Lançamento'}`,
-                            timestamp: Timestamp.now(),
-                        }),
-                    });
-                });
-            } else {
-                await setDoc(expenseRef, { ...e, id, amount: valor });
+                const fnRegistrarDespesa = httpsCallable(getFunctions(), 'registrarDespesa');
+                await fnRegistrarDespesa({ despesa: { ...e, id, amount: valor } });
+                return;
             }
+
+            await setDoc(doc(db, 'expenses', id), { ...e, id, amount: valor });
         } catch (err: any) {
             console.error('[ADD_EXPENSE_ERROR]', err);
-            throw err;
+            throw new Error(String(err?.message || 'Erro ao registrar a despesa.').replace(/^\(.*?\)\s*/, ''));
         }
     };
 
@@ -2378,18 +2391,18 @@ return false;
         }
     };
 
-    const addPreRegisteredInmate = async (inmate: { name: string, cpf: string, unit?: string, gallery?: string, cell?: string, observations?: string }) => {
-        if (!currentUser || currentUser.role !== UserRole.ADMIN) return;
+    const addPreRegisteredInmate = async (inmate: { name: string, cpf: string, unit?: string, gallery?: string, cell?: string, observations?: string }): Promise<boolean> => {
+        if (!currentUser || currentUser.role !== UserRole.ADMIN) return false;
         try {
             const cleanCpf = (inmate.cpf || '').replace(/\D/g, '');
             if (cleanCpf.length !== 11) {
                 showNotification("CPF inválido para pré-cadastro.", "error");
-                return;
+                return false;
             }
             // Impede duplicidade: CPF já pré-cadastrado (ou importado) não entra de novo.
             if ((preRegisteredInmates || []).some(i => String(i.cpf || '').replace(/\D/g, '') === cleanCpf)) {
                 showNotification("Este CPF já está pré-cadastrado no sistema.", "error");
-                return;
+                return false;
             }
             const id = crypto.randomUUID();
             await setDoc(doc(db, 'pre_registered_inmates', id), {
@@ -2403,22 +2416,24 @@ return false;
                 id
             });
             showNotification("Interno pré-cadastrado com sucesso!", "success");
+            return true;
         } catch (e: any) {
             showNotification("Erro ao pré-cadastrar interno: " + e.message, "error");
+            return false;
         }
     };
 
-    const updatePreRegisteredInmate = async (id: string, data: { name?: string, cpf?: string, unit?: string, gallery?: string, cell?: string, observations?: string, status?: 'ATIVO' | 'INATIVO' }) => {
-        if (!currentUser || currentUser.role !== UserRole.ADMIN) return;
+    const updatePreRegisteredInmate = async (id: string, data: { name?: string, cpf?: string, unit?: string, gallery?: string, cell?: string, observations?: string, status?: 'ATIVO' | 'INATIVO' }): Promise<boolean> => {
+        if (!currentUser || currentUser.role !== UserRole.ADMIN) return false;
         try {
             const patch: Record<string, any> = {};
             if (data.name !== undefined) patch.name = (data.name || '').trim().toUpperCase();
             if (data.cpf !== undefined) {
                 const cleanCpf = (data.cpf || '').replace(/\D/g, '');
-                if (cleanCpf.length !== 11) { showNotification("CPF inválido.", "error"); return; }
+                if (cleanCpf.length !== 11) { showNotification("CPF inválido.", "error"); return false; }
                 if ((preRegisteredInmates || []).some(i => i.id !== id && String(i.cpf || '').replace(/\D/g, '') === cleanCpf)) {
                     showNotification("Este CPF já pertence a outro interno.", "error");
-                    return;
+                    return false;
                 }
                 patch.cpf = cleanCpf;
             }
@@ -2429,8 +2444,10 @@ return false;
             if (data.status !== undefined) patch.status = data.status;
             await setDoc(doc(db, 'pre_registered_inmates', id), patch, { merge: true });
             showNotification("Dados do interno atualizados!", "success");
+            return true;
         } catch (e: any) {
             showNotification("Erro ao atualizar interno: " + e.message, "error");
+            return false;
         }
     };
 
@@ -2743,7 +2760,23 @@ return false;
             status: 'pending',
             tryCount: 0,
         };
-        salvarVendaOffline(venda);
+        // A1: a gravação pode FALHAR (fila no teto ou cota do localStorage).
+        // Quando falha, a venda NÃO foi salva em lugar nenhum — devolver o
+        // pedido aqui seria fabricar uma venda que não existe (o operador já
+        // entregou a mercadoria). O chamador em AdminDashboard já trata null.
+        if (!salvarVendaOffline(venda)) {
+            showNotification(
+                'Não foi possível salvar a venda offline: fila cheia ou armazenamento indisponível. A venda NÃO foi registrada — sincronize as pendências e tente de novo.',
+                'error'
+            );
+            return null;
+        }
+        if (listarVendasOffline().length >= LIMITE_FILA) {
+            showNotification(
+                'Fila de vendas offline no limite. A PRÓXIMA venda será bloqueada até sincronizar.',
+                'warning'
+            );
+        }
         setVendasOffline((prev) => [...prev, venda]);
         const alvo = users.find((u) => u.id === targetUserId);
         return {
@@ -2768,8 +2801,11 @@ return false;
     const sincronizandoOfflineRef = useRef(false);
     const sincronizarVendasOffline = useCallback(async (incluirErros = false): Promise<{ ok: boolean; sincronizadas: number; comErro: number; total: number; offline?: boolean; }> => {
         // Guard de conectividade: sem internet NÃO marca a fila como erro —
-        // apenas informa o chamador (banner mostra "você está offline").
-        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+// apenas informa o chamador (banner mostra "você está offline").
+        // Usa o probe de ALCANCABILIDADE, não só `navigator.onLine`: em
+        // portal cativo o SO reporta "online" e, sem esta checagem, todas as
+        // vendas da fila viravam 'error' terminal numa rede que nunca funcionou.
+        if (!(await verificarInternetReal())) {
             return { ok: false, offline: true, sincronizadas: 0, comErro: 0, total: listarVendasOffline().length };
         }
         // Anti-reentrância: auto-sync ('online') + retry manual no banner nunca
@@ -2779,14 +2815,24 @@ return false;
         }
 
         const fila = listarVendasOffline();
-        const pendentes = incluirErros ? fila : fila.filter((v) => v.status === 'pending');
-        if (!pendentes.length) return { ok: true, sincronizadas: 0, comErro: fila.filter((v) => v.status === 'error').length, total: fila.length };
+        const agora = Date.now();
+        // Backoff (A3): uma venda em 'error' só volta a tentar depois do
+        // intervalo exponencial e enquanto não esgotar as tentativas
+        // automáticas. Antes, qualquer falha transitória (2s de queda de rede,
+        // token expirado) virava 'error' DEFINITIVO — nunca mais sincronizava
+        // sozinha, a menos que alguém clicasse no banner.
+        const elegiveis = (incluirErros ? fila : fila.filter((v) => v.status === 'pending'))
+            .filter((v) => podeTentarSync(v, agora));
+        if (!elegiveis.length) {
+            const aguardandoBackoff = fila.filter((v) => v.status === 'error').length;
+            return { ok: true, sincronizadas: 0, comErro: aguardandoBackoff, total: fila.length };
+        }
 
         sincronizandoOfflineRef.current = true;
         let sincronizadas = 0;
         let comErro = 0;
         try {
-            for (const v of pendentes) {
+            for (const v of elegiveis) {
                 try {
                     const res = await fnProcessarVendaAdmin({
                         targetUserId: v.targetUserId,
@@ -2832,16 +2878,21 @@ return false;
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Aviso VISÍVEL quando a fila offline descarta vendas antigas — antes o
-    // evento era emitido mas ninguém escutava (só o console do dev via).
-    useEffect(() => {
-        const onDepleted = (e: Event) => {
-            const n = (e as CustomEvent)?.detail?.descartadas?.length || 0;
-            if (n > 0) showNotification(`Fila offline cheia: ${n} venda(s) mais antiga(s) descartada(s) do cache local. Verifique a sincronização.`, 'warning');
-        };
-        window.addEventListener('offline-queue-depleted', onDepleted);
-        return () => window.removeEventListener('offline-queue-depleted', onDepleted);
-    }, [showNotification]);
+// Aviso VISÍVEL quando a fila offline não consegue gravar (teto ou cota do
+// storage). Antes a fila descartava as vendas mais antigas em silêncio; agora
+// nada é perdido e o operador recebe o aviso com o caminho para resolver.
+useEffect(() => {
+    const onFull = (e: Event) => {
+        const d = (e as CustomEvent)?.detail || {};
+        showNotification(
+            'Fila de vendas offline cheia: novas vendas podem não ser salvas. Sincronize as pendentes agora para liberar espaço.',
+            'warning'
+        );
+        console.warn('[PDV OFFLINE] Fila cheia.', d);
+    };
+    window.addEventListener('offline-queue-full', onFull);
+    return () => window.removeEventListener('offline-queue-full', onFull);
+}, [showNotification]);
 
     // Auto-sincronização: ao abrir o app online e quando a conexão voltar.
     useEffect(() => {
@@ -2860,6 +2911,30 @@ return false;
         const handler = () => setTimeout(rodar, 2500);
         window.addEventListener('online', handler);
         return () => window.removeEventListener('online', handler);
+    }, [currentUser, sincronizarVendasOffline, showNotification]);
+
+    // Auto-sync com backoff: tenta periodicamente enquanto houver vendas
+    // com erro aguardando seu intervalo (A3). Sem intervalo fixo por venda,
+    // usa o próprio filtro de elegibilidade (podeTentarSync) — intervalo entre
+    // tentativas automáticas cresce exponencialmente (1,2,4,8,16,30,30... min).
+    useEffect(() => {
+        if (!currentUser || currentUser.role !== UserRole.ADMIN) return;
+        let ativo = true;
+        let timer: ReturnType<typeof setTimeout> | null = null;
+        const tick = async () => {
+            if (!ativo) return;
+            const fila = listarVendasOffline();
+            const temErro = fila.some((v) => v.status === 'error');
+            if (temErro) {
+                const r = await sincronizarVendasOffline(true);
+                if (r.sincronizadas > 0 && ativo) {
+                    showNotification(`Vendas offline sincronizadas: ${r.sincronizadas}.`, 'success');
+                }
+            }
+            if (ativo) timer = setTimeout(tick, 30000);
+        };
+        timer = setTimeout(tick, 30000);
+        return () => { ativo = false; if (timer) clearTimeout(timer); };
     }, [currentUser, sincronizarVendasOffline, showNotification]);
 
     // Admin-only one-time cleanup: runs once per session, NOT on every limit change.
@@ -3235,8 +3310,26 @@ return false;
             },
             registrarVendaOffline,
             sincronizarVendasOffline,
+            vendasOffline,
             vendasOfflinePendentes: vendasOffline.filter((v) => v.status === 'pending').length,
             vendasOfflineComErro: vendasOffline.filter((v) => v.status === 'error').length,
+            vendasOfflineAjustadas: vendasOffline.filter((v) => v.status === 'ajustada').length,
+            // Gestão manual da fila (A4): antes só existia limparErrosVendaOffline,
+            // que é código morto — o banner mandava o operador para uma tela
+            // ("Configurações → Capacidade") que nunca teve gestão de fila.
+            rearmarVendaOffline: (id: string) => {
+                rearmarVendaOffline(id);
+                setVendasOffline(listarVendasOffline());
+            },
+            descartarVendaOffline: (id: string) => {
+                const alvo = vendasOffline.find((v) => v.id === id);
+                descartarVendaOffline(id);
+                setVendasOffline(listarVendasOffline());
+                showNotification(
+                    `Venda offline descartada (R$ ${formatarMoeda(Number(alvo?.total || 0))}). Ela NÃO será sincronizada — registre a devolução no caixa.`,
+                    'warning'
+                );
+            },
             sessaoCaixaAtiva,
             refreshSessaoCaixa,
             addWalletCreditDirectly: async (userId: string, amount: number, reason: string, senhaMestra?: string) => {

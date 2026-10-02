@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { AlertTriangle, Lock, Eye, EyeOff, Loader2, ShieldCheck, CheckCircle } from 'lucide-react';
 import { Order } from '../../types';
 import { formatarMoeda, formatCPF } from '../../utils';
+import { JANELA_CANCELAMENTO_DIAS } from './adminUtils';
 
 /**
  * CORPO REUTILIZÁVEL da confirmação financeira irreversível (estorno/cancelamento),
@@ -26,7 +27,7 @@ interface RefundPasswordPanelProps {
 
 const DESCRICAO: Record<'estorno' | 'cancelar', string> = {
   estorno: 'O valor do pedido será devolvido para a carteira do familiar, o estoque será restituído e a venda sairá do faturamento do caixa.',
-  cancelar: 'O pedido será cancelado, o estoque será restituído e o valor devolvido. O familiar receberá uma notificação com o motivo.',
+  cancelar: `O pedido será cancelado, o estoque será restituído e o valor devolvido. O familiar receberá uma notificação com o motivo. Prazo: até ${JANELA_CANCELAMENTO_DIAS} dias após a compra.`,
 };
 
 export const RefundPasswordPanel: React.FC<RefundPasswordPanelProps> = ({

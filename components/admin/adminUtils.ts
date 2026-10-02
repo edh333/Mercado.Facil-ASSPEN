@@ -53,3 +53,8 @@ export const ehReceita = (status: string | undefined | null): boolean => {
     // Pipeline aprovado: pago → preparação → saiu → entregue.
     return ['paid', 'pago', 'preparing', 'separacao', 'separação', 'out_for_delivery', 'saiu', 'delivered', 'entregue'].some(k => s === k || s.includes(k));
 };
+
+/** Prazo de CANCELAMENTO de venda (dias após a compra). Fonte ÚNICA: o modal de
+ *  estorno filtra por ela, o painel de pedidos envia como `janelaDias` e o
+ *  servidor revalida com o mesmo número. Estorno/devolução NÃO tem prazo. */
+export const JANELA_CANCELAMENTO_DIAS = 5;

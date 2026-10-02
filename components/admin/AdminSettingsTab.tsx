@@ -447,15 +447,17 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
     </button>
   );
 
+  // Estado de acesso negado: não precisa de 60vh + 128px de respiro. O card já é
+  // centrado e o <main> do painel dá o respiro da página.
   if (isAuthenticated === false) {
     return (
-      <div className="animate-fadeIn flex flex-col items-center justify-center min-h-[60vh] pb-16 md:pb-32">
-        <div className="bg-white p-8 md:p-16 rounded-[3rem] border border-slate-100 shadow-2xl text-center max-w-lg w-full">
-          <div className="w-24 h-24 bg-slate-100 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-inner">
+      <div className="animate-fadeIn flex flex-col items-center justify-center py-8">
+        <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-2xl text-center max-w-lg w-full">
+          <div className="w-24 h-24 bg-slate-100 rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-inner">
             <Lock size={48} className="text-slate-400" />
           </div>
           <h3 className="text-2xl font-bold text-slate-900 tracking-tight mb-3">Acesso Restrito</h3>
-          <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-10 leading-relaxed">
+          <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-6 leading-relaxed">
             Esta área contém configurações sensíveis do sistema.<br />
             Autentique-se como administrador para continuar.
           </p>
@@ -470,8 +472,9 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
     );
   }
 
+  // Sem pb-32: o <main> do painel já aplica o respiro inferior.
   return (
-    <div className="animate-fadeIn space-y-8 pb-32">
+    <div className="animate-fadeIn space-y-8">
       {/* SAÚDE DO SISTEMA — resultado da auto-manutenção (roda sozinha) */}
       <SystemHealthCard />
 

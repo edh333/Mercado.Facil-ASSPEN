@@ -3,7 +3,7 @@ import { NavItem } from './AdminCommon';
 import {
   Users, Package, ShoppingCart, DollarSign, LogOut, Settings,
   BarChart3, Home, Shield, CreditCard, Landmark, Activity, AlertTriangle,
-  BookOpen, MessageSquare, Sun, Moon, Monitor, Wrench, Loader2
+  BookOpen, MessageSquare, Sun, Moon, Monitor, Wrench, Loader2, ShieldCheck
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { SystemRole } from '../PWAInstallProvider';
@@ -102,6 +102,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                 {hasPermission('finance') && <NavItem icon={DollarSign} label="Fluxo de Caixa" active={activeTab === 'finance'} onClick={() => setActiveTab('finance')} />}
                 {hasPermission('wallet') && <NavItem icon={CreditCard} label="Carteira & Créditos" active={activeTab === 'wallet'} onClick={() => setActiveTab('wallet')} badge={pendingDepositsCount} />}
                 {hasPermission('finance') && <NavItem icon={BookOpen} label="Contas a Pagar" active={activeTab === 'customers'} onClick={() => setActiveTab('customers')} />}
+                {hasPermission('finance') && <NavItem icon={ShieldCheck} label="Auditoria" active={activeTab === 'audit'} onClick={() => setActiveTab('audit')} />}
 
                 <div className="my-2 border-t border-white/10 h-px mx-1"></div>
 

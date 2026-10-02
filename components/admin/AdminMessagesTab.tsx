@@ -79,7 +79,7 @@ export const AdminMessagesTab: React.FC<AdminMessagesTabProps> = ({ users, messa
   };
 
   return (
-    <div className="space-y-6 animate-slideUp pb-20">
+    <div className="space-y-6 animate-slideUp">
       {/* Header */}
       <div className="bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -220,7 +220,7 @@ export const AdminMessagesTab: React.FC<AdminMessagesTabProps> = ({ users, messa
               {/* Mensagens */}
               <div className="flex-1 min-h-[320px] max-h-[55vh] overflow-y-auto custom-scrollbar p-6 space-y-3">
                 {thread.length === 0 ? (
-                  <div className="py-16 text-center">
+                  <div className="h-full min-h-[320px] flex flex-col items-center justify-center text-center">
                     <Inbox size={36} className="mx-auto mb-4 text-slate-300" />
                     <p className="text-[11px] font-black uppercase tracking-widest text-[var(--text-muted)]">
                       Nenhuma mensagem enviada ainda

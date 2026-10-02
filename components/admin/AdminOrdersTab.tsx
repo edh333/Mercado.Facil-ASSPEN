@@ -178,7 +178,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
   };
 
   return (
-    <div className="space-y-6 animate-slideUp pb-20">
+    <div className="space-y-6 animate-slideUp">
       {/* Upper Management Header */}
       <div className="flex flex-col xl:flex-row xl:flex-wrap justify-between items-start xl:items-center gap-4 sm:gap-6 bg-[var(--bg-card)] p-5 sm:p-8 rounded-[3rem] border-2 border-[var(--border-color)] shadow-sm relative overflow-hidden">
         <div className="absolute top-0 left-0 w-32 h-32 bg-emerald-500 rounded-full blur-[60px] -ml-16 -mt-16 opacity-10"></div>

@@ -1,13 +1,14 @@
 import React from 'react';
 import { formatarMoeda } from '../../utils';
-import { Shield, Plus, Trash2, Search, UserCheck, FileUp, LayoutGrid, Smartphone, Loader2, Printer } from 'lucide-react';
+import { Shield, Plus, Trash2, Search, UserCheck, FileUp, LayoutGrid, Smartphone, Loader2, Printer, Pencil, MapPin } from 'lucide-react';
 import { useApp } from '../../context/StoreContext';
 import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
+import { PreRegisteredInmate } from '../../types';
 
 interface AdminInmatesTabProps {
-  preRegisteredInmates: any[];
+  preRegisteredInmates: PreRegisteredInmate[];
   users: any[];
-  newInmate: { name: string; cpf: string };
+  newInmate: { name: string; cpf: string; unit?: string };
   setNewInmate: (data: any) => void;
   handleAddInmate: () => void;
   deletePreRegisteredInmate: (id: string) => void;
@@ -22,7 +23,39 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
   const [searchTerm, setSearchTerm] = React.useState('');
   const [viewMode, setViewMode] = React.useState<'table' | 'cards'>('table');
   const [inmateParaExcluir, setInmateParaExcluir] = React.useState<any>(null);
-  const { showNotification: notifCtx } = useApp();
+  // Edição do pré-cadastro: antes só existia CADASTRAR/EXCLUIR — a função
+  // updatePreRegisteredInmate já existia no contexto, mas não tinha UI.
+  const [editando, setEditando] = React.useState<PreRegisteredInmate | null>(null);
+  const { showNotification: notifCtx, updatePreRegisteredInmate } = useApp();
+
+  const iniciarEdicao = (inmate: PreRegisteredInmate) => {
+    setEditando(inmate);
+    setNewInmate({ name: inmate.name || '', cpf: inmate.cpf || '', unit: inmate.unit || '' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const cancelarEdicao = () => {
+    setEditando(null);
+    setNewInmate({ name: '', cpf: '', unit: '' });
+  };
+
+  const handleSalvar = async () => {
+    if (!editando) { handleAddInmate(); return; }
+    // O registro pode ter sido removido (nesta tela, outra aba ou outro
+    // dispositivo) enquanto o formulário estava aberto: o setDoc com merge
+    // RECRIARIA o doc apagado, ressuscitando um cadastro pela metade.
+    if ((preRegisteredInmates || []).length > 0 && !preRegisteredInmates.some(i => i.id === editando.id)) {
+      notifCtx('Este interno não existe mais (foi removido). Formulário limpo.', 'error');
+      cancelarEdicao();
+      return;
+    }
+    const nome = String(newInmate?.name || '').trim();
+    const cpf = String(newInmate?.cpf || '').trim();
+    if (!nome || !cpf) { notifCtx('Nome e CPF são obrigatórios.', 'error'); return; }
+    const ok = await updatePreRegisteredInmate(editando.id, { name: nome, cpf, unit: String(newInmate?.unit || '').trim() });
+    // Sai da edição só em sucesso — falha (CPF inválido/duplicado/rede) mantém o formulário preenchido.
+    if (ok) cancelarEdicao();
+  };
 
   const consolidatedData = React.useMemo(() => {
     return (preRegisteredInmates || []).map(inmate => {
@@ -131,7 +164,7 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
   };
 
   return (
-    <div className="animate-slideUp space-y-8 pb-20">
+    <div className="animate-slideUp space-y-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm">
         <h2 className="text-xl font-bold text-[var(--text-main)] flex items-center gap-2 tracking-tight">
           <Shield size={24} className="text-emerald-500"/> Gestão de Internos
@@ -172,7 +205,7 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
           <div className="bg-[var(--bg-card)] p-8 rounded-[2.5rem] border border-[var(--border-color)] shadow-2xl h-fit relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500 opacity-5 rounded-full -mr-16 -mt-16"></div>
               <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-main)] mb-6 flex items-center gap-2 relative z-10">
-                <Plus size={18} className="text-emerald-500"/> Novo Pré-Cadastro
+                {editando ? <><Pencil size={18} className="text-emerald-500"/> Editar Interno</> : <><Plus size={18} className="text-emerald-500"/> Novo Pré-Cadastro</>}
               </h3>
               <div className="space-y-4 relative z-10">
                   <div>
@@ -193,12 +226,29 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
                           onChange={e => setNewInmate({...newInmate, cpf: e.target.value.replace(/\D/g, '')})}
                       />
                   </div>
+                  <div>
+                      <label className="text-[var(--text-main)] font-black text-[10px] uppercase tracking-widest mb-1 block ml-1 flex items-center gap-1.5"><MapPin size={11} className="text-emerald-500"/> Localização (Opcional)</label>
+                      <input
+                          className="w-full p-4 bg-[var(--bg-card)] border-2 border-[var(--border-color)] focus:border-emerald-500 rounded-2xl font-bold text-sm text-[var(--text-main)] outline-none transition-all placeholder:text-[var(--text-muted)] uppercase tracking-widest"
+                          placeholder="EX: ALA B - CELA 12"
+                          value={newInmate?.unit || ''}
+                          onChange={e => setNewInmate({...newInmate, unit: e.target.value.toUpperCase()})}
+                      />
+                  </div>
                   <button
-                      onClick={handleAddInmate}
+                      onClick={handleSalvar}
                       className="w-full py-5 bg-emerald-500 text-white font-black rounded-2xl hover:opacity-90 transition-all shadow-xl uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 mt-2"
                   >
-                      <UserCheck size={18}/> Salvar no Banco
+                      {editando ? <><Pencil size={18}/> Atualizar Cadastro</> : <><UserCheck size={18}/> Salvar no Banco</>}
                   </button>
+                  {editando && (
+                      <button
+                          onClick={cancelarEdicao}
+                          className="w-full py-3 bg-slate-100 text-slate-600 font-black rounded-2xl hover:bg-slate-200 transition-all uppercase text-[10px] tracking-widest"
+                      >
+                          Cancelar Edição
+                      </button>
+                  )}
               </div>
               <p className="mt-6 text-[9px] text-[var(--text-muted)] italic font-medium leading-relaxed">
                 Nota: Apenas internos registrados poderão ter familiares vinculados e receber créditos.
@@ -238,9 +288,10 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
                             ) : filteredInmates.map((inmate: any) => (
                                 <tr key={inmate.id} className="hover:bg-[var(--bg-main)]/50 transition-all group">
                                     <td className="p-5">
-                                        <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-3 flex-wrap">
                                             <div className="font-black text-[var(--text-main)] text-sm uppercase tracking-tight">{inmate?.name || 'Sem nome'}</div>
                                             <span className="text-[9px] bg-slate-200 text-slate-800 px-2 py-0.5 rounded font-black tracking-widest">{inmate?.cpf || '—'}</span>
+                                            {inmate?.unit && <span className="text-[9px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-black tracking-widest flex items-center gap-1"><MapPin size={9}/>{inmate.unit}</span>}
                                         </div>
                                     </td>
                                     <td className="p-5">
@@ -264,12 +315,21 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
                                         R$ {formatarMoeda(inmate.totalBalance)}
                                     </td>
                                     <td className="p-5 text-center">
-                                        <button
-                                            onClick={() => handleDeleteInmate(inmate)}
-                                            className="p-3 bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-red-500 hover:border-red-500/20 hover:bg-red-500/5 rounded-xl transition-all shadow-sm active:scale-95"
-                                        >
-                                            <Trash2 size={18}/>
-                                        </button>
+                                        <div className="flex items-center justify-center gap-2">
+                                            <button
+                                                onClick={() => iniciarEdicao(inmate)}
+                                                title="Editar cadastro"
+                                                className="p-3 bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-emerald-500 hover:border-emerald-500/20 hover:bg-emerald-500/5 rounded-xl transition-all shadow-sm active:scale-95"
+                                            >
+                                                <Pencil size={18}/>
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteInmate(inmate)}
+                                                className="p-3 bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-red-500 hover:border-red-500/20 hover:bg-red-500/5 rounded-xl transition-all shadow-sm active:scale-95"
+                                            >
+                                                <Trash2 size={18}/>
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -286,9 +346,10 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
                 ) : filteredInmates.map((inmate: any) => (
                     <div key={inmate.id} className="p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:bg-[var(--bg-main)] transition-all group border-l-4 border-transparent hover:border-emerald-500">
                         <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-3 mb-1.5">
+                            <div className="flex items-center gap-3 mb-1.5 flex-wrap">
                                 <p className="font-black text-[var(--text-main)] text-sm uppercase tracking-tight truncate">{inmate?.name || 'Sem nome'}</p>
                                 <span className="text-[9px] bg-slate-200 text-slate-800 px-2 py-0.5 rounded font-black tracking-widest shrink-0">{inmate?.cpf || '—'}</span>
+                                {inmate?.unit && <span className="text-[9px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-black tracking-widest flex items-center gap-1 shrink-0"><MapPin size={9}/>{inmate.unit}</span>}
                             </div>
                             <div className="flex items-center gap-4 mt-2">
                                 <div className="flex -space-x-2">
@@ -315,12 +376,21 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
                                     R$ {formatarMoeda(inmate.totalBalance)}
                                 </p>
                             </div>
-                            <button
-                                onClick={() => handleDeleteInmate(inmate)}
-                                className="p-3 bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-red-500 hover:border-red-500/20 hover:bg-red-500/5 rounded-xl transition-all shadow-sm active:scale-95"
-                            >
-                                <Trash2 size={18}/>
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => iniciarEdicao(inmate)}
+                                    title="Editar cadastro"
+                                    className="p-3 bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-emerald-500 hover:border-emerald-500/20 hover:bg-emerald-500/5 rounded-xl transition-all shadow-sm active:scale-95"
+                                >
+                                    <Pencil size={18}/>
+                                </button>
+                                <button
+                                    onClick={() => handleDeleteInmate(inmate)}
+                                    className="p-3 bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-red-500 hover:border-red-500/20 hover:bg-red-500/5 rounded-xl transition-all shadow-sm active:scale-95"
+                                >
+                                    <Trash2 size={18}/>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 ))}
