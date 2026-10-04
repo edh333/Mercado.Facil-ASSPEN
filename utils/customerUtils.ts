@@ -86,35 +86,32 @@ export async function addCustomerAccount(data: Omit<CustomerAccount, "id" | "cre
   }
 }
 
-export async function updateCustomerAccount(id: string, data: Partial<CustomerAccount>): Promise<void> {
+export async function updateCustomerAccount(id: string, data: Partial<CustomerAccount>, senhaMestra?: string): Promise<void> {
   try {
     const ref = doc(db, COLLECTION, id);
     const payload: any = {};
     if (data.nome !== undefined) payload.name = String(data.nome || "").toUpperCase();
     if (data.cpf !== undefined) payload.cpf = data.cpf || "";
     if (data.telefone !== undefined) payload.phone = data.telefone || "";
-    if (data.creditLimit !== undefined) payload.creditLimit = Number(data.creditLimit || 0);
-// currentDebt NAO e editavel por aqui de proposito. Este e um writer GENERICO:
-// enquanto ele aceitasse o campo, qualquer chamada futura com
-// {currentDebt: 999999} inflaria a divida de um cliente pelo cliente -- e as
-// regras do Firestore so permitem que o valor BAIXE (ver firestore.rules, regra
-// de update de /users/{userId}). O unico escritor legitimo de divida no cliente
-// e abateDivida() logo abaixo, que valida o valor, so_diminui e usa updateDoc
-// direto. A tela AdminCustomersTab tambem nunca envia currentDebt em update
-// (so em create, que passa pela Function).
-if (data.currentDebt !== undefined) {
-    throw new Error(
-        'currentDebt nao pode ser editado por updateCustomerAccount. Use abateDivida().',
-    );
-}
-if (data.status !== undefined) {
+    if (data.status !== undefined) {
       payload.status = String(data.status || "active").toLowerCase() === "blocked" ? "blocked" : "active";
       payload.allowCredit = payload.status !== "blocked";
     }
-    if (Object.keys(payload).length) await updateDoc(ref, payload);
+
+    // creditLimit AGORA passa pela Function (finance + senha mestra) — rules bloqueiam no cliente.
+    if (data.creditLimit !== undefined) {
+      const fn = httpsCallable(getFunctions(), 'atualizarLimiteCredito');
+      await fn({ userId: id, creditLimit: Number(data.creditLimit || 0), senhaMestra });
+    } else if (Object.keys(payload).length) {
+      await updateDoc(ref, payload);
+    } else if (Object.keys(payload).length === 0 && data.creditLimit === undefined) {
+      // nada a fazer
+    } else {
+      await updateDoc(ref, payload);
+    }
   } catch (e: any) {
     console.error("[updateCustomerAccount]", e.message);
-    throw new Error("Erro ao atualizar usuário de fiado.");
+    throw new Error(e?.message || "Erro ao atualizar usuário de fiado.");
   }
 }
 

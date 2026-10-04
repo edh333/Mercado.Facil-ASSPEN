@@ -28,6 +28,7 @@ export function AdminCustomersTab() {
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editData, setEditData] = useState<Partial<CustomerAccount> | null>(null);
+  const [senhaMestra, setSenhaMestra] = useState('');
   const [saving, setSaving] = useState(false);
   const [contaParaExcluir, setContaParaExcluir] = useState<CustomerAccount | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -86,6 +87,12 @@ export function AdminCustomersTab() {
 
   const handleSave = async () => {
     if (!editData?.nome?.trim()) return;
+    // Se está editando creditLimit de um usuário existente, exige senha mestra
+    const editandoLimite = editData.id && (editData.creditLimit !== undefined);
+    if (editandoLimite && !senhaMestra) {
+      showNotification('Informe a senha mestra para alterar o limite de crédito.', 'error');
+      return;
+    }
     setSaving(true);
     try {
       if (editData.id) {
@@ -95,7 +102,7 @@ export function AdminCustomersTab() {
           telefone: editData.telefone || '',
           creditLimit: Number(editData.creditLimit) || 0,
           status: editData.status || 'active'
-        });
+        }, editandoLimite ? senhaMestra : undefined);
       } else {
         await addCustomerAccount({
           nome: editData.nome?.toUpperCase().trim() || '',
@@ -109,6 +116,7 @@ export function AdminCustomersTab() {
       }
       setShowModal(false);
       setEditData(null);
+      setSenhaMestra('');
       await loadAccounts();
     } catch (e) {
       console.error('Erro ao salvar:', e);
@@ -413,6 +421,21 @@ export function AdminCustomersTab() {
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-900 font-black outline-none focus:border-emerald-500 transition-all"
               />
             </div>
+            {editData.id && (
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">
+                  Senha Mestra (obrigatória p/ alterar limite)
+                </label>
+                <input
+                  type="password"
+                  value={senhaMestra}
+                  onChange={e => setSenhaMestra(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-900 font-semibold outline-none focus:border-emerald-500 transition-all"
+                  placeholder="••••••••"
+                  autoComplete="off"
+                />
+              </div>
+            )}
             {editData.id && (
               <div className="flex items-center gap-3">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Status</label>

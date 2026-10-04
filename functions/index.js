@@ -5185,6 +5185,22 @@ exports.auditoriaDiaria = onSchedule({
   }
 });
 
+/** Admin (finance) — atualiza creditLimit de um usuário via servidor. */
+exports.atualizarLimiteCredito = onCall(async (request) => {
+  const caller = await exigirAdminPermissao(request, "finance");
+  await verificarSenhaMestra(request.data?.senhaMestra);
+  const userId = String(request.data?.userId || "").trim();
+  const creditLimit = arredondar(Number(request.data?.creditLimit) || 0);
+  if (!userId) throw new HttpsError("invalid-argument", "Informe o usuário.");
+  if (creditLimit > 1000000) throw new HttpsError("invalid-argument", "Limite excede R$ 1.000.000,00.");
+  const ref = db.collection("users").doc(userId);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Usuário não encontrado.");
+  await ref.update({ creditLimit });
+  await registrarAudit(caller.id, "ATUALIZAR_LIMITE_CREDITO", null, { userId, creditLimit });
+  return { ok: true, creditLimit };
+});
+
 /** Admin — histórico de auditorias diárias (últimos N dias). */
 exports.listarAuditorias = onCall(async (request) => {
   await exigirAdminPermissao(request, "finance");

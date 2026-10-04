@@ -9,6 +9,7 @@ import {
   getFirestore,
 } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
+import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -98,3 +99,18 @@ setPersistence(auth, browserSessionPersistence).catch((e) =>
 );
 export const storage = getStorage(app);
 export const FIREBASE_API_KEY = firebaseConfig.apiKey;
+
+// App Check (opt-in). Requer VITE_APP_CHECK_SITE_KEY no .env e provedor
+// reCAPTCHA v3/Enterprise registrado no Console Firebase.
+// Ativar "Enforce" só após confirmar que o cliente envia o header X-Firebase-AppCheck.
+if (import.meta.env.VITE_APP_CHECK_SITE_KEY && typeof window !== 'undefined') {
+  try {
+    initializeAppCheck(app, {
+      provider: new ReCaptchaV3Provider(import.meta.env.VITE_APP_CHECK_SITE_KEY),
+      isTokenAutoRefreshEnabled: true,
+    });
+    console.info("[FIREBASE] App Check inicializado (reCAPTCHA v3).");
+  } catch (e) {
+    console.warn("[FIREBASE] App Check falhou:", e);
+  }
+}

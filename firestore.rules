@@ -96,7 +96,7 @@ service cloud.firestore {
         // mesma transação do débito.
         !request.resource.data.diff(resource.data).affectedKeys().hasAny([
           'role', 'walletBalance', 'weeklySpent', 'authUid', 'mainAdmin',
-          'isMainAdmin', 'permissions', 'saqueDia'
+          'isMainAdmin', 'permissions', 'saqueDia', 'creditLimit'
           // 'currentDebt' NÃO está na lista acima porque o fallback offline de
           // recebimento de fiado (utils/customerUtils.ts -> abateDivida) precisa
           // abater a dívida quando o backend está inacessível. Em vez de liberar
@@ -117,18 +117,9 @@ service cloud.firestore {
         //    autoridade real (valida currentDebt + creditLimit atomicamente).
         //  - weeklySpent segue bloqueado (consumo semanal e' do servidor).
         //
-        // PENDENCIA CONHECIDA (creditLimit): o campo continua livre para escrita
-        // do cliente porque a UI de Cadastro de Clientes (AdminCustomersTab)
-        // edita limite de credito na propria tela e nao passa por Function.
-        // Efeito: um admin SEM a permissao 'finance' consegue subir o limite de
-        // um cliente pelo cliente, enquanto a Function exigiria 'finance'. O
-        // servidor ainda valida currentDebt + creditLimit atomicamente na venda,
-        // entao isso NAO permite vendas indevidas -- apenas uma politica de
-        // credito divergente. Correcao definitiva: mover a edicao de
-        // creditLimit para uma Function com exigirAdminPermissao("finance"),
-        // como ja foi feito com currentDebt/saldo. Nao foi feita aqui porque
-        // exigiria migrar o formulario admin e nao ha como valida-la sem
-        // emulator nesta maquina (sem Java).
+        // creditLimit: AGORA BLOQUEADO no cliente (linha 98 acima). Edicao de limite
+        // de credito deve passar pela Callable `atualizarLimiteCredito` (finance +
+        // senha mestra). A UI (AdminCustomersTab) foi migrada para chamar a Function.
         (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['currentDebt'])
           || (request.resource.data.currentDebt is number
               && request.resource.data.currentDebt >= 0
