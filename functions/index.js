@@ -106,6 +106,22 @@ async function urlDownloadComToken(file) {
   }
 }
 
+// URL de download ASSINADA (Signed URL v4) — expira em 15 min.
+// Não usa token bearer; a assinatura está na URL. Seguro para backup/LGPD.
+async function urlDownloadAssinado(file, expiracaoMinutos = 15) {
+  try {
+    const [url] = await file.getSignedUrl({
+      action: "read",
+      expires: Date.now() + expiracaoMinutos * 60 * 1000,
+      version: "v4",
+    });
+    return url;
+  } catch (e) {
+    logger.warn("[Storage] Falha ao gerar URL assinada:", e.message);
+    return "";
+  }
+}
+
 // ──────────────────────────────────────────────
 // Helpers
 // ──────────────────────────────────────────────
@@ -4160,7 +4176,7 @@ exports.limparDadosAntigos = onCall({
       contentType: "application/json",
       resumable: false,
     });
-    backupUrl = await urlDownloadComToken(bucket.file(nomeArquivo));
+    backupUrl = await urlDownloadAssinado(bucket.file(nomeArquivo), 15);
   } catch (e) {
     logger.warn("[LimpezaCota] Falha ao salvar backup no Storage (o histórico no Firestore já preserva tudo):", e.message);
   }
@@ -4768,6 +4784,23 @@ exports.baixarBackup = onCall(async (request) => {
   const [existe] = await file.exists();
   if (!existe) throw new HttpsError("not-found", "Backup não encontrado.");
   return { ok: true, url: await urlDownloadComToken(file) };
+});
+
+/** Admin PRINCIPAL — gera link de download ASSINADO (Signed URL v4, 15 min) de um backup específico.
+ *  Não usa token bearer; a assinatura está na URL. Seguro para LGPD / auditoria. */
+exports.gerarBackupAssinado = onCall(async (request) => {
+  await exigirAdminPrincipal(request);
+  const nome = String(request.data?.nome || "");
+  const expiracaoMin = Math.min(Math.max(Number(request.data?.expiracaoMin) || 15, 5), 60);
+  if (!/^backups\/[\w.-]+\.json$/.test(nome)) {
+    throw new HttpsError("invalid-argument", "Nome de backup inválido.");
+  }
+  const file = admin.storage().bucket(FUNC_BUCKET).file(nome);
+  const [existe] = await file.exists();
+  if (!existe) throw new HttpsError("not-found", "Backup não encontrado.");
+  const url = await urlDownloadAssinado(file, expiracaoMin);
+  if (!url) throw new HttpsError("internal", "Falha ao gerar URL assinada.");
+  return { ok: true, url, expiracaoMin };
 });
 
 /**
