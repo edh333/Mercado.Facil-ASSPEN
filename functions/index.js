@@ -989,7 +989,12 @@ exports.redefinirSenhaAdmin = onCall(async (request) => {
  * contadas ANTES da validação dos fatores — qualquer tentativa desgasta a janela)
  * e por limite por IP em memória (complementar).
  */
-exports.redefinirSenhaPublica = onCall(OPCOES_APP_CHECK, async (request) => {
+exports.redefinirSenhaPublica = onCall({
+  ...OPCOES_APP_CHECK,
+  minInstances: 1,
+  memory: "512MiB",
+  timeoutSeconds: 60,
+}, async (request) => {
   const cpf = cleanCpf(request.data?.cpf);
   const cpfInterno = cleanCpf(request.data?.cpfInterno);
   const nomeCompleto = String(request.data?.nomeCompleto || "").trim().toLowerCase().replace(/\s+/g, " ");
@@ -1275,7 +1280,11 @@ exports.rejeitarDeposito = onCall(async (request) => {
 });
 
 /** Admin principal — crédito direto de saldo (aporte manual). */
-exports.creditarSaldo = onCall(async (request) => {
+exports.creditarSaldo = onCall({
+  minInstances: 1,
+  memory: "512MiB",
+  timeoutSeconds: 60,
+}, async (request) => {
   const caller = await exigirAdminPrincipal(request);
   const userId = String(request.data?.userId || "");
   const valor = validarValor(request.data?.valor);
@@ -1402,7 +1411,11 @@ exports.zerarCarteiras = onCall(async (request) => {
 /** Admin PRINCIPAL — retirada de saldo (débito) de qualquer usuário.
  *  O dinheiro SAI da gaveta: exige senha mestra (bcrypt + rate limit),
  *  mesmo nível de segurança do aporte de crédito (creditarSaldo). */
-exports.sacarSaldoAdmin = onCall(async (request) => {
+exports.sacarSaldoAdmin = onCall({
+  minInstances: 1,
+  memory: "512MiB",
+  timeoutSeconds: 60,
+}, async (request) => {
   const caller = await exigirAdminPrincipal(request);
   const userId = String(request.data?.userId || "");
   const valor = validarValor(request.data?.valor);
@@ -1522,7 +1535,11 @@ function dataParaMs(v) {
  *  sacarSaldoAdmin). A distingção de confiança fica no campo precisaRevisao +
  *  audit_logs, não num "pending" sem tela para aprovar.
  */
-exports.sacarSaldoProprio = onCall(async (request) => {
+exports.sacarSaldoProprio = onCall({
+  minInstances: 1,
+  memory: "512MiB",
+  timeoutSeconds: 60,
+}, async (request) => {
   const user = await exigirAutenticado(request);
   const valor = validarValor(request.data?.valor);
 
@@ -1983,7 +2000,11 @@ function lerClientToken(data) {
  * Admin — venda no PDV. Calcula TUDO no servidor (preços, saldo, estoque),
  * debita carteira quando houver, registra caixa físico e cria o pedido.
  */
-exports.processarVendaAdmin = onCall(async (request) => {
+exports.processarVendaAdmin = onCall({
+  minInstances: 1,
+  memory: "512MiB",
+  timeoutSeconds: 120,
+}, async (request) => {
   const caller = await exigirOperadorPdv(request, "sales");
   const targetUserId = String(request.data?.targetUserId || "balcao_anonimo");
   const paymentMethod = String(request.data?.paymentMethod || "CASH");
@@ -2511,7 +2532,11 @@ exports.processarVendaAdmin = onCall(async (request) => {
  * Autenticado (usuário) — compra com a carteira no app do usuário.
  * Preços e saldo calculados no servidor.
  */
-exports.comprarComCarteira = onCall(async (request) => {
+exports.comprarComCarteira = onCall({
+  minInstances: 1,
+  memory: "512MiB",
+  timeoutSeconds: 90,
+}, async (request) => {
   const user = await exigirAutenticado(request);
   const itens = validarItens(request.data?.items);
   const inmateLocation = request.data?.inmateLocation || null;
@@ -2624,7 +2649,11 @@ inmateName: ud.inmateName || ud.prisonerName || "",
  * Preços calculados no servidor e estoque debitado atomicamente;
  * o pedido nasce como PENDENTE até o admin confirmar o comprovante.
  */
-exports.registrarPedidoPix = onCall(async (request) => {
+exports.registrarPedidoPix = onCall({
+  minInstances: 1,
+  memory: "512MiB",
+  timeoutSeconds: 90,
+}, async (request) => {
   const user = await exigirAutenticado(request);
   // Rate limit: máx 5 pedidos PIX por minuto por usuário (evita spam de pedidos pendentes que travam estoque)
   verificarRateLimit("registrarPedidoPix:" + user.id, 5, 60 * 1000);
@@ -2794,7 +2823,11 @@ paymentMethod: "PIX",
  *  - Com finalizar=true, aprova E finaliza a compra em um único passo.
  *  - Registra auditoria e notifica o usuário que fez o pedido.
  */
-exports.aprovarPedidoPix = onCall(async (request) => {
+exports.aprovarPedidoPix = onCall({
+  minInstances: 1,
+  memory: "512MiB",
+  timeoutSeconds: 90,
+}, async (request) => {
   const caller = await exigirAdminPermissao(request, "orders");
   const orderId = String(request.data?.orderId || "").trim();
   const finalizar = request.data?.finalizar === true;
@@ -2984,7 +3017,11 @@ exports.buscarPedidosParaEstorno = onCall(async (request) => {
 });
 
 /** Admin — estorno/devolução de pedido com carteira. */
-exports.estornarVenda = onCall(async (request) => {
+exports.estornarVenda = onCall({
+  minInstances: 1,
+  memory: "512MiB",
+  timeoutSeconds: 120,
+}, async (request) => {
   const caller = await exigirAdminPermissao(request, "sales");
   verificarRateLimit("estornarVenda:" + caller.id, 10);
   const orderId = String(request.data?.orderId || "");
@@ -3223,6 +3260,8 @@ return { ok: true };
 //  - credita o valor na sessão de caixa do operador (quando aberta);
 //  - autorização: qualquer operador admin (como antes, direto do cliente).
 exports.registrarPagamentoConta = onCall({
+  minInstances: 1,
+  memory: "512MiB",
   timeoutSeconds: 60,
 }, async (request) => {
   const caller = await exigirAdminPermissao(request, "finance");
@@ -3442,7 +3481,11 @@ exports.registrarDespesa = onCall({ timeoutSeconds: 60 }, async (request) => {
  * reduz o débito (ajuste/abono/conciliação). Atômico, clamp ≥ 0 e limpa os
  * marcos de vencimento quando a dívida zera.
  */
-exports.abaterDividaFiado = onCall(async (request) => {
+exports.abaterDividaFiado = onCall({
+  minInstances: 1,
+  memory: "512MiB",
+  timeoutSeconds: 60,
+}, async (request) => {
   const caller = await exigirAdminPermissao(request, "finance");
   const userId = String(request.data?.userId || "").trim();
   const amount = arredondar(Number(request.data?.amount) || 0);
@@ -3502,7 +3545,11 @@ exports.abaterDividaFiado = onCall(async (request) => {
  * Criação 100% SERVER-SIDE (admin SDK ignora as rules — o allow create: if
  * false permanece nas rules como proteção contra criação arbitrária do cliente).
  */
-exports.criarClienteFiado = onCall(async (request) => {
+exports.criarClienteFiado = onCall({
+  minInstances: 1,
+  memory: "512MiB",
+  timeoutSeconds: 60,
+}, async (request) => {
   // Exige permissão 'finance' (não 'users') e 2º fator — cria crédito ilimitado.
   const caller = await exigirAdminPermissao(request, "finance");
   // Segundo fator OBRIGATÓRIO — igual a creditarSaldo, zerarCarteiras.
@@ -4220,6 +4267,8 @@ async function urlPreferencialDownload(chave) {
 
 /** Autenticado ─ gera links de download do app conforme o papel do chamador. */
 exports.obterLinkDownloadApp = onCall({
+  minInstances: 1,
+  memory: "256MiB",
   timeoutSeconds: 60,
 }, async (request) => {
   const user = await exigirAutenticado(request);
@@ -4285,6 +4334,8 @@ const BASE_URL_FUNCOES = () =>
  * o instalador ADMIN. Um token novo a cada clique do cliente; TTL de 15 min.
  */
 exports.gerarLinkDownloadAdmin = onCall({
+  minInstances: 1,
+  memory: "256MiB",
   timeoutSeconds: 30,
 }, async (request) => {
   const user = await exigirAutenticado(request);
@@ -4326,7 +4377,11 @@ exports.gerarLinkDownloadAdmin = onCall({
  * leva o navegador DIRETO ao Storage (sem stream pela função: ~101 MiB excede
  * o limite de resposta da plataforma).
  */
-exports.baixarAppAdmin = onRequest({ timeoutSeconds: 60, memory: "256MiB" }, async (req, res) => {
+exports.baixarAppAdmin = onRequest({
+  minInstances: 1,
+  memory: "256MiB",
+  timeoutSeconds: 60,
+}, async (req, res) => {
   const token = String((req.query && req.query.token) || "");
   const rejeitar = (status, msg) => res.status(status).type("text/plain; charset=utf-8").send(msg);
   if (!formatoTokenDownloadValido(token)) return rejeitar(404, "Link inválido.");
@@ -4382,7 +4437,12 @@ exports.baixarAppAdmin = onRequest({ timeoutSeconds: 60, memory: "256MiB" }, asy
  * metadado do instalador — o arquivo em si é público no Storage de qualquer
  * forma. Ativar quando o cliente enviar token (ver OPCOES_APP_CHECK).
  */
-exports.obterDownloadAppUsuario = onRequest({ timeoutSeconds: 30, ...OPCOES_APP_CHECK }, async (_req, res) => {
+exports.obterDownloadAppUsuario = onRequest({
+  minInstances: 1,
+  memory: "256MiB",
+  timeoutSeconds: 30,
+  ...OPCOES_APP_CHECK,
+}, async (_req, res) => {
   res.set("Access-Control-Allow-Origin", "*");
   try {
     const entrada = APPS_DISPONIVEIS.find((a) => a.chave === "usuario");
@@ -4860,7 +4920,11 @@ async function carregarSessaoCaixa(sessaoId) {
   return { ref, data: snap.data() };
 }
 
-exports.gerenciarSessaoCaixa = onCall(async (request) => {
+exports.gerenciarSessaoCaixa = onCall({
+  minInstances: 1,
+  memory: "512MiB",
+  timeoutSeconds: 60,
+}, async (request) => {
   const caller = await exigirOperadorPdv(request, "cash");
   const acao = String(request.data?.acao || "").trim().toLowerCase();
   const sessaoId = String(request.data?.sessaoId || "").trim();
@@ -5186,7 +5250,11 @@ exports.auditoriaDiaria = onSchedule({
 });
 
 /** Admin (finance) — atualiza creditLimit de um usuário via servidor. */
-exports.atualizarLimiteCredito = onCall(async (request) => {
+exports.atualizarLimiteCredito = onCall({
+  minInstances: 1,
+  memory: "512MiB",
+  timeoutSeconds: 60,
+}, async (request) => {
   const caller = await exigirAdminPermissao(request, "finance");
   await verificarSenhaMestra(request.data?.senhaMestra);
   const userId = String(request.data?.userId || "").trim();
