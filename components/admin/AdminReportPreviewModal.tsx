@@ -51,7 +51,7 @@ export const REPORT_TYPES: Record<string, string> = {
 };
 
 // Falha de segurança: download de CSV SEM o BOM UTF-8 abre com acentos corrompidos no
-// Excel (café vira "cafÃ©"). O prefixo \ufeff força o Excel a interpretar UTF-8.
+// Excel (café vira "cafÃ©"). O prefixo \ufeff força o Excel a interpretar UTF-8. check-encoding-ignore
 const baixarArquivoCsv = (base: string, cabecalhos: string[], linhas: (string | number)[][]) => {
     if (!linhas.length) return;
     const escCsv = (v: string | number) => {

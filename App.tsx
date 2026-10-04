@@ -188,7 +188,13 @@ export default function App() {
           html { font-size: 100%; scroll-behavior: smooth; }
           body { font-family: 'Inter', 'Plus Jakarta Sans', sans-serif; -webkit-font-smoothing: antialiased; background-color: var(--bg-main, #f8fafc); color: var(--text-main, #1e293b); margin: 0; padding: 0; overflow-x: hidden; }
           input, select, textarea { font-family: inherit; }
-          button { font-family: inherit; cursor: pointer; min-height: 44px; min-width: 44px; }
+          button { font-family: inherit; cursor: pointer; }
+          /* Alvo de toque mínimo só em telas de toque. Sem este escopo, botões
+             compactos de ícone (w-9 h-9 no PDV, carrinho) ganhavam 44px de
+             altura/largura no DESKTOP e ficavam achatados dentro de headers de
+             36px. O piso de 44px no celular fica em index.css (max-width:640px)
+             e em (pointer: coarse) aqui. */
+          @media (pointer: coarse) { button { min-height: 44px; min-width: 44px; } }
           @media (max-width: 768px) { html { font-size: 95%; } }
         `}</style>
       </ThemeProvider>

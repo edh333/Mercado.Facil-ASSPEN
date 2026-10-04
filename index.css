@@ -786,7 +786,11 @@ button {
   position: fixed !important;
   top: 0 !important;
   left: 0 !important;
-  width: 100vw !important;
+  right: 0 !important;
+  /* Sem `width`: 100vw inclui a calha da barra de rolagem, o overlay ficava
+     mais largo que a viewport e o `overflow-y: auto` de baixo gerava barra
+     horizontal, deslocando o conteúdo do modal. left/right resolvem. */
+  width: auto !important;
   /* Ordem importa: 100vh primeiro (fallback), 100dvh DEPOIS vence onde há
      suporte. Antes estava invertido e 100vh ganhava — no celular o rodapé
      do modal ficava escondido sob a barra do navegador. */
@@ -811,6 +815,18 @@ button {
   max-height: 85dvh !important;
   max-width: 95vw !important;
   z-index: 10000 !important;
+}
+
+/* Alvo do clique "fechar ao tocar fora" (ModalShell). Sem esta regra o div
+   ficava com altura 0 e o onClick NUNCA disparava — no celular (sem tecla ESC)
+   o modal só fechava pelo X ou por algum botão explícito. */
+.modal-overlay {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
 }
 
 /* ModalShell: header/rodapé fixos e corpo rolável (sobrescreve o auto
@@ -1446,7 +1462,9 @@ body {
       min-height: 0;
     }
     /* Botões compactos (ícones/steppers) NÃO devem ser esticados para 44px,
-       para não distorcer linhas compactas no celular. */
+       para não distorcer linhas compactas no celular. O reset precisa
+      ABLAR min-WIDTH também: sem isso o botão continuava com 44px de largura
+       e 24–36px de altura (oval achatado) — ex.: +/− do carrinho (w-6 h-6). */
     button:not(.no-min-height)[class*="w-6 h-6"],
     button:not(.no-min-height)[class*="w-7 h-7"],
     button:not(.no-min-height)[class*="w-8 h-8"],
@@ -1458,6 +1476,7 @@ body {
     button:not(.no-min-height)[class*="size-9 "],
     button:not(.no-min-height)[class*="size-10 "] {
       min-height: 0;
+      min-width: 0;
     }
   }
 

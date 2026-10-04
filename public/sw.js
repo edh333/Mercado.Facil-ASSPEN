@@ -1,9 +1,9 @@
-// V22 — para forçar a troca do Service Worker dos aparelhos que ficaram
-// "presos" na v21 com o app antigo: ao ativar, apaga todos os caches antigos.
-// (A v21 bloquiava a atualização: alguns clientes nunca baixaram o código novo
-// e continuavam com os erros de conexão corrigidos. O cache_name NOVO é o que
-// dispara a limpeza no 'activate'.)
-const CACHE_NAME = 'mercado-facil-v22';
+// V24 — o build que corrige o "Minified React error #321" (useRef declarado
+// dentro do useEffect em OnlineStatusIndicator) mudou o grafo de chunks de novo.
+// O nome do cache é o mecanismo de limpeza: um cache NOVO dispara o 'activate',
+// apaga o cache anterior e joga fora os chunks com o bug — inclusive dos
+// aparelhos que já tinham o build quebrado em cache.
+const CACHE_NAME = 'mercado-facil-v24';
 const CORE_ASSETS = [
   '/',
   '/index.html',

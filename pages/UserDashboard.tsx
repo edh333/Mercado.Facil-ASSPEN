@@ -13,6 +13,7 @@ import { NotificationSystem } from '../components/NotificationSystem';
 
 import { generatePixPayload, formatarMoeda, compressImageFile, copiarTextoComFallback } from '../utils';
 import { MIN_PROOF_BYTES } from '../utils/fileHash';
+import { parseMoeda, roundCents, sanitizeMoedaInput } from '../utils/money';
 import { imprimirComPrioridadeFiscal } from '../utils/printUtils';
 import { toDate } from '../utils/dateUtils';
 import { collection, query, where, onSnapshot, orderBy, limit, getDocsFromServer, getDocsFromCache } from 'firebase/firestore';
@@ -29,7 +30,7 @@ export const UserDashboard: React.FC = () => {
     const { 
         currentUser, products, createOrder, showNotification, 
         logout, messages, markMessageRead, settings, getWalletTransactions, depositToWallet,
-        serverTime, reenviarComprovante
+        reenviarComprovante
     } = useApp();
     const { isDark, primaryColor } = useTheme();
 
@@ -76,7 +77,11 @@ export const UserDashboard: React.FC = () => {
         checkoutTokenRef.current = crypto.randomUUID();
     }, [cart]);
     const [proofFile, setProofFile] = useState<File | null>(null);
-    const [depositAmount, setDepositAmount] = useState<number>(0);
+    // O campo de valor do depósito guarda TEXTO, não number: com number o React
+    // realimenta o input e apaga o separador enquanto o familiar digita
+    // ("10,50" virava 105) — e esse valor vai direto para o QR do PIX.
+    const [depositAmountText, setDepositAmountText] = useState<string>('');
+    const depositAmount = useMemo(() => roundCents(parseMoeda(depositAmountText)), [depositAmountText]);
     const [isDepositOpen, setIsDepositOpen] = useState(false);
     const [depositStage, setDepositStage] = useState<'amount' | 'proof'>('amount');
     const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
@@ -100,6 +105,9 @@ export const UserDashboard: React.FC = () => {
     // SEM aviso e o pedido 21+ simplesmente desaparecia para o familiar.
     const [pedidosVisiveis, setPedidosVisiveis] = useState(20);
     const [loadingOrders, setLoadingOrders] = useState(false);
+// Falha de leitura do histórico (permissão/índice/Firestore fora do ar) é
+    // distinta de "não tenho pedidos" — antes as duas viravam lista vazia.
+const [ordersError, setOrdersError] = useState(false);
     const [walletTxs, setWalletTxs] = useState<WalletTransaction[]>([]);
     const [viewingWalletHistory, setViewingWalletHistory] = useState(false);
 
@@ -114,7 +122,8 @@ export const UserDashboard: React.FC = () => {
         setViewingOrderCupom(null);
     }, [soCredito]);
 
-    const isMobile = useMemo(() => typeof navigator !== 'undefined' && /android|iphone|ipad|ipod/i.test(navigator.userAgent), []);
+    // (a detecção por user-agent foi removida: o histórico agora usa
+    // onSnapshot em TODOS os dispositivos — ver o efeito de carga acima)
 
     const resendInputRef = useRef<HTMLInputElement>(null);
     const [resendTarget, setResendTarget] = useState<{ kind: 'orders' | 'wallet_transactions'; docId: string } | null>(null);
@@ -183,40 +192,52 @@ export const UserDashboard: React.FC = () => {
             limit(100)
         );
 
-        const loadOrders = async () => {
-            // 1. Servidor primeiro (dados frescos) — UMA leitura por abertura.
-            // Antes era getDocs + getDocsFromServer (2 leituras) e o refresh
-            // duplicava o render quando os dados não mudavam.
-            try {
-                const snapshot = await getDocsFromServer(q);
-                const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Order)).filter(o => (o as any).deleted !== true);
-                items.sort((a, b) => (toDate(b.createdAt || b.date)?.getTime() || 0) - (toDate(a.createdAt || a.date)?.getTime() || 0));
-                setMyOrders(items);
-            } catch {
-                // 2. Offline: cai para o cache local (0 rede).
-                try {
-                    const snapshot = await getDocsFromCache(q);
-                    const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Order)).filter(o => (o as any).deleted !== true);
-                    items.sort((a, b) => (toDate(b.createdAt || b.date)?.getTime() || 0) - (toDate(a.createdAt || a.date)?.getTime() || 0));
-                    setMyOrders(items);
-                } catch { console.warn("orders fetch fallback"); /* offline sem cache — lista vazia */ }
-            }
-            setLoadingOrders(false);
+const loadOrders = async () => {
+        // 1. Servidor primeiro (dados frescos) — UMA leitura por abertura.
+     // Antes era getDocs + getDocsFromServer (2 leituras) e o refresh
+        // duplicava o render quando os dados não mudavam.
+        try {
+       const snapshot = await getDocsFromServer(q);
+            const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Order)).filter(o => (o as any).deleted !== true);
+     items.sort((a, b) => (toDate(b.createdAt || b.date)?.getTime() || 0) - (toDate(a.createdAt || a.date)?.getTime() || 0));
+            setMyOrders(items);
+            setOrdersError(false);
+        } catch {
+            // 2. Offline: cai para o cache local (0 rede).
+  try {
+       const snapshot = await getDocsFromCache(q);
+const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Order)).filter(o => (o as any).deleted !== true);
+          items.sort((a, b) => (toDate(b.createdAt || b.date)?.getTime() || 0) - (toDate(a.createdAt || a.date)?.getTime() || 0));
+    setMyOrders(items);
+       setOrdersError(false);
+      } catch {
+         // Sem rede E sem cache: NÃO é "você não tem pedidos" — é falha de
+          // leitura. Antes mostrava lista vazia sem aviso e o familiar achava
+            // que o histórico tinha sumido.
+                console.warn("orders fetch fallback");
+       setOrdersError(true);
+   }
+         }
+      setLoadingOrders(false);
         };
         loadOrders();
 
-        // Real-time subscription com sincronização multi-aba (desktop only).
+// Real-time subscription com sincronização multi-aba.
         // Sem includeMetadataChanges: antes, cada mudança só-de-cache (ex.:
-        // servidor puxou os mesmos docs) re disparava o listener à toa.
-        if (!isMobile) {
-            try {
-                unsubOrders = onSnapshot(q, (snapshot) => {
-                    const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Order)).filter(o => (o as any).deleted !== true);
-                    items.sort((a, b) => (toDate(b.createdAt || b.date)?.getTime() || 0) - (toDate(a.createdAt || a.date)?.getTime() || 0));
-                    setMyOrders(items);
-                }, () => {});
-            } catch { console.warn("orders snapshot error"); }
-        }
+     // servidor puxou os mesmos docs) re disparava o listener à toa.
+        //
+        // O gate `!isMobile` foi REMOVIDO: no celular o listener era desligado e
+        // o histórico só carregava uma vez no mount — depois de confirmar o
+    // pedido, o familiar abria "Histórico" e não via a compra até recarregar
+        // o app (e o PWA instalado é justamente portrait-primary).
+        try {
+unsubOrders = onSnapshot(q, (snapshot) => {
+      const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Order)).filter(o => (o as any).deleted !== true);
+            items.sort((a, b) => (toDate(b.createdAt || b.date)?.getTime() || 0) - (toDate(a.createdAt || a.date)?.getTime() || 0));
+       setMyOrders(items);
+            setOrdersError(false);
+   }, () => setOrdersError(true));
+        } catch { console.warn("orders snapshot error"); }
 
         // === WALLET: extrato em TEMPO REAL (crédito entra sem recarregar) ===
         let unsubWallet: (() => void) | undefined;
@@ -496,27 +517,35 @@ export const UserDashboard: React.FC = () => {
         try { localStorage.setItem(`mf_cart_${currentUser?.id || 'anon'}`, JSON.stringify(cart)); } catch { /* quota */ }
     }, [cart, currentUser?.id]);
 
-    // Saneamento do carrinho persistido: remove itens de produtos APAGADOS do catálogo
+// Saneamento do carrinho persistido: remove itens de produtos APAGADOS do catálogo
     // (o checkout travava com erro "Produto não encontrado: <uuid>") e RE-PREÇA os demais
     // com o valor praticado atual — promoção entrou ou saiu, o total exibido acompanha.
     useEffect(() => {
         if (!safeProducts.length) return;
-        const ids = new Set(safeProducts.map(p => String(p.id)));
-        let removidos: string[] = [];
-        setCart(prev => {
-            const proximo: CartItem[] = [];
-            for (const item of prev) {
-                if (String(item.productId).startsWith('SERVICE-')) { proximo.push(item); continue; }
-                const prod = safeProducts.find(p => String(p.id) === String(item.productId));
-                if (!prod) { removidos.push(item.name || 'Item'); continue; }
-                const novoPreco = precoEfetivo(prod);
-                const inalterado = Math.round(novoPreco * 100) === Math.round(Number(item.priceAtPurchase ?? novoPreco) * 100);
-                proximo.push(inalterado ? item : { ...item, priceAtPurchase: novoPreco });
+        const ids = new Set(safeProducts.map((p, idx) => String(p.id)));
+        // Calcula FORA do updater: o setCart é lazy e o `removidos` lido logo
+        // depois vinha vazio quando havia render pendente — o item saía do
+        // carrinho sem o familiar ser avisado de que o total mudou.
+        const removidos: string[] = [];
+        const proximo: CartItem[] = [];
+        let reprecado = false;
+        for (const item of cartRef.current) {
+            if (String(item.productId).startsWith('SERVICE-')) { proximo.push(item); continue; }
+            const prod = safeProducts.find(p => String(p.id) === String(item.productId));
+            if (!prod || !ids.has(String(prod.id))) { removidos.push(item.name || 'Item'); continue; }
+            const novoPreco = precoEfetivo(prod);
+            const inalterado = Math.round(novoPreco * 100) === Math.round(Number(item.priceAtPurchase ?? novoPreco) * 100);
+            if (inalterado) proximo.push(item);
+            else { proximo.push({ ...item, priceAtPurchase: novoPreco }); reprecado = true; }
+        }
+        if (removidos.length || reprecado) {
+            setCart(proximo);
+            if (removidos.length) {
+                showNotification(`${removidos.length} ${removidos.length === 1 ? 'item saiu' : 'itens saíram'} do catálogo e ${removidos.length === 1 ? 'foi removido' : 'foram removidos'} do carrinho.`, 'error');
+            } else if (reprecado) {
+                showNotification('Os preços do seu carrinho foram atualizados.', 'info');
             }
-            const mudou = proximo.length !== prev.length || proximo.some((it, i) => it !== prev[i]);
-            return mudou ? proximo : prev;
-        });
-        if (removidos.length) showNotification(`${removidos.length} ${removidos.length === 1 ? 'item saiu' : 'itens saíram'} do catálogo e ${removidos.length === 1 ? 'foi removido' : 'foram removidos'} do carrinho.`, 'error');
+        }
     }, [safeProducts]);
 
     const toggleOrderDetails = (orderId: string) => {
@@ -666,23 +695,27 @@ export const UserDashboard: React.FC = () => {
 
     const depositSubmittingRef = useRef(false);
 
-    const depositToWalletAction = async () => {
+    // Devolve `true` só quando o depósito foi realmente criado. O chamador usava
+// `await` e trocava de etapa SEMPRE — em caso de recusa (ex.: comprovante já
+    // utilizado) o modal voltava ao passo do valor com o arquivo ainda anexado,
+    // misturando o toast de erro com um formulário "limpo".
+    const depositToWalletAction = async (): Promise<boolean> => {
         // Anti duplo-toque síncrono: dois depósitos com o mesmo comprovante
         // criavam duas pendências; se ambas fossem aprovadas, crédito duplicado.
-        if (depositSubmittingRef.current) return;
+        if (depositSubmittingRef.current) return false;
         if (!proofFile) {
             showNotification("Por favor, anexe o comprovante PIX.", "error");
-            return;
+            return false;
         }
         if (depositAmount <= 0) {
             showNotification("Informe o valor do depósito.", "error");
-            return;
+            return false;
         }
         if (depositAmount > 100000) {
             // Mesmo teto do servidor (aprovarDeposito). Sem isso, o familiar pagava
             // um valor que o sistema é estruturalmente proibido de aprovar.
             showNotification("Valor acima do limite permitido por depósito (R$ 100.000,00).", "error");
-            return;
+            return false;
         }
         depositSubmittingRef.current = true;
         setIsSubmitting(true);
@@ -690,10 +723,12 @@ export const UserDashboard: React.FC = () => {
             await depositToWallet(depositAmount, proofFile);
             setIsDepositOpen(false);
             setProofFile(null);
-            setDepositAmount(0);
+            setDepositAmountText('');
             showNotification('Crédito enviado com sucesso para análise!', 'success');
+            return true;
         } catch (e: any) {
             showNotification(e?.message || 'Erro ao enviar comprovante de crédito. Tente novamente.', 'error');
+            return false;
         } finally {
             depositSubmittingRef.current = false;
             setIsSubmitting(false);
@@ -706,20 +741,14 @@ export const UserDashboard: React.FC = () => {
         if (isAdmin) {
             setCartPaymentMethod('WALLET');
         }
-    }, [isAdmin]);
+}, [isAdmin]);
     const [pixPayload, setPixPayload] = useState('');
-    const [timeLeft, setTimeLeft] = useState(15 * 60);
 
-    useEffect(() => {
-        let timer: NodeJS.Timeout;
-        if (stage === 'pay') {
-            setTimeLeft(15 * 60);
-            timer = setInterval(() => {
-                setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
-            }, 1000);
-        }
-        return () => clearInterval(timer);
-    }, [stage]);
+    // A contagem de 15 min foi removida: o payload PIX gerado aqui é
+    // "estático" (generatePixPayload não escreve o campo 59 de validade), logo
+    // o cronômetro não expirava nada — mas o setInterval de 1s re-renderizava
+    // as ~2000 linhas do dashboard a cada segundo enquanto o QR ficava aberto,
+    // drenando bateria no celular.
 
     useEffect(() => {
         if (isCheckoutModalOpen && cartPaymentMethod === 'PIX') {
@@ -749,7 +778,7 @@ export const UserDashboard: React.FC = () => {
     const hasCustomBg = settings?.userDashboardBgType === 'image' && settings?.userDashboardBgUrl;
 
     const renderCartTable = () => (
-        <div className="max-h-[calc(100vh-420px)] overflow-y-auto border border-slate-200 rounded-xl bg-white font-mono">
+        <div className="max-h-[calc(100dvh-420px)] overflow-y-auto border border-slate-200 rounded-xl bg-white font-mono">
             <table className="w-full text-[11px]">
                 <thead className="bg-emerald-700 text-white font-black text-xs uppercase text-center tracking-wider sticky top-0 z-10">
                     <tr>
@@ -800,7 +829,7 @@ export const UserDashboard: React.FC = () => {
         const lastSubtotal = (lastItem?.priceAtPurchase ?? (lastProd ? (lastProd.price || 0) : (lastItem?.price || 0))) * lastQty;
         return (
         <div className="overflow-x-auto custom-scrollbar" style={{ width: '100%' }}>
-        <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '16px', width: '100%', minWidth: 0, minHeight: 'calc(100vh - 140px)' }}>
+        <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '16px', width: '100%', minWidth: 0, minHeight: 'calc(100dvh - 140px)' }}>
 
             {/* PAINEL ESQUERDO — 35% — DESTAQUE DO ITEM ATUAL */}
             <div className="bg-slate-900 text-white rounded-2xl p-5 flex flex-col justify-between shadow-xl relative border border-slate-800 font-mono" style={{ width: '100%', maxWidth: '100%', flexGrow: 1, flexBasis: '280px', flexShrink: 1, minHeight: '320px' }}>
@@ -863,7 +892,7 @@ export const UserDashboard: React.FC = () => {
                     </div>
 
                     {/* TABELA ZEBRADA CUPOM FISCAL */}
-                    <div className="max-h-[calc(100vh-320px)] overflow-x-auto overflow-y-auto border border-slate-200 rounded-xl bg-white" style={{ flex: 1, minHeight: 0 }}>
+                    <div className="max-h-[calc(100dvh-320px)] overflow-x-auto overflow-y-auto border border-slate-200 rounded-xl bg-white" style={{ flex: 1, minHeight: 0 }}>
                         <table className="w-full text-[12px] font-mono">
                             <thead className="text-white font-black text-xs uppercase text-center tracking-wider sticky top-0 z-10 bg-[var(--primary-color)]">
                                 <tr>
@@ -978,7 +1007,7 @@ export const UserDashboard: React.FC = () => {
 
                         {/* Botão Enviar Crédito */}
                         <button
-                            onClick={() => { setIsDepositOpen(true); setStage('pay'); setDepositAmount(0); }}
+                            onClick={() => { setIsDepositOpen(true); setStage('pay'); setDepositAmountText(''); }}
                             className="bg-[var(--primary-color)] text-white px-3 py-2.5 rounded-xl font-semibold text-[11px] shadow-sm active:scale-95 hover:brightness-110 transition-all flex items-center gap-1 shrink-0"
                         >
                             <Plus size={14} />
@@ -1264,17 +1293,18 @@ export const UserDashboard: React.FC = () => {
                 )}
             </AnimatePresence>
 
-            {/* pb-12 em vez de pb-24: as abas do usuário (UserOrdersTab/UserStoreTab)
-            somavam mais 96px por baixo, dando 192px de área morta. Não há
-            barra fixa inferior a compensar. */}
-      <main className={`flex-1 min-h-0 w-full px-4 sm:px-6 py-6 md:py-8 pb-12 z-10 relative ${isAdmin ? 'max-w-7xl' : 'max-w-5xl mx-auto'}`}>
+            {/* pb no celular reserva a altura da barra inferior fixa (h-16 = 64px) mais a
+                safe-area do iPhone. Com pb-12 (48px) os últimos ~16px do
+                conteúdo ficavam escondidos atrás da barra branca — o comentário
+                antigo afirmava que não havia barra fixa, mas há (ver <nav>). */}
+      <main className={`flex-1 min-h-0 w-full px-4 sm:px-6 py-6 md:py-8 pb-24 md:pb-12 z-10 relative ${isAdmin ? 'max-w-7xl' : 'max-w-5xl mx-auto'}`}>
                 {activeTab === 'store' && (
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                         {comprasSuspensas ? (
                             <StoreSuspendedScreen
                                 institutionName={settings?.institutionName}
                                 saldo={currentUser?.walletBalance || 0}
-                                onSendCredit={() => { setIsDepositOpen(true); setStage('pay'); setDepositAmount(0); }}
+                                onSendCredit={() => { setIsDepositOpen(true); setStage('pay'); setDepositAmountText(''); }}
                             />
                         ) : saldoSuspenso ? (
                             <div className="max-w-md mx-auto bg-slate-900 rounded-3xl border border-slate-700 shadow-xl p-8 text-white space-y-6">
@@ -1288,7 +1318,7 @@ export const UserDashboard: React.FC = () => {
                                         <div className="flex flex-col space-y-4">
                                             <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
                                                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 text-center">Valor do Crédito (R$)</p>
-                                                <input type="number" className="w-full bg-transparent font-black text-2xl text-center outline-none text-white placeholder-slate-600" value={depositAmount || ''} onChange={e => setDepositAmount(Number(e.target.value))} placeholder="0,00" />
+                                                <input type="text" inputMode="decimal" autoComplete="off" className="w-full bg-transparent font-black text-2xl text-center outline-none text-white placeholder-slate-600" value={depositAmountText} onChange={e => setDepositAmountText(sanitizeMoedaInput(e.target.value))} placeholder="0,00" />
                                             </div>
                                             {depositAmount > 0 && (
                                                 <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 flex flex-col items-center">
@@ -1347,7 +1377,7 @@ export const UserDashboard: React.FC = () => {
                                                 )}
                                             </div>
 <div className="mt-3 p-2.5 bg-red-500/10 border-2 border-red-500/40 rounded-xl flex items-start gap-2"><AlertCircle size={12} className="inline-block shrink-0 mt-0.5" /><p className="text-[10px] font-black text-red-400 text-left leading-snug">Enviar comprovantes falsos ou adulterados configura CRIME — Art. 171 (estelionato) e Art. 298 (falsificação de documento) do Código Penal. Ao prosseguir, você assume total responsabilidade civil e criminal.</p></div>
-                                            <button onClick={async () => { if (!proofFile) { showNotification('ANEXE O COMPROVANTE.', 'error'); return; } await depositToWalletAction(); setDepositStage('amount'); }} disabled={isSubmitting || !proofFile} className="w-full py-3.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 transition-all cursor-pointer">
+                                            <button onClick={async () => { if (!proofFile) { showNotification('ANEXE O COMPROVANTE.', 'error'); return; } if (await depositToWalletAction()) setDepositStage('amount'); }} disabled={isSubmitting || !proofFile} className="w-full py-3.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 transition-all cursor-pointer">
                                                 {isSubmitting ? <><Loader2 size={14} className="animate-spin" /> Enviando...</> : <><Upload size={14} /> Enviar Comprovante</>}
                                             </button>
                                             <button onClick={() => { setDepositStage('amount'); setProofFile(null); }} className="w-full py-2 bg-slate-800 text-slate-400 rounded-xl font-black text-[10px] uppercase tracking-widest text-center hover:bg-slate-700 transition-all cursor-pointer">
@@ -1426,7 +1456,17 @@ export const UserDashboard: React.FC = () => {
                                         <p className="font-black text-xs uppercase text-slate-400">Carregando pedidos...</p>
                                     </div>
                                 )}
-                                {!loadingOrders && myOrders.length === 0 && (
+                                {!loadingOrders && ordersError && (
+  <div className="bg-amber-50 border border-amber-200 rounded-3xl p-8 flex flex-col items-center gap-3 text-center">
+               <AlertCircle size={32} className="text-amber-500" />
+   <p className="font-black text-xs uppercase text-amber-700">Não foi possível carregar seus pedidos</p>
+          <p className="text-[11px] text-amber-700/80 font-bold">Pode ser falta de conexão ou uma instabilidade temporária. Seus dados não foram apagados.</p>
+     <button onClick={() => window.location.reload()} className="mt-1 px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+    <RefreshCcw size={13} /> Tentar novamente
+        </button>
+   </div>
+      )}
+          {!loadingOrders && !ordersError && myOrders.length === 0 && (
                                     <div className="bg-[var(--bg-card)] p-10 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center gap-3 text-center">
                                         <Package size={32} className="text-slate-300" />
                                         <p className="font-black text-xs uppercase text-slate-400">Nenhum pedido ainda</p>
@@ -1458,7 +1498,7 @@ export const UserDashboard: React.FC = () => {
                                         </div>
                                         {expandedOrders.includes(order.id) && (
                                             <div className="mt-4 space-y-2">
-                                                {order.items.map((it: any, i: number) => (
+                                                {(order.items || []).map((it: any, i: number) => (
                                                     <div key={i} className="flex justify-between text-[10px] font-bold text-slate-500 uppercase">
                                                         <span>{it.name} x{it.quantity}</span>
                                                         <span>R$ {formatarMoeda((it.priceAtPurchase || 0) * (it.quantity || 0))}</span>
@@ -1615,7 +1655,7 @@ export const UserDashboard: React.FC = () => {
                                 if (comprasSuspensas) {
                                     setIsDepositOpen(true);
                                     setDepositStage('amount');
-                                    setDepositAmount(0);
+                                    setDepositAmountText('');
                                 }
                             }}
                             className={`flex flex-col items-center justify-center h-full flex-1 transition-colors ${activeTab === 'store' ? 'text-[var(--primary-color)]' : 'text-slate-400'}`}
@@ -1728,7 +1768,7 @@ export const UserDashboard: React.FC = () => {
                         <>
                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
                                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Valor do Crédito (R$)</p>
-                                <input type="number" className="w-full bg-transparent font-black text-2xl text-center outline-none text-[var(--text-main)]" value={depositAmount || ''} onChange={e => setDepositAmount(Number(e.target.value))} placeholder="0,00" />
+                                <input type="text" inputMode="decimal" autoComplete="off" className="w-full bg-transparent font-black text-2xl text-center outline-none text-[var(--text-main)]" value={depositAmountText} onChange={e => setDepositAmountText(sanitizeMoedaInput(e.target.value))} placeholder="0,00" />
                             </div>
                             {depositAmount > 0 && (
                                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col items-center">
@@ -1807,7 +1847,7 @@ export const UserDashboard: React.FC = () => {
                             <UiButton
                                 size="md"
                                 icon={isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                                onClick={async () => { if (!proofFile) { showNotification('ANEXE O COMPROVANTE.', 'error'); return; } await depositToWalletAction(); setDepositStage('amount'); }}
+                                onClick={async () => { if (!proofFile) { showNotification('ANEXE O COMPROVANTE.', 'error'); return; } if (await depositToWalletAction()) setDepositStage('amount'); }}
                                 disabled={isSubmitting || !proofFile}
                                 loading={isSubmitting}
                                 className="w-full bg-blue-500 hover:bg-blue-600"

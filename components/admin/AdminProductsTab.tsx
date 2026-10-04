@@ -328,7 +328,10 @@ return (
           <h2 className="text-xl font-bold text-[var(--text-main)] flex items-center gap-2 tracking-tight">
             <Package size={24} className="text-emerald-500"/> Catálogo de Produtos
           </h2>
-          <div className="hidden sm:flex bg-[var(--bg-main)] rounded-xl p-1 border border-[var(--border-color)]">
+          {/* `flex` (antes `hidden sm:flex`): no celular o padrão é 'list', e sem o
+alternador o admin ficava preso na tabela de 6 colunas, arrastando ~800px na
+horizontal para chegar em editar/estoque/excluir. */}
+          <div className="flex bg-[var(--bg-main)] rounded-xl p-1 border border-[var(--border-color)]">
             <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg transition-all ${viewMode === 'grid' && !modoListaSimples ? 'bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-main)] shadow-sm' : 'text-[var(--text-muted)] hover:bg-[var(--bg-main)]'}`}><Grid size={18}/></button>
             <button onClick={() => setViewMode('list')} className={`p-2 rounded-lg transition-all ${viewMode === 'list' && !modoListaSimples ? 'bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-main)] shadow-sm' : 'text-[var(--text-muted)] hover:bg-[var(--bg-main)]'}`}><List size={18}/></button>
             <button

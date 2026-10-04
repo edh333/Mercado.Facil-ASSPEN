@@ -31,7 +31,12 @@ export interface MontagemPagamentoInput {
   fiado30UserId?: string;
   saldoCarteiraCliente?: number;
   weeklySpentCliente?: number;
-  weeklyWalletLimit?: number;
+  // OBRIGATÓRIO de propósito: o limite semanal configurado NÃO pode ser
+  // adivinhado aqui. Este default (300) morava dentro da função e chegava
+  // `undefined` de todos os chamadores — a UI exibia o limite real (calculado
+  // do settings) enquanto a validação usava 300, então uma venda bloqueada na
+  // tela passava na checagem local e só era recusada pelo servidor.
+  weeklyWalletLimit: number;
   isJointWalletMode?: boolean;
   jointAdminAuthorized?: boolean;
   secondUserId?: string;
@@ -165,7 +170,14 @@ export function montarPagamentoPdv(input: MontagemPagamentoInput): MontagemPagam
   const totalArredondado = arredondarCentavos(total);
   const saldoCarteiraCliente = Math.max(0, Number(input.saldoCarteiraCliente) || 0);
   const weeklySpentCliente = Number(input.weeklySpentCliente) || 0;
-  const weeklyWalletLimit = Math.max(0, Number(input.weeklyWalletLimit) || 300);
+  const limiteSemanalBruto = Number(input.weeklyWalletLimit);
+  // Config inválida/ausente NÃO vira um número inventado: sem teto local a
+  // checagem é pulada e quem decide é o servidor (mesma autoridade de saldo,
+  // estoque e preço). Um default chutado aqui ou bloqueia uma venda legítima
+  // (limite real maior) ou libera uma que o servidor vai recusar.
+  const weeklyWalletLimit = Number.isFinite(limiteSemanalBruto) && limiteSemanalBruto >= 0
+    ? limiteSemanalBruto
+    : null;
   const targetId = input.targetId || input.clienteSelecionado || 'balcao_anonimo';
 
   if (formaPagamento === 'FIADO') {
@@ -246,9 +258,11 @@ export function montarPagamentoPdv(input: MontagemPagamentoInput): MontagemPagam
       if (pWallet > saldoCarteiraCliente + 0.009) {
         throw new Error(`Saldo insuficiente na carteira para a parte em créditos. Disponível: R$ ${saldoCarteiraCliente.toFixed(2).replace('.', ',')}.`);
       }
-      const limiteSemanalDisponivel = Math.max(0, weeklyWalletLimit - weeklySpentCliente);
-      if (pWallet > limiteSemanalDisponivel + 0.009) {
-        throw new Error(`Limite semanal de créditos excedido para a parte em créditos. Disponível: R$ ${limiteSemanalDisponivel.toFixed(2).replace('.', ',')}.`);
+      if (weeklyWalletLimit !== null) {
+        const limiteSemanalDisponivel = Math.max(0, weeklyWalletLimit - weeklySpentCliente);
+        if (pWallet > limiteSemanalDisponivel + 0.009) {
+          throw new Error(`Limite semanal de créditos excedido para a parte em créditos. Disponível: R$ ${limiteSemanalDisponivel.toFixed(2).replace('.', ',')}.`);
+        }
       }
     }
 

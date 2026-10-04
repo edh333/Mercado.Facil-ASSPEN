@@ -16,6 +16,10 @@ import {
 import { queuePendingUpload, listPendingUploads, removePendingUpload, attachPendingUploadDoc } from '../services/localStorageService';
 import { comprimirImagem } from '../utils/imageCompress';
 import { computeProofMeta, ProofMeta, isProofSuspiciouslySmall } from '../utils/fileHash';
+import {
+    MAX_PROOF_BYTES, contentTypeParaArquivo, ehFalhaDeUploadPermanente,
+    extensaoDe, mensagemFalhaPermanente,
+} from '../utils/proofUpload';
 import { toDate } from '../utils/dateUtils';
 import { ASSPEN_INFO, INITIAL_UNITS } from '../constants';
 import { db, auth, storage, FIREBASE_API_KEY } from '../firebase';
@@ -98,12 +102,23 @@ interface StoreContextType {
     appConfig: AppConfig;
     settings: AppConfig;
     isLoading: boolean;
+    // "A sessão ainda está sendo resolvida" — o App.tsx troca a tela inteira
+    // por um loader enquanto isso. NÃO pode ser o isLoading global: aquele flag
+    // também é ligado por operações sem relação com auth (importar backup,
+    // importar XML, mesclar duplicados), e fazia o painel inteiro desmontar e
+    // remontar —Abortando modais abertos — no meio de uma importação.
     authLoading: boolean;
     systemMessages: SystemMessage[];
     messages: Message[];
     notifications: Notification[];
     storageUsage: number;
-    serverTime: Date;
+    // serverTime FOI removido de proposito. Ele era atualizado por um
+    // setInterval de 2 min dentro deste provider; por estar no objeto `value`
+    // (que nao e memoizado), cada tick criava um objeto de contexto NOVO e
+    // re-renderizava os 17 consumidores do useApp() mesmo com o app ocioso.
+    // Nenhum componente usava o valor (so era desestruturado e nunca lido).
+    // O estado interno `serverTime` continua existindo porque as checagens de
+    // expiracao/senha mestre o comparam localmente.
 
     login: (cpf: string, pass: string, targetRole?: UserRole) => Promise<{ success: boolean; message?: string }>;
     loginAdmin: (email: string, pass: string) => Promise<void>;
@@ -503,14 +518,19 @@ const [isLoggingOut, setIsLoggingOut] = useState(false);
             setNotifications([]);
             setPreRegisteredInmates([]);
             sessionStorage.clear();
+            showNotification('Sessão encerrada com segurança.', 'success');
+            // signOut pode falhar com rede instável. A limpeza local tem que
+            // acontecer MESMO assim: sem ela, o desbloqueio offline de
+            // emergência continuava ligado no aparelho e a "Emergência
+            // OFFLINE" voltava sozinha na próxima abertura, sem digitar senha.
+        } catch (error) {
+            console.error('Erro ao deslogar:', error);
+            showNotification('Sessão encerrada localmente (sem conexão com o servidor).', 'info');
+        } finally {
             limparSessaoOffline();
             limparCredencialOffline();
             setOfflineUnlocked(false);
-            showNotification('Sessão encerrada com segurança.', 'success');
-        } catch (error) {
-            console.error('Erro ao deslogar:', error);
             setCurrentUser(null);
-        } finally {
             setIsLoggingOut(false);
         }
         if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
@@ -732,19 +752,18 @@ return false;
             throw new Error("Arquivo vazio. Selecione um arquivo válido.");
         }
 
-        const MAX_FILE_SIZE = 8 * 1024 * 1024;
-        // .webp/.bmp entram: galeria Android faz download de comprovantes compartilhados
-        // (WhatsApp, app de banco) em .webp e o seletor usa accept="image/*". O compressor
-        // comprimirImagem já tratava webp/bmp — a whitelist estava contradizendo o resto
-        // do stack e derrubava o envio de comprovante com erro de "tipo não permitido".
-        const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.pdf', '.heic', '.heif', '.webp', '.bmp'];
-
-        if (file.size > MAX_FILE_SIZE) {
+        // Limite IGUAL ao da rule (storage.rules usa `< 8 * 1024 * 1024`, não
+        // `<=`). Antes o cliente aceitava exatamente 8 MB, o Storage recusava,
+        // e o comprovante ia parar na fila offline para nunca concluir.
+        if (file.size >= MAX_PROOF_BYTES) {
             throw new Error('Arquivo muito grande (máx. 8 MB).');
         }
 
-        const ext = '.' + (file.name.split('.').pop() || '').toLowerCase();
-        if (!ALLOWED_EXTENSIONS.includes(ext)) {
+        // Valida pela EXTENSÃO (o que o familiar enxerga) e envia o MIME
+        // correspondente: arquivo sem `type` no Blob seria enviado como
+        // 'application/octet-stream' e rejeitado pela rule para sempre.
+        const contentType = contentTypeParaArquivo(file);
+        if (!contentType) {
             throw new Error('Tipo de arquivo não permitido (JPG, PNG, PDF, HEIC ou WEBP).');
         }
 
@@ -762,21 +781,30 @@ return false;
         try {
             const uid = auth.currentUser?.uid || currentUser?.authUid || currentUser?.id || 'anonimo';
             const folder = (path || 'uploads').replace(/^\/+|\/+$/g, '');
-            const fileName = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`;
+            const fileName = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}${extensaoDe(file.name)}`;
             const fileRef = storageRef(storage, `${folder}/${uid}/${fileName}`);
-            await uploadBytes(fileRef, arquivoFinal);
+            await uploadBytes(fileRef, arquivoFinal, { contentType });
             const url = await getDownloadURL(fileRef);
             if (onProofMeta && proofMetaCapturado) onProofMeta(proofMetaCapturado);
             return url;
         } catch (error: any) {
+            // Falha PERMANENTE (regra, permissão, cota, tipo): repetir não
+            // resolve. Antes entrava na fila offline como se fosse falta de
+            // rede — o depósito ficava pending com comprovante preso no
+            // aparelho e o crédito nunca era liberado. Agora o familiar recebe
+            // o motivo e pode reenviar o arquivo.
             console.warn("[uploadFile] Falha no upload para Storage:", error?.message || error);
+            if (ehFalhaDeUploadPermanente(error)) {
+                showNotification(mensagemFalhaPermanente(error), 'error');
+                throw new Error(mensagemFalhaPermanente(error));
+            }
             try {
                 const id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
                 await queuePendingUpload({
                     id,
                     uid: auth.currentUser?.uid || currentUser?.authUid || currentUser?.id || 'anonimo',
                     folder: (path || 'uploads').replace(/^\/+|\/+$/g, ''),
-                    fileName: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`,
+                    fileName: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}${extensaoDe(file.name)}`,
                     kind: meta?.kind,
                     docId: meta?.docId,
                     blob: arquivoFinal,
@@ -784,6 +812,7 @@ return false;
                 showNotification('Conexão instável: o comprovante foi guardado e será enviado automaticamente quando a internet voltar.', 'info');
             } catch (e2) {
                 showNotification('Falha ao enviar o arquivo. Tente novamente.', 'error');
+                throw new Error('Falha ao enviar o arquivo. Tente novamente.');
             }
             return "PENDENTE_UPLOAD_LOCAL_CACHE";
         }
@@ -823,13 +852,15 @@ return false;
     // continua validando a URL como pertencente ao usuário correto.
     const attachAdminProof = async (kind: 'orders' | 'wallet_transactions', docId: string, ownerId: string, file: File): Promise<string> => {
         if (!file || file.size === 0) throw new Error("Arquivo vazio.");
-        if (file.size > 8 * 1024 * 1024) throw new Error('Arquivo muito grande (máx. 8 MB).');
+        if (file.size >= MAX_PROOF_BYTES) throw new Error('Arquivo muito grande (máx. 8 MB).');
+        const contentType = contentTypeParaArquivo(file);
+        if (!contentType) throw new Error('Tipo de arquivo não permitido (JPG, PNG, PDF, HEIC ou WEBP).');
         const pasta = kind === 'orders' ? 'comprovantes_pix' : 'wallet_proofs';
-        const ext = '.' + (file.name.split('.').pop() || 'jpg').toLowerCase();
+        const ext = extensaoDe(file.name) || '.jpg';
         const fileName = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`;
         const arquivoFinal = await comprimirImagem(file);
         const fileRef = storageRef(storage, `${pasta}/${ownerId}/${fileName}`);
-        await uploadBytes(fileRef, arquivoFinal);
+        await uploadBytes(fileRef, arquivoFinal, { contentType });
         const url = await getDownloadURL(fileRef);
         let meta: ProofMeta | null = null;
         try { meta = await computeProofMeta(arquivoFinal); } catch { /* noop */ }
@@ -852,9 +883,13 @@ return false;
                     // reenvie o comprovante para o pasta errada se outro
                     // usuário estiver logado no momento do retry.
                     const uid = p.uid || auth.currentUser?.uid || currentUser?.authUid || currentUser?.id || 'anonimo';
-                    const file = new File([p.blob], p.fileName, { type: p.blob.type });
+                    // MIME explícito: blob sem `type` seria enviado como
+                    // 'application/octet-stream' e rejeitado pela rule.
+                    const contentType = contentTypeParaArquivo({ name: p.fileName, type: p.blob?.type })
+                        || 'image/jpeg';
+                    const file = new File([p.blob], p.fileName, { type: contentType });
                     const fileRef = storageRef(storage, `${p.folder}/${uid}/${p.fileName}`);
-                    await uploadBytes(fileRef, file);
+                    await uploadBytes(fileRef, file, { contentType });
                     const url = await getDownloadURL(fileRef);
                     if (p.kind && p.docId) {
                         // Só atualiza o documento se ele existir (evita fila-zumbi
@@ -892,6 +927,18 @@ return false;
                     }
                 } catch (e: any) {
                     console.warn("[retryPendingProofs] item falhou:", e?.message || e);
+                    // Falha permanente (permissão, tipo, tamanho): repetir é
+                    // inútil e o item ficava na fila para sempre, retentando a
+                    // cada login/reconexão. Descarta e avisa — o documento
+                    // continua sem comprovante, com o botão "reenviar".
+                    if (ehFalhaDeUploadPermanente(e)) {
+                        await removePendingUpload(p.id).catch(() => { });
+                        showNotification(
+                            'Um comprovante guardado offline não pôde ser enviado e foi descartado. Abra o depósito/pedido e reenvie o arquivo.',
+                            'error',
+                        );
+                        continue;
+                    }
                 }
             }
             if (reenviados > 0) {
@@ -2183,6 +2230,12 @@ return false;
             showNotification("Retirada de crédito realizada.", "success");
         } catch (e: any) {
             showNotification(mensagemErroChamada(e), "error");
+            // PROPAGA o erro — mesmo defeito já corrigido em approve/reject.
+            // Antes resolvia aqui: o chamador (AdminDashboard.handleWithdrawal)
+            // recebia a promise como sucesso, FECHAVA o modal e mostrava
+            // "Operação realizada com sucesso!" — com senha mestra errada,
+            // saldo insuficiente ou rate limit, NENHUM dinheiro era movido.
+            throw e;
         }
     };
 
@@ -3163,7 +3216,7 @@ useEffect(() => {
 
     return (
         <StoreContext.Provider value={{
-            currentUser, users, products, productsCache, orders, units: INITIAL_UNITS, cart, appConfig, suppliers, expenses, logs, isLoading, authLoading: isLoading, systemMessages, messages, notifications, settings: appConfig, storageUsage, serverTime,
+            currentUser, users, products, productsCache, orders, units: INITIAL_UNITS, cart, appConfig, suppliers, expenses, logs, isLoading, authLoading: !authReady, systemMessages, messages, notifications, settings: appConfig, storageUsage,
             creditoCliente, realizarSaque, verificarCredito, finalizarVendaComCredito,
             login, loginAdmin, loginFamiliar, logout, registerUser, recoverPassword, validateRecovery, createAdminUser, updateAdminPermissions, resetUserPassword,
             addToCart, removeFromCart, clearCart, createOrder, searchOrders,

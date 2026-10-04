@@ -24,7 +24,7 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-function isAdmin() {
+    function isAdmin() {
       return isAuthenticated() && (
         request.auth.token.admin == true ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
@@ -89,23 +89,52 @@ function isAdmin() {
       allow list: if isEquipe();
       allow create: if false;
       allow update: if (isAdmin() && userId != request.auth.uid &&
+        // 'saqueDia' entrou na lista porque é o contador do teto diário de saque
+        // (R$ 1.000/dia em sacarSaldoProprio, que só exige autenticação — sem
+        // senha mestra). Bastava um update para zerar o contador de qualquer
+        // usuário e sacar acima do teto. Só a Cloud Function grava o campo, na
+        // mesma transação do débito.
         !request.resource.data.diff(resource.data).affectedKeys().hasAny([
           'role', 'walletBalance', 'weeklySpent', 'authUid', 'mainAdmin',
-          'isMainAdmin', 'permissions'
-          // CONCESSÃO DELIBERADA (pendência conhecida, rastreada):
-          // 'currentDebt' NÃO está na lista de campos sensíveis porque o
-          // fallback offline de recebimento de fiado (utils/customerUtils.ts)
-          // precisa abater a dívida quando o backend está inacessível.
-          // Consequência aceita: um admin SEM a permissão 'finance' consegue
-          // escrever currentDebt pelo cliente nesse cenário de indisponibilidade,
-          // embora a Cloud Function exigirAdminPermissao("finance")
-          // recusaria a mesma operação com o servidor no ar.
-          // Mitigações: só ocorre com o servidor fora do ar; o caminho normal
-          // é sempre a Function; e o registro fica marcado 'semServidor'.
-          // Correção definitiva (próxima iteração): o cliente escrever numa
-          // coleção 'pagamentos_pendentes' e o servidor reconciliar no
-          // reconectar, permitindo então bloquear currentDebt no cliente.
-        ])) ||
+          'isMainAdmin', 'permissions', 'saqueDia'
+          // 'currentDebt' NÃO está na lista acima porque o fallback offline de
+          // recebimento de fiado (utils/customerUtils.ts -> abateDivida) precisa
+          // abater a dívida quando o backend está inacessível. Em vez de liberar
+          // o campo, ele é restringido ABAIXO a "só pode baixar".
+        ]) &&
+        // CORREÇÃO DE SEGURANÇA: currentDebt só pode DIMINUIR.
+        // Antes, o campo ficava livre para escrita do cliente e
+        // updateCustomerAccount() (utils/customerUtils.ts) é um writer genérico:
+        // bastava chamar {currentDebt: 999999} para inflar a dívida de qualquer
+        // cliente, e um admin sem a permissão 'finance' faria isso — a Cloud
+        // Function exigiria 'finance' e recusaria, mas o cliente passava.
+        // Por que "só baixar" não quebra fluxo legítimo:
+        //  - abateDivida valida `valor > dividaAtual -> throw`, logo escreve
+        //    sempre um valor MENOR ou igual ao anterior;
+        //  - a UI admin (AdminCustomersTab.handleSave) NUNCA envia currentDebt
+        //    em update (só em create, que é bloqueado por `allow create: if false`);
+        //  - O teto de divida continua vindo da Function, que e a
+        //    autoridade real (valida currentDebt + creditLimit atomicamente).
+        //  - weeklySpent segue bloqueado (consumo semanal e' do servidor).
+        //
+        // PENDENCIA CONHECIDA (creditLimit): o campo continua livre para escrita
+        // do cliente porque a UI de Cadastro de Clientes (AdminCustomersTab)
+        // edita limite de credito na propria tela e nao passa por Function.
+        // Efeito: um admin SEM a permissao 'finance' consegue subir o limite de
+        // um cliente pelo cliente, enquanto a Function exigiria 'finance'. O
+        // servidor ainda valida currentDebt + creditLimit atomicamente na venda,
+        // entao isso NAO permite vendas indevidas -- apenas uma politica de
+        // credito divergente. Correcao definitiva: mover a edicao de
+        // creditLimit para uma Function com exigirAdminPermissao("finance"),
+        // como ja foi feito com currentDebt/saldo. Nao foi feita aqui porque
+        // exigiria migrar o formulario admin e nao ha como valida-la sem
+        // emulator nesta maquina (sem Java).
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['currentDebt'])
+          || (request.resource.data.currentDebt is number
+              && request.resource.data.currentDebt >= 0
+              && request.resource.data.currentDebt
+                 <= (resource.data.currentDebt is number ? resource.data.currentDebt : 0)))
+        ) ||
         (userMatch(userId) &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
            'name', 'phone', 'avatarUrl', 'inmateName', 'inmateCpf',
@@ -125,7 +154,18 @@ function isAdmin() {
     match /orders/{orderId} {
       allow create: if false; // venda via backend (Cloud Functions)
       allow read: if isAuthenticated() && (userMatch(resource.data.userId) || isEquipe());
-      allow update: if isAdmin() || (
+      // Admin só altera, pelo CLIENTE, os campos OPERACIONAIS que a UI realmente
+      // grava (updateOrderStatus, markOrderAsPrinted, archiveData). Tudo que é
+      // dinheiro ou vínculo — total, paymentMethod, userId, items, userCpf — fica
+      // fora: ou passa pelas Cloud Functions (que usam admin SDK e ignoram estas
+      // regras), ou é bloqueado. Sem este affectedKeys, uma sessão admin
+      // comprometida no navegador reescrevia o total de qualquer pedido.
+      allow update: if (
+        isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['status', 'printCount', 'deleted'])
+      ) || (
+        // Comprovante de pagamento do próprio pedido, somente enquanto pendente.
         userMatch(resource.data.userId)
         && resource.data.status.matches('(?i)^pending$')
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paymentProofUrl', 'proofHash', 'proofSize', 'proofMime'])
@@ -210,11 +250,15 @@ function isAdmin() {
     }
 
     // ── SEGREDOS DE AUTENTICAÇÃO (hash legado de senha) ──
-    // Coleção SOMENTE admin: guarda o hash bcrypt usado pela validação
-    // "provisionar" e pelas recuperações legadas. Nunca acessível ao usuário
-    // comum (o doc público users/{uid} não contém mais o campo password).
+    // Hash bcrypt de senha. NUNCA pelo cliente: enquanto a regra era
+    // `allow read, write, delete: if isAdmin()`, qualquer admin — inclusive um
+    // admin secundário SEM as permissões users/finance — lia todos os hashes via
+    // Web SDK, o que anulava na prática a checagem de permissão da Cloud Function
+    // e abria caminho para quebra offline de senha. O servidor (Admin SDK, que
+    // ignora estas regras) é o único consumidor: ver obterHashLegado/gravarHash
+    // em functions/index.js.
     match /auth_secrets/{uid} {
-      allow read, write, delete: if isAdmin();
+      allow read, write, delete: if false;
     }
 
     // ── SESSÕES DE CAIXA ──
@@ -285,12 +329,29 @@ function isAdmin() {
     }
 
 // ── LOGS DE AUDITORIA (ações sensíveis; imutáveis) ──
-    // Criação: admin (client-side p/ zerÃ§Ãµes locais; server-side via Cloud Functions).
-    // Edição: PROIBIDA (somente deletável por admin — ex.: reset total do sistema).
+    // Create: as ações de ADMIN que ainda rodam no cliente (anexar comprovante,
+    // excluir usuário, zerar estoque, zerar financeiro) registram o log daqui.
+    // Restrições: o autor é o próprio chamador (impede registrar em nome de
+    // outro operador) e o documento só pode ter os campos da linha de log —
+    // antes `allow create: if isAdmin()` aceitaria qualquer documento, o que
+    // deixava a trilha de auditoria forjável pelo próprio cliente.
+    // NOTA (limitação conhecida): um cliente ainda pode inventar uma ação que não
+    // ocorreu, porque a escrita vem do device. Fechar de vez exige mover as 4
+    // operações para Cloud Functions que auditam no servidor — o Firestore não
+    // consegue atribuir autoria confiável a um write do cliente.
+    // Edição e exclusão: NUNCA (log imutável, inclusive para o admin).
     match /audit_logs/{logId} {
-      allow read, create: if isAdmin();
-      allow update: if false;
-      allow delete: if false;
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.operadorUid is string
+        && request.resource.data.acaoTipo is string
+        && request.resource.data.acaoTipo.size() > 0
+        && request.resource.data.acaoTipo.size() <= 60
+        && userMatch(request.resource.data.operadorUid)
+        && request.resource.data.keys().hasOnly([
+          'operadorUid', 'timestamp', 'acaoTipo', 'payloadAntes', 'payloadDepois'
+        ]);
+      allow update, delete: if false;
     }
 
     // ── AUDITORIA DIÁRIA DE ANOMALIAS ──
@@ -315,8 +376,13 @@ function isAdmin() {
     // Matches explícitos (sem wildcard) — Firestore NEGA por padrão o que
     // não possui regra. Isso também impede que o wildcard conceda escrita
     // em settings/ contornando as restrições de senhas acima.
-    match /cashier/{sessionId} {
-      allow read, write: if isAdmin();
+    // Coleção LEGADA de sessões de caixa. Hoje só o admin SDK (Functions) grava
+// aqui; o cliente apenas migra/histórico (getDocs). Escrita liberada "por
+// garantia" permitiria um cliente admin criar/editar sessão de caixa e
+// adulterar o histórico — o caminho real (abrir/fechar caixa) é a Function.
+match /cashier/{sessionId} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
     match /suppliers/{supplierId} {
       allow read, write: if isAdmin();

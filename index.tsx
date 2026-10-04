@@ -20,10 +20,10 @@ iniciarSentry();
 // velho. Assim, QUALQUER PC que ficou preso numa versão antiga se conserta
 // sozinho na primeira abertura do dia — incluindo máquinas que já tiveram
 // o flag antigo gravado permanentemente.
-// ⚠ MANTER EM SINCRONIA com CACHE_NAME em public/sw.js e SW_CACHE_ATUAL em utils/deviceStorage.ts (hoje: v22).
+// ⚠ MANTER EM SINCRONIA com CACHE_NAME em public/sw.js e SW_CACHE_ATUAL em utils/deviceStorage.ts (hoje: v24).
 // Antes estava 'v11' aqui e 'v12' lá → a limpeza diária apagava o cache
 // atual do próprio sistema, forçando re-download completo toda sessão.
-const SW_CACHE_ATUAL = 'mercado-facil-v22';
+const SW_CACHE_ATUAL = 'mercado-facil-v24';
 const SW_CLEANUP_FLAG = 'mercado-facil-sw-cleanup-v11';
 
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator && !sessionStorage.getItem(SW_CLEANUP_FLAG)) {
@@ -32,10 +32,29 @@ if (typeof window !== 'undefined' && 'serviceWorker' in navigator && !sessionSto
   (async () => {
     let algoLimpado = false;
     try {
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      for (const registration of registrations) {
-        if (registration.active || registration.installing || registration.waiting) algoLimpado = true;
-        await registration.unregister().catch(() => {});
+      // Só desregistra SW quando o cache da VERSÃO ATUAL não existe — sinal de
+      // que quem está em controle é um build anterior (o caso preso que esta
+      // rotina existe para curar). O scriptURL é sempre "/sw.js" (sem versão),
+      // então o cache é a única forma de saber de qual build ele é.
+      //
+      // Antes o critério era "existe SW ativo?" — e como o PWAInstallProvider
+      // registra o sw.js a cada abertura, isso era verdade em TODA sessão:
+      // desregistrava o SW de v22 (o ATUAL) e recarregava. O PWA instalado
+      // aberto SEM INTERNET recebia esse reload sem rede e sem SW para servir o
+      // shell — tela de erro do navegador em vez do app.
+      let cacheAtualExiste = false;
+      try {
+        if ('caches' in window) cacheAtualExiste = await caches.has(SW_CACHE_ATUAL);
+      } catch (e) { /* sem permissão/indisponível */ }
+
+      if (!cacheAtualExiste) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const registration of registrations) {
+          if (registration.active || registration.installing || registration.waiting) {
+            algoLimpado = true;
+            await registration.unregister().catch(() => {});
+          }
+        }
       }
     } catch (e) { /* sem permissão/indisponível — segue normal */ }
 
@@ -48,10 +67,9 @@ if (typeof window !== 'undefined' && 'serviceWorker' in navigator && !sessionSto
       }
     } catch (e) { /* cache indisponível — segue normal */ }
 
-    // Só recarrega se havia algo preso — sai do controle do SW antigo e
-    // carrega a versão nova já sem cache velho (PWAInstallProvider registra o
-    // sw.js atual logo em seguida, na montagem do React).
-    if (algoLimpado) window.location.reload();
+    // Só recarrega se havia algo preso E há rede: offline, o reload joga fora
+    // o app em memória sem ter de onde recarregar.
+    if (algoLimpado && navigator.onLine) window.location.reload();
   })();
 }
 

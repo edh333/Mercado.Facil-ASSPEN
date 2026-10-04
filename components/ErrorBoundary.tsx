@@ -22,6 +22,8 @@ const DEBUG = (() => {
   }
 })();
 
+const HEALABLE_ERROR = /(#310|#321|#418|#425|#426|invalid hook call|rendered fewer hooks|rendered more hooks|hydration|loading chunk|failed to fetch dynamically|importing a module script failed)/i;
+
 export class ErrorBoundary extends React.Component<any, any> {
   static getDerivedStateFromError(error: Error) {
     return { hasError: true, error };
@@ -37,10 +39,16 @@ export class ErrorBoundary extends React.Component<any, any> {
       try { onError(error, errorInfo); } catch { /* telemetria nunca quebra a UI */ }
     }
 
-    // AUTO-CURA de erros de "build misturado"/cache velho (#310, #418, chunk):
+    // AUTO-CURA de erros de "build misturado"/cache velho (#310, #321, #418, chunk):
     // limpa SWs e caches obsoletos e recarrega uma vez por sessão — o app sai
     // sozinho do estado travado, sem intervenção do usuário.
-    if (typeof window !== 'undefined' && /(#310|#418|#425|#426|hydration|Loading chunk|dynamically imported|Failed to fetch dynamically)/i.test(error?.message || '')) {
+    //
+    // #321 (Invalid hook call) entrou na lista DE PROPÓSITO: em produção ele
+    // chega como "Minified React error #321". É a falha que o lint de Rules of
+    // Hooks agora impede de nascer, mas um cliente que ainda tem o bundle antigo
+    // no cache pode executá-la. Sem esta linha, esse usuário ficava preso numa
+    // tela de erro sem saída; com ela, o app limpa o cache e se recupera sozinho.
+    if (typeof window !== 'undefined' && HEALABLE_ERROR.test(error?.message || '')) {
       try {
         if (sessionStorage.getItem('mf-boundary-heal')) return;
         sessionStorage.setItem('mf-boundary-heal', '1');

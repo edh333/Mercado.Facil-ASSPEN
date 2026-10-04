@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Wifi, WifiOff, RefreshCcw, LogOut, ShieldAlert } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../context/StoreContext';
@@ -7,6 +7,10 @@ export const OnlineStatusIndicator: React.FC = () => {
     const { isOfflineUnlocked, logoutOffline } = useApp();
     const [isOnline, setIsOnline] = useState(navigator.onLine);
     const [showStatus, setShowStatus] = useState(false);
+    // O ref do timer precisa viver no CORPO do componente. Dentro do callback
+    // do useEffect o dispatcher do React já é null (a fase de efeito não pode
+    // chamar hooks) e a chamada estourava "Minified React error #321".
+    const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const emEmergencia = isOfflineUnlocked === true;
 
@@ -18,10 +22,16 @@ export const OnlineStatusIndicator: React.FC = () => {
         const handleOnline = () => {
             setIsOnline(true);
             setShowStatus(true);
-            setTimeout(() => setShowStatus(false), 3000); // Hide after 3s
+            if (hideTimer.current) clearTimeout(hideTimer.current);
+            // Esconde o selo depois de 3s. O timer precisa ser cancelado: se a
+            // conexão caísse de novo antes disso, o timer antigo escondia o selo
+            // "Modo Offline" e o operador recebia o aviso ERRADO enquanto seguia
+            // sem rede (o botão de PDV continua acessível no modo offline).
+            hideTimer.current = setTimeout(() => setShowStatus(false), 3000);
         };
 
         const handleOffline = () => {
+            if (hideTimer.current) { clearTimeout(hideTimer.current); hideTimer.current = null; }
             setIsOnline(false);
             setShowStatus(true); // Always show when offline
         };
@@ -37,6 +47,7 @@ export const OnlineStatusIndicator: React.FC = () => {
         return () => {
             window.removeEventListener('online', handleOnline);
             window.removeEventListener('offline', handleOffline);
+            if (hideTimer.current) clearTimeout(hideTimer.current);
         };
     }, []);
 

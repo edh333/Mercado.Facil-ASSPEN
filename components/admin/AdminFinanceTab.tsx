@@ -532,7 +532,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
         {cashInPeriod.length === 0 ? (
           <p className="text-[10px] font-black uppercase text-[var(--text-muted)] opacity-40 text-center py-6">Nenhuma sessão de caixa no período.</p>
         ) : (
-          <div className="hidden lg:block overflow-x-auto custom-scrollbar">
+          <div className="hidden md:block overflow-x-auto custom-scrollbar">
             <table className="w-full text-sm table-as-cards">
               <thead className="text-left uppercase text-[10px] font-black tracking-widest text-[var(--text-muted)] border-b border-[var(--border-color)]">
                 <tr>
@@ -571,7 +571,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
             </table>
           </div>
         )}
-        <div className="lg:hidden divide-y divide-[var(--border-color)]">
+        <div className="md:hidden divide-y divide-[var(--border-color)]">
           {cashInPeriod.map((s) => {
             const diff = Number(s.cashDifference ?? s.balanceDiff ?? 0);
             const aberta = s.status === 'open';
@@ -641,7 +641,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
 
         <div className="p-4">
           {/* Desktop Table View */}
-          <div className="hidden lg:block overflow-x-auto custom-scrollbar">
+          <div className="hidden md:block overflow-x-auto custom-scrollbar">
             <table className="w-full text-sm table-as-cards">
               <thead className="text-left uppercase text-[10px] font-black tracking-widest text-[var(--text-muted)] border-b border-[var(--border-color)]">
                 <tr>
@@ -701,7 +701,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
                   </tr>
                 ))}
               </tbody>
-              {loadMoreExpenses && filteredData.length >= 50 && (
+              {loadMoreExpenses && expenses.length >= 50 && (
                 <tfoot>
                     <tr>
                         <td colSpan={5} className="p-6 text-center">
@@ -719,7 +719,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
           </div>
 
           {/* Mobile Cards View */}
-          <div className="lg:hidden divide-y divide-[var(--border-color)]">
+          <div className="md:hidden divide-y divide-[var(--border-color)]">
             {filteredData.length === 0 ? (
                 <div className="p-10 text-center font-black uppercase text-[10px] opacity-70">Sem registros.</div>
             ) : filteredData.map((item: any) => (
@@ -757,7 +757,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
                 </div>
             ))}
           </div>
-          {loadMoreExpenses && filteredData.length >= 50 && (
+          {loadMoreExpenses && expenses.length >= 50 && (
             <div className="p-6 text-center border-t border-[var(--border-color)]">
                 <button
                     onClick={loadMoreExpenses}

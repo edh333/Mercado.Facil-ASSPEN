@@ -452,7 +452,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
       <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
 
         {/* Desktop Table */}
-        <div className="hidden lg:block overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-left text-slate-500 font-black text-[10px] uppercase tracking-[0.2em] border-b border-slate-200 bg-slate-50">
               <tr>
@@ -545,7 +545,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
         </div>
 
         {/* Mobile Cards */}
-        <div className="lg:hidden divide-y divide-slate-100">
+        <div className="md:hidden divide-y divide-slate-100">
           {loadingWallet ? (
             <div className="p-10 text-center text-slate-300"><CreditCard size={40} className="mx-auto mb-3 animate-pulse"/><p className="text-[10px] font-black uppercase tracking-[0.3em]">Sincronizando...</p></div>
           ) : filteredTx.length === 0 ? (

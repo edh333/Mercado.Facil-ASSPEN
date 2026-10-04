@@ -68,6 +68,14 @@
       "collectionGroup": "cash_sessions",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "operatorId", "order": "ASCENDING" },
+        { "fieldPath": "openedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "cash_sessions",
+      "queryScope": "COLLECTION",
+      "fields": [
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "openedAt", "order": "ASCENDING" }
       ]

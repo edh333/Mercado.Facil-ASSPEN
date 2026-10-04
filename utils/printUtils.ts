@@ -1,4 +1,5 @@
 import { mascararCpf } from '../utils';
+import { rotularCliente } from './clienteRotulos';
 
 export function formatarLinhaDupla(esquerda: string, direita: string, larguraTotal = 40): string {
   if (esquerda.length + direita.length > larguraTotal) {
@@ -537,17 +538,21 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
   }
   cupom += `${divisor}\n`;
 
-  const interno = data.inmateName || data.prisonerName;
-  const inmateCpf = data.inmateCpf || data.prisonerCpf;
-  const familiar = data.userName;
-  const userCpf = data.userCpf;
-
-  if (interno || familiar) {
-    if (interno) cupom += `DESTINATARIO: ${limparLinha(interno, 34)}\n`;
-    if (inmateCpf) cupom += `CPF INTERNO:  ${limparLinha(mascararCpf(inmateCpf), 34)}\n`;
-    if (familiar && familiar !== interno) {
-      cupom += `FAMILIAR:     ${limparLinha(familiar, 34)}\n`;
-      if (userCpf) cupom += `CPF FAMILIAR: ${limparLinha(mascararCpf(userCpf), 34)}\n`;
+  const cli = rotularCliente(data);
+  if (cli.responsavel || cli.interno) {
+    // O responsável é o titular da compra e vem em DESTAQUE; o interno é o
+    // destinatário da mercadoria e vem abaixo. Sem responsável cadastrado, o
+    // nome do interno sobe para o destaque (rotulado como destinatário).
+    // `campo` alinha os rótulos em 15 colunas, igual às demais linhas do cupom.
+    const campo = (rotulo: string, valor: string) =>
+      `${(rotulo + ':').toUpperCase().padEnd(15, ' ')}${limparLinha(valor, 33)}`;
+    cupom += `${campo(cli.semResponsavel ? 'Destinatario' : 'Familiar', cli.responsavel)}\n`;
+    if (cli.responsavelCpf) {
+      cupom += `${campo(cli.semResponsavel ? 'CPF Interno' : 'CPF Familiar', mascararCpf(cli.responsavelCpf))}\n`;
+    }
+    if (cli.interno) {
+      cupom += `${campo('Destinatario', cli.interno)}\n`;
+      if (cli.internoCpf) cupom += `${campo('CPF Interno', mascararCpf(cli.internoCpf))}\n`;
     }
     cupom += `${divisor}\n`;
   }

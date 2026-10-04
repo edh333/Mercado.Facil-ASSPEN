@@ -35,6 +35,28 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
+// ──────────────────────────────────────────────
+// APP CHECK — prepared, NOT enabled (see docs)
+// ──────────────────────────────────────────────
+// Nenhum export hoje exige App Check, e o cliente (firebase.ts) ainda NÃO
+// inicializa `initializeAppCheck`. Ligar `enforceAppCheck: true` agora faria
+// toda chamada a esses endpoints ser recusada, porque o SDK não envia token
+// nenhum.
+//
+// A chave liga/desliga abaixo fica inerte até o provedor ser registrado no
+// console do Firebase E o cliente inicializar o App Check. Ordem para ativar:
+//   1. registrar o provedor (reCAPTCHA v3 para web);
+//   2. initializeAppCheck em firebase.ts (e no app Electron, que exige provedor
+//      próprio — Play Integrity é Android);
+//   3. `firebase functions:config`/variável de ambiente APP_CHECK_ENFORCE=true;
+//   4. deploy e monitorar logs antes de considerar os endpoints privados.
+// NUNCA ativar em `baixarAppAdmin`: ele responde com redirect(302) para uma URL
+// assinada do Storage e é acessado por navegação normal do navegador, que não
+// tem como enviar o header X-Firebase-AppCheck. Esse fluxo exige outro desenho
+// (assinar a URL numa callable autenticada e navegar para ela).
+const APP_CHECK_ENFORCE = process.env.APP_CHECK_ENFORCE === "true";
+const OPCOES_APP_CHECK = APP_CHECK_ENFORCE ? { enforceAppCheck: true } : {};
+
 // Bucket real do projeto (o padrão "project.appspot.com" foi descontinuado
 // pelo Firebase — o bucket ativo é "{project}.firebasestorage.app").
 const FUNC_BUCKET = process.env.FIREBASE_STORAGE_BUCKET
@@ -390,12 +412,14 @@ function verificarRateLimit(chave, maxChamadasPorJanela, janelaMs = RATE_LIMIT_J
 
 function ipDoRequest(request) {
   const headers = (request && request.rawRequest && request.rawRequest.headers) || {};
-  return String(
-    headers["cf-connecting-ip"] ||
-    headers["x-forwarded-for"] ||
-    headers["x-appengine-user-ip"] ||
-    "desconhecido"
-  ).split(",")[0].trim();
+  // X-Forwarded-For: <cliente>, <proxy1>, <proxy2>... O último (direita) é o
+  // inserido pela plataforma (Cloud Run/Functions) e não pode ser forjado pelo
+  // cliente. O primeiro (esquerda) É controlado pelo cliente.
+  const xff = String(headers["x-forwarded-for"] || "").split(",").map(s => s.trim());
+  return headers["cf-connecting-ip"] ||
+         (xff.length > 0 ? xff[xff.length - 1] : null) ||
+         headers["x-appengine-user-ip"] ||
+         "desconhecido";
 }
 
 // Hash legado de senha mora em auth_secrets/{uid} (coleção admin-only, fora do
@@ -898,7 +922,25 @@ exports.sincronizarClaimsAdmin = onCall({ timeoutSeconds: 240 }, async (request)
 /** Autenticado — altera a própria senha. */
 exports.alterarSenha = onCall(async (request) => {
   const user = await exigirAutenticado(request);
+  const senhaAtual = String(request.data?.senhaAtual || "").trim();
+  if (!senhaAtual) throw new HttpsError("invalid-argument", "Informe a senha atual.");
   const novaSenha = validarSenha(request.data?.novaSenha);
+  // Valida a senha atual via re-auth (Firebase Auth) — falha fechada se errada.
+  const apiKey = String(request.data?.apiKey || process.env.FIREBASE_API_KEY || "").trim();
+  if (apiKey && user.email) {
+    const resp = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${encodeURIComponent(apiKey)}`,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: user.email, password: senhaAtual, returnSecureToken: true }) }
+    );
+    if (resp.status !== 200) throw new HttpsError("invalid-argument", "Senha atual incorreta.");
+  } else {
+    // Fallback: compara com hash legado (bcrypt)
+    const hashLegado = await obterHashLegado(user.id);
+    if (hashLegado) {
+      const ok = await bcrypt.compare(senhaAtual, hashLegado);
+      if (!ok) throw new HttpsError("invalid-argument", "Senha atual incorreta.");
+    }
+  }
   await admin.auth().updateUser(request.auth.uid, { password: novaSenha });
   // Senha trocada → derruba sessões antigas (revoga refresh tokens; o token
   // atual segue válido só até expirar, depois exige login novamente).
@@ -947,7 +989,7 @@ exports.redefinirSenhaAdmin = onCall(async (request) => {
  * contadas ANTES da validação dos fatores — qualquer tentativa desgasta a janela)
  * e por limite por IP em memória (complementar).
  */
-exports.redefinirSenhaPublica = onCall(async (request) => {
+exports.redefinirSenhaPublica = onCall(OPCOES_APP_CHECK, async (request) => {
   const cpf = cleanCpf(request.data?.cpf);
   const cpfInterno = cleanCpf(request.data?.cpfInterno);
   const nomeCompleto = String(request.data?.nomeCompleto || "").trim().toLowerCase().replace(/\s+/g, " ");
@@ -1159,7 +1201,11 @@ exports.aprovarDeposito = onCall(async (request) => {
         rejectedBy: "SISTEMA",
         rejectedAt: new Date().toISOString(),
       }).catch(() => {});
-      throw new HttpsError("already-exists", "Comprovante já utilizado em outro depósito. Depósito recusado automaticamente.");
+      // `motivoDuplicado` traz o ID da transação conflitante (montado em 1122).
+      // Antes este HttpsError usava texto genérico e o admin NÃO VIA qual
+      // depósito é o conflito — justamente a informação necessária para
+      // decidir rápido. O motivo já foi persistido no doc (1156-1161).
+      throw new HttpsError("already-exists", motivoDuplicado || "Comprovante já utilizado em outro depósito. Depósito recusado automaticamente.");
     }
     // HttpsError já carrega o código certo (already-exists = comprovante
     // duplicado). O guard original só olhava o prefixo "functions/", que o
@@ -1303,6 +1349,8 @@ exports.zerarCarteiras = onCall(async (request) => {
   // como no aprovarDeposito/creditarSaldo. Rate limit adicional por operador.
   const caller = await exigirAdminPermissao(request, "wallet");
   verificarRateLimit("zerarCarteiras:" + caller.id, 3);
+  // Segundo fator OBRIGATÓRIO — igual a creditarSaldo, sacarSaldoAdmin, restaurarBackup.
+  await verificarSenhaMestra(request.data?.senhaMestra);
   logger.info(`[zerarCarteiras] operador=${caller.id}`);
 
   const antes = [];
@@ -1785,6 +1833,34 @@ function refSessaoCaixa(sessao) {
     : db.collection("cashier").doc(sessao.id);
 }
 
+/**
+ * A sessão de caixa pertence ao operador que a abriu?
+ *
+ * O id da sessão chega do CLIENTE (request.data.sessaoCaixaId) e antes desta
+ * checagem o servidor confiava nele: bastava enviar o id da gaveta de um colega
+ * para creditar o dinheiro na sessão alheia. Isso não era só um número errado —
+ * a atribuição por operador é a base da auditoriaDiaria e dos relatórios de
+ * quebra-caixa, então a conciliação inteira saía contaminada.
+ *
+ * `openedBy` é o nome legado usado pelas sessões da coleção "cashier".
+ *
+ * O dono é conferido contra o id do doc `users` E contra o UID bruto do Auth:
+ * os dois aparecem em sessões reais (conta migrada tem docId != UID — ver o
+ * fallback de getActiveSession no cliente e a normalização de `id` em
+ * usuarioPorAuthUid), então aceitar só um deles derrubaria a venda legítima de
+ * quem já foi migrado. Aceitar os DOIS continua barrando o colega, porque os
+ * ids dele são distintos dos dois.
+ */
+function sessaoPertenceAoOperador(sessao, operator) {
+  if (!sessao || !operator) return false;
+  const dono = sessao.operatorId || sessao.openedBy || null;
+  if (!dono) return false;
+  const aceitaveis = [operator.id, operator.authUid]
+    .filter(Boolean)
+    .map((v) => String(v));
+  return aceitaveis.includes(String(dono));
+}
+
 async function getSessaoCaixaAberta(operatorId) {
   // 1) PDV moderno (coleção cash_sessions, status minúsculo "open").
   //    Filtro de status NO SERVIDOR + limit(1) — mesma query do getActiveSession
@@ -2076,6 +2152,16 @@ exports.processarVendaAdmin = onCall(async (request) => {
       // Fallback: busca a sessão aberta do operador (compatibilidade)
       sessaoCaixa = await getSessaoCaixaAberta(caller.id);
     }
+    // O id veio do cliente: a sessão precisa ser DO CHAMADOR. Sem isto, um
+    // operador de caixa informava o id da gaveta de um colega e a venda em
+    // dinheiro era creditada na sessão alheia (quebra-caixa e auditoria por
+    // operador ficavam com a conciliação errada).
+    if (sessaoCaixa && !sessaoPertenceAoOperador(sessaoCaixa, caller)) {
+      throw new HttpsError(
+        "permission-denied",
+        "Sessão de caixa inválida: a gaveta informada pertence a outro operador."
+      );
+    }
   }
 
   let resultado;
@@ -2095,6 +2181,15 @@ exports.processarVendaAdmin = onCall(async (request) => {
         if (!sessaoTx.exists ||
             String(sessaoTx.data().status || "").toLowerCase() !== "open") {
           throw new Error("A sessão de caixa foi fechada por outro operador. Reabra o caixa para continuar.");
+        }
+        // Mesma revalidação da DONA da gaveta dentro da transação: a checagem
+        // pré-transação usa o doc lido antes da tx, e é este relido que de fato
+        // vai receber o dinheiro.
+        if (!sessaoPertenceAoOperador(
+          { id: sessaoCaixa.id, ...sessaoTx.data() },
+          caller
+        )) {
+          throw new Error("Sessão de caixa inválida: a gaveta informada pertence a outro operador.");
         }
       }
       // Venda em dinheiro SEM caixa aberto nunca entra: sem sessão não há gaveta
@@ -2148,6 +2243,10 @@ exports.processarVendaAdmin = onCall(async (request) => {
           const cfg = cfgSnap.exists ? cfgSnap.data() : {};
           verificarLimiteSemanal(userData.weeklySpent || 0, firstUserWalletAmount, cfg.weeklyWalletLimit);
         }
+        // Paridade com FIADO (linhas 2260-2264): bloqueia usuário bloqueado.
+        if (String(userData.status || "").toLowerCase() === "blocked") {
+          throw new Error("Usuário bloqueado para venda com carteira.");
+        }
       }
     }
 
@@ -2163,6 +2262,10 @@ exports.processarVendaAdmin = onCall(async (request) => {
         const cfgSnap = await t.get(db.collection("settings").doc("general"));
         const cfg = cfgSnap.exists ? cfgSnap.data() : {};
         verificarLimiteSemanal(userData2.weeklySpent || 0, secondWalletAmount, cfg.weeklyWalletLimit);
+      }
+      // Paridade com FIADO: bloqueia usuário bloqueado.
+      if (String(userData2.status || "").toLowerCase() === "blocked") {
+        throw new Error("2º devedor bloqueado para venda com carteira.");
       }
     }
 
@@ -2538,6 +2641,11 @@ exports.registrarPedidoPix = onCall(async (request) => {
   if (!paymentProofUrl) {
     throw new HttpsError("invalid-argument", "Envie o comprovante do PIX antes de confirmar o pedido.");
   }
+  // Sentinela local ("PENDENTE_UPLOAD_LOCAL_CACHE") NÃO é aceita no servidor —
+  // indica upload offline que falhou. O app deve reenviar quando a conexão voltar.
+  if (paymentProofUrl === "PENDENTE_UPLOAD_LOCAL_CACHE") {
+    throw new HttpsError("failed-precondition", "Aguardando upload do comprovante. Conecte-se à internet e tente novamente.");
+  }
   // Comprovante pendente (upload offline, será reenviado pelo app) ou URL do Storage.
   // A URL precisa pertencer ao bucket do projeto E à pasta do próprio usuário
   // (comprovante de outro usuário/projeto não pode ser usado para confirmar um pedido).
@@ -2882,25 +2990,29 @@ exports.estornarVenda = onCall(async (request) => {
   const orderId = String(request.data?.orderId || "");
   const motivo = String(request.data?.motivo || "Devolução administrativa").slice(0, 200);
   // Janela de CANCELAMENTO (ex.: PDV cancela apenas vendas dos últimos 5 dias).
-  // Chamadas sem janelaDias (estorno/devolução pela aba de Pedidos) não são afetadas.
-  const janelaDias = Number(request.data?.janelaDias) || 0;
+  // Para operadores e admins NÃO master, a janela É OBRIGATÓRIA (lida do config,
+  // default 5 dias) — impede bypass enviando janelaDias=0. Apenas admin master
+  // (mainAdmin) pode omitir a janela (estorno administrativo pela aba Pedidos).
+  let janelaDias = Number(request.data?.janelaDias) || 0;
+  if (!ehAdminCompleto(caller)) {
+    const cfgSnap = await db.collection("settings").doc("general").get();
+    const cfg = cfgSnap.exists ? cfgSnap.data() : {};
+    const minJanela = Math.max(1, Number(cfg.cancelWindowDays || 5));
+    if (janelaDias <= 0) janelaDias = minJanela;
+    else if (janelaDias < minJanela) janelaDias = minJanela;
+  }
   if (!orderId) throw new HttpsError("invalid-argument", "Pedido inválido.");
 
-  // Segundo fator no SERVIDOR. A UI (RefundSaleModal) já validava a senha
-  // antes de chamar, mas essa validação era só de cliente: chamar a Function
-  // direto permitia a um admin com apenas a permissão 'sales' estornar
-  // vendas — o que credita carteira, devolve estoque e mexe no caixa — sem
-  // a senha que o próprio sistema exige em creditar saldo, sacar e
+  // Segundo fator no SERVIDOR — OBRIGATÓRIO. A UI (RefundSaleModal) já validava
+  // a senha antes de chamar, mas essa validação era só de cliente: chamar a
+  // Function direto permitia a um admin com apenas a permissão 'sales'
+  // estornar vendas — o que credita carteira, devolve estoque e mexe no
+  // caixa — sem a senha que o sistema exige em creditar saldo, sacar e
   // restaurar backup. Aqui a prova é conferida de novo, no servidor.
-  // Se não houver senha mestra CADASTRADA, não se exige nada (sistema legado
-  // ainda sem senha definida continua funcionando).
-  {
-    const privSnap = await db.collection("settings").doc("private").get();
-    const priv = privSnap.exists ? privSnap.data() : {};
-    if (priv.masterPasswordHash) {
-      await verificarSenhaMestra(request.data?.senhaMestra);
-    }
-  }
+  // `verificarSenhaMestra` já falha fechada (failed-precondition) se não
+  // houver senha mestra cadastrada — igual a creditarSaldo, sacarSaldoAdmin
+  // e restaurarBackup.
+  await verificarSenhaMestra(request.data?.senhaMestra);
 
   try {
     // Resolve a sessão de caixa ANTES da transação (queries não são permitidas dentro dela)
@@ -3391,7 +3503,10 @@ exports.abaterDividaFiado = onCall(async (request) => {
  * false permanece nas rules como proteção contra criação arbitrária do cliente).
  */
 exports.criarClienteFiado = onCall(async (request) => {
-  const caller = await exigirAdminPermissao(request, "users");
+  // Exige permissão 'finance' (não 'users') e 2º fator — cria crédito ilimitado.
+  const caller = await exigirAdminPermissao(request, "finance");
+  // Segundo fator OBRIGATÓRIO — igual a creditarSaldo, zerarCarteiras.
+  await verificarSenhaMestra(request.data?.senhaMestra);
   const nome = String(request.data?.nome || "").trim();
   const cpf = cleanCpf(request.data?.cpf);
   const telefone = String(request.data?.telefone || "").trim().slice(0, 20);
@@ -3403,6 +3518,10 @@ exports.criarClienteFiado = onCall(async (request) => {
   if (cpf && cpf.length !== 11) throw new HttpsError("invalid-argument", "CPF inválido.");
   if (cpf.length === 11 && !validarCpf(cpf)) {
     throw new HttpsError("invalid-cpf", "CPF inválido. Verifique os números e tente novamente.");
+  }
+  // Teto de segurança: evita creditLimit absurdo que desativa o limite.
+  if (creditLimit > 1000000) {
+    throw new HttpsError("invalid-argument", "Limite de crédito excede o teto de R$ 1.000.000,00.");
   }
 
   if (cpf.length === 11) {
@@ -3830,14 +3949,15 @@ async function validarSenhaUnicaServidor(user, senhaInformada, apiKey) {
   }
 
   // ALTO: vendedor/operador NÃO pode se auto-autorizar com a própria senha de
-  // login (primariaOk) — anularia a régua de 2 fatores do fiado/desconto. Para
-  // eles vale apenas a senha MESTRA. Admin/master continuam com login OU mestra.
+  // login (primariaOk) — anularia a régua de 2 fatores do fiado/desconto.
+  // Para TODAS as roles (incluindo admin/master) vale APENAS a senha MESTRA.
+  // O login password (primariaOk) é usado só para re-auth em alterarSenha.
   const roleLower = String((user && user.role) || "").toLowerCase();
-  if (["vendedor", "operator"].includes(roleLower)) {
+  if (["vendedor", "operator", "admin", "master"].includes(roleLower)) {
     return { ok: secundariaOk, secundariaOk, primariaOk: false, definida: true };
   }
 
-  return { ok: secundariaOk || primariaOk, secundariaOk, primariaOk, definida: true };
+  return { ok: secundariaOk, secundariaOk, primariaOk, definida: true };
 }
 
 /**
@@ -3887,6 +4007,8 @@ exports.limparDadosAntigos = onCall({
   // Só admin PRINCIPAL: apaga fisicamente comprovantes e até 12.000 docs —
   // poder destrutivo comparável ao de creditarSaldo, que exige senha mestra.
   const chamador = await exigirAdminPrincipal(request);
+  // Segundo fator OBRIGATÓRIO — igual a creditarSaldo, sacarSaldoAdmin, restaurarBackup.
+  await verificarSenhaMestra(request.data?.senhaMestra);
   const dias = Math.max(30, Math.min(730, Math.floor(Number(request.data?.dias) || 90)));
   const apagarArquivos = Boolean(request.data?.apagarArquivos);
   const cutoff = new Date(Date.now() - dias * 24 * 60 * 60 * 1000).toISOString();
@@ -4017,6 +4139,8 @@ exports.resetarSistemaTotal = onCall({
   memory: "512MiB",
 }, async (request) => {
   const chamador = await exigirAdminPrincipal(request);
+  // Segundo fator OBRIGATÓRIO — igual a creditarSaldo, sacarSaldoAdmin, restaurarBackup.
+  await verificarSenhaMestra(request.data?.senhaMestra);
   verificarRateLimit("reset_sistema_" + chamador.id, 1, 60 * 1000);
   if (request.data?.confirmar !== true) {
     throw new HttpsError("invalid-argument", "Confirmação explícita necessária.");
@@ -4252,8 +4376,13 @@ exports.baixarAppAdmin = onRequest({ timeoutSeconds: 60, memory: "256MiB" }, asy
  * inicial (Landing), onde familiares baixam o instalador Windows sem login.
  * O "App Admin" NUNCA passa por aqui: só pelo gerarLinkDownloadAdmin +
  * baixarAppAdmin (token de uso curto).
+ *
+ * SEM enforceAppCheck de propósito: este endpoint é público, serve a Landing
+ * (sem login) e responde em CORS aberto. Exigir App Check aqui só protege o
+ * metadado do instalador — o arquivo em si é público no Storage de qualquer
+ * forma. Ativar quando o cliente enviar token (ver OPCOES_APP_CHECK).
  */
-exports.obterDownloadAppUsuario = onRequest({ timeoutSeconds: 30 }, async (_req, res) => {
+exports.obterDownloadAppUsuario = onRequest({ timeoutSeconds: 30, ...OPCOES_APP_CHECK }, async (_req, res) => {
   res.set("Access-Control-Allow-Origin", "*");
   try {
     const entrada = APPS_DISPONIVEIS.find((a) => a.chave === "usuario");
@@ -4744,7 +4873,7 @@ exports.gerenciarSessaoCaixa = onCall(async (request) => {
     const operadorId = caller.id;
     const operadorNome = String(caller.name || "").trim();
     const inicial = Number(request.data?.initialBalance ?? 0);
-    if (isNaN(inicial) || !(inicial >= 0)) {
+    if (!Number.isFinite(inicial) || inicial < 0) {
       throw new HttpsError("invalid-argument", "Saldo inicial deve ser zero ou positivo.");
     }
 
@@ -4803,7 +4932,16 @@ exports.gerenciarSessaoCaixa = onCall(async (request) => {
   }
 
   if (acao === "supplement") {
-    if (!(valor > 0)) throw new HttpsError("invalid-argument", "Valor de suprimento deve ser maior que zero.");
+    if (!Number.isFinite(valor) || !(valor > 0)) {
+      throw new HttpsError("invalid-argument", "Valor de suprimento deve ser maior que zero.");
+    }
+    const v = arredondar(valor);
+    // Admin exige 2º fator (senha mestra). Vendedor no próprio caixa: validação + teto.
+    if (ehAdminCompleto(caller)) {
+      await verificarSenhaMestra(request.data?.senhaMestra);
+    } else if (v > 10000) { // teto operacional p/ vendedor — evita injeção que apague divergência
+      throw new HttpsError("invalid-argument", "Suprimento excede o teto de R$ 10.000,00 por operação.");
+    }
     try {
       await db.runTransaction(async (t) => {
         const snap = await t.get(ref);
@@ -4811,20 +4949,29 @@ exports.gerenciarSessaoCaixa = onCall(async (request) => {
           throw new HttpsError("failed-precondition", "Esta sessão de caixa já foi encerrada.");
         }
         t.update(ref, {
-          currentBalance: FIELD_INCREMENTO(valor),
-          supplements: FIELD_ARRAYUNION({ amount: valor, reason: motivo || "Suprimento", timestamp: AGORA() }),
+          currentBalance: FIELD_INCREMENTO(v),
+          supplements: FIELD_ARRAYUNION({ amount: v, reason: motivo || "Suprimento", timestamp: AGORA() }),
         });
       });
     } catch (e) {
       if (e instanceof HttpsError) throw e;
       throw new HttpsError("internal", "Erro ao registrar suprimento.");
     }
-    await registrarAudit(caller.id, "SUPRIMENTO_CAIXA", sessaoId, { valor });
+    await registrarAudit(caller.id, "SUPRIMENTO_CAIXA", sessaoId, { valor: v });
     return { ok: true };
   }
 
   if (acao === "withdrawal") {
-    if (!(valor > 0)) throw new HttpsError("invalid-argument", "Valor de sangria deve ser maior que zero.");
+    if (!Number.isFinite(valor) || !(valor > 0)) {
+      throw new HttpsError("invalid-argument", "Valor de sangria deve ser maior que zero.");
+    }
+    const v = arredondar(valor);
+    // Admin exige 2º fator (senha mestra). Vendedor no próprio caixa: validação + teto.
+    if (ehAdminCompleto(caller)) {
+      await verificarSenhaMestra(request.data?.senhaMestra);
+    } else if (v > 10000) {
+      throw new HttpsError("invalid-argument", "Sangria excede o teto de R$ 10.000,00 por operação.");
+    }
     try {
       await db.runTransaction(async (t) => {
         const snap = await t.get(ref);
@@ -4834,22 +4981,22 @@ exports.gerenciarSessaoCaixa = onCall(async (request) => {
           throw new HttpsError("failed-precondition", "Esta sessão de caixa já foi encerrada.");
         }
         const saldoAtual = Number(snap.data().currentBalance || 0);
-        if (!(saldoAtual >= valor)) {
+        if (!(saldoAtual >= v)) {
           throw new HttpsError(
             "failed-precondition",
-            `Saldo em caixa insuficiente para sangria de R$ ${valor.toFixed(2).replace(".", ",")} — disponível: R$ ${saldoAtual.toFixed(2).replace(".", ",")}.`
+            `Saldo em caixa insuficiente para sangria de R$ ${v.toFixed(2).replace(".", ",")} — disponível: R$ ${saldoAtual.toFixed(2).replace(".", ",")}.`
           );
         }
         t.update(ref, {
-          currentBalance: FIELD_INCREMENTO(-valor),
-          withdrawals: FIELD_ARRAYUNION({ amount: valor, reason: motivo || "Sangria", timestamp: AGORA() }),
+          currentBalance: FIELD_INCREMENTO(-v),
+          withdrawals: FIELD_ARRAYUNION({ amount: v, reason: motivo || "Sangria", timestamp: AGORA() }),
         });
       });
     } catch (e) {
       if (e instanceof HttpsError) throw e;
       throw new HttpsError("internal", "Erro ao registrar sangria.");
     }
-    await registrarAudit(caller.id, "SANGRIA_CAIXA", sessaoId, { valor });
+    await registrarAudit(caller.id, "SANGRIA_CAIXA", sessaoId, { valor: v });
     return { ok: true };
   }
 

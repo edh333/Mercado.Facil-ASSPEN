@@ -3,7 +3,8 @@ import { X, Search, Barcode, ShoppingCart, Check, Lock, User as UserIcon, Plus, 
 import { QRCodeSVG } from 'qrcode.react';
 import { Product, User, Order, AppConfig, UserRole } from '../../types';
 import { filtrarClientesPdv } from '../../utils/pdvSearch';
-import { formatarMoeda, parseMoeda, generatePixPayload as generatePix, isAdminRole } from '../../utils';
+import { formatarMoeda, parseMoeda, generatePixPayload as generatePix, isAdminRole, mascararCpf } from '../../utils';
+import { rotularCliente } from '../../utils/clienteRotulos';
 import { montarPagamentoPdv, arredondarCentavos, MetodoPagamentoPDV, MetodoLancamento } from '../../utils/pdvPayment';
 import { imprimirSilenciosoFiscal, imprimirComPrioridadeFiscal } from '../../utils/printUtils';
 import { useApp } from '../../context/StoreContext';
@@ -58,7 +59,11 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
   const [valorRecebido, setValorRecebido] = useState('');
   const [bandeiraCartao, setBandeiraCartao] = useState('');
   const [pixConfirmado, setPixConfirmado] = useState(false);
-  const [cardConfirmado, setCardConfirmado] = useState(false);
+  // `cartaoConfirmado` (logo abaixo) e o gate REAL da confirmacao de cartao:
+  // e ele que alimenta `bloqueioCartao` e o botao de confirmacao. Havia tambem
+  // um `cardConfirmado` identico por nome que nunca era lido -- uma armadilha
+  // na rota de pagamento, porque um dev novo escreveria `cardConfirmado` e
+  // acreditaria estar validando o cartao. Removido.
   const [cartaoConfirmado, setCartaoConfirmado] = useState(false);
   const [pixMistoConfirmado, setPixMistoConfirmado] = useState(false);
   const [processando, setProcessando] = useState(false);
@@ -66,7 +71,6 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
   // ── Limpeza automática de estados de validação ao trocar método ou finalizar venda ──
   useEffect(() => {
     setPixConfirmado(false);
-    setCardConfirmado(false);
     setCartaoConfirmado(false);
     setPixMistoConfirmado(false);
     setSenhaSupervisor('');
@@ -80,7 +84,6 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
   useEffect(() => {
     if (ultimoPedido) {
       setPixConfirmado(false);
-      setCardConfirmado(false);
       setCartaoConfirmado(false);
       setPixMistoConfirmado(false);
       setSenhaSupervisor('');
@@ -189,7 +192,6 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
     setValorMisto({ PIX: '', WALLET: '', CASH: '' });
     setValorRecebido('');
     setPixConfirmado(false);
-    setCardConfirmado(false);
     setBandeiraCartao('');
     setSenhaSupervisor('');
     setSenhaSupervisaoOk(false);
@@ -626,6 +628,12 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
         targetId,
         clienteEhConsumidor,
         saldoCarteiraCliente: cliente?.walletBalance,
+        // O limite semanal EXIBIDO na tela tem de ser o mesmo que a validação
+        // usa: sem estes dois campos a função recebia `undefined` e caía num
+        // teto de R$ 300 embutido, então a tela mostrava um limite e a checagem
+        // aplicava outro (a venda só era recusada pelo servidor, no fim).
+        weeklySpentCliente: Number(cliente?.weeklySpent || 0),
+        weeklyWalletLimit: limiteSemanalConfig,
       });
     } catch (e: any) {
       // BUGFIX: erro de MONTAGEM (valores/cálculos) nunca era "queda de rede".
@@ -654,7 +662,6 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
         setValorMisto({ PIX: '', WALLET: '', CASH: '' });
         setValorRecebido('');
         setPixConfirmado(false);
-        setCardConfirmado(false);
         setBandeiraCartao('');
         setSenhaSupervisor('');
         setSenhaSupervisaoOk(false);
@@ -740,23 +747,29 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
   return (
     <div className="min-h-screen w-full bg-slate-50 text-slate-800 antialiased font-sans block relative z-[9999] opacity-100">
       {/* Barra superior discreta */}
-      <div className="w-full px-4 pt-4 flex items-center justify-between border-b border-slate-200/80 bg-white">
-        <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
-          <ShoppingCart size={18} className="text-emerald-600" />
-          PDV Balcão
+      {/* flex-wrap + min-w-0 no título: entre 320 e 400px, título + "Cancelar
+          Venda" + "Som: Ligado" + fechar ficavam numa linha só e os rótulos
+          quebravam. Rótulos longos somem no celular (ícone continua, com
+          aria-label). */}
+      <div className="w-full px-4 pt-4 pb-1 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 bg-white">
+        <div className="flex items-center gap-2 text-sm font-bold text-slate-700 min-w-0 truncate">
+          <ShoppingCart size={18} className="text-emerald-600 shrink-0" />
+          <span className="truncate">PDV Balcão</span>
           <span className="text-xs font-medium text-slate-400 hidden sm:inline">· F2 para código de barras</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {podeCancelarVenda && (
             <button
               onClick={() => setCancelarAberto(true)}
+              aria-label="Cancelar venda"
               className="text-xs px-3 py-1.5 rounded-lg border border-rose-200 bg-rose-50 text-rose-600 font-bold hover:bg-rose-100 hover:border-rose-300 transition-colors flex items-center gap-1.5"
             >
-              <XCircle size={13} /> Cancelar Venda
+              <XCircle size={13} /> <span className="hidden sm:inline">Cancelar Venda</span>
             </button>
           )}
           <button
             onClick={() => setIsSoundEnabled(s => !s)}
+            aria-label={isSoundEnabled ? 'Desativar som do PDV' : 'Ativar som do PDV'}
             className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 font-medium hover:bg-slate-50 transition-colors"
           >
             Som: {isSoundEnabled ? 'Ligado' : 'Desligado'}
@@ -805,7 +818,7 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
                   <button
                     key={m.key}
                     title={m.rotulo}
-                    onClick={() => { setFormaPagamento(m.key); setPixConfirmado(false); setCardConfirmado(false); setSenhaSupervisor(''); setSenhaSupervisaoOk(false); setSenhaSupervisaoErro(''); }}
+                    onClick={() => { setFormaPagamento(m.key); setPixConfirmado(false); setSenhaSupervisor(''); setSenhaSupervisaoOk(false); setSenhaSupervisaoErro(''); }}
                     className={`flex items-center justify-center gap-1 rounded-xl border text-[10px] font-bold transition-all min-h-[44px] ${
                       ativo
                         ? 'bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-600/20'
@@ -866,22 +879,32 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
                   ) : clientesFiltrados.length === 0 ? (
                     <div className="p-3 text-slate-400">Nenhum cliente encontrado.</div>
                   ) : (
-                    clientesFiltrados.map(u => (
-                      <button
-                        key={u.id}
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => selecionarCliente(u)}
-                        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg hover:bg-emerald-50 hover:text-emerald-700 text-left transition-colors"
-                      >
-                        <span className="flex items-center gap-2 font-semibold text-slate-700">
-                          <UserIcon size={14} className="text-slate-400" />
-                          {u.name}
-                        </span>
-                        <span className="text-[10px] text-slate-400 truncate max-w-[45%]">
-                          {(u.inmateName || u.prisonerName || '') || (u.cpf || '')}
-                        </span>
-                      </button>
-                    ))
+                    clientesFiltrados.map(u => {
+                      const cli = rotularCliente(u);
+                      return (
+                        <button
+                          key={u.id}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => selecionarCliente(u)}
+                          className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg hover:bg-emerald-50 hover:text-emerald-700 text-left transition-colors"
+                        >
+                          <span className="flex flex-col gap-0.5 min-w-0">
+                            <span className="flex items-center gap-2 font-semibold text-slate-700 min-w-0">
+                              <UserIcon size={14} className="text-slate-400 shrink-0" />
+                              <span className="truncate">{cli.responsavel || 'SEM NOME'}</span>
+                            </span>
+                            {cli.interno && (
+                              <span className="text-[10px] font-medium uppercase tracking-wide text-slate-500 truncate pl-[22px]">
+                                Interno: {cli.interno}
+                              </span>
+                            )}
+                          </span>
+                          <span className="text-[10px] text-slate-400 shrink-0 tabular-nums">
+                            {mascararCpf(cli.responsavelCpf || cli.internoCpf)}
+                          </span>
+                        </button>
+                      );
+                    })
                   )}
                 </div>
               )}

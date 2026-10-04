@@ -421,12 +421,26 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
                             {transaction.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
                         </p>
                     </div>
-                    <div className="text-right">
-                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-2">Status do Protocolo</span>
-                        <p className={`text-[10px] font-black uppercase px-4 py-1.5 rounded-full border shadow-sm ${transaction.status === 'approved' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-amber-500/10 text-amber-600 border-amber-500/20 animate-pulse'}`}>
-                            {transaction.status === 'approved' ? 'Auditado e Aprovado' : 'Aguardando Conferência'}
-                        </p>
-                    </div>
+                    {(() => {
+                        // Sem o caso 'rejected', uma transação recusada pelo SISTEMA
+                        // (comprovante duplicado) aparecia como "Aguardando
+                        // Conferência" — o admin achava que ainda estava na fila e
+                        // voltava a clicar em "Validar e Creditar".
+                        const status = String(transaction.status || '').toLowerCase();
+                        const badge = status === 'approved'
+                            ? { classe: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20', texto: 'Auditado e Aprovado' }
+                            : status === 'rejected'
+                                ? { classe: 'bg-red-500/10 text-red-600 border-red-500/20', texto: transaction.rejectedBy === 'SISTEMA' ? 'Recusado pelo Sistema' : 'Recusado' }
+                                : { classe: 'bg-amber-500/10 text-amber-600 border-amber-500/20 animate-pulse', texto: 'Aguardando Conferência' };
+                        return (
+                            <div className="text-right">
+                                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-2">Status do Protocolo</span>
+                                <p className={`text-[10px] font-black uppercase px-4 py-1.5 rounded-full border shadow-sm ${badge.classe}`}>
+                                    {badge.texto}
+                                </p>
+                            </div>
+                        );
+                    })()}
                   </div>
                 </div>
               </div>

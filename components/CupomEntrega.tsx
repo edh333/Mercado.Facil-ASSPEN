@@ -1,5 +1,6 @@
 import React from 'react';
 import { formatarMoeda, mascararCpf } from '../utils';
+import { rotularCliente } from '../utils/clienteRotulos';
 import { AppConfig } from '../types';
 import { ShieldCheck, Hash, Printer, Scissors, QrCode, X } from 'lucide-react';
 
@@ -122,20 +123,30 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
         {data.unitName && <div className="flex justify-between"><span>UNIDADE:</span> <span className="font-black uppercase">{data.unitName}</span></div>}
       </div>
 
-      {/* RECEPTOR */}
-      {(data.inmateName || data.userName || data.prisonerName) && (
+      {/* RECEPTOR — o responsável é o titular da compra e vem em destaque;
+          o interno (destinatário da mercadoria) vem como informação secundária. */}
+      {(() => {
+        const cli = rotularCliente(data);
+        if (!cli.responsavel && !cli.interno) return null;
+        const titulo = cli.semResponsavel ? 'Destinatário / Interno' : 'Cliente / Responsável';
+        return (
           <div className="mb-2 border-2 border-black p-2 rounded bg-gray-50">
-              <p className="font-black uppercase text-[9px] opacity-70 mb-0.5">Destinatário / Interno</p>
-              <p className="font-black uppercase leading-tight text-base">{data.inmateName || data.prisonerName || 'Não identificado'}</p>
-              {(data.inmateCpf || data.prisonerCpf) && <p className="font-bold text-[10px] mt-0.5">CPF INTERNO: {mascararCpf(data.inmateCpf || data.prisonerCpf)}</p>}
-              {data.userName && (data.userName !== data.inmateName) && (
-                <div className="mt-1 pt-1 border-t border-dashed border-gray-400">
-                  <p className="font-bold text-[10px]">FAMILIAR: {data.userName}</p>
-                  {data.userCpf && <p className="font-bold text-[9px] opacity-80">CPF FAMILIAR: {mascararCpf(data.userCpf)}</p>}
-                </div>
-              )}
+            <p className="font-black uppercase text-[9px] opacity-70 mb-0.5">{titulo}</p>
+            <p className="font-black uppercase leading-tight text-base">{cli.responsavel || 'Não identificado'}</p>
+            {cli.responsavelCpf && (
+              <p className="font-bold text-[10px] mt-0.5">
+                {cli.semResponsavel ? 'CPF INTERNO' : 'CPF CLIENTE'}: {mascararCpf(cli.responsavelCpf)}
+              </p>
+            )}
+            {cli.interno && (
+              <div className="mt-1 pt-1 border-t border-dashed border-gray-400">
+                <p className="font-bold text-[10px]">DESTINATÁRIO INTERNO: {cli.interno}</p>
+                {cli.internoCpf && <p className="font-bold text-[9px] opacity-80">CPF INTERNO: {mascararCpf(cli.internoCpf)}</p>}
+              </div>
+            )}
           </div>
-      )}
+        );
+      })()}
 
       {/* LOCATION — estilo sistema 2: caixa com cabeçalho preto + 3 colunas grandes */}
       {(data.inmateLocation || data.deliveryLocation) && (() => {

@@ -349,7 +349,7 @@ export function AdminDashboard() {
   // Guardas: nada de atalho com janela aberta, nem digitando em campos.
   const shortcutsModalOpen = [showSalesModal, showReportModal, showShortcutsModal, showProductModal, showRefundModal, showWithdrawalModal, showAuthModal, historyModalCpf, viewingReceipt].some(Boolean);
 
-  const goToTab = (tab: string) => {
+const goToTab = (tab: string) => {
     const tabPermissions: Record<string, string> = {
       'orders': 'orders',
       'products': 'products',
@@ -363,10 +363,19 @@ export function AdminDashboard() {
       'messages': 'users',
       'stock_alerts': 'products',
       'bi': 'reports',
-      'settings': 'reports'
+      // Abas master-only (renderizam só para isMaster || userRole === 'admin').
+      // Sem esta lista elas entravam por QUALQUER atalho: o admin chegava e
+      // via só o cabeçalho, com o corpo em branco. 'settings' ainda usava a
+      // permissão 'reports', que não é a condição real de render.
+      'settings': '',
+      'maintenance': '',
+   // 'audit' renderiza com hasPermission('finance') — não é master-only.
+      'audit': 'finance',
     };
     const needPerm = tabPermissions[tab];
-    if (!needPerm || hasPermission(needPerm)) {
+    const masterOnly = tab in tabPermissions && tabPermissions[tab] === '';
+    const autorizado = masterOnly ? (isMaster || userRole === 'admin') : (!needPerm || hasPermission(needPerm));
+    if (autorizado) {
       setActiveTab(tab);
     } else {
       showNotification('Permissão negada para esta seção.', 'error');
@@ -879,7 +888,7 @@ export function AdminDashboard() {
           menuButton={
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="lg:hidden text-slate-500 hover:bg-slate-100 p-2 rounded-lg border border-slate-200 touch-target"
+              className="md:hidden text-slate-500 hover:bg-slate-100 p-2 rounded-lg border border-slate-200 touch-target"
             >
               {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
             </button>

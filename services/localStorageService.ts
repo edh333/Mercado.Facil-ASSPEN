@@ -70,8 +70,8 @@ const importBackup = (backupData: any) => {
 
 export { LOCALStorage, exportBackup, importBackup };
 // -- Fila de comprovantes pendentes (IndexedDB) -----------------------------
-// Quando o upload n�o pode ser conclu�do (sem internet, falha de rede), o
-// arquivo � guardado aqui e reenviado automaticamente quando a conex�o voltar.
+// Quando o upload não pode ser concluído (sem internet, falha de rede), o
+// arquivo é guardado aqui e reenviado automaticamente quando a conexão voltar.
 const DB_NAME = 'mercado_facil_uploads';
 const DB_STORE = 'pending';
 

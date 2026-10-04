@@ -12,6 +12,10 @@ const base = (over: any = {}) => ({
   formaPagamento: "PIX",
   total: 50,
   clienteEhConsumidor: false,
+  // weeklyWalletLimit é OBRIGATÓRIO em MontagemPagamentoInput: o default que
+  // existia dentro de montarPagamentoPdv (300) era a razão de a tela e a
+  // validação discordarem do limite semanal. Aqui o valor é explícito.
+  weeklyWalletLimit: 300,
   ...over,
 });
 
@@ -178,6 +182,31 @@ describe("MIXED (pagamento misto)", () => {
       weeklySpentCliente: 280,
       weeklyWalletLimit: 300,
     }))).toThrow("Limite semanal de créditos excedido");
+  });
+
+  // Regressão: o teto de R$ 300 ficava DEFAULT dentro de montarPagamentoPdv.
+  // Com o limite real configurado em 0 (créditos bloqueados) a tela mostrava
+  // "0 disponível" mas a validação autorizava até 300 — a venda só era recusada
+  // pelo servidor, depois de o operador já ter montado o pagamento.
+  it("limite semanal 0 (créditos bloqueados) barra a parte em carteira do misto", () => {
+    expect(() => montarPagamentoPdv(base({
+      formaPagamento: "MIXED", total: 100,
+      valorMisto: { PIX: "90", WALLET: "10", CASH: "" },
+      saldoCarteiraCliente: 500,
+      weeklySpentCliente: 0,
+      weeklyWalletLimit: 0,
+    }))).toThrow("Limite semanal de créditos excedido");
+  });
+
+  it("limite semanal acima de 300 é respeitado (não volta para o default)", () => {
+    const r = montarPagamentoPdv(base({
+      formaPagamento: "MIXED", total: 900,
+      valorMisto: { PIX: "0", WALLET: "500", CASH: "400" },
+      saldoCarteiraCliente: 2000,
+      weeklySpentCliente: 0,
+      weeklyWalletLimit: 1500,
+    }));
+    expect(r.ok).toBe(true);
   });
 });
 

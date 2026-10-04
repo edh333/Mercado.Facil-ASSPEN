@@ -1,4 +1,4 @@
-﻿// Testes do motor de auditoria de anomalias (functions/logic.js).
+// Testes do motor de auditoria de anomalias (functions/logic.js).
 // Regras determinísticas que avisam o admin quando dinheiro foge do padrão.
 import { describe, it, expect } from "vitest";
 import { detectarAnomalias, paraMs, TOLERANCIA_CAIXA_CENTAVOS } from "./logic.js";
