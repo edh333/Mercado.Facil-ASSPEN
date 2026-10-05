@@ -29,6 +29,10 @@ export function AdminCustomersTab() {
   const [showModal, setShowModal] = useState(false);
   const [editData, setEditData] = useState<Partial<CustomerAccount> | null>(null);
   const [senhaMestra, setSenhaMestra] = useState('');
+  // Limite de crédito no momento em que o modal abriu. Permite exigir senha
+  // mestra apenas quando o valor REALMENTE muda (e sempre na criação, que
+  // também é feita pela Function que exige o segundo fator).
+  const [creditLimitOriginal, setCreditLimitOriginal] = useState<number>(0);
   const [saving, setSaving] = useState(false);
   const [contaParaExcluir, setContaParaExcluir] = useState<CustomerAccount | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -87,9 +91,16 @@ export function AdminCustomersTab() {
 
   const handleSave = async () => {
     if (!editData?.nome?.trim()) return;
-    // Se está editando creditLimit de um usuário existente, exige senha mestra
-    const editandoLimite = editData.id && (editData.creditLimit !== undefined);
-    if (editandoLimite && !senhaMestra) {
+
+    // Criação sempre passa por 'criarClienteFiado', que exige senha mestra.
+    // Edição só exige quando o limite de crédito muda de fato — antes esta
+    // checagem usava `creditLimit !== undefined`, que era SEMPRE verdadeiro ao
+    // editar (o modal já traz o valor preenchido) e forçava o segundo fator
+    // até para quem só queria trocar o telefone.
+    const limiteNovo = Number(editData.creditLimit) || 0;
+    const exigeMestra = !editData.id || limiteNovo !== creditLimitOriginal;
+
+    if (exigeMestra && !senhaMestra) {
       showNotification('Informe a senha mestra para alterar o limite de crédito.', 'error');
       return;
     }
@@ -100,19 +111,19 @@ export function AdminCustomersTab() {
           nome: editData.nome?.toUpperCase().trim(),
           cpf: editData.cpf || '',
           telefone: editData.telefone || '',
-          creditLimit: Number(editData.creditLimit) || 0,
+          creditLimit: limiteNovo,
           status: editData.status || 'active'
-        }, editandoLimite ? senhaMestra : undefined);
+        }, exigeMestra ? senhaMestra : undefined);
       } else {
         await addCustomerAccount({
           nome: editData.nome?.toUpperCase().trim() || '',
           cpf: editData.cpf || '',
           telefone: editData.telefone || '',
-          creditLimit: Number(editData.creditLimit) || 0,
+          creditLimit: limiteNovo,
           currentDebt: 0,
           weeklySpent: 0,
           status: 'active'
-        });
+        }, senhaMestra);
       }
       setShowModal(false);
       setEditData(null);
@@ -195,7 +206,7 @@ export function AdminCustomersTab() {
           <CreditCard size={24} className="text-emerald-500" /> Contas a Pagar
         </h2>
         <button
-          onClick={() => { setEditData({ nome: '', telefone: '', creditLimit: 0, status: 'active' }); setShowModal(true); }}
+          onClick={() => { setEditData({ nome: '', telefone: '', creditLimit: 0, status: 'active' }); setCreditLimitOriginal(0); setSenhaMestra(''); setShowModal(true); }}
           className="px-6 py-3 bg-emerald-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-emerald-600 transition-all active:scale-95 shadow-md"
         >
           <Plus size={18} /> Novo Cliente
@@ -334,7 +345,7 @@ export function AdminCustomersTab() {
                       <DollarSign size={14} className="inline mr-1" /> Receber
                     </button>
                     <button
-                      onClick={() => { setEditData({ id: c.id, nome: c.nome, cpf: c.cpf, telefone: c.telefone, creditLimit: c.creditLimit, status: c.status }); setShowModal(true); }}
+                      onClick={() => { setEditData({ id: c.id, nome: c.nome, cpf: c.cpf, telefone: c.telefone, creditLimit: c.creditLimit, status: c.status }); setCreditLimitOriginal(Number(c.creditLimit) || 0); setSenhaMestra(''); setShowModal(true); }}
                       className="p-2.5 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl border border-slate-200 transition-all active:scale-95"
                       title="Editar"
                     >
@@ -421,11 +432,10 @@ export function AdminCustomersTab() {
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-900 font-black outline-none focus:border-emerald-500 transition-all"
               />
             </div>
-            {editData.id && (
-              <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">
-                  Senha Mestra (obrigatória p/ alterar limite)
-                </label>
+            <div>
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">
+                {editData.id ? 'Senha Mestra (obrigatória p/ alterar limite)' : 'Senha Mestra (obrigatória p/ criar cliente)'}
+              </label>
                 <input
                   type="password"
                   value={senhaMestra}
@@ -435,7 +445,6 @@ export function AdminCustomersTab() {
                   autoComplete="off"
                 />
               </div>
-            )}
             {editData.id && (
               <div className="flex items-center gap-3">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Status</label>

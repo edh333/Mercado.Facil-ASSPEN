@@ -62,7 +62,15 @@ export async function getCustomerAccounts(): Promise<CustomerAccount[]> {
   }
 }
 
-export async function addCustomerAccount(data: Omit<CustomerAccount, "id" | "createdAt" | "transactions">): Promise<string> {
+/**
+ * Cria um cliente de fiado. O servidor (`criarClienteFiado`) exige permissao
+ * 'finance' + senha mestra, entao `senhaMestra` e obrigatorio: sem ele a
+ * Cloud Function rejeita a criacao.
+ */
+export async function addCustomerAccount(
+  data: Omit<CustomerAccount, "id" | "createdAt" | "transactions">,
+  senhaMestra?: string
+): Promise<string> {
   try {
     // Criação SEMPRE via Cloud Function (rules de users negam create direto —
     // allow create: if false). O servidor também valida CPF/limite e audita.
@@ -72,6 +80,7 @@ export async function addCustomerAccount(data: Omit<CustomerAccount, "id" | "cre
       cpf: data.cpf || "",
       telefone: data.telefone || "",
       creditLimit: Number(data.creditLimit || 0),
+      senhaMestra: senhaMestra || "",
     });
     const resData = res.data as any;
     if (resData?.ok && resData.userId) return resData.userId;
@@ -98,15 +107,26 @@ export async function updateCustomerAccount(id: string, data: Partial<CustomerAc
       payload.allowCredit = payload.status !== "blocked";
     }
 
-    // creditLimit AGORA passa pela Function (finance + senha mestra) — rules bloqueiam no cliente.
-    if (data.creditLimit !== undefined) {
+    // creditLimit exige permissao 'finance' + senha mestra, entao vai pela Function
+    // (as rules bloqueiam escrita direta no cliente). Os demais campos NAO dependem
+    // disso e vao por updateDoc.
+    //
+    // BUG CORRIGIDO: antes isto era `if (creditLimit) { fn() } else if (payload) { updateDoc() }`.
+    // Como o modal de edicao sempre envia o limite junto, nome/CPF/telefone/status
+    // eram SEMPRE descartados silenciosamente. Agora os dois caminhos rodam.
+    //
+    // Ordem importa: a Function roda PRIMEIRO para que senha mestra errada nao
+    // deixe o perfil gravado pela metade.
+    const alteraLimite = data.creditLimit !== undefined;
+    if (alteraLimite && !senhaMestra) {
+      throw new Error("Informe a senha mestra para alterar o limite de crédito.");
+    }
+
+    if (alteraLimite) {
       const fn = httpsCallable(getFunctions(), 'atualizarLimiteCredito');
       await fn({ userId: id, creditLimit: Number(data.creditLimit || 0), senhaMestra });
-    } else if (Object.keys(payload).length) {
-      await updateDoc(ref, payload);
-    } else if (Object.keys(payload).length === 0 && data.creditLimit === undefined) {
-      // nada a fazer
-    } else {
+    }
+    if (Object.keys(payload).length) {
       await updateDoc(ref, payload);
     }
   } catch (e: any) {

@@ -950,12 +950,21 @@ exports.alterarSenha = onCall(async (request) => {
     );
     if (resp.status !== 200) throw new HttpsError("invalid-argument", "Senha atual incorreta.");
   } else {
-    // Fallback: compara com hash legado (bcrypt)
+    // Fallback: compara com hash legado (bcrypt).
+    //
+    // FALHA FECHADA: se não existe hash legado, a senha atual NÃO pode ser
+    // validada por nenhum caminho. Antes disso a Function seguia e trocava a
+    // senha sem nunca conferir a senha atual — qualquer sessão autenticada
+    //akia o reset sem saber a senha antiga.
     const hashLegado = await obterHashLegado(user.id);
-    if (hashLegado) {
-      const ok = await bcrypt.compare(senhaAtual, hashLegado);
-      if (!ok) throw new HttpsError("invalid-argument", "Senha atual incorreta.");
+    if (!hashLegado) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Não foi possível validar a senha atual neste ambiente. Redefina a senha pelo administrador."
+      );
     }
+    const ok = await bcrypt.compare(senhaAtual, hashLegado);
+    if (!ok) throw new HttpsError("invalid-argument", "Senha atual incorreta.");
   }
   await admin.auth().updateUser(request.auth.uid, { password: novaSenha });
   // Senha trocada → derruba sessões antigas (revoga refresh tokens; o token

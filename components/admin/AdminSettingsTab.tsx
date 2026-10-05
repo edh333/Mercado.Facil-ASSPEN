@@ -226,12 +226,14 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
     }
   };
 
-  const handleBaixarBackup = async (nome: string) => {
+  // Usa Signed URL (v4) em vez da antiga 'baixarBackup', que embutia um token
+// bearer na query string. A assinatura tem validade e não vaza credencial.
+const handleBaixarBackup = async (nome: string) => {
     try {
-      const fn = httpsCallable(getFunctions(), 'baixarBackup');
-      const res = await fn({ nome });
+      const fn = httpsCallable(getFunctions(), 'gerarBackupAssinado');
+      const res = await fn({ nome, expiracaoMin: 15 });
       const url = (res.data as any)?.url;
-      if (url) window.open(url, '_blank');
+      if (url) window.open(url, '_blank', 'noopener');
       else showNotification?.('URL de download não gerada.', 'error');
     } catch (e: any) {
       showNotification?.(e?.message || 'Erro ao baixar backup.', 'error');
