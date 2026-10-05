@@ -63,3 +63,8 @@ temp.txt
 
 # Chave de acesso do Firebase (secreto - NUNCA commitar)
 *firebase-adminsdk*.json
+
+# Saida temporaria de deploy/testes (gerada por deploy.bat / deploy.ps1)
+deploy_output.txt
+deploy_log.txt
+test*.bat
