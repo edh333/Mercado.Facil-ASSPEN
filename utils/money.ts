@@ -35,7 +35,7 @@ export const formatBRLSignedAbs = (valor: number): string => {
 
 /**
  * Converte string de moeda de volta em número centavo-exato.
- * Padrão `parseMoeda` do utils.ts (compatível) — ponto de vírgula BR, senão ponto decimal.
+ * Ponto de vírgula BR, senão ponto decimal.
  */
 export const parseMoeda = (valor: string | number | null | undefined): number => {
   if (valor === null || valor === undefined) return 0;

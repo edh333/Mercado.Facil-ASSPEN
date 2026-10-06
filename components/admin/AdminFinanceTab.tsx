@@ -9,7 +9,7 @@ import { Expense, Order, Supplier } from '../../types';
 import { ModalShell } from '../ui/ModalShell';
 import { getRecentSessions, CashSession } from '../../utils/cashSession';
 import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
-import { parseMoeda } from '../../utils';
+import { parseMoeda } from '../../utils/money';
 import { toDate } from '../../utils/dateUtils';
 import { abrirJanelaImpressao } from '../../utils/printUtils';
 import { celulaCsv } from '../../utils/csv';

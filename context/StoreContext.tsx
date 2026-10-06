@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode, useRef } from 'react';
 import { User, Product, Order, PrisonUnit, UserRole, CartItem, OrderStatus, AppConfig, Supplier, Expense, AuditLog, InmateLocation, SystemMessage, ThemeOption, Message, Notification, WalletTransaction, toUserRole } from '../types';
-import { cleanProductName, normalizeName, stringSimilarity, compressImageFile, fileToBase64, formatarMoeda, getNetworkTime } from '../utils';
+import { cleanProductName, normalizeName, stringSimilarity, fileToBase64, formatarMoeda, getNetworkTime } from '../utils';
 import { listarVendasOffline, salvarVendaOffline, removerVendaOffline, marcarErroVendaOffline, marcarAjustadaVendaOffline, descartarVendaOffline, rearmarVendaOffline, podeTentarSync, LIMITE_FILA, VendaOffline } from '../utils/offlineQueue';
 import { verificarInternetReal } from '../utils/netStatus';
 import {
@@ -329,10 +329,11 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     // Reativa: atualiza ao trocar de usuário e faz poll leve (~12s) enquanto o
     // PDV/aba de caixa estiver aberto — abrir/fechar gaveta reflete instantaneamente.
     useEffect(() => {
+        if (!currentUser || (currentUser.role !== UserRole.ADMIN && currentUser.role !== UserRole.VENDEDOR)) return;
         refreshSessaoCaixa();
         const timer = setInterval(refreshSessaoCaixa, 12000);
         return () => clearInterval(timer);
-    }, [refreshSessaoCaixa]);
+    }, [refreshSessaoCaixa, currentUser?.id, currentUser?.role]);
 
     const [users, setUsers] = useState<User[]>([]);
   const CONSUMER_USER: User = { id: 'consumidor_geral', name: 'CONSUMIDOR GERAL', email: 'venda@balcao.com', role: UserRole.FAMILY, status: 'active', approved: true, cpf: '000.000.000-00', inmateName: 'CONSUMIDOR', inmateCpf: '000.000.000-00' };
@@ -2052,6 +2053,7 @@ return false;
             showNotification(((d as any).role === 'vendedor' ? 'Operador de caixa' : 'Admin') + ' criado com sucesso', 'success');
         } catch (e: any) {
             showNotification('Erro ao criar administrador: ' + e.message, 'error');
+            throw e;
         }
     };
     const updateAdminPermissions = async (userId: string, permissions: string[]) => {

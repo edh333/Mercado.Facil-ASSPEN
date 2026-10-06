@@ -3,7 +3,8 @@ import { X, Search, Barcode, ShoppingCart, Check, Lock, User as UserIcon, Plus, 
 import { QRCodeSVG } from 'qrcode.react';
 import { Product, User, Order, AppConfig, UserRole } from '../../types';
 import { filtrarClientesPdv } from '../../utils/pdvSearch';
-import { formatarMoeda, parseMoeda, generatePixPayload as generatePix, isAdminRole, mascararCpf } from '../../utils';
+import { formatarMoeda, generatePixPayload as generatePix, isAdminRole, mascararCpf } from '../../utils';
+import { parseMoeda } from '../../utils/money';
 import { rotularCliente } from '../../utils/clienteRotulos';
 import { montarPagamentoPdv, arredondarCentavos, MetodoPagamentoPDV, MetodoLancamento } from '../../utils/pdvPayment';
 import { imprimirSilenciosoFiscal, imprimirComPrioridadeFiscal } from '../../utils/printUtils';

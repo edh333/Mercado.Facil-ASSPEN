@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { PlusCircle, Check, Wallet, ShieldCheck, AlertTriangle, Lock, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { ModalShell } from '../ui/ModalShell';
 import { User } from '../../types';
-import { formatarMoeda, isAdminRole, parseMoeda } from '../../utils';
+import { formatarMoeda, isAdminRole } from '../../utils';
+import { parseMoeda } from '../../utils/money';
 
 interface ManualCreditModalProps {
   user: User | null;

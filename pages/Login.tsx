@@ -16,7 +16,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 const fnCriarPrimeiroAdmin = httpsCallable(getFunctions(), 'criarPrimeiroAdmin');
 
 export const Login: React.FC<{ initialTab?: 'login' | 'register' | 'admin'; onVolver?: () => void }> = ({ initialTab = 'login', onVolver }) => {
-    const { loginAdmin, loginFamiliar, registerUser, resetUserPassword, validateRecovery, showNotification, settings, preRegisteredInmates, tryOfflineUnlock } = useApp();
+    const { loginAdmin, loginFamiliar, registerUser, resetUserPassword, validateRecovery, showNotification, settings, tryOfflineUnlock } = useApp();
 
     const urlParams = new URLSearchParams(window.location.search);
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
@@ -136,11 +136,6 @@ const [recoveryName, setRecoveryName] = useState('');
 
                 if (!validateCPF(cleanUserCpf)) throw new Error("CPF do usuário inválido.");
                 if (!validateCPF(cleanPrisonerCpf)) throw new Error("CPF do interno inválido.");
-
-                const isPreRegistered = preRegisteredInmates.some(inmate => (inmate?.cpf || '').replace(/\D/g, '') === cleanPrisonerCpf);
-                if (!isPreRegistered && preRegisteredInmates.length > 0) {
-                    throw new Error("Este interno não consta em nossa lista de pré-cadastro.");
-                }
 
                 if (!fileObject) throw new Error("Anexe a foto do documento.");
                 if (!legalTermAccepted) throw new Error("Aceite o termo legal.");
@@ -439,6 +434,9 @@ const [recoveryName, setRecoveryName] = useState('');
                                             )}
                                             <PremiumInput icon={Briefcase} label="Nome do Interno" value={regData.prisonerName} onChange={(e: any) => setRegData({ ...regData, prisonerName: e.target.value })} />
                                             <PremiumInput icon={UserCheck} label="CPF do Interno" value={regData.prisonerCpf} onChange={(e: any) => setRegData({ ...regData, prisonerCpf: formatCPF(e.target.value) })} inputMode="numeric" autoComplete="off" />
+                                            <p className="text-[11px] text-amber-700 font-semibold leading-snug">
+                                                O interno precisa estar cadastrado na unidade pela administração. Se não encontrar, entre em contato antes de continuar.
+                                            </p>
                                         </div>
                                     </div>
 

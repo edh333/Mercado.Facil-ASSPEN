@@ -4,7 +4,7 @@
 // palavra final sobre preços, saldo, limite semanal, estoque e caixa.
 // Arredondamento para centavos SEMPRE (mesma regra do server: arredondar/2 casas).
 
-import { parseMoeda } from '../utils';
+import { parseMoeda } from './money';
 
 export type MetodoPagamentoPDV = 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30';
 export type MetodoLancamento = 'PIX' | 'WALLET' | 'CASH';

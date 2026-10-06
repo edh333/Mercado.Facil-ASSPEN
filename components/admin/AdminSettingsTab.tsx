@@ -424,6 +424,8 @@ const handleBaixarBackup = async (nome: string) => {
       await createAdminUser(adminForm);
       setShowAddAdmin(false);
       setAdminForm({ name: '', email: '', password: '', cpf: '', role: 'admin', permissions: MODULOS_PERMISSAO.map(m => m.key) });
+    } catch (err: any) {
+      setAdminFormError(err?.message || 'Erro ao criar o administrador.');
     } finally {
       setCreatingAdmin(false);
     }
