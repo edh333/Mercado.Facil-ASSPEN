@@ -39,6 +39,12 @@ export function useMaintenance(user?: User | null) {
     }
     let cancelled = false;
     const ref = doc(db, 'settings', 'maintenance');
+    // Rede ruim/WebChannel travado não pode deixar o admin preso no loader para
+    // sempre: se nenhum snapshot chegar em 8s, libera com o padrão (fora de
+    // manutenção) — o mesmo padrão do callback de erro logo abaixo.
+    const safety = setTimeout(() => {
+      if (!cancelled) { setMaintenance(null); setLoading(false); }
+    }, 8000);
     const unsub = onSnapshot(
       ref,
       (snap) => {
@@ -50,7 +56,7 @@ export function useMaintenance(user?: User | null) {
         if (!cancelled) { setMaintenance(null); setLoading(false); }
       }
     );
-    return () => { cancelled = true; unsub(); };
+    return () => { cancelled = true; clearTimeout(safety); unsub(); };
   }, [user?.id]);
 
   const inativo = maintenance !== null && maintenance.ativo === false;

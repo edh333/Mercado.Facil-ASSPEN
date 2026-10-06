@@ -16,10 +16,12 @@ import { JANELA_CANCELAMENTO_DIAS } from './adminUtils';
 
 const ComprovanteImg: React.FC<{ src: string }> = ({ src }) => {
   const [erro, setErro] = React.useState(false);
+  const [carregando, setCarregando] = React.useState(true);
   const [previewOpen, setPreviewOpen] = React.useState(false);
 
   React.useEffect(() => {
     setErro(false);
+    setCarregando(true);
   }, [src]);
 
   if (erro) {
@@ -51,8 +53,16 @@ const ComprovanteImg: React.FC<{ src: string }> = ({ src }) => {
           src={src}
           className="w-full h-full object-contain rounded-xl"
           alt="Comprovante de Pagamento"
+          loading="lazy"
+          decoding="async"
           onError={() => setErro(true)}
+          onLoad={() => { setErro(false); setCarregando(false); }}
         />
+        {carregando && !erro && (
+          <div className="absolute inset-0 flex items-center justify-center bg-slate-50/80 pointer-events-none z-10">
+            <Loader2 size={28} className="animate-spin text-slate-400" />
+          </div>
+        )}
         <div className="absolute inset-0 bg-black/30 opacity-100 transition-opacity rounded-xl flex items-center justify-center">
           <span className="bg-white/90 text-slate-900 px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-wider shadow-lg">Clique para Ampliar</span>
         </div>

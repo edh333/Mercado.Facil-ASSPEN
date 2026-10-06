@@ -22,6 +22,12 @@ export function comprimirImagem(file: File, maxW: number = 1600, maxH: number = 
       resolve(file);
       return;
     }
+    // Já pequeno (pré-comprimido na seleção, ex.: 0.3/600): decodificar e
+    // re-encoder no canvas só desperdiça CPU (~100-300ms) sem reduzir bytes.
+    if (file.size <= 150 * 1024) {
+      resolve(file);
+      return;
+    }
     try {
       new Compressor(file, {
         maxWidth: maxW,

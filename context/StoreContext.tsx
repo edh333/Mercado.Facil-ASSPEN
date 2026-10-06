@@ -169,7 +169,7 @@ interface StoreContextType {
     updateSettings: (config: AppConfig) => void;
     downloadBackup: () => void;
     backupSystem: () => void;
-    resetSystem: (confirm: boolean) => void;
+    resetSystem: (confirm: boolean, senhaMestra?: string) => void;
     resetStock: () => Promise<void>;
     resetFinance: () => Promise<void>;
 
@@ -219,7 +219,7 @@ interface StoreContextType {
     verificarCredito: (valor: number) => boolean;
     refundOrder: (orderId: string, reason?: string, opts?: { janelaDias?: number }) => Promise<void>;
     estornarPedido: (orderId: string, motivo: string, opts?: { janelaDias?: number; senhaMestra?: string }) => Promise<void>;
-    resetCredits: () => Promise<void>;
+    resetCredits: (senhaMestra?: string) => Promise<void>;
     mergeDuplicateProducts: () => Promise<void>;
     adminDirectSale: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30', total: number, payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30'; amount: number }[], change?: number, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string, fiado30UserId?: string, senhaPrimaria?: string, senhaSecundaria?: string, sessaoCaixaId?: string, descontoPct?: number) => Promise<Order | null>;
     loadMoreOrders: () => void;
@@ -498,6 +498,9 @@ const [isLoggingOut, setIsLoggingOut] = useState(false);
 
     const logoutTimerRef = useRef<any>(null);
     const unsubscribeRefs = useRef<(() => void)[]>([]);
+// Doc do usuário descoberto no login (buscarLoginInfo retorna o id): o listener
+// de auth faz getDoc direto no Firestore e pula a callable buscarUsuarioAtual.
+const docIdLoginRef = useRef<string | null>(null);
 
     const logout = async () => {
         setIsLoggingOut(true);
@@ -966,7 +969,7 @@ return false;
     function ehErroTransporte(e: any): boolean {
         const code = String(e?.code || e?.status || '');
         const msg = String(e?.message || '');
-        if (/^functions\/(unavailable|deadline-exceeded|internal|aborted|resource-exhausted|cancelled|14|10|3|13|7|8)$/.test(code)) return true;
+        if (/^functions\/(unavailable|deadline-exceeded|internal|aborted|cancelled|14|10|13)$/.test(code)) return true;
         if (/\bfetch failed\b|network request failed|failed to fetch|load failed|ECONNREFUSED|ECONNRESET|ERR_CONN|ERR_NETWORK|ERR_INTERNET_DISCONNECTED|abort(ed)?|\bnetwork\b|unavailable|interrupted/i.test(msg)) return true;
         return false;
     }
@@ -975,14 +978,32 @@ return false;
         return 'Não foi possível conectar ao servidor agora (internet instável ou fora do ar). Verifique o Wi-Fi/roteador e tente novamente.';
     }
 
+    // Limite duro por etapa: nenhum await (token do App Check, callable, signIn)
+    // pode travar o botão de login para sempre. Estourou o prazo => erro com cara
+    // de transporte, para a rotina de retry tratar. O await original continua
+    // vivo em segundo plano (o race já anexa handler — sem unhandled rejection).
+    function comTimeout<R>(promessa: Promise<R>, ms: number): Promise<R> {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const estouro = new Promise<never>((_, reject) => {
+            timer = setTimeout(() => {
+                const err: any = new Error('Tempo de resposta esgotado.');
+                err.code = 'functions/deadline-exceeded';
+                reject(err);
+            }, ms);
+        });
+        return Promise.race([promessa, estouro]).finally(() => {
+            if (timer) clearTimeout(timer);
+        }) as Promise<R>;
+    }
+
     // Retenta chamadas sujeitas a queda momentânea de rede (o login falhava na
     // primeira tentativa sob link instável). Erros de negócio são re-lançados na
     // hora — nunca mascara senha inválida, conta suspensa, etc.
-    async function executarComRetry<R>(executar: () => Promise<R>, tentativas = 3, atrasoMs = 600): Promise<R> {
+    async function executarComRetry<R>(executar: () => Promise<R>, tentativas = 3, atrasoMs = 600, timeoutMs = 75_000): Promise<R> {
         let ultimoErro: any;
         for (let i = 0; i < tentativas; i++) {
             try {
-                return await executar();
+                return await comTimeout(executar(), timeoutMs);
             } catch (e: any) {
                 ultimoErro = e;
                 if (!ehErroTransporte(e) || i === tentativas - 1) throw e;
@@ -1000,8 +1021,16 @@ return false;
         try {
             const res = await executarComRetry(() => fnBuscarLoginInfo({ identificador: identifier.trim() }));
             info = res.data as any;
+            docIdLoginRef.current = typeof info?.id === 'string' && info.id ? info.id : null;
         } catch (e: any) {
-            return { success: false, message: ehErroTransporte(e) ? mensagemErroConexao() : 'Erro de conexão.' };
+            if (ehErroTransporte(e)) return { success: false, message: mensagemErroConexao() };
+            // Erro de negócio do servidor (rate limit, conta suspensa, etc.):
+            // mostra a mensagem real. Genérico só para erros fora do contrato.
+            const msgServidor = String(e?.message || '').trim();
+            if (String(e?.code || '').startsWith('functions/') && msgServidor) {
+                return { success: false, message: msgServidor };
+            }
+            return { success: false, message: 'Erro de conexão.' };
         }
         if (!info?.encontrado) return { success: false, message: 'Usuário não encontrado.' };
 
@@ -1014,11 +1043,11 @@ return false;
         // Migração: usuário legado sem conta vinculada â†’ provisiona (valida a senha atual no servidor)
         if (!info.jaVinculado) {
             try {
-                await fnRegistrarUsuario({
+                await comTimeout(fnRegistrarUsuario({
                     dados: { cpf: info.cpf || identifier, email: info.email, name: info.nome },
                     senha: cleanPass,
                     provisionar: true
-                });
+                }), 75_000);
             } catch (e: any) {
                 const msg = e?.message || '';
                 if (msg.includes('incorreta')) return { success: false, message: 'Senha incorreta.' };
@@ -1028,7 +1057,7 @@ return false;
         }
 
         try {
-            await signInWithEmailAndPassword(auth, info.authEmail, cleanPass);
+            await comTimeout(signInWithEmailAndPassword(auth, info.authEmail, cleanPass), 60_000);
         } catch (e: any) {
             if (ehErroTransporte(e)) return { success: false, message: mensagemErroConexao() };
             return { success: false, message: 'Senha incorreta.' };
@@ -1061,11 +1090,11 @@ return false;
         // Migração: admin legado sem conta vinculada â†’ provisiona (valida a senha atual no servidor)
         if (!info.jaVinculado) {
             try {
-                await fnRegistrarUsuario({
+                await comTimeout(fnRegistrarUsuario({
                     dados: { cpf: info.cpf || '', email: info.email, name: info.nome },
                     senha: pass,
                     provisionar: true
-                });
+                }), 75_000);
             } catch (e: any) {
                 const msg = e?.message || '';
                 if (msg.includes('incorreta')) throw new Error("E-mail ou senha de administrador incorretos.");
@@ -1075,7 +1104,7 @@ return false;
         }
 
         try {
-            await signInWithEmailAndPassword(auth, info.authEmail, pass);
+            await comTimeout(signInWithEmailAndPassword(auth, info.authEmail, pass), 60_000);
         } catch (e: any) {
             if (ehErroTransporte(e)) throw new Error(mensagemErroConexao());
             throw new Error("E-mail ou senha de administrador incorretos.");
@@ -1907,13 +1936,14 @@ return false;
             console.warn('[audit]', e.message);
         }
     };
-    const resetSystem = async (confirm: boolean) => {
+    const resetSystem = async (confirm: boolean, senhaMestra?: string) => {
         if (!confirm || currentUser?.role !== UserRole.ADMIN) return;
         setIsLoading(true);
         try {
             // Reset agora roda NO SERVIDOR, só para admin principal, com
             // rate limit — não é mais possível apagar o banco do cliente.
-            await fnResetarSistemaTotal({ confirmar: true });
+            // Segundo fator: o servidor exige senhaMestra (verificarSenhaMestra).
+            await fnResetarSistemaTotal({ confirmar: true, senhaMestra: senhaMestra || '' });
             showNotification("Sistema resetado com sucesso!", "success");
             window.location.reload();
         } catch (e: any) {
@@ -1975,17 +2005,25 @@ return false;
                 try {
                     const loginInfo = await fnBuscarLoginInfo({ identificador: d.cpf || '' });
                     const info = loginInfo.data as any;
-                    await signInWithEmailAndPassword(auth, info.authEmail, (d as any).password || '');
+                    await comTimeout(signInWithEmailAndPassword(auth, info.authEmail, (d as any).password || ''), 60_000);
                 } catch (e) {
                     console.warn('[registerUser] Auto-login falhou:', e);
                 }
                 if (f) {
-                    try {
-                        const docUrl = await uploadFile(f, 'docs', { kind: 'users', docId: data.userId });
-                        await updateDoc(doc(db, 'users', data.userId), { documentUrl: docUrl }).catch(() => {});
-                    } catch (e) {
-                        console.warn('[registerUser] Upload do documento falhou:', e);
-                    }
+                    // Documento em BACKGROUND: comprimir+upload não segura o
+                    // "Cadastro enviado". Em rede lenta o upload de até 8 MB
+                    // travava o cadastro inteiro no spinner por vários segundos.
+                    // uploadFile já cobre as falhas: notifica erro permanente e
+                    // enfileira falha de rede (retry automático grava
+                    // documentUrl via CAMPO_PROVA.users).
+                    void (async () => {
+                        try {
+                            const docUrl = await uploadFile(f, 'docs', { kind: 'users', docId: data.userId });
+                            await updateDoc(doc(db, 'users', data.userId), { documentUrl: docUrl }).catch(() => {});
+                        } catch (e) {
+                            console.warn('[registerUser] Upload do documento falhou:', e);
+                        }
+                    })();
                 }
             }
 
@@ -2111,12 +2149,13 @@ return false;
         }
     };
 
-    const resetCredits = async () => {
+    const resetCredits = async (senhaMestra?: string) => {
         if (!currentUser || currentUser.role !== UserRole.ADMIN) return;
         try {
             // Server-side (admin SDK): as regras bloqueiam edição de walletBalance
             // no cliente por design — antes, esta tela falhava silenciosamente.
-            const res = await fnZerarCarteiras({});
+            // Segundo fator: o servidor exige senhaMestra (verificarSenhaMestra).
+            const res = await fnZerarCarteiras({ senhaMestra: senhaMestra || '' });
             const total = Number((res as any).data?.totalZeradas || 0);
             showNotification(total > 0 ? `${total} carteira(s) zerada(s).` : "Nenhum crédito para zerar.", "success");
         } catch (e: any) {
@@ -2635,18 +2674,18 @@ return false;
                 return;
             }
             try {
-                // Refresh do ID token a cada login/reativação de sessão: sem isso,
-                // claims (ex.: papel de admin) só valeriam após a expiração do token
-                // antigo (~1h), deixando regras híbridas lentas e suspensões com atraso.
-                try { await fbUser.getIdToken(true); } catch (e) { /* noop */ }
-
-                // Roteamento por Custom Claim: só admins podem listar a coleção
-                // 'users' (firestore.rules). Para o resto, a query é SEMPRE negada —
-                // íamos direto à Cloud Function, que além da busca também valida
-                // status pending/suspended (a query direta não cobre isso).
+                // Claims frescas para as regras híbridas (admin/suspensão). Logo
+                // após o signIn o token É recém-emissão (claims atuais) — forçar o
+                // refresh aqui custava ~0,3-0,8s de round-trip à toa em cada login.
+                // Em reload de sessão, só força se o token tem >10min: claims
+                // ficam no máximo 10min defasadas (antes: refetch sempre / até 1h).
                 let ehAdminClaim = false;
                 try {
-                    const tr = await fbUser.getIdTokenResult();
+                    let tr = await fbUser.getIdTokenResult();
+                    const emitidoEm = Date.parse(String(tr.issuedAtTime || ''));
+                    if (!Number.isFinite(emitidoEm) || Date.now() - emitidoEm > 10 * 60_000) {
+                        tr = await fbUser.getIdTokenResult(true);
+                    }
                     ehAdminClaim = tr.claims?.admin === true;
                 } catch (e) { /* noop */ }
 
@@ -2669,6 +2708,54 @@ return false;
                     } catch (e: any) {
                         console.warn('[AUTH LOADER] Query admin falhou, usando Cloud Function', e);
                     }
+                }
+
+                // Não-admin: as regras permitem `get` do PRÓPRIO doc (id igual ao
+                // uid ou com authUid == uid). login() deixou o id em docIdLoginRef,
+                // então buscamos direto no Firestore — sem cold-start da callable
+                // buscarUsuarioAtual nem espera do App Check no caminho crítico.
+                // pending/caso não ache → cai na callable abaixo (tratamento
+                // idêntico ao de sempre, incluindo a tela "CADASTRO EM ANÁLISE").
+                if (!ehAdminClaim) {
+                    const docId = docIdLoginRef.current || fbUser.uid;
+                    docIdLoginRef.current = null;
+                    try {
+                        const snapUser = await getDoc(doc(db, 'users', docId));
+                        const dataUser: any = snapUser.exists() ? snapUser.data() : null;
+                        const meuDoc = !!dataUser && (snapUser.id === fbUser.uid || dataUser.authUid === fbUser.uid);
+                        const statusUser = meuDoc ? String(dataUser.status || 'pending').toLowerCase() : '';
+                        if (meuDoc && statusUser === 'suspended') {
+                            await signOut(auth).catch(() => {});
+                            return;
+                        }
+                        if (meuDoc && statusUser !== 'pending') {
+                            // Mesmo shape do retorno de buscarUsuarioAtual (contrato
+                            // que o frontend sempre consumiu) — sem campos extras.
+                            const u = {
+                                id: snapUser.id,
+                                name: dataUser.name || dataUser.nome || '',
+                                email: dataUser.email || '',
+                                cpf: dataUser.cpf || '',
+                                role: toUserRole(dataUser.role || 'user'),
+                                status: statusUser,
+                                walletBalance: Number(dataUser.walletBalance || dataUser.carteira || 0),
+                                weeklySpent: Number(dataUser.weeklySpent || dataUser.gastoSemanal || 0),
+                                inmateName: dataUser.inmateName || dataUser.prisonerName || '',
+                                inmateCpf: dataUser.inmateCpf || dataUser.prisonerCpf || '',
+                                selectedUnitId: dataUser.selectedUnitId || dataUser.unitId || '',
+                                avatarUrl: dataUser.avatarUrl || '',
+                                phone: dataUser.phone || '',
+                                mainAdmin: Boolean(dataUser.mainAdmin),
+                                permissions: dataUser.permissions || [],
+                                approved: dataUser.approved,
+                            } as User;
+                            if (ativo) {
+                                setCurrentUser(u);
+                                setCreditoCliente(u.walletBalance || 0);
+                            }
+                            return;
+                        }
+                    } catch (e) { /* doc inexistente/sem permissão → callable */ }
                 }
 
                 try {

@@ -1723,7 +1723,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                 const subtotal = displayPrice * item.quantity;
                                 return (
                                     <div key={item.productId} className="flex items-center gap-3 bg-slate-50 rounded-xl p-3 border border-slate-100">
-                                        {prod && <img src={prod.imageUrl || 'https://placehold.co/40x48'} className="w-10 h-12 object-cover rounded-md border border-slate-200 shrink-0" alt={displayName} />}
+                                        {prod && <img src={prod.imageUrl || 'https://placehold.co/40x48'} loading="lazy" className="w-10 h-12 object-cover rounded-md border border-slate-200 shrink-0" alt={displayName} />}
                                         <div className="flex-1 min-w-0">
                                             <p className="font-bold text-xs uppercase text-slate-800 truncate">{displayName}</p>
                                             <p className="font-black text-sm text-slate-900">R$ {formatarMoeda(subtotal)}</p>

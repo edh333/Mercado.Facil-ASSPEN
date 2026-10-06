@@ -35,6 +35,7 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
   const [form, setForm] = React.useState<Partial<User>>({});
     const [saving, setSaving] = React.useState(false);
   const [previewDoc, setPreviewDoc] = React.useState(false);
+  const [docCarregando, setDocCarregando] = React.useState(false);
   const [activeSection, setActiveSection] = React.useState<'GERAL' | 'HISTORICO' | 'SALDO'>('GERAL');
   const [confirmAcao, setConfirmAcao] = React.useState<null | { tipo: 'aprovar' | 'suspender' | 'excluir' }>(null);
 
@@ -64,6 +65,10 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
   const docUrl = user.documentUrl || '';
   const docPendente = docUrl === 'PENDENTE_UPLOAD_LOCAL_CACHE';
   const isPdf = !docPendente && docUrl && isPdfUrl(docUrl);
+
+  React.useEffect(() => {
+    setDocCarregando(Boolean(docUrl) && !docPendente && !isPdf);
+  }, [docUrl, docPendente, isPdf]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -237,10 +242,15 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
                           </div>
                         ) : (
                           <div
-                            className="flex-1 min-h-[260px] rounded-xl overflow-hidden border border-slate-200 bg-slate-100 cursor-pointer flex items-center justify-center"
+                            className="relative flex-1 min-h-[260px] rounded-xl overflow-hidden border border-slate-200 bg-slate-100 cursor-pointer flex items-center justify-center"
                             onClick={() => setPreviewDoc(true)}
                           >
-                            <img src={docUrl} alt="Documento do cadastro" className="w-full h-full object-contain" />
+                            <img src={docUrl} alt="Documento do cadastro" className="w-full h-full object-contain" loading="lazy" decoding="async" onLoad={() => setDocCarregando(false)} />
+                            {docCarregando && (
+                              <div className="absolute inset-0 flex items-center justify-center bg-slate-100/80 pointer-events-none z-10">
+                                <Loader2 size={28} className="animate-spin text-slate-400" />
+                              </div>
+                            )}
                           </div>
                         )}
                         {isPdf && (

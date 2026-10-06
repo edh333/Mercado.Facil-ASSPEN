@@ -17,6 +17,9 @@ interface Props {
   cotaCritica?: boolean;
   currentUser?: User | null;
   onNavigate?: (tab: string) => void;
+  /** Zerar carteiras envolvido pelo AuthModal do AdminDashboard (2º fator:
+   * o callable zerarCarteiras exige senhaMestra no payload). */
+  resetCredits?: () => Promise<void>;
 }
 
 export const AdminMaintenanceTab: React.FC<Props> = ({
@@ -27,8 +30,9 @@ export const AdminMaintenanceTab: React.FC<Props> = ({
   cotaCritica,
   currentUser,
   onNavigate,
+  resetCredits,
 }) => {
-  const { resetCredits, clearOldData } = useApp();
+  const { clearOldData } = useApp();
   const [backupando, setBackupando] = useState(false);
   const [limpandoAntigos, setLimpandoAntigos] = useState(false);
   const [zerando, setZerando] = useState(false);
@@ -68,8 +72,10 @@ export const AdminMaintenanceTab: React.FC<Props> = ({
     setZerando(true);
     setFeedback(null);
     try {
-      await resetCredits();
-      setFeedback({ msg: 'Carteiras de todos os usuários zeradas (salvo e registrado em auditoria).', ok: true });
+      // Abre o AuthModal do AdminDashboard (2º fator): o callable zerarCarteiras
+      // exige senhaMestra e só executa após a validação da senha. O resultado
+      // (sucesso/erro) chega via toast do contexto — não aqui.
+      await resetCredits?.();
       setConfirmZerar(false);
     } catch (e: any) {
       setFeedback({ msg: 'Falha ao zerar créditos: ' + (e?.message || 'tente novamente.'), ok: false });

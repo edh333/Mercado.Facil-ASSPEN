@@ -16,11 +16,13 @@ const escHtml = (v: unknown) => String(v ?? '').replace(/[&<>"']/g, (c) =>
 
 const ComprovanteImg: React.FC<{ src: string; onBlocked?: () => void }> = ({ src, onBlocked }) => {
   const [erro, setErro] = React.useState(false);
+  const [carregando, setCarregando] = React.useState(true);
   const [previewOpen, setPreviewOpen] = React.useState(false);
   const isPdf = src.toLowerCase().includes('.pdf') || src.toLowerCase().includes('pdf');
 
   React.useEffect(() => {
     setErro(false);
+    setCarregando(true);
   }, [src]);
 
   const handleOpenNewTab = () => {
@@ -65,13 +67,22 @@ const ComprovanteImg: React.FC<{ src: string; onBlocked?: () => void }> = ({ src
             </button>
           </div>
         ) : (
-          <img
-            src={src}
-            className="w-full h-full object-contain"
-            alt="Comprovante PIX"
-            onError={() => setErro(true)}
-            onLoad={() => setErro(false)}
-          />
+          <>
+            <img
+              src={src}
+              className="w-full h-full object-contain"
+              alt="Comprovante PIX"
+              loading="lazy"
+              decoding="async"
+              onError={() => setErro(true)}
+              onLoad={() => { setErro(false); setCarregando(false); }}
+            />
+            {carregando && !erro && (
+              <div className="absolute inset-0 flex items-center justify-center bg-slate-50/80 pointer-events-none z-10">
+                <Loader2 size={28} className="animate-spin text-slate-400" />
+              </div>
+            )}
+          </>
         )}
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/70 text-white text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full backdrop-blur-sm pointer-events-none flex items-center gap-1.5 shadow-xl whitespace-nowrap">
           <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line><polyline points="14 21 3 21 3 12"></polyline><line x1="3" y1="3" x2="9" y2="9"></line></svg>

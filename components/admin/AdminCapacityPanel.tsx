@@ -28,6 +28,7 @@ export const AdminCapacityPanel: React.FC = () => {
   const [cleanupRunning, setCleanupRunning] = useState(false);
   const [cleanupResult, setCleanupResult] = useState<any>(null);
   const [cleanupErro, setCleanupErro] = useState('');
+  const [senhaMestra, setSenhaMestra] = useState('');
 
   const [showCapacityModal, setShowCapacityModal] = useState(false);
   const [capProdutos, setCapProdutos] = useState(500);
@@ -105,7 +106,8 @@ export const AdminCapacityPanel: React.FC = () => {
     setCleanupResult(null);
     try {
       const fn = httpsCallable(getFunctions(), 'limparDadosAntigos');
-      const res = await fn({ dias: diasLimpeza, apagarArquivos });
+      // 2º fator obrigatório: o callable exige senhaMestra (verificarSenhaMestra).
+      const res = await fn({ dias: diasLimpeza, apagarArquivos, senhaMestra: senhaMestra.trim() });
       const data = res.data as any;
       if (data && !data.ok) throw new Error(data.mensagem || 'Falha ao limpar dados antigos.');
       setCleanupResult(data);
@@ -237,7 +239,7 @@ export const AdminCapacityPanel: React.FC = () => {
       {/* Modal de limpeza */}
       <ModalShell
         open={showCleanupModal}
-        onClose={() => { if (!cleanupRunning) setShowCleanupModal(false); }}
+        onClose={() => { if (!cleanupRunning) { setShowCleanupModal(false); setSenhaMestra(''); } }}
         title="Backup + Limpeza de Dados Antigos"
         tone="danger"
         size="lg"
@@ -342,7 +344,21 @@ export const AdminCapacityPanel: React.FC = () => {
           )}
 
           {!cleanupResult && (
-            <label className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-3 cursor-pointer">
+            <>
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-2 block">Senha mestra (2º fator — obrigatória)</label>
+                <input
+                  type="password"
+                  value={senhaMestra}
+                  onChange={e => setSenhaMestra(e.target.value)}
+                  disabled={cleanupRunning}
+                  placeholder="Digite a senha mestra para confirmar a limpeza"
+                  autoComplete="new-password"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-slate-50 font-black text-sm outline-none focus:border-red-500 disabled:opacity-50"
+                />
+                <p className="text-[9px] text-slate-400 font-bold mt-1">A limpeza apaga dados fisicamente — o servidor só executa com a senha mestra validada.</p>
+              </div>
+              <label className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-3 cursor-pointer">
               <input
                 type="checkbox"
                 checked={apagarArquivos}
@@ -354,6 +370,7 @@ export const AdminCapacityPanel: React.FC = () => {
                 Apagar também os <b>comprovantes (arquivos)</b> dos registros arquivados — libera o armazenamento do plano (é o que evita encher a cota). Documentos de identidade <b>nunca</b> são apagados.
               </span>
             </label>
+            </>
           )}
         </div>
       </ModalShell>

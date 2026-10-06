@@ -250,7 +250,7 @@ export function AdminDashboard() {
   // Security Auth Modals
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authAction, setAuthAction] = useState<'FILTER' | 'STOCK' | 'FINANCE' | 'SYSTEM' | 'PASSWORD'>('FILTER');
-  const [pendingConfigAction, setPendingConfigAction] = useState<(() => void) | null>(null);
+  const [pendingConfigAction, setPendingConfigAction] = useState<((senhaMestra?: string) => void) | null>(null);
   const [authPass, setAuthPass] = useState('');
   const [isSettingsAuthenticated, setIsSettingsAuthenticated] = useState(false);
 
@@ -555,7 +555,7 @@ const goToTab = (tab: string) => {
     }
   };
 
-  const handleProtectedAction = (action: () => void, type: any = 'SYSTEM') => {
+  const handleProtectedAction = (action: (senhaMestra?: string) => void, type: any = 'SYSTEM') => {
     setPendingConfigAction(() => action);
     setAuthAction(type);
     setShowAuthModal(true);
@@ -596,7 +596,9 @@ const goToTab = (tab: string) => {
       setShowAuthModal(false);
       setAuthPass('');
       if (pendingConfigAction) {
-        pendingConfigAction();
+        // Repassa a senha validada para a ação: callables de 2º fator
+        // (zerarCarteiras, resetarSistemaTotal...) exigem senhaMestra no payload.
+        pendingConfigAction(inputPass);
         setPendingConfigAction(null);
       }
     } catch (error: any) {
@@ -1193,6 +1195,7 @@ const goToTab = (tab: string) => {
                   cotaCritica={cotaCritica}
                   currentUser={currentUser}
                   onNavigate={goToTab}
+                  resetCredits={async () => { await handleProtectedAction(resetCredits, 'FINANCE'); }}
                 />
               )}
 

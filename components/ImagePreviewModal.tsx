@@ -10,6 +10,7 @@ interface ImagePreviewModalProps {
 const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ src, alt, onClose }) => {
   const [zoom, setZoom] = React.useState(1);
   const [imgError, setImgError] = React.useState(false);
+  const [carregando, setCarregando] = React.useState(true);
   const [isPdf, setIsPdf] = React.useState(false);
   const [isFullscreen, setIsFullscreen] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
@@ -17,6 +18,7 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ src, alt, onClose
   React.useEffect(() => {
     setIsPdf(src.toLowerCase().includes('.pdf') || src.toLowerCase().includes('pdf'));
     setImgError(false);
+    setCarregando(!src.toLowerCase().includes('pdf'));
   }, [src]);
 
   const handlePrint = () => {
@@ -197,7 +199,7 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ src, alt, onClose
             <X size={20} />
           </button>
         </div>
-        <div className={`overflow-auto max-w-full max-h-[85vh] rounded-2xl ${isFullscreen ? 'max-h-none max-w-none rounded-none h-full w-full' : ''}`} style={{ cursor: zoom > 1 ? 'grab' : 'default' }}>
+        <div className={`relative overflow-auto max-w-full max-h-[85vh] rounded-2xl ${isFullscreen ? 'max-h-none max-w-none rounded-none h-full w-full' : ''}`} style={{ cursor: zoom > 1 ? 'grab' : 'default' }}>
           {imgError ? (
             <div className="flex flex-col items-center justify-center p-10 bg-slate-900/50 rounded-xl text-center min-w-[300px]">
               <AlertTriangle size={48} className="text-amber-400 mb-4" />
@@ -235,9 +237,18 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ src, alt, onClose
               alt={alt || 'Comprovante'}
               className="rounded-xl transition-transform duration-200"
               style={{ transform: `scale(${zoom})`, transformOrigin: 'center center' }}
-              onError={() => setImgError(true)}
-              onLoad={() => setImgError(false)}
+              decoding="async"
+              onError={() => { setImgError(true); setCarregando(false); }}
+              onLoad={() => { setImgError(false); setCarregando(false); }}
             />
+          )}
+          {carregando && !imgError && !isPdf && (
+            <div className="sticky top-0 left-0 h-0 z-10">
+              <div className="absolute top-[40vh] left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 pointer-events-none">
+                <span className="h-10 w-10 rounded-full border-4 border-white/25 border-t-emerald-400 animate-spin" />
+                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/60">Carregando…</span>
+              </div>
+            </div>
           )}
         </div>
       </div>

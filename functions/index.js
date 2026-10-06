@@ -588,7 +588,7 @@ exports.buscarUsuarioAtual = onCall(async (request) => {
   }
 });
 
-exports.registrarUsuario = onCall(async (request) => {
+exports.registrarUsuario = onCall({ minInstances: 1 }, async (request) => {
   const ip = ipDoRequest(request);
   verificarRateLimit("registrarUsuario:" + ip, 5);
   const dados = request.data?.dados || {};
@@ -1113,7 +1113,7 @@ exports.redefinirSenhaPublica = onCall({
 // ──────────────────────────────────────────────
 
 /** Admin — aprova depósito PIX (credita saldo). */
-exports.aprovarDeposito = onCall(async (request) => {
+exports.aprovarDeposito = onCall({ minInstances: 1 }, async (request) => {
   const caller = await exigirAdminPermissao(request, "wallet");
   const tid = String(request.data?.transacaoId || "");
   if (!tid) throw new HttpsError("invalid-argument", "Transação inválida.");
@@ -1269,7 +1269,7 @@ exports.aprovarDeposito = onCall(async (request) => {
 });
 
 /** Admin — recusa depósito PIX. */
-exports.rejeitarDeposito = onCall(async (request) => {
+exports.rejeitarDeposito = onCall({ minInstances: 1 }, async (request) => {
   const caller = await exigirAdmin(request);
   const tid = String(request.data?.transacaoId || "");
   if (!tid) throw new HttpsError("invalid-argument", "Transação inválida.");

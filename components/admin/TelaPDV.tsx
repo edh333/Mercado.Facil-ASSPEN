@@ -1089,7 +1089,7 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
                 <div key={String(item.productId)} className="flex items-center gap-2.5 bg-white rounded-xl p-2 shrink-0 border border-slate-100">
                   <div className="w-11 h-11 rounded-lg bg-white border border-slate-100 flex items-center justify-center overflow-hidden shrink-0">
                     {item.imageUrl ? (
-                      <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                      <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
                     ) : (
                       <Package size={18} className="text-slate-300" />
                     )}

@@ -91,7 +91,7 @@ interface AdminSettingsTabProps {
   backupSystem: () => void;
   resetStock: () => void;
   resetFinance: () => void;
-  resetSystem: (confirm: boolean) => void;
+  resetSystem: (confirm: boolean, senhaMestra?: string) => void;
   handleDownloadSource: () => void;
   handleBuildExe: () => void;
   showNotification?: (msg: string, type?: string) => void;
@@ -127,7 +127,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
   const [newPixKey, setNewPixKey] = React.useState('');
   const [showAddAdmin, setShowAddAdmin] = React.useState(false);
   const [confirmDeleteAdmin, setConfirmDeleteAdmin] = React.useState<string | null>(null);
-  const [confirmDestructive, setConfirmDestructive] = React.useState<{ titulo: string; descricao: string; palavraChave: string; action: () => void } | null>(null);
+  const [confirmDestructive, setConfirmDestructive] = React.useState<{ titulo: string; descricao: string; palavraChave: string; action: (senhaMestra?: string) => void } | null>(null);
   const [renovarConfirming, setRenovarConfirming] = React.useState(false);
   const [editPermissionsFor, setEditPermissionsFor] = React.useState<string | null>(null);
   const [editPermissions, setEditPermissions] = React.useState<string[]>([]);
@@ -1669,7 +1669,7 @@ const handleBaixarBackup = async (nome: string) => {
               </div>
               {isMaster && (
                 <button
-                  onClick={() => setConfirmDestructive({ titulo: 'Reinicialização Total', descricao: 'TODO o sistema será apagado e começará do zero: produtos, financeiro, usuários, estoque e configurações. Faça um backup antes. Esta ação é irreversível.', palavraChave: 'REINICIAR', action: () => resetSystem(true) })}
+                  onClick={() => setConfirmDestructive({ titulo: 'Reinicialização Total', descricao: 'TODO o sistema será apagado e começará do zero: produtos, financeiro, usuários, estoque e configurações. Faça um backup antes. Esta ação é irreversível.', palavraChave: 'REINICIAR', action: (senhaMestra?: string) => resetSystem(true, senhaMestra) })}
                   className="w-full p-4 bg-red-600 text-white rounded-2xl font-black uppercase text-sm hover:bg-red-700 mt-4 flex items-center justify-center gap-2"
                 >
                   <AlertTriangle size={18} /> REINICIALIZAÇÃO TOTAL DO SISTEMA
