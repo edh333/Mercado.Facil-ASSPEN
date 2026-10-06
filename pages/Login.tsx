@@ -435,7 +435,7 @@ const [recoveryName, setRecoveryName] = useState('');
                                             <PremiumInput icon={Briefcase} label="Nome do Interno" value={regData.prisonerName} onChange={(e: any) => setRegData({ ...regData, prisonerName: e.target.value })} />
                                             <PremiumInput icon={UserCheck} label="CPF do Interno" value={regData.prisonerCpf} onChange={(e: any) => setRegData({ ...regData, prisonerCpf: formatCPF(e.target.value) })} inputMode="numeric" autoComplete="off" />
                                             <p className="text-[11px] text-amber-700 font-semibold leading-snug">
-                                                O interno precisa estar cadastrado na unidade pela administração. Se não encontrar, entre em contato antes de continuar.
+                                                O CPF do interno é o vínculo do cadastro — o mesmo interno pode ter no máximo 3 familiares cadastrados.
                                             </p>
                                         </div>
                                     </div>

@@ -688,33 +688,31 @@ exports.registrarUsuario = onCall({ minInstances: 1 }, async (request) => {
   // Validação do interno pré-cadastrado (server-side, já que o cliente ainda não está autenticado)
   const inmateCpf = cleanCpf(dados.inmateCpf);
   if (role === "FAMILY" && inmateCpf.length !== 11) {
-    // Hardening: o vínculo com um interno pré-cadastrado é OBRIGATÓRIO para familiar.
-    // Sem isso, uma chamada direta ao callable com CPF vazio/curto criava FAMILY solta.
+    // Hardening: o FAMILY precisa de um CPF de interno válido para o vínculo —
+    // evita FAMILY solta (sem interno) via chamada direta ao callable.
     throw new HttpsError(
       "invalid-argument",
-      "Informe o CPF do interno (11 dígitos). O interno precisa estar pré-cadastrado pela administração."
+      "Informe o CPF do interno (11 dígitos)."
     );
   }
   if (inmateCpf.length === 11 && role === "FAMILY") {
     const preSnap = await db.collection("pre_registered_inmates")
       .where("cpf", "==", inmateCpf).limit(1).get();
     if (preSnap.empty) {
-      // Sempre bloqueia — mesmo quando a coleção de pré-cadastros está vazia.
-      // (Antes, coleção vazia = qualquer CPF de interno era aceito; um atacante
-      // podia se cadastrar como FAMILY de qualquer detento e esgotar os 3 slots.)
+      // Cadastro ABERTO: o pré-cadastro não é mais obrigatório (decisão do
+      // operador). Mantemos o log para auditoria e o limite de 3 familiares
+      // por CPF de interno (logo abaixo). Para voltar a exigir pré-cadastro,
+      // restaure o throw "não está pré-cadastrado" nesta posição.
       console.warn(
-        "[registro] cadastro FAMILY bloqueado: interno n\u00e3o pr\u00e9-cadastrado",
+        "[registro] FAMILY cadastrada sem pr\u00e9-cadastro do interno",
         { cpf: String(inmateCpf.slice(0, 3) + "***" + inmateCpf.slice(-2)) }
       );
-      throw new HttpsError(
-        "invalid-argument",
-        "O interno informado não está pré-cadastrado no sistema. Por favor, entre em contato com a administração."
-      );
+    } else {
+      const preDoc = preSnap.docs[0];
+      const preName = String(preDoc.data().name || "").slice(0, 120);
+      if (!dados.inmateName && preName) dados.inmateName = preName;
+      if (!dados.prisonerName && preName) dados.prisonerName = preName;
     }
-    const preDoc = preSnap.docs[0];
-    const preName = String(preDoc.data().name || "").slice(0, 120);
-    if (!dados.inmateName && preName) dados.inmateName = preName;
-    if (!dados.prisonerName && preName) dados.prisonerName = preName;
     const fams = await db.collection("users")
       .where("inmateCpf", "==", inmateCpf)
       .where("role", "==", "FAMILY")
