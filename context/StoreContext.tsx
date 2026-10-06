@@ -1990,6 +1990,8 @@ return false;
                     cpf: d.cpf || '',
                     email: d.email || '',
                     phone: d.phone || '',
+                    rg: d.rg || '',
+                    relationship: d.relationship || d.kinship || '',
                     inmateCpf: cleanInmateCpf,
                     inmateName: inmateName,
                     prisonerCpf: cleanInmateCpf,

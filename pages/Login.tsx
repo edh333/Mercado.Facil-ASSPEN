@@ -4,7 +4,7 @@ import {
     Lock, User, Phone, CheckCircle, Upload, Eye, EyeOff,
     ArrowLeft, Loader2, Settings, UserCheck, Briefcase,
     XCircle, KeyRound, Sparkles, ChevronDown, Store,
-    ShieldCheck, Wallet, ShoppingBag, Unlock, WifiOff
+    ShieldCheck, Wallet, ShoppingBag, Unlock, WifiOff, CreditCard
 } from 'lucide-react';
 import { validateCPF, formatCPF } from '../utils';
 import { hasOfflineCredential } from '../utils/offlineUnlock';
@@ -59,7 +59,7 @@ const [recoveryName, setRecoveryName] = useState('');
     const [firstAdminForm, setFirstAdminForm] = useState({ name: '', email: '', password: '', confirm: '' });
 
     const [regData, setRegData] = useState({
-        name: '', phone: '', prisonerName: '', prisonerCpf: '', kinship: '', kinshipOther: '', unitId: '1'
+        name: '', phone: '', rg: '', prisonerName: '', prisonerCpf: '', kinship: '', kinshipOther: '', unitId: '1'
     });
     const [fileObject, setFileObject] = useState<File | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -73,7 +73,7 @@ const [recoveryName, setRecoveryName] = useState('');
         setPassword('');
         setRegisterConfirmPassword('');
         setAdminEmail('');
-        setRegData({ name: '', phone: '', prisonerName: '', prisonerCpf: '', kinship: '', kinshipOther: '', unitId: '1' });
+        setRegData({ name: '', phone: '', rg: '', prisonerName: '', prisonerCpf: '', kinship: '', kinshipOther: '', unitId: '1' });
         setFileObject(null);
         setLegalTermAccepted(false);
         setFormError(null);
@@ -154,6 +154,7 @@ const [recoveryName, setRecoveryName] = useState('');
                     name: (regData?.name || '').toUpperCase(),
                     password: password,
                     phone: regData.phone,
+                    rg: regData.rg,
                     role: 'FAMILY',
                     approved: false,
                     unitId: regData.unitId,
@@ -411,6 +412,7 @@ const [recoveryName, setRecoveryName] = useState('');
                                         <PremiumInput icon={Phone} label="Telefone" value={regData.phone} onChange={(e: any) => setRegData({ ...regData, phone: e.target.value })} />
                                         <PremiumInput icon={UserCheck} label="Seu CPF" value={cpf} onChange={(e: any) => setCpf(formatCPF(e.target.value))} inputMode="numeric" autoComplete="off" />
                                     </div>
+                                    <PremiumInput icon={CreditCard} label="RG (opcional)" value={regData.rg} onChange={(e: any) => setRegData({ ...regData, rg: e.target.value })} autoComplete="off" />
                                     <div className="pt-4">
                                         <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-[0.18em] mb-4 text-center">Senha de Acesso</p>
                                         <div className="space-y-3">

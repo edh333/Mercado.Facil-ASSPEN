@@ -738,6 +738,8 @@ exports.registrarUsuario = onCall({ minInstances: 1 }, async (request) => {
     name: String(dados.name || "Usuário").slice(0, 80),
     cpf,
     email: String(dados.email || "").slice(0, 120),
+    relationship: String(dados.relationship || dados.kinship || "").slice(0, 60),
+    rg: String(dados.rg || "").slice(0, 30),
     role,
     status: "pending",
     approved: false,
