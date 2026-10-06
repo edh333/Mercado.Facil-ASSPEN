@@ -702,6 +702,10 @@ exports.registrarUsuario = onCall({ minInstances: 1 }, async (request) => {
       // Sempre bloqueia — mesmo quando a coleção de pré-cadastros está vazia.
       // (Antes, coleção vazia = qualquer CPF de interno era aceito; um atacante
       // podia se cadastrar como FAMILY de qualquer detento e esgotar os 3 slots.)
+      console.warn(
+        "[registro] cadastro FAMILY bloqueado: interno n\u00e3o pr\u00e9-cadastrado",
+        { cpf: String(inmateCpf.slice(0, 3) + "***" + inmateCpf.slice(-2)) }
+      );
       throw new HttpsError(
         "invalid-argument",
         "O interno informado não está pré-cadastrado no sistema. Por favor, entre em contato com a administração."
