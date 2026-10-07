@@ -23,6 +23,19 @@ export function toDate(value: any): Date | null {
     return isNaN(d.getTime()) ? null : d;
   }
 
+  // String "YYYY-MM-DD" (formato do campo `date` de pedidos/despesas): o padrão
+  // ECMAScript parseia como meia-noite UTC — em São Paulo (UTC-3) vira o dia
+  // ANTERIOR às 21h, jogando vendas do dia 1º para o mês anterior e tirando as
+  // vendas de hoje dos filtros "hoje". Constrói a meia-noite LOCAL para o dia
+  // continuar o MESMO dia do ciclo de caixa (fechamento/dashboards/DRE).
+  if (typeof value === "string") {
+    const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+    if (dateOnly) {
+      const d = new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]));
+      return isNaN(d.getTime()) ? null : d;
+    }
+  }
+
   // String ISO / epoch number / Date pass-through
   if (typeof value === "object" && value instanceof Date) {
     return isNaN(value.getTime()) ? null : value;
