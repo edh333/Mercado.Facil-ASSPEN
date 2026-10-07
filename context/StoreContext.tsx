@@ -84,7 +84,7 @@ import { InvoiceData, parseInvoiceXML } from '../utils/invoiceParser';
 export type { InvoiceData } from '../utils/invoiceParser';
 
 import {
-    collection, doc, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, getDocsFromServer, orderBy, limit, startAfter, writeBatch, Unsubscribe, getDoc, runTransaction, increment, arrayUnion, Timestamp
+    collection, doc, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, getDocsFromServer, getDocFromCache, orderBy, limit, startAfter, writeBatch, Unsubscribe, getDoc, runTransaction, increment, arrayUnion, Timestamp
 } from 'firebase/firestore';
 import { getActiveSession, CashSession } from '../utils/cashSession';
 
@@ -1114,9 +1114,11 @@ return false;
         // Desbloqueio offline de emergência: guarda um hash bcrypt da senha
         // de LOGIN do admin nesta máquina (nunca a senha em texto). Se a
         // internet cair depois, o operador entra em modo de emergência.
+        // Não bloqueia o login: o hash (custo 11) é caro no caminho crítico,
+        // então roda em background — o login completo não espera por ele.
         try {
-            await salvarCredencialOffline(info.nome || 'Administrador', pass);
-        } catch (e) { /* sem cache local: segue o login normal */ }
+            void salvarCredencialOffline(info.nome || 'Administrador', pass).catch(() => { /* sem cache local: segue o login normal */ });
+        } catch (e) { /* noop */ }
     };
 
     const loginFamiliar = async (cpf: string, pass: string) => {
@@ -2723,11 +2725,49 @@ return false;
                 if (!ehAdminClaim) {
                     const docId = docIdLoginRef.current || fbUser.uid;
                     docIdLoginRef.current = null;
+                    const contaEhDoUsuario = (id: string, data: any) => id === fbUser.uid || data?.authUid === fbUser.uid;
+                    const statusDe = (s: any) => String(s || 'pending').toLowerCase();
+                    const montarPerfil = (snap: { id: string }, data: any) => ({
+                        id: snap.id,
+                        name: data.name || data.nome || '',
+                        email: data.email || '',
+                        cpf: data.cpf || '',
+                        role: toUserRole(data.role || 'user'),
+                        status: statusDe(data.status),
+                        walletBalance: Number(data.walletBalance || data.carteira || 0),
+                        weeklySpent: Number(data.weeklySpent || data.gastoSemanal || 0),
+                        inmateName: data.inmateName || data.prisonerName || '',
+                        inmateCpf: data.inmateCpf || data.prisonerCpf || '',
+                        selectedUnitId: data.selectedUnitId || data.unitId || '',
+                        avatarUrl: data.avatarUrl || '',
+                        phone: data.phone || '',
+                        mainAdmin: Boolean(data.mainAdmin),
+                        permissions: data.permissions || [],
+                        approved: data.approved,
+                    } as User);
+
+                    // Cache-first (só perfil ativo): o cache persistente guarda o doc
+                    // próprio lido/ouvido em sessões anteriores — renderiza na hora e o
+                    // listener do próprio doc (que sobe logo em seguida) corrige status,
+                    // suspensão e saldo em background. pending/suspended/sem-cache
+                    // seguem o caminho do servidor abaixo (comportamento de sempre).
+                    try {
+                        const snapCache = await getDocFromCache(doc(db, 'users', docId));
+                        const dataCache: any = snapCache.exists() ? snapCache.data() : null;
+                        if (dataCache && contaEhDoUsuario(snapCache.id, dataCache) && statusDe(dataCache.status) === 'active') {
+                            if (ativo) {
+                                setCurrentUser(montarPerfil(snapCache, dataCache));
+                                setCreditoCliente(Number(dataCache.walletBalance || dataCache.carteira || 0));
+                            }
+                            return;
+                        }
+                    } catch (e) { /* doc ainda não está no cache local */ }
+
                     try {
                         const snapUser = await getDoc(doc(db, 'users', docId));
                         const dataUser: any = snapUser.exists() ? snapUser.data() : null;
-                        const meuDoc = !!dataUser && (snapUser.id === fbUser.uid || dataUser.authUid === fbUser.uid);
-                        const statusUser = meuDoc ? String(dataUser.status || 'pending').toLowerCase() : '';
+                        const meuDoc = !!dataUser && contaEhDoUsuario(snapUser.id, dataUser);
+                        const statusUser = meuDoc ? statusDe(dataUser.status) : '';
                         if (meuDoc && statusUser === 'suspended') {
                             await signOut(auth).catch(() => {});
                             return;
@@ -2735,24 +2775,7 @@ return false;
                         if (meuDoc && statusUser !== 'pending') {
                             // Mesmo shape do retorno de buscarUsuarioAtual (contrato
                             // que o frontend sempre consumiu) — sem campos extras.
-                            const u = {
-                                id: snapUser.id,
-                                name: dataUser.name || dataUser.nome || '',
-                                email: dataUser.email || '',
-                                cpf: dataUser.cpf || '',
-                                role: toUserRole(dataUser.role || 'user'),
-                                status: statusUser,
-                                walletBalance: Number(dataUser.walletBalance || dataUser.carteira || 0),
-                                weeklySpent: Number(dataUser.weeklySpent || dataUser.gastoSemanal || 0),
-                                inmateName: dataUser.inmateName || dataUser.prisonerName || '',
-                                inmateCpf: dataUser.inmateCpf || dataUser.prisonerCpf || '',
-                                selectedUnitId: dataUser.selectedUnitId || dataUser.unitId || '',
-                                avatarUrl: dataUser.avatarUrl || '',
-                                phone: dataUser.phone || '',
-                                mainAdmin: Boolean(dataUser.mainAdmin),
-                                permissions: dataUser.permissions || [],
-                                approved: dataUser.approved,
-                            } as User;
+                            const u = montarPerfil(snapUser, dataUser);
                             if (ativo) {
                                 setCurrentUser(u);
                                 setCreditoCliente(u.walletBalance || 0);

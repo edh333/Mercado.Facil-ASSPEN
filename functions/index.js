@@ -490,7 +490,7 @@ async function registrarAudit(operadorUid, acaoTipo, payloadAntes = null, payloa
  * Público — consulta mínima para o login saber qual e-mail usar no Firebase Auth.
  * NÃO expõe senhas, saldos ou dados sensíveis.
  */
-exports.buscarLoginInfo = onCall(async (request) => {
+exports.buscarLoginInfo = onCall({ minInstances: 1 }, async (request) => {
   try {
   verificarRateLimit("buscarLoginInfo:" + ipDoRequest(request), 30);
   const identificador = String(request.data?.identificador || "").trim();
