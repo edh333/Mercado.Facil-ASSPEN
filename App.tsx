@@ -127,7 +127,14 @@ const MainApp: React.FC = () => {
     // Landing pública estilo ASSPEN; PWA do usuário (/?mode=user) abre direto o login;
     // app ADMIN (/?mode=admin) abre direto no LOGIN DO PAINEL ADMIN (nunca na Landing
     // de marketing — antes o operador via "tela estranha/em branco" e achava quebrado).
-    return <Landing skipLanding={modoUsuario || modoAdmin} initialTab={modoAdmin ? 'admin' : 'login'} />;
+    // NotificationSystem montado TAMBÉM aqui: sem ele, toasts de Login/Cadastro/
+    // Recuperação disparados na Landing não tinham ancoragem e ficavam invisíveis.
+    return (
+      <>
+        <NotificationSystem />
+        <Landing skipLanding={modoUsuario || modoAdmin} initialTab={modoAdmin ? 'admin' : 'login'} />
+      </>
+    );
   }
 
   // APPS COM PÚBLICO EXCLUSIVO (desktop/PWA instalado com modo fixo):

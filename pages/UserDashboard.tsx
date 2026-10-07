@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useApp } from '../context/StoreContext';
-import { useTheme } from '../context/ThemeContext';
-import { OrderStatus, ThemeOption, Order, Product, CartItem, WalletTransaction } from '../types';
+import { OrderStatus, Order, Product, CartItem, WalletTransaction } from '../types';
 import { 
     ShoppingCart, LogOut, Search, Plus, X, Upload, CheckCircle, 
     MessageSquare, Clock, FileText, 
     Printer, ShoppingBag, Loader2, Package, CreditCard, RefreshCcw, AlertCircle, Sparkles,
-    Trash2, Wrench, Banknote, Paperclip, Home, HardHat, Wallet, ShieldCheck, Smartphone
+    Trash2, Wrench, Banknote, Paperclip, Home, HardHat, Wallet, Smartphone
 } from 'lucide-react';
 import { CupomEntrega } from '../components/CupomEntrega';
 import { NotificationSystem } from '../components/NotificationSystem';
@@ -32,7 +31,6 @@ export const UserDashboard: React.FC = () => {
         logout, messages, markMessageRead, settings, getWalletTransactions, depositToWallet,
         reenviarComprovante
     } = useApp();
-    const { isDark, primaryColor } = useTheme();
 
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
     const isAdmin = (currentUser?.role === 'ADMIN' || currentUser?.role === 'MASTER') && !isStandalone;
@@ -63,7 +61,6 @@ export const UserDashboard: React.FC = () => {
     const [sortOpt, setSortOpt] = useState<'relevance' | 'price_asc' | 'price_desc' | 'name'>('relevance');
     const [catFilter, setCatFilter] = useState<string>('ALL');
     const [searchTerm, setSearchTerm] = useState('');
-    const [stage, setStage] = useState<'cart' | 'location' | 'pay' | 'proof'>('cart');
     const [location, setLocation] = useState({ ray: '', wing: '', cell: '' });
     const [deliveryType, setDeliveryType] = useState<'intern' | 'worker'>('intern');
     const [deliveryFreeText, setDeliveryFreeText] = useState('');
@@ -149,34 +146,8 @@ const [ordersError, setOrdersError] = useState(false);
     };
 
     useEffect(() => {
-        window.dispatchEvent(new CustomEvent('opencode:cart-update', { detail: { count: totalItensNoCarrinho } }));
-    }, [cart]);
-
-    useEffect(() => {
         cartRef.current = cart;
     }, [cart]);
-
-    useEffect(() => {
-        // Guarda: eventos que alteram o carrinho (clear/new) só fazem sentido
-        // no modo PDV do admin e NUNCA com o foco num campo de digitação.
-        const digitandoEmCampo = () => {
-            const el = document.activeElement as HTMLElement | null;
-            if (!el) return false;
-            const tag = el.tagName;
-            return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
-        };
-        const hClear = () => { if (isAdmin && !digitandoEmCampo()) setCart([]); };
-        const hNew = () => { if (isAdmin && !digitandoEmCampo()) { setCart([]); setStage('cart'); } };
-        const hOpen = () => { if (isAdmin && !digitandoEmCampo()) { setIsCheckoutModalOpen(true); setStage('cart'); } };
-        window.addEventListener('opencode:clear-cart', hClear);
-        window.addEventListener('opencode:new-sale', hNew);
-        window.addEventListener('opencode:open-cart', hOpen);
-        return () => {
-            window.removeEventListener('opencode:clear-cart', hClear);
-            window.removeEventListener('opencode:new-sale', hNew);
-            window.removeEventListener('opencode:open-cart', hOpen);
-        };
-    }, []);
 
     useEffect(() => {
         if (!currentUser?.id) return;
@@ -465,7 +436,6 @@ unsubOrders = onSnapshot(q, (snapshot) => {
             }
             setConfirmarLimpar(false);
             setCart([]);
-            setStage('cart');
             showNotification('Carrinho esvaziado!', 'success');
         }
     };
@@ -680,7 +650,6 @@ unsubOrders = onSnapshot(q, (snapshot) => {
 
             setCart([]);
             setProofFile(null);
-            setStage('cart');
             setActiveTab('store');
             setIsCheckoutModalOpen(false);
             showNotification(isWalletPayment ? 'Pedido finalizado com sucesso pelo saldo!' : 'Pedido enviado com sucesso para análise!', 'success');
@@ -777,50 +746,22 @@ unsubOrders = onSnapshot(q, (snapshot) => {
 
     const hasCustomBg = settings?.userDashboardBgType === 'image' && settings?.userDashboardBgUrl;
 
-    const renderCartTable = () => (
-        <div className="max-h-[calc(100dvh-420px)] overflow-y-auto border border-slate-200 rounded-xl bg-white font-mono">
-            <table className="w-full text-[11px]">
-                <thead className="bg-emerald-700 text-white font-black text-xs uppercase text-center tracking-wider sticky top-0 z-10">
-                    <tr>
-                        <th className="py-2.5 pl-3 text-left">PRODUTO</th>
-                        <th className="py-2.5">QTD</th>
-                        <th className="py-2.5">V. UNITÁRIO</th>
-                        <th className="py-2.5">SUBTOTAL</th>
-                        <th className="py-2.5">AÇÃO</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {(cart || []).map((item: any, idx: number) => {
-                        const prod = safeProducts.find(p => String(p.id) === String(item.productId));
-                        const displayName = prod ? prod.name : (item.name || 'Item');
-                        const displayPrice = item.priceAtPurchase ?? (prod ? prod.price : (item.price || 0));
-                        return (
-                            <tr key={item.productId} className={`${idx % 2 === 0 ? 'bg-slate-50' : 'bg-white'} border-b border-slate-100`}>
-                                <td className="text-slate-800 font-bold text-xs uppercase text-left pl-3 py-2">{displayName}</td>
-                                <td className="py-2 text-center">
-                                    <div className="inline-flex items-center gap-1">
-                                        <button onClick={() => updateQty(item.productId, -1)} className="w-6 h-6 rounded-full border bg-white shadow-sm flex items-center justify-center font-bold text-xs transition-all active:scale-95 text-slate-700 cursor-pointer hover:bg-red-50 hover:text-red-500 hover:border-red-300">−</button>
-                                        <span className="font-black text-xs text-slate-900 min-w-[22px] text-center">{item.quantity}</span>
-                                        <button onClick={() => updateQty(item.productId, 1)} className="w-6 h-6 rounded-full border bg-white shadow-sm flex items-center justify-center font-bold text-xs transition-all active:scale-95 text-slate-700 cursor-pointer hover:bg-emerald-50 hover:text-[var(--primary-color)] hover:border-emerald-300">+</button>
-                                    </div>
-                                </td>
-                                <td className="text-slate-600 font-medium text-xs font-mono text-center py-2">R$ {formatarMoeda(displayPrice)}</td>
-                                <td className="font-black text-slate-900 text-sm text-center font-mono py-2">R$ {formatarMoeda(displayPrice * item.quantity)}</td>
-                                <td className="py-2 text-center">
-                                    <button onClick={() => removeFromCart(item.productId)} className="text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-all active:scale-95 text-xs font-black flex items-center justify-center gap-1 mx-auto cursor-pointer">
-                                        <Trash2 size={12} className="inline-block mr-1" /> REMOVER
-                                    </button>
-                                </td>
-                            </tr>
-                        );
-                    })}
-                    {cart.length === 0 && (
-                        <tr><td colSpan={5} className="text-center py-8 text-slate-400 font-bold text-xs uppercase">Nenhum item no carrinho</td></tr>
-                    )}
-                </tbody>
-            </table>
-        </div>
-    );
+    // Trocar de aba reestabelece o highlight do bottom nav (mobileView).
+    // Sem isso, tocar em "HISTÓRICO" deixava CATÁLOGO também riscado — o
+    // mobileView só caminhava ao tocar em CATÁLOGO/CUPOM.
+    useEffect(() => {
+        setMobileView('catalog');
+    }, [activeTab]);
+
+    // Recibo (overlay de impressão) fecha no Escape — igual às ModalShell.
+    useEffect(() => {
+        if (!viewingOrderCupom) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setViewingOrderCupom(null);
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [viewingOrderCupom]);
 
     const renderAdminStore = () => {
         const lastItem = cart.length > 0 ? cart[cart.length - 1] : null;
@@ -1007,7 +948,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
 
                         {/* Botão Enviar Crédito */}
                         <button
-                            onClick={() => { setIsDepositOpen(true); setStage('pay'); setDepositAmountText(''); }}
+                            onClick={() => { setIsDepositOpen(true); setDepositAmountText(''); }}
                             className="bg-[var(--primary-color)] text-white px-3 py-2.5 rounded-xl font-semibold text-[11px] shadow-sm active:scale-95 hover:brightness-110 transition-all flex items-center gap-1 shrink-0"
                         >
                             <Plus size={14} />
@@ -1164,12 +1105,27 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                 <UiButton
                                     size="sm"
                                     icon={<Plus size={15} />}
-                                    onClick={() => { setIsDepositOpen(true); setStage('pay'); }}
+                                    onClick={() => { setIsDepositOpen(true); }}
                                 >
                                     Enviar Crédito
                                 </UiButton>
                             </div>
-                            {!soCredito && (
+                            {soCredito ? (
+                                <div className="hidden md:flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1">
+                                    <button
+                                        onClick={() => setActiveTab('store')}
+                                        className={`flex items-center gap-2 rounded-md px-4 py-2 text-xs font-semibold transition-colors ${activeTab === 'store' ? 'bg-[var(--primary-color)] text-white shadow-sm' : 'text-slate-500 hover:bg-white hover:text-slate-900'}`}
+                                    >
+                                        <CreditCard size={14} /> Crédito
+                                    </button>
+                                    <button
+                                        onClick={() => { setActiveTab('orders'); setViewingWalletHistory(true); }}
+                                        className={`flex items-center gap-2 rounded-md px-4 py-2 text-xs font-semibold transition-colors ${activeTab === 'orders' ? 'bg-[var(--primary-color)] text-white shadow-sm' : 'text-slate-500 hover:bg-white hover:text-slate-900'}`}
+                                    >
+                                        <Wallet size={14} /> Extrato
+                                    </button>
+                                </div>
+                            ) : (
                                 <div className="hidden md:flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1">
                                     <button
                                         onClick={() => setActiveTab('store')}
@@ -1304,7 +1260,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                             <StoreSuspendedScreen
                                 institutionName={settings?.institutionName}
                                 saldo={currentUser?.walletBalance || 0}
-                                onSendCredit={() => { setIsDepositOpen(true); setStage('pay'); setDepositAmountText(''); }}
+                                onSendCredit={() => { setIsDepositOpen(true); setDepositAmountText(''); }}
                             />
                         ) : saldoSuspenso ? (
                             <div className="max-w-md mx-auto bg-slate-900 rounded-3xl border border-slate-700 shadow-xl p-8 text-white space-y-6">
@@ -1670,7 +1626,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                     </>
                 ) : (
                     <>
-                        <button onClick={() => { setActiveTab('store'); setMobileView('catalog'); }} className={`flex flex-col items-center justify-center h-full flex-1 transition-colors ${mobileView === 'catalog' ? 'text-[var(--primary-color)]' : 'text-slate-400'}`}>
+                        <button onClick={() => { setActiveTab('store'); setMobileView('catalog'); if (isCartReviewOpen) setIsCartReviewOpen(false); }} className={`flex flex-col items-center justify-center h-full flex-1 transition-colors ${activeTab === 'store' && mobileView === 'catalog' ? 'text-[var(--primary-color)]' : 'text-slate-400'}`}>
                             <Package size={20} />
                             <span className="text-[10px] font-black uppercase mt-0.5">CATÁLOGO</span>
                         </button>
@@ -1987,7 +1943,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
             </ModalShell>
 
             {viewingOrderCupom && (
-                <div className="fixed inset-0 z-[5000] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 print:p-0 print:bg-white" onClick={() => setViewingOrderCupom(null)}>
+                <div role="dialog" aria-modal="true" aria-label="Recibo do pedido" className="fixed inset-0 z-[5000] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 print:p-0 print:bg-white" onClick={() => setViewingOrderCupom(null)}>
                     <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden print:shadow-none print:w-[76mm] print:mx-auto" onClick={e => e.stopPropagation()}>
                         <div className="p-4 border-b border-slate-100 flex justify-between items-center print:hidden">
                             <span className="font-black text-xs uppercase">Recibo</span>

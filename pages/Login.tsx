@@ -84,6 +84,7 @@ const [recoveryName, setRecoveryName] = useState('');
         setNewPassword('');
         setConfirmNewPassword('');
         setLoadingMessage('');
+        setRecoveryStep(1);
     }, [activeTab]);
 
     const handleSubmit = async (e: React.FormEvent) => {

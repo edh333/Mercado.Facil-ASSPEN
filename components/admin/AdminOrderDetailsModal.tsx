@@ -86,7 +86,6 @@ interface AdminOrderDetailsModalProps {
   showNotification: (msg: string, type: string) => void;
   setViewingReceipt: (data: any) => void;
   setPrintOrder: (order: Order) => void;
-  setShowRefundModal: (order: Order) => void;
   translateStatus: (status: string | undefined) => string;
   setHistoryModalCpf: (cpf: string) => void;
   setHistoryModalName: (name: string) => void;
@@ -96,7 +95,7 @@ interface AdminOrderDetailsModalProps {
 export const AdminOrderDetailsModal: React.FC<AdminOrderDetailsModalProps> = ({
   order, onClose, isRejecting, setIsRejecting, rejectReason, setRejectReason,
   handleRejectOrder, updateOrderStatus, showNotification, setViewingReceipt,
-  setPrintOrder, setShowRefundModal, translateStatus, setHistoryModalCpf, setHistoryModalName,
+  setPrintOrder, translateStatus, setHistoryModalCpf, setHistoryModalName,
   settings
 }) => {
   const { colors } = useTheme();

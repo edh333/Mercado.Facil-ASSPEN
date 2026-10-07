@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp, buildSalesCsv } from '../context/StoreContext';
-import { OrderStatus, ThemeOption, User, Order, Product, UserRole, WalletTransaction, Expense, Supplier } from '../types';
-import { THEME_COLORS } from '../constants';
+import { User, Order, Product, UserRole, WalletTransaction } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, writeBatch, setDoc, limit } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -13,7 +12,7 @@ import { PageHeader, UiButton } from '../components/ui';
 import { AppDownloadButton } from '../components/AppDownloadModal';
 import { UninstallModal } from '../components/UninstallModal';
 import { ehReceita } from '../components/admin/adminUtils';
-import { Menu, X, Banknote, Trash2, BarChart3, FileText, AlertTriangle, ArrowUpRight } from 'lucide-react';
+import { Menu, X, Banknote, Trash2, BarChart3, FileText, AlertTriangle } from 'lucide-react';
 
 // Import all modular subcomponents
 import { AdminSidebar } from '../components/admin/AdminSidebar';
@@ -102,7 +101,6 @@ export function AdminDashboard() {
     showNotification,
     createAdminUser,
     updateAdminPermissions,
-    removeSupplier,
     resetStock,
     resetFinance,
     resetSystem,
@@ -111,7 +109,6 @@ export function AdminDashboard() {
     validateMasterPassword,
     defineMasterPassword,
     masterPasswordStatus,
-    addSupplier,
     addPreRegisteredInmate,
     deletePreRegisteredInmate,
     preRegisteredInmates,
@@ -125,7 +122,6 @@ export function AdminDashboard() {
     resetCredits,
     mergeDuplicateProducts,
     toggleUserCredit,
-    archiveOldData,
     activateSystem,
     generateActivationKey,
     isInstallable,
@@ -143,9 +139,6 @@ export function AdminDashboard() {
     loadMoreInmates,
     cotaCritica,
     registrarVendaOffline,
-    sincronizarVendasOffline,
-    vendasOfflinePendentes,
-    vendasOfflineComErro,
     messages,
     sendMessage,
     isLoggingOut
@@ -174,13 +167,10 @@ export function AdminDashboard() {
   const [printOrder, setPrintOrder] = useState<Order | null>(null);
   const [showProductModal, setShowProductModal] = useState(false);
   const [showStockEditModal, setShowStockEditModal] = useState<Product | null>(null);
-  const [showSupplierModal, setShowSupplierModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   
   // Filters & Searches
   const [orderSearch, setOrderSearch] = useState('');
-  const [orderStatusFilter, setOrderStatusFilter] = useState('ALL');
-  const [orderDateFilter, setOrderDateFilter] = useState('');
   const [orderViewMode, setOrderViewMode] = useState<'grid' | 'list'>('list');
   
   const [productSearch, setProductSearch] = useState('');
@@ -191,7 +181,6 @@ export function AdminDashboard() {
   const [newInmate, setNewInmate] = useState({ name: '', cpf: '', unit: '' });
   
   const [userSearch, setUserSearch] = useState('');
-  const [userDateFilter, setUserDateFilter] = useState('');
   const [showPasswords, setShowPasswords] = useState(false);
   const [viewingUser, setViewingUser] = useState<User | null>(null);
   const [historyModalCpf, setHistoryModalCpf] = useState('');
@@ -230,22 +219,10 @@ export function AdminDashboard() {
     term: '',
     recipient: ''
   });
-  const [expenseForm, setExpenseForm] = useState({
-    description: '',
-    amount: '',
-    recipientName: '',
-    recipientDoc: '',
-    category: 'Manutenção',
-    type: 'OPERATIONAL',
-    observation: ''
-  });
 
   // Rejections and Refunds
   const [isRejecting, setIsRejecting] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
-  const [showRefundModal, setShowRefundModal] = useState<Order | null>(null);
-  const [refundReason, setRefundReason] = useState('');
-  const [isProcessingRefund, setIsProcessingRefund] = useState(false);
 
   // Security Auth Modals
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -308,7 +285,7 @@ export function AdminDashboard() {
   useEffect(() => {
     if (roleLoading) return;
     if (userRole === 'operator' && !isMaster) {
-      if (['bi', 'customers', 'settings', 'maintenance', 'audit'].includes(activeTab)) {
+      if (['inmates', 'users', 'finance', 'wallet', 'reports', 'messages', 'bi', 'customers', 'settings', 'maintenance', 'audit'].includes(activeTab)) {
         setActiveTab('home');
       }
     } else if (userRole === 'manager' && !isMaster) {
@@ -347,7 +324,7 @@ export function AdminDashboard() {
 
   // ATALHOS GLOBAIS F1-F12 + '?' — funcionam em qualquer aba do painel.
   // Guardas: nada de atalho com janela aberta, nem digitando em campos.
-  const shortcutsModalOpen = [showSalesModal, showReportModal, showShortcutsModal, showProductModal, showRefundModal, showWithdrawalModal, showAuthModal, historyModalCpf, viewingReceipt].some(Boolean);
+  const shortcutsModalOpen = [showSalesModal, showReportModal, showShortcutsModal, showProductModal, showWithdrawalModal, showAuthModal, historyModalCpf, viewingReceipt].some(Boolean);
 
 const goToTab = (tab: string) => {
     const tabPermissions: Record<string, string> = {
@@ -524,23 +501,6 @@ const goToTab = (tab: string) => {
     }
   };
 
-  const handleAddSupplier = async (name: string) => {
-    if (!name.trim()) return;
-    try {
-      const newSupplier: Supplier = {
-        id: Date.now().toString(),
-        name: name.trim(),
-        cnpjOrCpf: '',
-        contact: '',
-        description: ''
-      };
-      await addSupplier(newSupplier);
-      showNotification('Fornecedor cadastrado com sucesso!', 'success');
-    } catch (error: any) {
-      showNotification('Erro ao cadastrar fornecedor: ' + error.message, 'error');
-    }
-  };
-
   const handleImportXML = async () => {
     if (!xmlFile) {
       showNotification('Selecione um arquivo XML.', 'error');
@@ -558,13 +518,6 @@ const goToTab = (tab: string) => {
   const handleProtectedAction = (action: (senhaMestra?: string) => void, type: any = 'SYSTEM') => {
     setPendingConfigAction(() => action);
     setAuthAction(type);
-    setShowAuthModal(true);
-  };
-
-  const handleSettingsAccess = () => {
-    setIsSettingsAuthenticated(false);
-    setPendingConfigAction(() => () => setIsSettingsAuthenticated(true));
-    setAuthAction('SYSTEM');
     setShowAuthModal(true);
   };
 
@@ -697,28 +650,6 @@ const goToTab = (tab: string) => {
     }
   };
 
-  const handleRefundOrder = async () => {
-    if (!showRefundModal) return;
-    if (!refundReason.trim()) return showNotification('Motivo do reembolso é obrigatório.', 'error');
-    setIsProcessingRefund(true);
-    try {
-      await refundOrder(showRefundModal.id);
-      await sendSystemMessage({
-        title: `Pedido #${showRefundModal.id.slice(0, 6)} Reembolsado`,
-        content: `Seu pedido foi reembolsado. Valor devolvido para a carteira. Motivo: ${refundReason}`,
-        targetUserId: showRefundModal.userId,
-        type: 'info'
-      });
-      showNotification('Pedido reembolsado com sucesso!', 'success');
-      setRefundReason('');
-      setTimeout(() => setShowRefundModal(null), 1200);
-    } catch (e: any) {
-      showNotification('Erro ao processar reembolso: ' + e.message, 'error');
-    } finally {
-      setIsProcessingRefund(false);
-    }
-  };
-
   const handleDownloadSource = () => {
     showNotification('O código fonte do projeto está disponível no repositório Git do sistema.', 'info');
   };
@@ -833,7 +764,7 @@ const goToTab = (tab: string) => {
       {/* Sidebar Integration */}
       <AdminSidebar
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={goToTab}
         pendingOrdersCount={orderPendingCount}
         pendingDepositsCount={depositPendingCount}
         pendingUsersCount={stats.pendingUsersCount}
@@ -846,12 +777,11 @@ const goToTab = (tab: string) => {
         onOpenSales={() => setShowSalesModal(true)}
         permissions={currentUser?.permissions === undefined ? ['all'] : currentUser.permissions}
         isMaster={isMaster}
-        primaryColor={settings?.primaryColor || '#10b981'}
         userRole={userRole}
       />
 
       {/* Main Administrative Container */}
-      <div className="flex-1 lg:ml-64 flex flex-col min-h-screen w-full relative">
+      <div className="flex-1 md:ml-64 flex flex-col min-h-screen w-full relative">
 
         {/* Alerta profissional de cota: o sistema detectou limite do plano
             (Spark) — em vez de falhar silenciosamente, orienta a ação certa. */}
@@ -947,7 +877,7 @@ const goToTab = (tab: string) => {
                     stats={stats}
                     chartData={chartData}
                     isMaster={isMaster}
-                    setActiveTab={setActiveTab}
+                    setActiveTab={goToTab}
                     setShowProductModal={setShowProductModal}
                     filterType="day"
                     orders={orders}
@@ -1270,7 +1200,6 @@ const goToTab = (tab: string) => {
             showNotification={showNotification}
             setViewingReceipt={setViewingReceipt}
             setPrintOrder={setPrintOrder}
-            setShowRefundModal={setShowRefundModal}
             translateStatus={translateStatus}
             setHistoryModalCpf={setHistoryModalCpf}
             setHistoryModalName={setHistoryModalName}
@@ -1391,13 +1320,6 @@ const goToTab = (tab: string) => {
         withdrawalPassword={withdrawalPassword}
         setWithdrawalPassword={setWithdrawalPassword}
         handleWithdrawal={handleWithdrawal}
-
-        showRefundModal={showRefundModal}
-        setShowRefundModal={setShowRefundModal}
-        refundReason={refundReason}
-        setRefundReason={setRefundReason}
-        handleRefundOrder={handleRefundOrder}
-        isProcessingRefund={isProcessingRefund}
 
         showProductModal={showProductModal}
         setShowProductModal={setShowProductModal}

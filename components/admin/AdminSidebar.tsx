@@ -24,25 +24,25 @@ interface AdminSidebarProps {
   onOpenSales?: () => void;
   permissions?: string[];
   isMaster?: boolean;
-  isImageBg?: boolean;
-  primaryColor?: string;
   userRole?: SystemRole;
 }
 
 export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   activeTab, setActiveTab, pendingOrdersCount, pendingDepositsCount, pendingUsersCount = 0, logout, isLoggingOut, appName, userName,
-  isOpen, onClose, onOpenSales, permissions = [], isMaster = false, isImageBg = false, primaryColor = '#10b981',
+  isOpen, onClose, onOpenSales, permissions = [], isMaster = false,
   userRole = 'admin'
 }) => {
-  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
   const { themeMode, setThemeMode } = useTheme();
   const hasPermission = (perm: string) => isMaster || permissions.includes('all') || permissions.includes(perm);
+  // Navegação pela sidebar também fecha o drawer mobile: trocar de aba no
+  // celular deixava o menu aberto cobrindo a tela do novo conteúdo ativada.
+  const go = (tab: string) => { setActiveTab(tab); if (onClose) onClose(); };
   const isSalesRestricted = userRole === 'manager' || userRole === 'operator';
 
-  const renderHome = () => <NavItem icon={Home} label="Início" active={activeTab === 'home'} onClick={() => setActiveTab('home')} />;
-  const renderOrders = () => hasPermission('orders') && <NavItem icon={ShoppingCart} label="Pedidos" active={activeTab === 'orders'} onClick={() => setActiveTab('orders')} badge={pendingOrdersCount} />;
-  const renderProducts = () => hasPermission('products') && <NavItem icon={Package} label="Produtos" active={activeTab === 'products'} onClick={() => setActiveTab('products')} />;
-  const renderStockAlerts = () => hasPermission('products') && <NavItem icon={AlertTriangle} label="Alertas de Estoque" active={activeTab === 'stock_alerts'} onClick={() => setActiveTab('stock_alerts')} />;
+  const renderHome = () => <NavItem icon={Home} label="Início" active={activeTab === 'home'} onClick={() => go('home')} />;
+  const renderOrders = () => hasPermission('orders') && <NavItem icon={ShoppingCart} label="Pedidos" active={activeTab === 'orders'} onClick={() => go('orders')} badge={pendingOrdersCount} />;
+  const renderProducts = () => hasPermission('products') && <NavItem icon={Package} label="Produtos" active={activeTab === 'products'} onClick={() => go('products')} />;
+  const renderStockAlerts = () => hasPermission('products') && <NavItem icon={AlertTriangle} label="Alertas de Estoque" active={activeTab === 'stock_alerts'} onClick={() => go('stock_alerts')} />;
   const renderSalesButton = () => hasPermission('sales') && (
     <button
       onClick={onOpenSales}
@@ -80,7 +80,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                 {renderOrders()}
                 {renderProducts()}
                 {renderStockAlerts()}
-                {userRole === 'operator' && hasPermission('cash') && <NavItem icon={Landmark} label="Meu Caixa" active={activeTab === 'cash'} onClick={() => setActiveTab('cash')} />}
+                {userRole === 'operator' && hasPermission('cash') && <NavItem icon={Landmark} label="Meu Caixa" active={activeTab === 'cash'} onClick={() => go('cash')} />}
                 {renderSalesButton()}
               </>
             ) : (
@@ -92,24 +92,24 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
                 {renderSalesButton()}
 
-                {hasPermission('cash') && <NavItem icon={Landmark} label="Caixa / Gaveta" active={activeTab === 'cash'} onClick={() => setActiveTab('cash')} />}
+                {hasPermission('cash') && <NavItem icon={Landmark} label="Caixa / Gaveta" active={activeTab === 'cash'} onClick={() => go('cash')} />}
 
                 <div className="my-2 border-t border-white/10 h-px mx-1"></div>
 
-                {hasPermission('inmates') && <NavItem icon={Shield} label="Gestão de Internos" active={activeTab === 'inmates'} onClick={() => setActiveTab('inmates')} />}
-                {hasPermission('users') && <NavItem icon={Users} label="Gestão de Familiares" active={activeTab === 'users'} onClick={() => setActiveTab('users')} badge={pendingUsersCount} />}
-                {hasPermission('users') && <NavItem icon={MessageSquare} label="Comunicados" active={activeTab === 'messages'} onClick={() => setActiveTab('messages')} />}
-                {hasPermission('finance') && <NavItem icon={DollarSign} label="Fluxo de Caixa" active={activeTab === 'finance'} onClick={() => setActiveTab('finance')} />}
-                {hasPermission('wallet') && <NavItem icon={CreditCard} label="Carteira & Créditos" active={activeTab === 'wallet'} onClick={() => setActiveTab('wallet')} badge={pendingDepositsCount} />}
-                {hasPermission('finance') && <NavItem icon={BookOpen} label="Contas a Pagar" active={activeTab === 'customers'} onClick={() => setActiveTab('customers')} />}
-                {hasPermission('finance') && <NavItem icon={ShieldCheck} label="Auditoria" active={activeTab === 'audit'} onClick={() => setActiveTab('audit')} />}
+                {hasPermission('inmates') && <NavItem icon={Shield} label="Gestão de Internos" active={activeTab === 'inmates'} onClick={() => go('inmates')} />}
+                {hasPermission('users') && <NavItem icon={Users} label="Gestão de Familiares" active={activeTab === 'users'} onClick={() => go('users')} badge={pendingUsersCount} />}
+                {hasPermission('users') && <NavItem icon={MessageSquare} label="Comunicados" active={activeTab === 'messages'} onClick={() => go('messages')} />}
+                {hasPermission('finance') && <NavItem icon={DollarSign} label="Fluxo de Caixa" active={activeTab === 'finance'} onClick={() => go('finance')} />}
+                {hasPermission('wallet') && <NavItem icon={CreditCard} label="Carteira & Créditos" active={activeTab === 'wallet'} onClick={() => go('wallet')} badge={pendingDepositsCount} />}
+                {hasPermission('finance') && <NavItem icon={BookOpen} label="Contas a Pagar" active={activeTab === 'customers'} onClick={() => go('customers')} />}
+                {hasPermission('finance') && <NavItem icon={ShieldCheck} label="Auditoria" active={activeTab === 'audit'} onClick={() => go('audit')} />}
 
                 <div className="my-2 border-t border-white/10 h-px mx-1"></div>
 
-                {hasPermission('reports') && <NavItem icon={BarChart3} label="Relatórios" active={activeTab === 'reports'} onClick={() => setActiveTab('reports')} />}
-                {hasPermission('reports') && (isMaster || userRole === 'admin') && <NavItem icon={Activity} label="Dashboard BI" active={activeTab === 'bi'} onClick={() => setActiveTab('bi')} />}
-                {(isMaster || userRole === 'admin') && <NavItem icon={Wrench} label="Manutenção" active={activeTab === 'maintenance'} onClick={() => setActiveTab('maintenance')} />}
-                {(isMaster || userRole === 'admin') && <NavItem icon={Settings} label="Configurações" active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />}
+                {hasPermission('reports') && <NavItem icon={BarChart3} label="Relatórios" active={activeTab === 'reports'} onClick={() => go('reports')} />}
+                {hasPermission('reports') && (isMaster || userRole === 'admin') && <NavItem icon={Activity} label="Dashboard BI" active={activeTab === 'bi'} onClick={() => go('bi')} />}
+                {(isMaster || userRole === 'admin') && <NavItem icon={Wrench} label="Manutenção" active={activeTab === 'maintenance'} onClick={() => go('maintenance')} />}
+                {(isMaster || userRole === 'admin') && <NavItem icon={Settings} label="Configurações" active={activeTab === 'settings'} onClick={() => go('settings')} />}
               </>
             )}
         </nav>

@@ -16,6 +16,8 @@ interface ModalShellProps {
   children: React.ReactNode;
   footer?: React.ReactNode;
   closeOnBackdrop?: boolean;
+  /** Dispara no Escape no lugar de onClose (ex.: janelas que exigem decisão). */
+  onEscape?: () => void;
   bodyClassName?: string;
   headerColor?: string;
 }
@@ -64,6 +66,7 @@ export const ModalShell: React.FC<ModalShellProps> = ({
   children,
   footer,
   closeOnBackdrop = true,
+  onEscape,
   bodyClassName = '',
   headerColor,
 }) => {
@@ -75,7 +78,19 @@ export const ModalShell: React.FC<ModalShellProps> = ({
     if (!open) return;
 
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { onClose(); return; }
+      // Escape: somente o modal do TOPO responde. Com janelas em camadas
+      // (ex.: Estorno sobre Detalhes do Pedido), o topo é o ÚLTIMO
+      // .modal-container montado no <body> — os de baixo não fecham juntos.
+      // Modais com closeOnBackdrop=false (operação em andamento) tampouco
+      // fecham por tecla: o Escape é o atalho do X/backdrop.
+      if (e.key === 'Escape') {
+        const containers = Array.from(document.querySelectorAll('.modal-container'));
+        const own = innerRef.current?.closest('.modal-container');
+        if (containers.length > 0 && own === containers[containers.length - 1] && closeOnBackdrop) {
+          if (onEscape) onEscape(); else onClose();
+        }
+        return;
+      }
       // Focus trap: Tab navega em loop dentro do modal
       if (e.key === 'Tab' && innerRef.current) {
         const focusables = Array.from(
@@ -99,12 +114,13 @@ export const ModalShell: React.FC<ModalShellProps> = ({
     };
 
     window.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       window.removeEventListener('keydown', onKey);
-      document.body.style.overflow = '';
+      document.body.style.overflow = prevOverflow;
     };
-  }, [open, onClose]);
+  }, [open, onClose, closeOnBackdrop, onEscape]);
 
   // Early return SOMENTE depois de todos os hooks
   if (!open) return null;

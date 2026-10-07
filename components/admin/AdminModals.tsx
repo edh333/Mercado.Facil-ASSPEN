@@ -31,13 +31,6 @@ interface AdminModalsProps {
   setWithdrawalPassword: (val: string) => void;
   handleWithdrawal: () => void;
 
-  showRefundModal: Order | null;
-  setShowRefundModal: (order: Order | null) => void;
-  refundReason: string;
-  setRefundReason: (val: string) => void;
-  isProcessingRefund: boolean;
-  handleRefundOrder: () => void;
-
   showAuthModal: boolean;
   setShowAuthModal: (val: boolean) => void;
   authPass: string;
@@ -62,7 +55,6 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
   showProductModal, setShowProductModal, editingProduct, setEditingProduct,
   addProduct, updateProduct, products,
   showWithdrawalModal, setShowWithdrawalModal, withdrawalAmount, setWithdrawalAmount, withdrawalReason, setWithdrawalReason, withdrawalPassword, setWithdrawalPassword, handleWithdrawal,
-  showRefundModal, setShowRefundModal, refundReason, setRefundReason, isProcessingRefund, handleRefundOrder,
   showAuthModal, setShowAuthModal, authPass, setAuthPass, handleAuthConfirm,
   viewingReceipt, setViewingReceipt, printOrder, setPrintOrder, settings,
   showStockEditModal, setShowStockEditModal, validateMasterPassword, currentUser, showNotification
@@ -805,66 +797,9 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
         </ModalShell>
       )}
 
-      {/* MODAL: REFUND PREMIUM */}
-      {showRefundModal && (
-        <ModalShell
-          open
-          onClose={() => setShowRefundModal(null)}
-          title="Estornar Pedido"
-          subtitle={showRefundModal?.userName || undefined}
-          icon={<RefreshCw size={22}/>}
-          size="sm"
-        >
-                   <div className="p-8 space-y-6">
-                       <div className="bg-gradient-to-r from-amber-900/30 to-amber-800/30 p-5 rounded-2xl border border-amber-700 text-center">
-                          <div className="w-12 h-12 bg-amber-800/50 rounded-2xl flex items-center justify-center mx-auto mb-3 text-amber-400">
-                              <RefreshCw size={24}/>
-                          </div>
-                          <p className="text-[11px] font-black text-amber-300 uppercase tracking-tighter leading-relaxed">
-                              O valor será devolvido ao saldo do familiar e os itens retornarão ao estoque automaticamente.
-                          </p>
-                      </div>
-<div>
-                            <label className="text-slate-600 font-black text-[10px] uppercase tracking-widest mb-3 block">Motivo do Estorno</label>
-                            <textarea
-                                className="w-full p-5 bg-slate-100 border-2 border-slate-200 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 rounded-2xl font-black text-slate-900 text-sm outline-none h-32 resize-none placeholder:text-slate-400 uppercase"
-                                placeholder="EX: DESISTÊNCIA DO CLIENTE, ERRO NO PEDIDO..."
-                                value={refundReason}
-                                onChange={e => setRefundReason(e.target.value.toUpperCase())}
-                                autoFocus
-                            ></textarea>
-                        </div>
-                      <div className="flex gap-3 pt-2">
-                          <button
-                            onClick={() => setShowRefundModal(null)}
-                            className="flex-1 py-5 bg-slate-100 text-slate-600 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all touch-target active:scale-[0.98]"
-                          >
-                            Cancelar
-                          </button>
-                          <button
-                            onClick={handleRefundOrder}
-                            disabled={isProcessingRefund || !refundReason.trim()}
-                            className={`flex-1 py-5 font-black rounded-2xl shadow-lg flex items-center justify-center gap-3 uppercase text-[11px] tracking-widest transition-all active:scale-[0.98] touch-target ${!refundReason.trim() ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:brightness-110'} disabled:opacity-40`}
-                          >
-                            {isProcessingRefund ? (
-                                <>
-                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                    PROCESSANDO...
-                                </>
-                            ) : (
-                                <>
-                                    <Check size={20}/> Confirmar Estorno
-                                </>
-                            )}
-                          </button>
-                      </div>
-                  </div>
-        </ModalShell>
-      )}
-
       {/* MODAL: MASTER AUTH PREMIUM */}
       {showAuthModal && (
-        <div className="modal-container">
+        <div className="modal-container" role="dialog" aria-modal="true" aria-label="Autorização">
             <form onSubmit={async (e) => { e.preventDefault(); setIsAuthLoading(true); try { await handleAuthConfirm(); } finally { setIsAuthLoading(false); } }} className="glass-card w-full max-w-sm rounded-3xl overflow-hidden border border-slate-200 animate-slideUp relative" style={{ background: 'linear-gradient(135deg, #0f172a, #1e293b, #0f172a)' }}>
                 <div className="relative bg-white rounded-2xl p-8 text-center border border-slate-200/80 shadow-xl m-4 md:m-6">
                     <div className="w-14 h-14 mx-auto mb-5 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-700 flex items-center justify-center shadow-lg shadow-slate-900/20">
@@ -905,7 +840,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                             {isAuthLoading ? <><Loader2 size={16} className="animate-spin" /> Validando...</> : 'Confirmar Acesso'}
                             {!isAuthLoading && <Check size={16} />}
                         </button>
-                        <button type="button" disabled={isAuthLoading} onClick={() => setShowAuthModal(false)} className="w-full py-3 bg-slate-100 border border-slate-200 text-slate-600 font-black hover:bg-slate-200 uppercase text-[10px] tracking-widest rounded-xl transition-all touch-target active:scale-[0.98] disabled:opacity-60">Cancelar</button>
+                        <button type="button" disabled={isAuthLoading} onClick={() => { setShowAuthModal(false); setAuthPass(''); }} className="w-full py-3 bg-slate-100 border border-slate-200 text-slate-600 font-black hover:bg-slate-200 uppercase text-[10px] tracking-widest rounded-xl transition-all touch-target active:scale-[0.98] disabled:opacity-60">Cancelar</button>
                     </div>
                 </div>
             </form>
