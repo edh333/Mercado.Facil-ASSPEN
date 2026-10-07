@@ -12,6 +12,7 @@ import {
   validarTroco,
   verificarLimiteSemanal,
   validarSaldoSuficiente,
+  fiadoExcedeLimite,
   calcularNovoSaldo,
   caminhoStorageDeUrl,
   calcularSplitVenda,
@@ -273,6 +274,33 @@ describe("validarSaldoSuficiente", () => {
       expect(e.message).toContain("Saldo insuficiente");
       expect(e.message).toContain("10.50");
     }
+  });
+});
+
+describe("fiadoExcedeLimite (0 = bloqueado; exceção ignora teto)", () => {
+  it("sem limite configurado (0/ausente) bloqueia a venda fiada", () => {
+    expect(fiadoExcedeLimite({ creditLimit: 0, currentDebt: 0, total: 10 }).excede).toBe(true);
+    expect(fiadoExcedeLimite({ currentDebt: 0, total: 10 }).excede).toBe(true);
+    expect(fiadoExcedeLimite({ creditLimit: undefined, currentDebt: 0, total: 10 }).excede).toBe(true);
+  });
+
+  it("autorizacaoExcepcional ignora a ausência de limite", () => {
+    const r = fiadoExcedeLimite({ creditLimit: 0, currentDebt: 0, total: 10, autorizacaoExcepcional: true });
+    expect(r.excede).toBe(false);
+  });
+
+  it("bloqueia quando dívida + venda superam o limite", () => {
+    const r = fiadoExcedeLimite({ creditLimit: 100, currentDebt: 90, total: 15 });
+    expect(r.excede).toBe(true);
+    expect(r.disponivel).toBe(10);
+  });
+
+  it("permite dentro do limite incluso", () => {
+    expect(fiadoExcedeLimite({ creditLimit: 100, currentDebt: 40, total: 60 }).excede).toBe(false);
+  });
+
+  it("nunca lança com entradas absurdas", () => {
+    expect(fiadoExcedeLimite({ creditLimit: NaN, currentDebt: "x", total: null }).excede).toBe(true);
   });
 });
 

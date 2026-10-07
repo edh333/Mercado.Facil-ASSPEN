@@ -143,6 +143,27 @@ function validarSaldoSuficiente(saldo, valor) {
   }
 }
 
+/**
+ * FIADO: a venda fiada ultrapassa o limite de crédito do cliente?
+ * Sem limite configurado (0/ausente) = NÃO pode vender fiado — paridade com o
+ * limite semanal da carteira, onde 0 já significa "bloqueado". Só
+ * `autorizacaoExcepcional` (override explícito do admin) ignora o teto.
+ * Retorna { excede: boolean, disponivel: number } — nunca lança.
+ */
+function fiadoExcedeLimite({ creditLimit, currentDebt, total, autorizacaoExcepcional }) {
+  const limite = arredondar(Number(creditLimit) || 0);
+  const divida = arredondar(Number(currentDebt) || 0);
+  const valor = arredondar(Number(total) || 0);
+  if (autorizacaoExcepcional === true) {
+    return { excede: false, disponivel: arredondar(Math.max(0, limite - divida)) };
+  }
+  if (limite <= 0) return { excede: true, disponivel: 0 };
+  return {
+    excede: arredondar(divida + valor) > limite,
+    disponivel: arredondar(Math.max(0, limite - divida)),
+  };
+}
+
 /** Novo saldo após débito, arredondado para centavos. */
 function calcularNovoSaldo(saldo, debito) {
   return arredondar(Number(saldo || 0) - Number(debito || 0));
@@ -641,6 +662,7 @@ module.exports = {
   validarTroco,
   verificarLimiteSemanal,
   validarSaldoSuficiente,
+  fiadoExcedeLimite,
   calcularNovoSaldo,
   caminhoStorageDeUrl,
   calcularSplitVenda,

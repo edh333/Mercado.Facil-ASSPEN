@@ -167,6 +167,15 @@ async function usuarioPorEmail(email) {
   return snap.empty ? null : { ...snap.docs[0].data(), id: snap.docs[0].id };
 }
 
+/** Dia local de São Paulo (YYYY-MM-DD) — formato canônico do campo `date`.
+ *  Pedidos criados pelo app (comprarComCarteira, registrarPedidoPix) usam o
+ *  MESMO formato do PDV para relatórios/fechamento não dependerem do fuso do
+ *  navegador do admin (o toDate do cliente já parseia 'YYYY-MM-DD' como
+ *  meia-noite local). */
+function dataDiaLocalSP() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+}
+
 /** Garante que o chamador é admin (role 'admin'/'ADMIN'/'master' no doc users) e está ativo. */
 async function exigirAdmin(context) {
   if (!context || !context.auth || !context.auth.uid) {
@@ -2347,11 +2356,16 @@ exports.processarVendaAdmin = onCall({
       // creditLimit do doc. Dívida nova = dívida corrente + valor da venda.
       const fiadoLimiteSnap = await t.get(db.collection("users").doc(targetUserId));
       const fiadoLimiteDados = fiadoLimiteSnap.exists ? fiadoLimiteSnap.data() : {};
-      const creditLimitAtual = arredondar(Number(fiadoLimiteDados.creditLimit) || 0);
-      const dividaCorrenteAtual = arredondar(Number(fiadoLimiteDados.currentDebt) || 0);
-      if (creditLimitAtual > 0 && arredondar(dividaCorrenteAtual + total) > creditLimitAtual) {
-        const disponivel = Math.max(0, arredondar(creditLimitAtual - dividaCorrenteAtual));
-        throw new Error(`Limite de crédito excedido. O cliente possui apenas R$ ${disponivel.toFixed(2)} de limite disponível.`);
+      // 0 (ou ausente) = SEM fiado — paridade com o limite semanal da carteira.
+      // Só autorizacaoExcepcional (override explícito do admin) ignora o teto.
+      const checagemLimiteFiado = fiadoExcedeLimite({
+        creditLimit: fiadoLimiteDados.creditLimit,
+        currentDebt: fiadoLimiteDados.currentDebt,
+        total,
+        autorizacaoExcepcional: userData.autorizacaoExcepcional,
+      });
+      if (checagemLimiteFiado.excede) {
+        throw new Error(`Limite de crédito excedido. O cliente possui apenas R$ ${checagemLimiteFiado.disponivel.toFixed(2)} de limite disponível.`);
       }
       // Grava o INÍCIO da dívida (debtStartedAt) apenas quando o cliente parte de
       // dívida zero — base para o PDV marcar "nota vencida após 30 dias" em Contas
@@ -2394,11 +2408,16 @@ exports.processarVendaAdmin = onCall({
       // (dívida corrente + venda atual) só é garantido aqui no servidor.
       const fiado30LimiteSnap = await t.get(db.collection("users").doc(fiado30UserId));
       const fiado30LimiteDados = fiado30LimiteSnap.exists ? fiado30LimiteSnap.data() : {};
-      const creditLimit30 = arredondar(Number(fiado30LimiteDados.creditLimit) || 0);
-      const divida30Corrente = arredondar(Number(fiado30LimiteDados.currentDebt) || 0);
-      if (creditLimit30 > 0 && arredondar(divida30Corrente + total) > creditLimit30) {
-        const disponivel30 = Math.max(0, arredondar(creditLimit30 - divida30Corrente));
-        throw new Error(`Limite de crédito excedido. O cliente possui apenas R$ ${disponivel30.toFixed(2)} de limite disponível.`);
+      // 0 (ou ausente) = SEM fiado 30 — paridade com o FIADO normal.
+      // Só autorizacaoExcepcional ignora o teto.
+      const checagemLimiteFiado30 = fiadoExcedeLimite({
+        creditLimit: fiado30LimiteDados.creditLimit,
+        currentDebt: fiado30LimiteDados.currentDebt,
+        total,
+        autorizacaoExcepcional: fiado30UserData.autorizacaoExcepcional,
+      });
+      if (checagemLimiteFiado30.excede) {
+        throw new Error(`Limite de crédito excedido. O cliente possui apenas R$ ${checagemLimiteFiado30.disponivel.toFixed(2)} de limite disponível.`);
       }
       // debtDueAt = agora + 30 dias para controle de vencimento no painel Contas a Receber
       const debtDueAt = admin.firestore.Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
@@ -2632,7 +2651,7 @@ exports.comprarComCarteira = onCall({
       unitName: "Unidade Prisional",
       status: "paid",
       createdAt: new Date().toISOString(),
-      date: new Date().toISOString(),
+      date: dataDiaLocalSP(),
       items: itensComPreco,
       total,
       paymentMethod: "WALLET",
@@ -2804,7 +2823,7 @@ exports.registrarPedidoPix = onCall({
       unitName: "Unidade Prisional",
       status: "pending",
       createdAt: new Date().toISOString(),
-      date: new Date().toISOString(),
+      date: dataDiaLocalSP(),
       items: itensComPreco,
       total,
 paymentMethod: "PIX",
@@ -3598,6 +3617,11 @@ exports.criarClienteFiado = onCall({
   // Teto de segurança: evita creditLimit absurdo que desativa o limite.
   if (creditLimit > 1000000) {
     throw new HttpsError("invalid-argument", "Limite de crédito excede o teto de R$ 1.000.000,00.");
+  }
+  // 0 = sem crédito (paridade com o PDV: limite ausente/zero bloqueia o fiado).
+  // Para BLOQUEAR um cliente já existente, use atualizarLimiteCredito com 0.
+  if (creditLimit <= 0) {
+    throw new HttpsError("invalid-argument", "Informe o limite de crédito do cliente (maior que zero).");
   }
 
   if (cpf.length === 11) {
