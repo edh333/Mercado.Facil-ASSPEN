@@ -2,8 +2,9 @@ import React from 'react';
 import {
   Users, Search, Eye, EyeOff, FileText, MinusCircle, CheckCircle, Ban, Trash2, RefreshCw,
   PlusCircle, ShieldCheck, CheckSquare, Square, Link2, BarChart2, Download, Lock, Unlock,
-  MoreVertical
+  MoreVertical, Upload, X, Loader2
 } from 'lucide-react';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { formatarMoeda, isAdminRole } from '../../utils';
 import { getLocalDateStr } from './adminUtils';
 import { User, Order } from '../../types';
@@ -55,6 +56,70 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
     saldo?: number;
     bulkCount?: number;
   }>(null);
+
+  // ─── Importação em lote (escala 1.500+) ───────────────────────────────
+  const [showImportModal, setShowImportModal] = React.useState(false);
+  const [importRows, setImportRows] = React.useState('');
+  const [senhaPadraoImport, setSenhaPadraoImport] = React.useState('');
+  const [aprovarAuto, setAprovarAuto] = React.useState(false);
+  const [importando, setImportando] = React.useState(false);
+  const [importResultado, setImportResultado] = React.useState<null | {
+    totalCriados: number;
+    totalPulados: number;
+    pulados: { linha: number; motivo: string }[];
+    erro?: boolean;
+  }>(null);
+
+  const linhasInferidas = React.useMemo(() => {
+    const out: { name: string; cpf: string; email: string; role: string; inmateCpf: string; phone: string }[] = [];
+    for (const raw of (importRows || '').split(/\r?\n/)) {
+      const line = raw.trim();
+      if (!line) continue;
+      const partes = line.split(/[;\t,]/).map(p => p.trim());
+      while (partes.length > 0 && partes[partes.length - 1] && partes[partes.length - 1] === '') partes.pop();
+      if (partes.length === 0) continue;
+      // Ignora possível linha de cabeçalho (nome;cpf;...)
+      if (/^(nome|name|cpf|documento)/i.test(partes[0]) && !/\d/.test(partes[1] || '')) continue;
+      out.push({
+        name: partes[0] || '',
+        cpf: partes[1] || '',
+        email: partes[2] || '',
+        role: (partes[3] || '').toUpperCase() === 'FAMILY' ? 'FAMILY' : 'user',
+        inmateCpf: partes[4] || '',
+        phone: partes[5] || '',
+      });
+    }
+    return out;
+  }, [importRows]);
+
+  const executarImportacao = async () => {
+    if (linhasInferidas.length === 0 || importando) return;
+    setImportando(true);
+    setImportResultado(null);
+    try {
+      const fn = httpsCallable(getFunctions(), 'importarUsuariosEmLote');
+      const res = await fn({
+        usuarios: linhasInferidas.slice(0, 500),
+        senhaPadrao: senhaPadraoImport.trim() || undefined,
+        aprovarAutomaticamente: aprovarAuto,
+      });
+      const dados = res.data as any;
+      setImportResultado({
+        totalCriados: Number(dados?.totalCriados || 0),
+        totalPulados: Number(dados?.totalPulados || 0),
+        pulados: Array.isArray(dados?.pulados) ? dados.pulados : [],
+      });
+    } catch (e: any) {
+      setImportResultado({
+        totalCriados: 0,
+        totalPulados: 1,
+        pulados: [{ linha: 0, motivo: typeof e?.message === 'string' ? e.message : 'Falha na importação.' }],
+        erro: true,
+      });
+    } finally {
+      setImportando(false);
+    }
+  };
 
   const executarConfirmacao = () => {
     if (!confirmAction) return;
@@ -279,6 +344,9 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
             </button>
             <button onClick={printPresenceList} title="Gerar Lista de Presença com saldos para impressão" className="px-6 py-4 rounded-[2.5rem] border-2 border-teal-600/30 bg-teal-50 text-teal-700 hover:bg-teal-600 hover:text-white hover:border-teal-600 transition-all flex items-center justify-center gap-3 font-black text-[10px] uppercase tracking-widest shadow-sm">
               <FileText size={18}/> Lista de Presença
+            </button>
+            <button onClick={() => setShowImportModal(true)} title="Importar usuários em lote (até 500 por vez)" className="px-6 py-4 rounded-[2.5rem] border-2 border-emerald-600/30 bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition-all flex items-center justify-center gap-3 font-black text-[10px] uppercase tracking-widest shadow-sm">
+              <Upload size={18}/> Importar
             </button>
           </>
         )}
@@ -558,6 +626,80 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
             ))}
           </div>
         </>
+      )}
+      {showImportModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={() => { if (!importando) setShowImportModal(false); }}>
+          <div className="bg-white w-full max-w-2xl rounded-[2rem] shadow-2xl border border-slate-200 p-6 space-y-4 animate-scaleIn max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="font-black text-slate-900 flex items-center gap-2 text-[11px] uppercase tracking-widest">
+                <Upload size={18} className="text-emerald-500"/> Importar Usuários em Lote
+              </h3>
+              <button onClick={() => setShowImportModal(false)} className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 transition-all"><X size={18}/></button>
+            </div>
+
+            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 text-[11px] text-slate-600 leading-relaxed space-y-2">
+              <p className="font-black text-slate-900 uppercase tracking-widest text-[10px]">Formato (uma pessoa por linha — separador ; vírgula ou TAB)</p>
+              <code className="block bg-white rounded-xl p-3 border border-slate-200 font-mono text-[10px] text-slate-700">nome;cpf;email;role;cpfDoInterno;telefone</code>
+              <p className="text-slate-500">role: <b>FAMILY</b> (exige o CPF do interno) ou <b>user</b>. Máx. 500 por importação. Linhas inválidas ou duplicadas são <b>puladas</b> — o motivo aparece abaixo.</p>
+              <p className="text-slate-500">Sem senha na linha, vale a "senha padrão" abaixo; senão o próprio CPF.</p>
+            </div>
+
+            <textarea
+              value={importRows}
+              onChange={(e) => { setImportRows(e.target.value); setImportResultado(null); }}
+              placeholder={'JOÃO DA SILVA;111.222.333-44;;FAMILY;000.000.000-00;11999999999\nMARIA OLIVEIRA;555.666.777-88;maria@email.com;user;;'}
+              spellCheck={false}
+              className="w-full h-44 rounded-2xl border-2 border-slate-200 focus:border-emerald-500 outline-none p-3 font-mono text-[11px] text-slate-800 bg-white resize-y"
+            />
+
+            <div className="grid md:grid-cols-2 gap-3 items-end">
+              <label className="block">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Senha padrão (opcional)</span>
+                <input
+                  type="text"
+                  value={senhaPadraoImport}
+                  onChange={(e) => setSenhaPadraoImport(e.target.value)}
+                  placeholder="ex.: 123456 (mínimo 6)"
+                  className="w-full mt-1 px-4 py-2.5 rounded-xl border-2 border-slate-200 focus:border-emerald-500 outline-none text-xs text-slate-800"
+                />
+              </label>
+              <label className="flex items-center gap-2 pb-1 cursor-pointer select-none">
+                <input type="checkbox" checked={aprovarAuto} onChange={(e) => setAprovarAuto(e.target.checked)} className="h-5 w-5 accent-emerald-600"/>
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">Aprovar automaticamente</span>
+              </label>
+            </div>
+
+            {importando && (
+              <div className="flex items-center gap-3 text-xs font-black text-emerald-700 uppercase tracking-widest">
+                <Loader2 size={18} className="animate-spin"/> Importando {linhasInferidas.length}... (pode levar alguns minutos)
+              </div>
+            )}
+
+            {importResultado && (
+              <div className={`rounded-2xl border p-4 text-xs space-y-2 ${importResultado.erro ? 'border-red-200 bg-red-50 text-red-700' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
+                <p className="font-black uppercase tracking-widest text-[10px]">
+                  {importResultado.erro ? 'Falha na importação' : `Importação concluída: ${importResultado.totalCriados} criado(s), ${importResultado.totalPulados} pulado(s)`}
+                </p>
+                {importResultado.pulados.length > 0 && (
+                  <ul className="max-h-40 overflow-y-auto space-y-1">
+                    {importResultado.pulados.map((p, i) => (
+                      <li key={i} className="text-[11px]">{p.linha ? `Linha ${p.linha}: ` : ''}{p.motivo}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button onClick={() => setShowImportModal(false)} disabled={importando} className="px-6 py-3 rounded-2xl border-2 border-slate-200 text-slate-600 hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest transition-all">
+                Fechar
+              </button>
+              <button onClick={executarImportacao} disabled={importando || linhasInferidas.length === 0} className="px-6 py-3 rounded-2xl bg-emerald-600 text-white hover:brightness-110 disabled:opacity-40 text-[10px] font-black uppercase tracking-widest shadow-md flex items-center gap-2 transition-all active:scale-95">
+                <Upload size={16}/> Importar {linhasInferidas.length > 0 ? `${Math.min(linhasInferidas.length, 500)}` : ''}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       <ConfirmacaoDestrutiva
         isOpen={confirmAction !== null}

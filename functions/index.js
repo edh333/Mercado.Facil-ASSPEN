@@ -600,6 +600,28 @@ exports.buscarUsuarioAtual = onCall(async (request) => {
   }
 });
 
+/**
+ * Quantos familiares (FAMILY) podem ser vinculados a UM CPF de interno.
+ * O padrão é 10; pode ser ajustado sem deploy pelo admin via
+ * settings/general -> maxFamiliaresPorInterno (1 a 50). Fica acima do antigo
+ * teto fixo de 3 para sustentar a demanda de até ~1.500 cadastros de
+ * familiares sem mudança de código.
+ */
+const LIMITE_FAMILIARES_POR_INTERNO_PADRAO = 10;
+
+async function limiteFamiliaresPorInterno() {
+  try {
+    const g = await db.collection("settings").doc("general").get();
+    const v = Number(g.data()?.maxFamiliaresPorInterno);
+    if (Number.isFinite(v)) {
+      return Math.min(50, Math.max(1, Math.floor(v)));
+    }
+  } catch (e) {
+    logger.warn("[limiteFamiliaresPorInterno] falha na leitura:", e.message);
+  }
+  return LIMITE_FAMILIARES_POR_INTERNO_PADRAO;
+}
+
 exports.registrarUsuario = onCall({ minInstances: 1 }, async (request) => {
   const ip = ipDoRequest(request);
   verificarRateLimit("registrarUsuario:" + ip, 5);
@@ -725,13 +747,17 @@ exports.registrarUsuario = onCall({ minInstances: 1 }, async (request) => {
       if (!dados.inmateName && preName) dados.inmateName = preName;
       if (!dados.prisonerName && preName) dados.prisonerName = preName;
     }
+    const limiteFam = await limiteFamiliaresPorInterno();
     const fams = await db.collection("users")
       .where("inmateCpf", "==", inmateCpf)
       .where("role", "==", "FAMILY")
-      .limit(4)
+      .limit(limiteFam + 1)
       .get();
-    if (fams.size >= 3) {
-      throw new HttpsError("invalid-argument", "Limite de familiares excedido para este interno.");
+    if (fams.size >= limiteFam) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Limite de familiares excedido para este interno (máximo " + limiteFam + " por interno)."
+      );
     }
   }
 
@@ -767,6 +793,161 @@ exports.registrarUsuario = onCall({ minInstances: 1 }, async (request) => {
   await db.collection("users").doc(uid).set(novo);
   await salvarHashLegado(uid, hash);
   return { ok: true, userId: uid };
+});
+
+/**
+ * Admin — importação em lote de usuários (escala 1.500+ cadastros).
+ * Replica EXATAMENTE as validações/estruturas do registrarUsuario, mas:
+ *   - limitado a 500 linhas por chamada (lotes de 500);
+ *   - linhas inválidas são PULADAS com motivo (não aborta o lote);
+ *   - criação com concorrência controlada para não estourar as cotas do
+ *     Identity Platform (as chamadas sequenciais passariam de 10 min);
+ *   - funções apenas para COMPRADORES (user/FAMILY) — admins e vendedores
+ *     continuam usando criarAdmin/registrarUsuario (fluxos com claims/2FA).
+ * Cada linha: { name, cpf, email?, role, inmateCpf?, inmateName?, phone?,
+ *              relationship?, senha? }. A senha do item prevalece sobre
+ * senhaPadrao, que prevalece sobre o próprio CPF.
+ */
+exports.importarUsuariosEmLote = onCall({ minInstances: 1 }, async (request) => {
+  const operador = await exigirAdminPermissao(request, "users");
+  verificarRateLimit("importarUsuariosEmLote:" + operador.id, 5);
+
+  const rows = Array.isArray(request.data?.usuarios) ? request.data.usuarios : null;
+  if (!rows || rows.length < 1 || rows.length > 500) {
+    throw new HttpsError("invalid-argument", "Envie entre 1 e 500 usuários por importação.");
+  }
+  const senhaPadrao = String(request.data?.senhaPadrao || "");
+  const aprovarAutomaticamente = Boolean(request.data?.aprovarAutomaticamente);
+  const limiteFam = await limiteFamiliaresPorInterno();
+
+  const pulados = []; // { linha, motivo }
+  const validos = [];
+  const vistosCpf = new Set();
+  const vistosEmail = new Set();
+  const famNoLote = new Map(); // cpfInterno -> quantidade FAMILY já reservada no lote
+
+  for (let i = 0; i < rows.length; i++) {
+    const raw = rows[i];
+    const linha = i + 1;
+    if (!raw || typeof raw !== "object") { pulados.push({ linha, motivo: "Registro inválido." }); continue; }
+
+    const nome = String(raw.name || "").trim().slice(0, 80);
+    const cpf = cleanCpf(raw.cpf);
+    const emailRaw = String(raw.email || "").trim().toLowerCase();
+    const role = String(raw.role || "").toUpperCase() === "FAMILY" ? "FAMILY" : "user";
+    const inmateCpf = cleanCpf(raw.inmateCpf);
+    const phone = String(raw.phone || "").slice(0, 20);
+    const relationship = String(raw.relationship || "").slice(0, 60);
+    const senha = (String(raw.senha || "") || senhaPadrao || cpf).slice(0, 128);
+
+    if (!nome || cpf.length !== 11) { pulados.push({ linha, motivo: "Nome e CPF (11 dígitos) são obrigatórios." }); continue; }
+    if (!validarCpf(cpf)) { pulados.push({ linha, motivo: "CPF inválido (dígito verificador)." }); continue; }
+    if (senha.length < 6) { pulados.push({ linha, motivo: "Senha precisa ter ao menos 6 caracteres." }); continue; }
+    if (role === "FAMILY" && inmateCpf.length !== 11) { pulados.push({ linha, motivo: "FAMILY exige o CPF do interno (11 dígitos)." }); continue; }
+
+    if (vistosCpf.has(cpf)) { pulados.push({ linha, motivo: "CPF duplicado dentro do lote." }); continue; }
+    if (await usuarioPorCpf(cpf)) { pulados.push({ linha, motivo: "CPF já cadastrado." }); continue; }
+    if (emailRaw && emailRaw.includes("@") && !emailRaw.endsWith("@asspen.local")) {
+      if (vistosEmail.has(emailRaw)) { pulados.push({ linha, motivo: "E-mail duplicado dentro do lote." }); continue; }
+      if (await usuarioPorEmail(emailRaw)) { pulados.push({ linha, motivo: "E-mail já cadastrado." }); continue; }
+      vistosEmail.add(emailRaw);
+    }
+    vistosCpf.add(cpf);
+
+    if (role === "FAMILY") {
+      const noLote = famNoLote.get(inmateCpf) || 0;
+      const fams = await db.collection("users")
+        .where("inmateCpf", "==", inmateCpf)
+        .where("role", "==", "FAMILY")
+        .limit(limiteFam + 1)
+        .get();
+      if (fams.size + noLote >= limiteFam) {
+        pulados.push({ linha, motivo: "Limite de familiares por interno excedido (máximo " + limiteFam + ")." });
+        continue;
+      }
+      famNoLote.set(inmateCpf, noLote + 1);
+    }
+
+    validos.push({
+      _linha: linha,
+      nome, cpf, emailRaw, role, inmateCpf, phone, relationship, senha,
+      inmateName: String(raw.inmateName || "").slice(0, 120),
+    });
+  }
+
+  const criados = [];
+  const statusInicial = aprovarAutomaticamente ? "active" : "pending";
+
+  const criarUm = async (item) => {
+    const email = authEmailPara(item.cpf, item.emailRaw);
+    let uid;
+    try {
+      const authUser = await admin.auth().createUser({ email, password: item.senha });
+      uid = authUser.uid;
+    } catch (e) {
+      if (e && (e.code === "auth/email-already-exists" || /EMAIL_EXISTS/.test(String(e.message)))) {
+        pulados.push({ linha: item._linha, motivo: "E-mail já existe no provedor de login." });
+      } else {
+        pulados.push({ linha: item._linha, motivo: "Falha ao criar conta no provedor." });
+      }
+      return;
+    }
+    const hash = await bcrypt.hash(item.senha, 12);
+    const novo = {
+      id: uid,
+      authUid: uid,
+      name: item.nome,
+      cpf: item.cpf,
+      email: item.emailRaw,
+      relationship: item.relationship,
+      role: item.role,
+      status: statusInicial,
+      approved: aprovarAutomaticamente,
+      walletBalance: 0,
+      weeklySpent: 0,
+      phone: item.phone,
+      inmateCpf: item.inmateCpf,
+      inmateName: item.inmateName,
+      prisonerCpf: item.inmateCpf,
+      prisonerName: item.inmateName,
+      createdAt: new Date().toISOString(),
+    };
+    await db.collection("users").doc(uid).set(novo);
+    await salvarHashLegado(uid, hash);
+    criados.push({ nome: item.nome, cpf: item.cpf, role: item.role, status: statusInicial });
+  };
+
+  // Pool com concorrência 5 — mantém a chamada dentro do timeout (540s) sem
+  // despejar 500 createUser/hash de uma vez na API de Auth.
+  const CONCORRENCIA = 5;
+  let idx = 0;
+  const trabalhadores = Array.from({ length: Math.min(CONCORRENCIA, validos.length) }, async () => {
+    while (idx < validos.length) {
+      const item = validos[idx++];
+      await criarUm(item);
+    }
+  });
+  await Promise.all(trabalhadores);
+
+  try {
+    await registrarAudit(operador.id, "IMPORTAR_USUARIOS_LOTE", null, {
+      total: rows.length,
+      criados: criados.length,
+      pulados: pulados.length,
+      aprovarAutomaticamente,
+    });
+  } catch (eAudit) {
+    logger.warn("[importarUsuariosEmLote] falha ao registrar auditoria:", eAudit.message);
+  }
+
+  return {
+    ok: true,
+    criados,
+    total: rows.length,
+    totalCriados: criados.length,
+    totalPulados: pulados.length,
+    pulados: pulados.slice(0, 200),
+  };
 });
 
 /**
