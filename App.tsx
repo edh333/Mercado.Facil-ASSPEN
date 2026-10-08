@@ -4,6 +4,7 @@ import { UserRole } from './types';
 import { NotificationSystem } from './components/NotificationSystem';
 import { ThemeProvider } from './context/ThemeContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { rastrearErroCliente } from './utils/telemetryErro';
 import { Loader2 } from 'lucide-react';
 import { verificarBackupAutomatico } from './utils/backupUtils';
 import { iniciarManutencaoAutomatica, lerUltimoRelatorio } from './utils/maintenanceService';
@@ -157,7 +158,7 @@ const MainApp: React.FC = () => {
   if (!ehEquipe) {
     const pendente = currentUser.status === 'pending' || currentUser.approved === false;
     return (
-      <ErrorBoundary>
+      <ErrorBoundary onError={(err, info) => rastrearErroCliente({ mensagem: (err as any)?.message, stack: (err as any)?.stack, componente: info?.componentStack, origem: 'boundary' })}>
         {pendente ? <PendingScreen onLogout={logout} /> : <UserDashboard />}
       </ErrorBoundary>
     );
@@ -177,7 +178,7 @@ const MainApp: React.FC = () => {
   return (
     <>
       <NotificationSystem />
-      <ErrorBoundary>
+      <ErrorBoundary onError={(err, info) => rastrearErroCliente({ mensagem: (err as any)?.message, stack: (err as any)?.stack, componente: info?.componentStack, origem: 'boundary' })}>
         {inativo && podeOperar && <MaintenanceBanner maintenance={maintenance} onReativar={reativar} />}
         <AdminDashboard />
       </ErrorBoundary>

@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import { PWAInstallProvider } from './components/PWAInstallProvider';
 import { iniciarSentry, registrarErroSentry, SENTRY_ATIVO } from './utils/sentry';
+import { rastrearErroCliente, tentarEnviarErrosPendentes } from './utils/telemetryErro';
 import './index.css';
 
 iniciarSentry();
@@ -110,6 +111,12 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   public componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error("Uncaught error:", error, errorInfo);
     registrarErroSentry(error, { componente: 'ErrorBoundary', info: errorInfo?.componentStack });
+    rastrearErroCliente({
+      mensagem: error?.message,
+      stack: error?.stack,
+      componente: errorInfo?.componentStack,
+      origem: 'boundary',
+    });
     try { (this.setState as any)({ info: errorInfo }); } catch { /* estado imutável */ }
 
     // ERROS DE "BUILD MISTURADO" (SW/cache velho + HTML novo) — #310 é o
@@ -201,11 +208,21 @@ if (typeof window !== 'undefined') {
     if (!(event.target instanceof HTMLElement) || event.target.tagName === 'BODY' || event.target.tagName === 'HTML') {
       console.error('[GlobalError]', event.error || event.message);
       registrarErroSentry(event.error || event.message, { origem: 'window.error' });
+      rastrearErroCliente({
+        mensagem: event.error?.message || event.message,
+        stack: event.error?.stack,
+        origem: 'window.error',
+      });
     }
   });
   window.addEventListener('unhandledrejection', (event) => {
     const reason = event.reason;
     const msg = reason?.message || String(reason || 'Erro desconhecido');
+    rastrearErroCliente({
+      mensagem: msg,
+      stack: reason?.stack,
+      origem: 'unhandledrejection',
+    });
     if (/Loading chunk|dynamically imported/i.test(msg)) {
       console.error('[ChunkLoadError]', reason);
       registrarErroSentry(reason, { origem: 'unhandledrejection', tipo: 'chunk' });
@@ -244,6 +261,9 @@ function montarAplicativo() {
       </PWAInstallProvider>
     </ErrorBoundary>
   );
+  // Envia erros pendentes de uma sessão anterior (ex.: tela branca) quando a
+  // sessão autenticada estiver disponível. Disparo único, protegido.
+  try { setTimeout(() => tentarEnviarErrosPendentes(), 4000); } catch { /* ignora */ }
   return root;
 }
 
@@ -254,11 +274,13 @@ if (rootElement) {
     // Falha de hidratação/render detectada — descarta o DOM residual e
     // reconstrói a árvore de nós do zero (cura #318 e caches corrompidos).
     console.error('[Mount] Erro de hidratação/render detectado, forçando re-render limpo:', error);
+    rastrearErroCliente({ mensagem: error?.message, stack: error?.stack, origem: 'montagem' });
     try {
       rootElement.replaceChildren();
       montarAplicativo();
     } catch (error2) {
       console.error('[Mount] Segunda tentativa também falhou:', error2);
+      rastrearErroCliente({ mensagem: error2?.message, stack: error2?.stack, origem: 'montagem-final' });
       document.body.innerHTML =
         '<div style="padding:40px;font-family:sans-serif;text-align:center;background:#0f172a;color:#f8fafc;min-height:100vh;">' +
         '<h2 style="color:#f87171;">Falha ao iniciar o aplicativo</h2>' +

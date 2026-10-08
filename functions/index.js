@@ -951,6 +951,55 @@ exports.importarUsuariosEmLote = onCall({ minInstances: 1 }, async (request) => 
 });
 
 /**
+ * Telemetria de erros de cliente (tela branca, boundary, chunk, montagem).
+ * Substitui o Sentry para diagnóstico remoto SEM conta externa: o app envia um
+ * lote pequeno (≤20) e o erro fica gravado em client_errors para análise.
+ * Autenticação opcional (usuários logados enriquecem o registro); rate limit
+ * por IP evita abuso. NUNCA recebe senhas/tokens — apenas mensagem/stack.
+ */
+exports.registrarErroCliente = onCall(async (request) => {
+  const ip = ipDoRequest(request);
+  verificarRateLimit("registrarErroCliente:" + ip, 30);
+
+  const erros = Array.isArray(request.data?.erros) ? request.data.erros : null;
+  if (!erros || erros.length < 1 || erros.length > 20) {
+    throw new HttpsError("invalid-argument", "Envie entre 1 e 20 erros.");
+  }
+  const uid = request.auth?.uid || null;
+  let userAgent = "";
+  try {
+    userAgent = String(request.rawRequest?.get?.("user-agent") || "").slice(0, 200);
+  } catch { /* ignore */ }
+
+  const lote = [];
+  for (let i = 0; i < erros.length; i++) {
+    const e = erros[i];
+    if (!e || typeof e !== "object") continue;
+    const mensagem = String(e.m || "").slice(0, 500);
+    if (!mensagem) continue;
+    lote.push({
+      id: `${String(e.t || Date.now()).replace(/\D/g, "").slice(0, 18)}-${i}`,
+      mensagem,
+      stack: String(e.s || "").slice(0, 4000),
+      componente: String(e.c || "").slice(0, 2000),
+      origem: String(e.o || "").slice(0, 40),
+      href: String(e.h || "").slice(0, 300),
+      ua: userAgent,
+      usuarioUid: uid,
+      gravadoEm: new Date().toISOString(),
+    });
+  }
+  if (lote.length === 0) return { ok: false, gravados: 0 };
+
+  const batch = db.batch();
+  for (const item of lote.slice(0, 20)) {
+    batch.set(db.collection("client_errors").doc(), item);
+  }
+  await batch.commit();
+  return { ok: true, gravados: lote.length };
+});
+
+/**
  * Público — primeiro acesso: cria o administrador inicial.
  * Só funciona enquanto não existir NENHUM admin no sistema.
  */
