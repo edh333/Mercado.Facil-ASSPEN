@@ -1,5 +1,6 @@
 import React from 'react';
 import { formatarMoeda, mascararCpf } from '../utils';
+import { tituloInstitucional } from '../utils/printUtils';
 import { rotularCliente } from '../utils/clienteRotulos';
 import { AppConfig } from '../types';
 import { ShieldCheck, Hash, Printer, Scissors, QrCode, X } from 'lucide-react';
@@ -75,13 +76,17 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
         </div>
       )}
 
-      {/* HEADER */}
+      {/* HEADER — título curto (mesma regra do cupom cru em printUtils:
+          appName → sigla → instituição, 1 linha só). O nome legal completo
+          (~80 chars) em text-lg dominava a pré-visualização e o impresso
+          feito pelo diálogo do navegador. */}
       <div className="text-center border-b-2 border-black pb-2 mb-3 pt-4">
-        <h1 className="text-lg font-black uppercase leading-none mb-1">
-          {config?.institutionName || title || 'GESTÃO ERP'}
-        </h1>
-        {config?.appName && config.appName.toUpperCase() !== String(config?.institutionName || '').toUpperCase() && (
-          <p className="font-black uppercase tracking-widest">{config.appName}</p>
+        {tituloInstitucional(config, 48, title || 'GESTÃO ERP').map((linhaTitulo, i) =>
+          i === 0 ? (
+            <h1 key={i} className="text-lg font-black uppercase leading-none mb-1">{linhaTitulo}</h1>
+          ) : (
+            <p key={i} className="font-black uppercase tracking-widest">{linhaTitulo}</p>
+          )
         )}
         <p className="font-bold uppercase mt-1 opacity-70">
           {config?.fiscalEmission === true

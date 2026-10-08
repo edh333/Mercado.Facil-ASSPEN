@@ -74,7 +74,7 @@ function quebrarPorPalavra(texto: string, largura: number): string[] {
  * Fiscal (fiscalEmission): exceção — o nome legal completo quebra em
  * até 2 linhas (identificação da empresa registrada no CNPJ).
  */
-function tituloInstitucional(config: any, largura = 48, padrao = 'MERCADO FACIL'): string[] {
+export function tituloInstitucional(config: any, largura = 48, padrao = 'MERCADO FACIL'): string[] {
   const normalizar = (v: any) => String(v ?? '').replace(/[\r\n]+/g, ' ').trim().toUpperCase();
   const inst = normalizar(config?.institutionName);
   const app = normalizar(config?.appName);
