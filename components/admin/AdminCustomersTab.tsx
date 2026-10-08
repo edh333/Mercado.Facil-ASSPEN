@@ -21,7 +21,11 @@ import { gerarRelatorioInadimplentes, imprimirCupom } from '../../utils/printUti
 import { celulaCsv } from '../../utils/csv';
 import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
 
-export function AdminCustomersTab() {
+export function AdminCustomersTab({
+  onRequestMasterPassword
+}: {
+  onRequestMasterPassword?: (callback: (senhaMestra: string) => void) => void;
+}) {
   const { currentUser, showNotification } = useApp();
   const [accounts, setAccounts] = useState<CustomerAccount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -154,13 +158,24 @@ export function AdminCustomersTab() {
 
   const handleReceivePayment = async () => {
     if (!payModal || !payAmount || parseFloat(payAmount) <= 0) return;
+    if (onRequestMasterPassword) {
+      onRequestMasterPassword(async (senhaMestra: string) => {
+        await executeReceivePayment(senhaMestra);
+      });
+    } else {
+      await executeReceivePayment();
+    }
+  };
+
+  const executeReceivePayment = async (senhaMestra?: string) => {
     setPaying(true);
     try {
       const session = await getActiveSession(currentUser?.id || '');
       const res = await receiveCustomerPayment(
-        payModal.customer.id,
+        payModal!.customer.id,
         parseFloat(payAmount),
-        session?.id
+        session?.id,
+        senhaMestra
       );
       // Pagamento registrado SEM servidor: a dívida abateu, mas o caixa digital
       // não foi creditado (sem sessão de caixa). Isso precisa aparecer para o

@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useApp, buildSalesCsv } from '../context/StoreContext';
 import { User, Order, Product, UserRole, WalletTransaction } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { collection, query, orderBy, onSnapshot, doc, updateDoc, writeBatch, setDoc, limit } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, updateDoc, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useTheme } from '../context/ThemeContext';
 import { OnlineStatusIndicator } from '../components/OnlineStatusIndicator';
@@ -11,8 +11,15 @@ import { PageHeader, UiButton } from '../components/ui';
 
 import { AppDownloadButton } from '../components/AppDownloadModal';
 import { UninstallModal } from '../components/UninstallModal';
-import { ehReceita } from '../components/admin/adminUtils';
+import { 
+  ehReceita, 
+  getLocalDateStr, 
+  translateStatus, 
+  getStatusColor, 
+  isMaster as isMasterAdmin 
+} from '../components/admin/adminUtils';
 import { Menu, X, Banknote, Trash2, BarChart3, FileText, AlertTriangle } from 'lucide-react';
+import { useAdminNav, useShortcuts, useWalletTransactions, useAdminStats, useChartData, usePendingCounts, useCsvExport } from '../hooks/admin';
 
 // Import all modular subcomponents
 import { AdminSidebar } from '../components/admin/AdminSidebar';
@@ -60,16 +67,7 @@ const ForbiddenMessage = () => (
   </div>
 );
 
-function getLocalDateStr() {
-    const d = new Date();
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-}
-
 export function AdminDashboard() {
-  const { colors } = useTheme();
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
   
   // 1. Core Destructured Values from StoreContext
@@ -81,7 +79,6 @@ export function AdminDashboard() {
     settings,
     suppliers,
     currentUser,
-    isLoading,
     updateOrderStatus,
     approveUser,
     deleteUser,
@@ -226,7 +223,6 @@ export function AdminDashboard() {
 
   // Security Auth Modals
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authAction, setAuthAction] = useState<'FILTER' | 'STOCK' | 'FINANCE' | 'SYSTEM' | 'PASSWORD'>('FILTER');
   const [pendingConfigAction, setPendingConfigAction] = useState<((senhaMestra?: string) => void) | null>(null);
   const [authPass, setAuthPass] = useState('');
   const [isSettingsAuthenticated, setIsSettingsAuthenticated] = useState(false);
@@ -273,40 +269,7 @@ export function AdminDashboard() {
   const { role: userRole, loading: roleLoading } = usePermissions(currentUser?.id);
 
   // 4.1. Permissões definitivas do master (independente de leitura de doc)
-  const isMaster = useMemo(() => {
-    if (!currentUser) return false;
-    return currentUser.id === 'master' || currentUser.id === 'admin'
-      || (currentUser as any).mainAdmin === true
-      || currentUser.email === 'admin@mercado.com';
-  }, [currentUser]);
-
-  // Redirect blocked tabs based on role (defense-in-depth).
-  // O master principal NUNCA é bloqueado/redirecionado, mesmo se a leitura de permissões falhar.
-  useEffect(() => {
-    if (roleLoading) return;
-    if (userRole === 'operator' && !isMaster) {
-      if (['inmates', 'users', 'finance', 'wallet', 'reports', 'messages', 'bi', 'customers', 'settings', 'maintenance', 'audit'].includes(activeTab)) {
-        setActiveTab('home');
-      }
-    } else if (userRole === 'manager' && !isMaster) {
-      if (['cash', 'inmates', 'users', 'messages', 'finance', 'wallet', 'customers', 'reports', 'bi', 'settings', 'maintenance', 'audit'].includes(activeTab)) {
-        setActiveTab('home');
-      }
-    }
-  }, [userRole, roleLoading, activeTab, isMaster]);
-
-  // SEGURANÇA: Dupla camada — validação nativa no componente.
-  // Se o Firebase Auth não confirmar cargo administrativo/equipe, desloga imediatamente.
-  // O master principal (email admin@mercado.com / mainAdmin) é sempre mantido no painel.
-  // Equipe permitida: admin, manager e operator (vendedor/operador de caixa).
-  React.useEffect(() => {
-    if (roleLoading) return;
-    if (!currentUser) return;
-    const ehEquipePainel = isMaster || ['admin', 'manager', 'operator'].includes(userRole);
-    if (!ehEquipePainel) {
-      logout();
-    }
-  }, [currentUser, userRole, roleLoading, logout, isMaster]);
+const isMaster = isMasterAdmin(currentUser);
 
   // 5. Permission Helpers
   // useCallback: identidade estável p/ deps de efeutos/filhos (evita re-run em loop).
@@ -322,11 +285,9 @@ export function AdminDashboard() {
     return perms.includes(perm);
   }, [isMaster, userRole, currentUser?.permissions]);
 
-  // ATALHOS GLOBAIS F1-F12 + '?' — funcionam em qualquer aba do painel.
-  // Guardas: nada de atalho com janela aberta, nem digitando em campos.
-  const shortcutsModalOpen = [showSalesModal, showReportModal, showShortcutsModal, showProductModal, showWithdrawalModal, showAuthModal, historyModalCpf, viewingReceipt].some(Boolean);
-
-const goToTab = (tab: string) => {
+  // Fonte única de verdade para verificação de acesso a abas.
+  // Usada por: goToTab, redirect effect, sidebar, render guards.
+  const canAccessTab = React.useCallback((tab: string) => {
     const tabPermissions: Record<string, string> = {
       'orders': 'orders',
       'products': 'products',
@@ -346,25 +307,47 @@ const goToTab = (tab: string) => {
       // permissão 'reports', que não é a condição real de render.
       'settings': '',
       'maintenance': '',
-   // 'audit' renderiza com hasPermission('finance') — não é master-only.
+      // 'audit' renderiza com hasPermission('finance') — não é master-only.
       'audit': 'finance',
     };
     const needPerm = tabPermissions[tab];
     const masterOnly = tab in tabPermissions && tabPermissions[tab] === '';
-    const autorizado = masterOnly ? (isMaster || userRole === 'admin') : (!needPerm || hasPermission(needPerm));
-    if (autorizado) {
+    return masterOnly ? (isMaster || userRole === 'admin') : (!needPerm || hasPermission(needPerm));
+}, [isMaster, userRole, hasPermission]);
+
+  // Redirect blocked tabs based on role (defense-in-depth).
+  // O master principal NUNCA é bloqueado/redirecionado, mesmo se a leitura de permissões falhar.
+  // Usa canAccessTab como fonte única de verdade para consistência com goToTab e sidebar.
+  useEffect(() => {
+    if (roleLoading) return;
+    if (!canAccessTab(activeTab)) {
+      setActiveTab('home');
+    }
+  }, [canAccessTab, activeTab, roleLoading]);
+
+  // Navegação centralizada com verificação de permissão.
+  // Memoizada para identidade estável (evita re-renders filhos e garante que atalhos F1-F12 usem a versão atual).
+  const goToTab = React.useCallback((tab: string) => {
+    if (canAccessTab(tab)) {
       setActiveTab(tab);
     } else {
       showNotification('Permissão negada para esta seção.', 'error');
     }
-  };
+  }, [canAccessTab, setActiveTab]);
+
+  // ATALHOS GLOBAIS F1-F12 + '?' — funcionam em qualquer aba do painel.
+  // Guardas: nada de atalho com janela aberta, nem digitando em campos.
+  const shortcutsModalOpen = [showSalesModal, showReportModal, showShortcutsModal, showProductModal, showWithdrawalModal, showAuthModal, historyModalCpf, viewingReceipt, selectedOrderDetails, selectedWalletTx, viewingUser, manualCreditTarget, showUninstallModal].some(Boolean);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)) return;
-      const isFKey = e.key.startsWith('F') && !isNaN(Number(e.key.slice(1)));
+      // Regex exata para F1-F12 (evita falso positivo para tecla 'F' sozinha).
+      const isFKey = /^F([1-9]|1[0-2])$/.test(e.key);
       if (!isFKey && !(e.key === '?')) return;
+      if (shortcutsModalOpen) return;
+      e.preventDefault();
       if (shortcutsModalOpen) return;
       e.preventDefault();
       const key = e.key;
@@ -501,23 +484,24 @@ const goToTab = (tab: string) => {
     }
   };
 
-  const handleImportXML = async () => {
+  const handleImportXML = () => {
     if (!xmlFile) {
       showNotification('Selecione um arquivo XML.', 'error');
       return;
     }
-    try {
-      await importXmlProduct(xmlFile, parseFloat(margin) / 100);
-      setXmlFile(null);
-      showNotification('XML importado com sucesso!', 'success');
-    } catch (error: any) {
-      showNotification(error.message || 'Erro ao importar XML.', 'error');
-    }
+    handleProtectedAction(async (senhaMestra: string) => {
+      try {
+        await importXmlProduct(xmlFile, parseFloat(margin) / 100, senhaMestra);
+        setXmlFile(null);
+        showNotification('XML importado com sucesso!', 'success');
+      } catch (error: any) {
+        showNotification(error.message || 'Erro ao importar XML.', 'error');
+      }
+    });
   };
 
-  const handleProtectedAction = (action: (senhaMestra?: string) => void, type: any = 'SYSTEM') => {
+  const handleProtectedAction = (action: (senhaMestra?: string) => void) => {
     setPendingConfigAction(() => action);
-    setAuthAction(type);
     setShowAuthModal(true);
   };
 
@@ -625,29 +609,32 @@ const goToTab = (tab: string) => {
     showNotification(`CSV gerado com ${csv.linhas.length} vendas para o contador.`, 'success');
   };
 
-  const handleRejectOrder = async () => {
+  const handleRejectOrder = () => {
     if (!selectedOrderDetails) return;
     if (!rejectReason.trim()) return showNotification('É obrigatório informar o motivo.', 'error');
-    setIsRejecting(true);
-    try {
-      // ESTORNO NO SERVIDOR (restaura estoque atomicamente) — necessário porque
-      // pedidos PIX debitam estoque na criação. Usar updateOrderStatus p/ cancelar
-      // SEM restaurar estoque vaza inventário.
-      await refundOrder(selectedOrderDetails.id, `REPROVADO: ${rejectReason}`);
-      await sendSystemMessage({
-        title: `Pedido #${selectedOrderDetails.id.slice(0, 6)} Reprovado`,
-        content: `Seu pedido foi reprovado pela administração. Motivo: ${rejectReason}`,
-        targetUserId: selectedOrderDetails.userId,
-        type: 'error'
-      });
-      setRejectReason('');
-      setIsRejecting(false);
-      setTimeout(() => setSelectedOrderDetails(null), 1200);
-    } catch (e: any) {
-      showNotification('Erro ao reprovar pedido: ' + e.message, 'error');
-    } finally {
-      setIsRejecting(false);
-    }
+    // Abre modal de senha mestra; ao confirmar, executa o estorno no servidor
+    handleProtectedAction(async (senhaMestra: string) => {
+      setIsRejecting(true);
+      try {
+        // ESTORNO NO SERVIDOR (restaura estoque atomicamente) — necessário porque
+        // pedidos PIX debitam estoque na criação. Usar updateOrderStatus p/ cancelar
+        // SEM restaurar estoque vaza inventário.
+        await refundOrder(selectedOrderDetails.id, `REPROVADO: ${rejectReason}`, { senhaMestra });
+        await sendSystemMessage({
+          title: `Pedido #${selectedOrderDetails.id.slice(0, 6)} Reprovado`,
+          content: `Seu pedido foi reprovado pela administração. Motivo: ${rejectReason}`,
+          targetUserId: selectedOrderDetails.userId,
+          type: 'error'
+        });
+        setRejectReason('');
+        setTimeout(() => setSelectedOrderDetails(null), 1200);
+        showNotification('Pedido reprovado com sucesso!', 'success');
+      } catch (e: any) {
+        showNotification('Erro ao reprovar pedido: ' + e.message, 'error');
+      } finally {
+        setIsRejecting(false);
+      }
+    });
   };
 
   const handleDownloadSource = () => {
@@ -658,31 +645,8 @@ const goToTab = (tab: string) => {
     showNotification('Esta versão é web (PWA). Instale pelo navegador usando o botão de instalação.', 'info');
   };
 
-  // Helper translations and colors
+  // Helper local para normalizar status (usado em vários memos)
   const normStatus = (status: string | undefined): string => String(status || '').toLowerCase();
-  const translateStatus = (status: string | undefined): string => {
-    const s = normStatus(status);
-    if (!s || s === 'pending' || s === 'pendente') return 'Pendente';
-    if (s === 'paid' || s === 'pago') return 'Pago';
-    if (s === 'preparing' || s === 'preparando') return 'Preparando';
-    if (s === 'out_for_delivery') return 'Em Entrega';
-    if (s === 'delivered' || s === 'entregue') return 'Entregue';
-    if (s === 'cancelled' || s === 'cancelado') return 'Cancelado';
-    if (s === 'refunded' || s === 'devolvido' || s === 'reembolsado') return 'Reembolsado';
-    return status || 'Pendente';
-  };
-
-  const getStatusColor = (status: string): string => {
-    const s = normStatus(status);
-    if (s === 'pending' || s === 'pendente') return 'text-amber-500 bg-amber-500/10 border-amber-500/20';
-    if (s === 'paid' || s === 'pago') return 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20';
-    if (s === 'preparing' || s === 'preparando') return 'text-sky-500 bg-sky-500/10 border-sky-500/20';
-    if (s === 'out_for_delivery') return 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20';
-    if (s === 'delivered' || s === 'entregue') return 'text-blue-500 bg-blue-500/10 border-blue-500/20';
-    if (s === 'cancelled' || s === 'cancelado') return 'text-rose-500 bg-rose-500/10 border-rose-500/20';
-    if (s === 'refunded' || s === 'devolvido' || s === 'reembolsado') return 'text-purple-500 bg-purple-500/10 border-purple-500/20';
-    return 'text-gray-500 bg-gray-500/10 border-gray-500/20';
-  };
 
   // 7. Computed Statistics and Graph Data
   const filteredOrdersForHome = useMemo(() => {
@@ -703,7 +667,6 @@ const goToTab = (tab: string) => {
     const totalExits = (expenses || []).reduce((a, b) => a + (Number(b.amount) || 0), 0);
     const pendingOrders = (orders || []).filter(o => ['pending', 'pendente'].includes(normStatus(o.status))).length;
     const pendingDeposits = (walletTx || []).filter(tx => tx.status === 'pending').length;
-    const activeUsers = (users || []).filter(u => u.role === UserRole.FAMILY && u.status === 'active').length;
     
     const salesTotal = filteredOrdersForHome.reduce((a, b) => a + (Number(b.total) || 0), 0);
     const ordersCount = filteredOrdersForHome.length;
@@ -714,7 +677,6 @@ const goToTab = (tab: string) => {
       totalOut: totalExits,
       pendingOrders,
       pendingDeposits,
-      activeUsers,
       salesTotal,
       ordersCount,
       pendingUsersCount
@@ -741,32 +703,15 @@ const goToTab = (tab: string) => {
     return data;
   }, [orders]);
 
-  const orderPendingCount = useMemo(() => {
-    return (orders || []).filter(o => ['pending', 'pendente'].includes(normStatus(o.status))).length;
-  }, [orders]);
-
-  const depositPendingCount = useMemo(() => {
-    return (walletTx || []).filter(tx => tx.status === 'pending').length;
-  }, [walletTx]);
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center text-slate-900">
-        <div className="w-16 h-16 border-4 border-[var(--primary-color)] border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-sm font-black tracking-widest uppercase text-blue-600">Carregando painel...</p>
-      </div>
-    );
-  }
-
-  return (
+return (
     <div className="min-h-screen bg-[var(--bg-main)] text-slate-900 flex font-sans overflow-x-hidden">
-      
-      {/* Sidebar Integration */}
-      <AdminSidebar
+       
+       {/* Sidebar Integration */}
+<AdminSidebar
         activeTab={activeTab}
         setActiveTab={goToTab}
-        pendingOrdersCount={orderPendingCount}
-        pendingDepositsCount={depositPendingCount}
+        pendingOrdersCount={stats.pendingOrders}
+        pendingDepositsCount={stats.pendingDeposits}
         pendingUsersCount={stats.pendingUsersCount}
         logout={logout}
         isLoggingOut={isLoggingOut}
@@ -778,6 +723,7 @@ const goToTab = (tab: string) => {
         permissions={currentUser?.permissions === undefined ? ['all'] : currentUser.permissions}
         isMaster={isMaster}
         userRole={userRole}
+        canAccessTab={canAccessTab}
       />
 
       {/* Main Administrative Container */}
@@ -954,7 +900,8 @@ const goToTab = (tab: string) => {
                   }}
                   mergeDuplicateProducts={mergeDuplicateProducts}
                   sanitizeCatalog={sanitizeCatalog}
-                  handleResetStock={() => handleProtectedAction(resetStock, 'STOCK')}
+                  handleResetStock={() => handleProtectedAction(resetStock)}
+                  onRequestMasterPassword={handleProtectedAction}
                   loadMoreProducts={loadMoreProducts}
                   productsLimit={productsLimit}
                 />
@@ -979,6 +926,7 @@ const goToTab = (tab: string) => {
                   handleAddInmate={handleAddInmate}
                   deletePreRegisteredInmate={handleDeletePreRegisteredInmate}
                   importInmatesCsv={importInmatesCsv}
+                  onRequestMasterPassword={handleProtectedAction}
                   inmatesLimit={inmatesLimit}
                   loadMoreInmates={loadMoreInmates}
                 />
@@ -1034,10 +982,11 @@ const goToTab = (tab: string) => {
                   settings={settings}
                   addExpense={addExpense}
                   deleteExpense={deleteExpense}
-                  resetFinance={async () => { await handleProtectedAction(resetFinance, 'FINANCE'); }}
-                  resetCredits={async () => { await handleProtectedAction(resetCredits, 'FINANCE'); }}
+                  resetFinance={async () => { await handleProtectedAction(resetFinance); }}
+                  resetCredits={async () => { await handleProtectedAction(resetCredits); }}
                   showNotification={showNotification}
                   loadMoreExpenses={loadMoreExpenses}
+                  ordersLimit={ordersLimit}
                 />
               )}
 
@@ -1100,7 +1049,9 @@ const goToTab = (tab: string) => {
               )}
 
               {activeTab === 'customers' && hasPermission('finance') && userRole !== 'operator' && (
-                <AdminCustomersTab />
+                <AdminCustomersTab
+                  onRequestMasterPassword={handleProtectedAction}
+                />
               )}
               {activeTab === 'customers' && userRole === 'operator' && (
                 <ForbiddenMessage />
@@ -1125,7 +1076,7 @@ const goToTab = (tab: string) => {
                   cotaCritica={cotaCritica}
                   currentUser={currentUser}
                   onNavigate={goToTab}
-                  resetCredits={async () => { await handleProtectedAction(resetCredits, 'FINANCE'); }}
+                  resetCredits={async () => { await handleProtectedAction(resetCredits); }}
                 />
               )}
 
@@ -1146,8 +1097,8 @@ const goToTab = (tab: string) => {
                   handleProtectedAction={handleProtectedAction}
                   clearOldData={clearOldData}
                   backupSystem={backupSystem}
-                  resetStock={() => handleProtectedAction(resetStock, 'STOCK')}
-                  resetFinance={() => handleProtectedAction(resetFinance, 'FINANCE')}
+                  resetStock={() => handleProtectedAction(resetStock)}
+                  resetFinance={() => handleProtectedAction(resetFinance)}
                   resetSystem={resetSystem}
                   users={users}
                   deleteUser={deleteUser}
@@ -1177,7 +1128,6 @@ const goToTab = (tab: string) => {
           onClose={() => setShowSalesModal(false)}
           users={users}
           products={products}
-          orders={orders}
           onConfirm={handleConfirmDirectSale}
           onConfirmOffline={handleConfirmOfflineSale}
           setPrintOrder={setPrintOrder}

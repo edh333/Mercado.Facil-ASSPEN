@@ -1,5 +1,6 @@
 import { mascararCpf } from '../utils';
 import { rotularCliente } from './clienteRotulos';
+import { formatarMoeda } from '../utils/money';
 
 export function formatarLinhaDupla(esquerda: string, direita: string, larguraTotal = 40): string {
   if (esquerda.length + direita.length > larguraTotal) {
@@ -1044,4 +1045,51 @@ export function gerarBoletimDiario(dados: any, config?: any): string {
   cupom += `${divisorDuplo}\n`;
   cupom += `${adicionarFeed()}`;
   return cupom;
+}
+
+/**
+ * Gera comprovante de devolução por alvará (saída temporária de interno).
+ * Retorna texto formatado para impressão em bobina térmica 80mm.
+ */
+export function gerarComprovanteDevolucaoAlvara(params: {
+  tipo: string;
+  usuarioId: string;
+  usuarioNome: string;
+  cpf: string;
+  saldoAnterior: number;
+  valorDevolvido: number;
+  novoSaldo: number;
+  motivo: string;
+  operador: string;
+  data: string;
+}): string {
+  const { tipo, usuarioId, usuarioNome, cpf, saldoAnterior, valorDevolvido, novoSaldo, motivo, operador, data } = params;
+  const divisor = "=".repeat(40);
+  const divisorDuplo = "=".repeat(40);
+
+  let texto = "";
+  texto += `${divisorDuplo}\n`;
+  texto += `${centrarTexto('COMPROVANTE DE DEVOLUÇÃO', 40)}\n`;
+  texto += `${centrarTexto('POR ALVARÁ (SAÍDA TEMPORÁRIA)', 40)}\n`;
+  texto += `${divisorDuplo}\n`;
+  texto += `Data/Hora: ${data}\n`;
+  texto += `${divisor}\n`;
+  texto += `Tipo: ${tipo}\n`;
+  texto += `Motivo: ${motivo}\n`;
+  texto += `${divisor}\n`;
+  texto += `${formatarLinhaDupla("Interno:", usuarioNome)}\n`;
+  texto += `${formatarLinhaDupla("CPF:", cpf || "—")}\n`;
+  texto += `${formatarLinhaDupla("UID:", usuarioId)}\n`;
+  texto += `${divisor}\n`;
+  texto += `${formatarLinhaDupla("Saldo Anterior:", "R$ " + formatarMoeda(saldoAnterior))}\n`;
+  texto += `${formatarLinhaDupla("Valor Devolvido:", "R$ " + formatarMoeda(valorDevolvido))}\n`;
+  texto += `${formatarLinhaDupla("Novo Saldo:", "R$ " + formatarMoeda(novoSaldo))}\n`;
+  texto += `${divisor}\n`;
+  texto += `Operador: ${String(operador).slice(0, 34)}\n`;
+  texto += `Data/Hora: ${data}\n`;
+  texto += `${divisorDuplo}\n`;
+  texto += `Assinatura: _______________________\n`;
+  texto += `${divisorDuplo}\n`;
+  texto += `adicionarFeed()`;
+  return texto;
 }

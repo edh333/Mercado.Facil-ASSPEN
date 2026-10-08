@@ -40,8 +40,10 @@ export const getLocalDateStr = (dateInput?: string | Date | null) => {
             d = new Date();
         }
     }
-    const offset = d.getTimezoneOffset() * 60000;
-    return (new Date(d.getTime() - offset)).toISOString().slice(0, 10);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 };
 
 /** Fonte ÚNICA de verdade para "este pedido conta como receita?".
@@ -62,3 +64,13 @@ export const ehReceita = (status: string | undefined | null): boolean => {
  *  estorno filtra por ela, o painel de pedidos envia como `janelaDias` e o
  *  servidor revalida com o mesmo número. Estorno/devolução NÃO tem prazo. */
 export const JANELA_CANCELAMENTO_DIAS = 5;
+
+/** Verifica se o usuário é o admin principal (master).
+ *  Fonte única para as 5 cópias espalhadas (AdminDashboard, AdminModals,
+ *  AdminOrderDetailsModal, RefundSaleModal, useMaintenance). */
+export const isMaster = (user: { id?: string; email?: string; mainAdmin?: boolean } | null | undefined): boolean => {
+  if (!user) return false;
+  return user.id === 'master' || user.id === 'admin'
+    || user.mainAdmin === true
+    || (user.email || '').toLowerCase() === 'admin@mercado.com';
+};

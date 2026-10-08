@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { db } from "../firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, onSnapshot } from "firebase/firestore";
 import { SystemRole } from "../types";
 
 export function usePermissions(userId: string | undefined) {
@@ -8,35 +8,33 @@ export function usePermissions(userId: string | undefined) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let cancelled = false;
-    async function fetchUserRole() {
-      if (!userId) {
-        if (!cancelled) { setRole("operator"); setLoading(false); }
+    if (!userId) {
+      setRole("operator");
+      setLoading(false);
+      return;
+    }
+
+    const userRef = doc(db, "users", userId);
+    const unsubscribe = onSnapshot(userRef, (snap) => {
+      if (!snap.exists()) {
+        setRole("operator");
+        setLoading(false);
         return;
       }
-      try {
-        const userRef = doc(db, "users", userId);
-        const snap = await getDoc(userRef);
-        if (!cancelled) {
-          if (snap.exists()) {
-            const raw = snap.data().role || "operator";
-            // Normalize legacy role values
-            if (raw === "ADMIN" || raw === "admin" || raw === "master") setRole("admin");
-            else if (raw === "manager") setRole("manager");
-            else if (raw === "vendedor" || raw === "operator" || raw === "FAMILY") setRole("operator");
-            else setRole("operator");
-          } else {
-            setRole("operator");
-          }
-        }
-      } catch {
-        if (!cancelled) setRole("operator");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    fetchUserRole();
-    return () => { cancelled = true; };
+      const raw = snap.data().role || "operator";
+      // Normalize legacy role values
+      if (raw === "ADMIN" || raw === "admin" || raw === "master") setRole("admin");
+      else if (raw === "manager") setRole("manager");
+      else if (raw === "vendedor" || raw === "operator" || raw === "FAMILY") setRole("operator");
+      else setRole("operator");
+      setLoading(false);
+    }, (err) => {
+      console.error("[usePermissions] erro ao escutar role:", err);
+      setRole("operator");
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, [userId]);
 
   const canAccess = (allowedRoles: SystemRole[]) => allowedRoles.includes(role);

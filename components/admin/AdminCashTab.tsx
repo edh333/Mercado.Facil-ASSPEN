@@ -530,7 +530,7 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
                     {DENOMINACOES.map((d) => (
                       <label key={d} className="flex items-center gap-1 text-[11px] font-semibold text-slate-600 bg-white rounded-lg px-2 py-1 border border-slate-100">
                         <span className="w-10 shrink-0 text-right">R$ {d}</span>
-                        <input type="number" min="0" step="1" placeholder="0" value={denoms[String(d)] || ''}
+                        <input type="number" min="0" step={d < 1 ? 'any' : '1'} placeholder="0" value={denoms[String(d)] || ''}
                           onChange={(e) => setDenoms((prev) => ({ ...prev, [String(d)]: e.target.value }))}
                           className="w-full bg-white border border-slate-200 rounded-md px-1 py-0.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-400" />
                       </label>

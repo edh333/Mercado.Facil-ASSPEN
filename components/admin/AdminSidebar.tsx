@@ -25,25 +25,41 @@ interface AdminSidebarProps {
   permissions?: string[];
   isMaster?: boolean;
   userRole?: SystemRole;
+  canAccessTab?: (tab: string) => boolean;
 }
 
 export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   activeTab, setActiveTab, pendingOrdersCount, pendingDepositsCount, pendingUsersCount = 0, logout, isLoggingOut, appName, userName,
   isOpen, onClose, onOpenSales, permissions = [], isMaster = false,
-  userRole = 'admin'
+  userRole = 'admin',
+  canAccessTab
 }) => {
   const { themeMode, setThemeMode } = useTheme();
   const hasPermission = (perm: string) => isMaster || permissions.includes('all') || permissions.includes(perm);
+  // Usa canAccessTab do Dashboard se disponível, senão fallback para hasPermission local
+  const checkAccess = canAccessTab ?? ((tab: string) => {
+    // Fallback: mapeamento simplificado para compatibilidade
+    const tabPermMap: Record<string, string> = {
+      'orders': 'orders', 'products': 'products', 'cash': 'cash',
+      'inmates': 'inmates', 'users': 'users', 'finance': 'finance',
+      'wallet': 'wallet', 'reports': 'reports', 'customers': 'finance',
+      'messages': 'users', 'stock_alerts': 'products', 'bi': 'reports',
+      'settings': '', 'maintenance': '', 'audit': 'finance'
+    };
+    const needPerm = tabPermMap[tab];
+    const masterOnly = tab in tabPermMap && tabPermMap[tab] === '';
+    return masterOnly ? (isMaster || userRole === 'admin') : (!needPerm || hasPermission(needPerm));
+  });
   // Navegação pela sidebar também fecha o drawer mobile: trocar de aba no
   // celular deixava o menu aberto cobrindo a tela do novo conteúdo ativada.
   const go = (tab: string) => { setActiveTab(tab); if (onClose) onClose(); };
   const isSalesRestricted = userRole === 'manager' || userRole === 'operator';
 
-  const renderHome = () => <NavItem icon={Home} label="Início" active={activeTab === 'home'} onClick={() => go('home')} />;
-  const renderOrders = () => hasPermission('orders') && <NavItem icon={ShoppingCart} label="Pedidos" active={activeTab === 'orders'} onClick={() => go('orders')} badge={pendingOrdersCount} />;
-  const renderProducts = () => hasPermission('products') && <NavItem icon={Package} label="Produtos" active={activeTab === 'products'} onClick={() => go('products')} />;
-  const renderStockAlerts = () => hasPermission('products') && <NavItem icon={AlertTriangle} label="Alertas de Estoque" active={activeTab === 'stock_alerts'} onClick={() => go('stock_alerts')} />;
-  const renderSalesButton = () => hasPermission('sales') && (
+  const renderHome = () => checkAccess('home') && <NavItem icon={Home} label="Início" active={activeTab === 'home'} onClick={() => go('home')} />;
+  const renderOrders = () => checkAccess('orders') && <NavItem icon={ShoppingCart} label="Pedidos" active={activeTab === 'orders'} onClick={() => go('orders')} badge={pendingOrdersCount} />;
+  const renderProducts = () => checkAccess('products') && <NavItem icon={Package} label="Produtos" active={activeTab === 'products'} onClick={() => go('products')} />;
+  const renderStockAlerts = () => checkAccess('stock_alerts') && <NavItem icon={AlertTriangle} label="Alertas de Estoque" active={activeTab === 'stock_alerts'} onClick={() => go('stock_alerts')} />;
+  const renderSalesButton = () => checkAccess('sales') && (
     <button
       onClick={onOpenSales}
       className="w-full mt-2 mb-2 text-white p-3 rounded-xl flex items-center justify-center gap-2 font-semibold text-[13px] bg-gradient-to-r from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-500/25 hover:brightness-110 transition-all active:scale-[0.98]"
@@ -80,7 +96,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                 {renderOrders()}
                 {renderProducts()}
                 {renderStockAlerts()}
-                {userRole === 'operator' && hasPermission('cash') && <NavItem icon={Landmark} label="Meu Caixa" active={activeTab === 'cash'} onClick={() => go('cash')} />}
+                {userRole === 'operator' && checkAccess('cash') && <NavItem icon={Landmark} label="Meu Caixa" active={activeTab === 'cash'} onClick={() => go('cash')} />}
                 {renderSalesButton()}
               </>
             ) : (
@@ -97,19 +113,19 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                 <div className="my-2 border-t border-white/10 h-px mx-1"></div>
 
                 {hasPermission('inmates') && <NavItem icon={Shield} label="Gestão de Internos" active={activeTab === 'inmates'} onClick={() => go('inmates')} />}
-                {hasPermission('users') && <NavItem icon={Users} label="Gestão de Familiares" active={activeTab === 'users'} onClick={() => go('users')} badge={pendingUsersCount} />}
-                {hasPermission('users') && <NavItem icon={MessageSquare} label="Comunicados" active={activeTab === 'messages'} onClick={() => go('messages')} />}
-                {hasPermission('finance') && <NavItem icon={DollarSign} label="Fluxo de Caixa" active={activeTab === 'finance'} onClick={() => go('finance')} />}
-                {hasPermission('wallet') && <NavItem icon={CreditCard} label="Carteira & Créditos" active={activeTab === 'wallet'} onClick={() => go('wallet')} badge={pendingDepositsCount} />}
-                {hasPermission('finance') && <NavItem icon={BookOpen} label="Contas a Pagar" active={activeTab === 'customers'} onClick={() => go('customers')} />}
-                {hasPermission('finance') && <NavItem icon={ShieldCheck} label="Auditoria" active={activeTab === 'audit'} onClick={() => go('audit')} />}
+                {checkAccess('users') && <NavItem icon={Users} label="Gestão de Familiares" active={activeTab === 'users'} onClick={() => go('users')} badge={pendingUsersCount} />}
+                {checkAccess('messages') && <NavItem icon={MessageSquare} label="Comunicados" active={activeTab === 'messages'} onClick={() => go('messages')} />}
+                {checkAccess('finance') && <NavItem icon={DollarSign} label="Fluxo de Caixa" active={activeTab === 'finance'} onClick={() => go('finance')} />}
+                {checkAccess('wallet') && <NavItem icon={CreditCard} label="Carteira & Créditos" active={activeTab === 'wallet'} onClick={() => go('wallet')} badge={pendingDepositsCount} />}
+                {checkAccess('customers') && <NavItem icon={BookOpen} label="Contas a Pagar" active={activeTab === 'customers'} onClick={() => go('customers')} />}
+                {checkAccess('audit') && <NavItem icon={ShieldCheck} label="Auditoria" active={activeTab === 'audit'} onClick={() => go('audit')} />}
 
                 <div className="my-2 border-t border-white/10 h-px mx-1"></div>
 
-                {hasPermission('reports') && <NavItem icon={BarChart3} label="Relatórios" active={activeTab === 'reports'} onClick={() => go('reports')} />}
-                {hasPermission('reports') && (isMaster || userRole === 'admin') && <NavItem icon={Activity} label="Dashboard BI" active={activeTab === 'bi'} onClick={() => go('bi')} />}
-                {(isMaster || userRole === 'admin') && <NavItem icon={Wrench} label="Manutenção" active={activeTab === 'maintenance'} onClick={() => go('maintenance')} />}
-                {(isMaster || userRole === 'admin') && <NavItem icon={Settings} label="Configurações" active={activeTab === 'settings'} onClick={() => go('settings')} />}
+                {checkAccess('reports') && <NavItem icon={BarChart3} label="Relatórios" active={activeTab === 'reports'} onClick={() => go('reports')} />}
+                {checkAccess('bi') && (isMaster || userRole === 'admin') && <NavItem icon={Activity} label="Dashboard BI" active={activeTab === 'bi'} onClick={() => go('bi')} />}
+                {checkAccess('maintenance') && <NavItem icon={Wrench} label="Manutenção" active={activeTab === 'maintenance'} onClick={() => go('maintenance')} />}
+                {checkAccess('settings') && <NavItem icon={Settings} label="Configurações" active={activeTab === 'settings'} onClick={() => go('settings')} />}
               </>
             )}
         </nav>

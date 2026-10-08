@@ -35,11 +35,12 @@ interface AdminFinanceTabProps {
   resetCredits: () => Promise<void>;
   showNotification: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
   loadMoreExpenses?: () => void;
+  ordersLimit?: number;
 }
 
 export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
   expenses, orders, isMaster, suppliers, financeFilters, setFinanceFilters,
-  handleOpenReceipt, totalEntries, totalExits, settings, addExpense, deleteExpense, resetFinance, resetCredits, showNotification, loadMoreExpenses
+  handleOpenReceipt, totalEntries, totalExits, settings, addExpense, deleteExpense, resetFinance, resetCredits, showNotification, loadMoreExpenses, ordersLimit
 }) => {
   const { colors } = useTheme();
   const [activeSubTab, setActiveSubTab] = useState<'ALL' | 'ENTRIES' | 'EXITS'>('ALL');
@@ -182,16 +183,28 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
     });
   }, [cashSessions, financeFilters]);
 
-  const cashTotais = useMemo(() => ({    // Sessão aberta: saldo vivo (currentBalance). Fechada: contagem física (closedBalance).
-    saldoFisico: cashInPeriod.reduce((s, x) => {
-      if (String(x.status || '').toLowerCase() === 'open') return s + Number(x.currentBalance ?? 0);
-      return s + Number(x.closedBalance ?? 0);
-    }, 0),
+const cashTotais = useMemo(() => {
+  // Sessões ABERTAS: saldo VIVO/ESPERADO (currentBalance) — ainda não contado fisicamente
+  const saldoEsperado = cashInPeriod
+    .filter((x) => String(x.status || '').toLowerCase() === 'open')
+    .reduce((s, x) => s + Number(x.currentBalance ?? 0), 0);
+
+  // Sessões FECHADAS: saldo CONTADO FISICAMENTE (closedBalance) — contagem real do operador
+  const saldoContado = cashInPeriod
+    .filter((x) => String(x.status || '').toLowerCase() === 'closed')
+    .reduce((s, x) => s + Number(x.closedBalance ?? 0), 0);
+
+  return {
+    // Separados para conferência contábil correta
+    saldoEsperado,        // Soma de currentBalance das sessões abertas
+    saldoContado,         // Soma de closedBalance das sessões fechadas
     abertas: cashInPeriod.filter((x) => x.status === 'open').length,
+    fechadas: cashInPeriod.filter((x) => x.status === 'closed').length,
     discrepanciaCount: cashInPeriod.filter((x) => x.hasDiscrepancy).length,
     totalDiscrepancias: cashInPeriod.filter((x) => x.hasDiscrepancy)
       .reduce((s, x) => s + Math.abs(Number(x.cashDifference ?? x.balanceDiff ?? 0)), 0),
-  }), [cashInPeriod]);
+  };
+}, [cashInPeriod]);
 
   // Gráfico 7 dias — useMemo HOISTADO para o topo do componente.
   // Era React.useMemo dentro do JSX condicional {isMaster && ...}: se isMaster
@@ -402,7 +415,7 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-[var(--bg-card)] p-8 rounded-[3rem] border border-[var(--border-color)] shadow-xl relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-600 opacity-5 rounded-full -mr-16 -mt-16 group-hover:scale-125 transition-transform"></div>
-              <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-[0.3em] mb-2">Saldo Consolidado <span className="opacity-50 tracking-normal normal-case">· histórico total (ignora os filtros de período abaixo)</span></p>
+              <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-[0.3em] mb-2">Saldo Consolidado <span className="opacity-50 tracking-normal normal-case">· janela carregada (limite: {ordersLimit} pedidos)</span></p>
               <h3 className="text-4xl font-black text-[var(--text-main)] tracking-tighter">
                 <span className="text-sm opacity-30 mr-1">R$</span>
                 {(totalEntries - totalExits).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -513,9 +526,12 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
           <h3 className="text-xs font-black text-[var(--text-main)] uppercase tracking-widest flex items-center gap-2">
             <Wallet size={16}/> Caixa Físico — Sessões do Período
           </h3>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <span className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest">
-              Saldo físico: <span className="text-emerald-600 text-xs">R$ {cashTotais.saldoFisico.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+              Esperado (aberto): <span className="text-emerald-600 text-xs">R$ {cashTotais.saldoEsperado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+            </span>
+            <span className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest">
+              Contado (fechado): <span className="text-blue-600 text-xs">R$ {cashTotais.saldoContado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
             </span>
             {cashTotais.discrepanciaCount > 0 && (
               <span className="flex items-center gap-1.5 text-[9px] font-black text-red-600 bg-red-50 border border-red-200 px-2.5 py-1.5 rounded-xl uppercase tracking-widest">
@@ -524,7 +540,12 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
             )}
             {cashTotais.abertas > 0 && (
               <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 rounded-xl uppercase tracking-widest">
-                {cashTotais.abertas} caixa(s) aberto(s)
+                {cashTotais.abertas} aberto(s)
+              </span>
+            )}
+            {cashTotais.fechadas > 0 && (
+              <span className="text-[9px] font-black text-blue-600 bg-blue-50 border border-blue-200 px-2.5 py-1.5 rounded-xl uppercase tracking-widest">
+                {cashTotais.fechadas} fechado(s)
               </span>
             )}
           </div>

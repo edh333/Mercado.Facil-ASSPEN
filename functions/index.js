@@ -992,6 +992,7 @@ exports.alterarSenha = onCall(async (request) => {
 /** Admin — redefine a senha de qualquer usuário (exceto a conta principal). */
 exports.redefinirSenhaAdmin = onCall(async (request) => {
   const caller = await exigirAdminPermissao(request, "users");
+  await verificarSenhaMestra(request.data?.senhaMestra);
   const userId = String(request.data?.userId || "");
   const novaSenha = validarSenha(request.data?.novaSenha);
   if (!userId) throw new HttpsError("invalid-argument", "Informe o usuário.");
@@ -1444,6 +1445,108 @@ exports.zerarCarteiras = onCall(async (request) => {
   });
 
   return { ok: true, totalZeradas: antes.length };
+});
+
+/**
+ * Admin principal — devolução de saldo por alvará (preso em saída temporária).
+ * O admin autoriza a devolução do saldo da carteira do interno/familiar
+ * gerando um comprovante de devolução. Exige admin principal + senha mestra.
+ */
+exports.devolucaoAlvara = onCall({
+  minInstances: 1,
+  memory: "512MiB",
+  timeoutSeconds: 60,
+}, async (request) => {
+  const caller = await exigirAdminPrincipal(request);
+  await verificarSenhaMestra(request.data?.senhaMestra);
+
+  const userId = String(request.data?.userId || "").trim();
+  const motivo = String(request.data?.motivo || "Devolução por alvará").slice(0, 200);
+  // Se valor não informado, devolve o saldo TOTAL da carteira
+  const valor = request.data?.valor !== undefined && request.data?.valor !== ""
+    ? validarValor(request.data?.valor)
+    : null;
+
+  if (!userId) throw new HttpsError("invalid-argument", "Informe o usuário.");
+
+  logger.info(`[devolucaoAlvara] operador=${caller.id} usuario=${userId}`);
+
+  let saldoAnterior = 0;
+  let novoSaldoFinal = 0;
+  let usuarioNome = "";
+  let valorDevolvido = 0;
+
+  await db.runTransaction(async (t) => {
+    const uRef = db.collection("users").doc(userId);
+    const uSnap = await t.get(uRef);
+    if (!uSnap.exists) throw new HttpsError("not-found", "Usuário não encontrado.");
+    const ud = uSnap.data();
+
+    saldoAnterior = arredondar(Number(ud.walletBalance || 0));
+    if (saldoAnterior <= 0) {
+      throw new HttpsError("failed-precondition", "Saldo já zerado — nada a devolver.");
+    }
+
+    // Se valor não informado, devolve tudo; senão valida que não excede o saldo
+    valorDevolvido = valor !== null ? Math.min(valor, saldoAnterior) : saldoAnterior;
+    if (valorDevolvido <= 0) {
+      throw new HttpsError("invalid-argument", "Valor inválido para devolução.");
+    }
+
+    usuarioAlvo = ud.name || userId;
+
+    // Crédito na carteira do usuário
+    t.update(uRef, { walletBalance: admin.firestore.FieldValue.increment(arredondar(valorDevolvido)) });
+
+    // Registro da transação de devolução
+    await registrarTransacaoCarteira(t, db.collection("wallet_transactions").doc(), {
+      userId,
+      inmateCpf: cleanCpf(ud.inmateCpf || ud.prisonerCpf || ud.cpf),
+      amount: valorDevolvido,
+      proofUrl: "",
+      status: "approved",
+      createdAt: new Date().toISOString(),
+      type: "alvara_return",
+      description: `Devolução por alvará: ${motivo}`,
+      payerName: caller.name || "Administrador",
+      payerId: caller.id,
+    });
+  });
+
+  // Read-after-write: saldo REAL após commit
+  const snapAfter = await db.collection("users").doc(userId).get();
+  const novoSaldo = arredondar(Number(snapAfter.data()?.walletBalance || 0));
+
+  // Dados para o comprovante (o cliente gera o comprovante usando printUtils)
+  const comprovanteData = {
+    tipo: "DEVOLUÇÃO POR ALVARÁ",
+    usuarioId: userId,
+    usuarioNome: usuarioAlvo,
+    cpf: cleanCpf(ud.inmateCpf || ud.prisonerCpf || ud.cpf || ""),
+    saldoAnterior,
+    valorDevolvido,
+    novoSaldo,
+    motivo,
+    operador: caller.name || caller.id,
+    data: new Date().toLocaleString("pt-BR"),
+  };
+
+  await registrarAudit(caller.id, "DEVOLUCAO_ALVARA", {
+    usuarioId: userId,
+    nome: usuarioAlvo,
+    saldoAnterior,
+    valorDevolvido,
+    motivo,
+  }, {
+    usuarioId: userId,
+    nome: usuarioAlvo,
+    saldoAnterior,
+    valorDevolvido,
+    novoSaldo,
+    motivo,
+  });
+
+  return { ok: true, novoSaldo, valorDevolvido, comprovante: comprovanteData };
 });
 
 /** Admin PRINCIPAL — retirada de saldo (débito) de qualquer usuário.
@@ -3313,6 +3416,7 @@ exports.registrarPagamentoConta = onCall({
   timeoutSeconds: 60,
 }, async (request) => {
   const caller = await exigirAdminPermissao(request, "finance");
+  await verificarSenhaMestra(request.data?.senhaMestra);
   const customerAccountId = String(request.data?.customerAccountId || "").trim();
   const amount = arredondar(Number(request.data?.amount) || 0);
   const note = String(request.data?.note || "").trim().slice(0, 120);
@@ -5350,6 +5454,296 @@ exports.listarAuditorias = onCall(async (request) => {
   return {
     auditorias: snap.docs.map((d) => ({ id: d.id, ...d.data() })),
   };
+});
+
+/** Admin (products) — zera preço/custo > R$ 100.000/un (sanitização catálogo). */
+exports.sanitizeCatalog = onCall({
+  minInstances: 1,
+  memory: "512MiB",
+  timeoutSeconds: 300,
+}, async (request) => {
+  const caller = await exigirAdminPermissao(request, "products");
+  await verificarSenhaMestra(request.data?.senhaMestra);
+  const PLACAO = 100000;
+  let corrigidos = 0;
+  let lastDoc = null;
+  for (;;) {
+    const q = lastDoc
+      ? db.collection("products").orderBy("name", "asc").startAfter(lastDoc).limit(1000)
+      : db.collection("products").orderBy("name", "asc").limit(1000);
+    const snap = await q.get();
+    if (snap.empty) break;
+    const batch = db.batch();
+    let batchCount = 0;
+    for (const d of snap.docs) {
+      const p = d.data();
+      const preco = Number(p.price);
+      const custo = Number(p.costPrice);
+      const novoPreco = preco > PLACAO ? 0 : preco;
+      const novoCusto = custo > PLACAO ? 0 : custo;
+      if (novoPreco !== preco || novoCusto !== custo) {
+        batch.set(db.collection("products").doc(d.id), { price: novoPreco, costPrice: novoCusto }, { merge: true });
+        batchCount++;
+      }
+    }
+    if (batchCount > 0) {
+      await batch.commit();
+      corrigidos += batchCount;
+    }
+    if (snap.size < 1000) break;
+    lastDoc = snap.docs[snap.docs.length - 1];
+  }
+  await registrarAudit(caller.id, "SANITIZE_CATALOG", null, { corrigidos });
+  return { corrigidos };
+});
+
+/** Admin (products) — merge de produtos duplicados por EAN ou nome normalizado. */
+exports.mergeDuplicateProducts = onCall({
+  minInstances: 1,
+  memory: "512MiB",
+  timeoutSeconds: 300,
+}, async (request) => {
+  const caller = await exigirAdminPermissao(request, "products");
+  await verificarSenhaMestra(request.data?.senhaMestra);
+  const allProducts = [];
+  let lastDoc = null;
+  for (;;) {
+    const q = lastDoc
+      ? db.collection("products").orderBy("name", "asc").startAfter(lastDoc).limit(1000)
+      : db.collection("products").orderBy("name", "asc").limit(1000);
+    const snap = await q.get();
+    if (snap.empty) break;
+    snap.docs.forEach(d => allProducts.push({ id: d.id, ...d.data() }));
+    if (snap.size < 1000) break;
+    lastDoc = snap.docs[snap.docs.length - 1];
+  }
+  const produtos = allProducts.filter(p => p.deleted !== true);
+  const groups = {};
+  produtos.forEach(p => {
+    let key = p.ean ? String(p.ean).replace(/^0+/, "").trim() : "";
+    if (!key) key = normalizeName(p?.name || "");
+    if (!groups[key]) groups[key] = [];
+    groups[key].push({ id: p.id, name: p.name, ean: p.ean, stock: Number(p.stock || 0), price: Number(p.price || 0), costPrice: Number(p.costPrice || 0) });
+  });
+  let fundidos = 0;
+  for (const [key, items] of Object.entries(groups)) {
+    if (items.length <= 1) continue;
+    const principal = items.reduce((a, b) => (a.stock || 0) >= (b.stock || 0) ? a : b);
+    const outros = items.filter(i => i.id !== principal.id);
+    if (outros.length === 0) continue;
+    const batch = db.batch();
+    let totalStock = principal.stock;
+    for (const o of outros) {
+      totalStock += o.stock;
+      batch.update(db.collection("products").doc(o.id), { deleted: true });
+    }
+    batch.set(db.collection("products").doc(principal.id), { stock: totalStock }, { merge: true });
+    await batch.commit();
+    fundidos++;
+  }
+  await registrarAudit(caller.id, "MERGE_DUPLICATE_PRODUCTS", null, { fundidos });
+  return { fundidos };
+});
+
+/** Admin (inmates) — importação CSV de pré-cadastro de internos. */
+exports.importInmatesCsv = onCall({
+  minInstances: 1,
+  memory: "512MiB",
+  timeoutSeconds: 120,
+}, async (request) => {
+  const caller = await exigirAdminPermissao(request, "inmates");
+  await verificarSenhaMestra(request.data?.senhaMestra);
+  const csvBase64 = String(request.data?.csvBase64 || "");
+  if (!csvBase64) throw new HttpsError("invalid-argument", "CSV (base64) não informado.");
+  const text = Buffer.from(csvBase64, "base64").toString("utf8");
+  const lines = text.split("\n");
+  const entries = [];
+  const seenCpfs = new Set();
+  const existingCpfsSnap = await db.collection("pre_registered_inmates").get();
+  const existingCpfs = new Set(existingCpfsSnap.docs.map(d => String(d.data()?.cpf || "").replace(/\D/g, "")));
+  let skippedExisting = 0;
+  for (let line of lines) {
+    const [name, cpf] = line.split(",").map(s => (s || "").trim());
+    if (name && cpf) {
+      const cleanCpf = (cpf || "").replace(/\D/g, "");
+      if (cleanCpf.length !== 11 || seenCpfs.has(cleanCpf)) continue;
+      if (existingCpfs.has(cleanCpf)) { skippedExisting++; continue; }
+      seenCpfs.add(cleanCpf);
+      entries.push({ id: crypto.randomUUID(), name: name.toUpperCase(), cpf: cleanCpf });
+    }
+  }
+  if (entries.length === 0) throw new HttpsError("invalid-argument", "Nenhum dado válido encontrado no CSV. Use o formato: NOME,CPF");
+  for (let i = 0; i < entries.length; i += 500) {
+    const batch = db.batch();
+    const chunk = entries.slice(i, i + 500);
+    chunk.forEach(e => batch.set(db.collection("pre_registered_inmates").doc(e.id), e));
+    await batch.commit();
+  }
+  await registrarAudit(caller.id, "IMPORT_INMATES_CSV", null, { importados: entries.length, ignorados: skippedExisting });
+  return { importados: entries.length, ignorados: skippedExisting };
+});
+
+/** Admin (products) — zera estoque de todos os produtos ativos. */
+exports.resetStock = onCall({
+  minInstances: 1,
+  memory: "512MiB",
+  timeoutSeconds: 120,
+}, async (request) => {
+  const caller = await exigirAdminPermissao(request, "products");
+  await verificarSenhaMestra(request.data?.senhaMestra);
+  const snapshot = await db.collection("products").get();
+  const ativos = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).filter(p => p.deleted !== true);
+  const antes = ativos.map(p => ({ id: p.id, nome: p.name, estoque: p.stock }));
+  for (let i = 0; i < ativos.length; i += 500) {
+    const batch = db.batch();
+    const chunk = ativos.slice(i, i + 500);
+    chunk.forEach(p => batch.update(db.collection("products").doc(p.id), { stock: 0 }));
+    await batch.commit();
+  }
+  await registrarAudit(caller.id, "RESET_STOCK", { produtos: antes }, { status: "ok", produtosZerados: ativos.length });
+  return { produtosZerados: ativos.length };
+});
+
+/** Admin (finance) — zera financeiro (despesas + cashier legado). Bloqueia se houver caixa aberto. */
+exports.resetFinance = onCall({
+  minInstances: 1,
+  memory: "512MiB",
+  timeoutSeconds: 120,
+}, async (request) => {
+  const caller = await exigirAdminPermissao(request, "finance");
+  await verificarSenhaMestra(request.data?.senhaMestra);
+  const abertasSnap = await db.collection("cash_sessions").where("status", "==", "open").limit(1).get();
+  if (!abertasSnap.empty) {
+    throw new HttpsError("failed-precondition", "Não é possível zerar o financeiro com sessão de caixa ABERTA. Feche todos os caixas antes de limpar.");
+  }
+  const [expSnap, cashSnap] = await Promise.all([
+    db.collection("expenses").get(),
+    db.collection("cashier").get()
+  ]);
+  const antes = { despesas: expSnap.size, sessoesCaixa: cashSnap.size };
+  const allRefs = [...expSnap.docs, ...cashSnap.docs].map(d => d.ref);
+  for (let i = 0; i < allRefs.length; i += 500) {
+    const batch = db.batch();
+    const chunk = allRefs.slice(i, i + 500);
+    chunk.forEach(ref => batch.delete(ref));
+    await batch.commit();
+  }
+  await registrarAudit(caller.id, "RESET_FINANCE", antes, { status: "ok" });
+  return { despesasRemovidas: expSnap.size, sessoesRemovidas: cashSnap.size };
+});
+
+/** Admin (products) — importa produtos via XML de NFe (server-side parsing + processInvoiceImport). */
+exports.importXmlProduct = onCall({
+  minInstances: 1,
+  memory: "512MiB",
+  timeoutSeconds: 300,
+}, async (request) => {
+  const caller = await exigirAdminPermissao(request, "products");
+  await verificarSenhaMestra(request.data?.senhaMestra);
+  const xmlBase64 = String(request.data?.xmlBase64 || "");
+  const margin = Number(request.data?.margin) || 0;
+  if (!xmlBase64) throw new HttpsError("invalid-argument", "XML (base64) não informado.");
+  const xmlText = Buffer.from(xmlBase64, "base64").toString("utf8");
+  const data = parseInvoiceXML(xmlText);
+  if (!data) {
+    let detalhe = "o arquivo não parece ser uma NF-e válida";
+    try {
+      const doc2 = new DOMParser().parseFromString(xmlText, "text/xml");
+      const perr = doc2.querySelector("parsererror");
+      if (perr && perr.textContent) {
+        detalhe = perr.textContent.slice(0, 200);
+      } else if (!/NFe|NFeProc|nf-e|NFE/i.test(xmlText.slice(0, 2000))) {
+        detalhe = "o XML não contém uma NF-e (nó <NFe> ou <NFeProc>)";
+      } else {
+        detalhe = "nenhum <det>/<prod> com nome válido foi encontrado na NFe";
+      }
+    } catch { /* ignora: mantém a mensagem padrão */ }
+    throw new HttpsError("invalid-argument", `Falha ao interpretar o XML — ${detalhe}.`);
+  }
+  const profitMargin = margin;
+  const batch = db.batch();
+  let supplierId = "";
+  const normSemUnidade = (nome) => normalizeName(nome).replace(/(UN|CX|PCT|PCTE|FD|FDO|DSP|UNID|CART|LT|GR|KG|ML|L|G|M|CM|MM)$/g, "");
+  const pesosCompativeis = (a, b) => {
+    const pesos = (s) => (s.match(/\d+[.,]?\d*\s*(?:KG|G|ML|L|M|GR|LT|CM|MM)/gi) || []).map(m => m.replace(/\s/g, ""));
+    const pa = pesos(a), pb = pesos(b);
+    if (pa.length === 0 || pb.length === 0) return true;
+    return pa[0] === pb[0];
+  };
+  const ehDuplicado = (p, item) => {
+    const eanItem = String(item.ean || item.barcode || "").replace(/^0+/, "").trim();
+    const eanProd = String(p.ean || p.barcode || "").replace(/^0+/, "").trim();
+    if (eanItem && eanProd) return eanItem === eanProd;
+    const nI = normSemUnidade(item.name);
+    const nP = normSemUnidade(p.name || "");
+    if (nI && nP && nI === nP) return true;
+    if ((p.name || "").trim().toUpperCase() === (item.name || "").trim().toUpperCase()) return true;
+    return stringSimilarity(nI, nP) >= 0.9 && pesosCompativeis(item.name, p.name || "");
+  };
+  if (data.supplier?.name) {
+    const exSupplier = await db.collection("suppliers").where("name", "==", data.supplier.name).limit(1).get();
+    if (!exSupplier.empty) {
+      supplierId = exSupplier.docs[0].id;
+    } else {
+      supplierId = crypto.randomUUID();
+      batch.set(db.collection("suppliers").doc(supplierId), {
+        id: supplierId,
+        name: data.supplier.name || "Fornecedor",
+        cnpjOrCpf: data.supplier.cnpj || "",
+        contact: "",
+        description: "Importação Automática"
+      });
+    }
+  }
+  const allProducts = [];
+  let lastDoc = null;
+  for (;;) {
+    const q = lastDoc
+      ? db.collection("products").orderBy("name", "asc").startAfter(lastDoc).limit(1000)
+      : db.collection("products").orderBy("name", "asc").limit(1000);
+    const snap = await q.get();
+    if (snap.empty) break;
+    snap.docs.forEach(d => allProducts.push({ id: d.id, ...d.data() }));
+    if (snap.size < 1000) break;
+    lastDoc = snap.docs[snap.docs.length - 1];
+  }
+  const localProducts = allProducts.filter(p => p.deleted !== true);
+  let loadedCount = 0, updatedCount = 0, newCount = 0;
+  for (const item of data.items) {
+    const costPriceRaw = Number(item.costPrice) || 0;
+    const priceRaw = costPriceRaw > 0 ? Math.round(costPriceRaw * (1 + profitMargin / 100)) : 0;
+    const stockRaw = Number(item.quantity) || 0;
+    const eanRaw = String(item.ean || item.barcode || "").replace(/^0+/, "").trim();
+    let match = null;
+    for (const p of localProducts) {
+      if (ehDuplicado(p, item)) { match = p; break; }
+    }
+    if (match) {
+      const novoStock = (match.stock || 0) + stockRaw;
+      batch.set(db.collection("products").doc(match.id), { stock: novoStock, price: priceRaw, costPrice: costPriceRaw, ean: eanRaw || match.ean }, { merge: true });
+      updatedCount++;
+    } else {
+      const newId = crypto.randomUUID();
+      batch.set(db.collection("products").doc(newId), {
+        id: newId,
+        name: item.name,
+        price: priceRaw,
+        costPrice: costPriceRaw,
+        stock: stockRaw,
+        ean: eanRaw,
+        barcode: eanRaw,
+        supplierId,
+        category: item.category || "",
+        minStock: 5,
+        createdAt: new Date().toISOString()
+      });
+      newCount++;
+    }
+    loadedCount++;
+  }
+  await batch.commit();
+  await registrarAudit(caller.id, "IMPORT_XML_PRODUCT", null, { loaded: loadedCount, updated: updatedCount, created: newCount });
+  return { loaded: loadedCount, updated: updatedCount, created: newCount, totalInXml: data.items.length };
 });
 
 

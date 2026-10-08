@@ -24,21 +24,23 @@ interface AdminProductsTabProps {
   margin: string;
   setMargin: (m: string) => void;
   onPrintCatalog: () => void;
-  mergeDuplicateProducts: () => Promise<void>;
-  sanitizeCatalog: () => Promise<number>;
-  handleResetStock: () => void;
+  mergeDuplicateProducts: (senhaMestra?: string) => Promise<void>;
+  sanitizeCatalog: (senhaMestra?: string) => Promise<number>;
+  handleResetStock: (senhaMestra?: string) => void;
   loadMoreProducts?: () => void;
   productsLimit?: number;
   previewXmlImport?: (file: File) => Promise<{ name: string; cost: number; qty: number; ean: string; brand: string }[]>;
   showStockEditModal: Product | null;
   setShowStockEditModal: (val: Product | null) => void;
+  onRequestMasterPassword?: (callback: (senhaMestra: string) => void) => void;
 }
 
 export const AdminProductsTab: React.FC<AdminProductsTabProps> = ({
   products, suppliers, searchTerm, setSearchTerm, viewMode, setViewMode,
   setShowProductModal, setEditingProduct, deleteProduct,
   xmlFile, setXmlFile, handleImportXML, margin, setMargin, onPrintCatalog, mergeDuplicateProducts, sanitizeCatalog, handleResetStock, loadMoreProducts, productsLimit, previewXmlImport,
-  showStockEditModal, setShowStockEditModal
+  showStockEditModal, setShowStockEditModal,
+  onRequestMasterPassword
 }) => {
   const [categoryFilter, setCategoryFilter] = React.useState('ALL');
   const [supplierFilter, setSupplierFilter] = React.useState('ALL');
@@ -512,10 +514,21 @@ horizontal para chegar em editar/estoque/excluir. */}
                   <div className="p-2.5 bg-emerald-100 rounded-xl text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-colors shrink-0"><Download size={18}/></div>
                   <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-main)] flex-1">Lista de preços (PDF)</span>
               </button>
-              <button onClick={async () => { if (mesclando) return; setMesclando(true); try { await mergeDuplicateProducts(); } finally { setMesclando(false); } }} disabled={mesclando} className="flex items-center gap-3 bg-[var(--bg-card)] border border-[var(--border-color)] p-4 rounded-2xl hover:bg-[var(--bg-main)] hover:shadow-lg transition-all active:scale-95 group text-left disabled:opacity-50">
+<button onClick={async () => {
+                  if (mesclando) return;
+                  if (onRequestMasterPassword) {
+                    onRequestMasterPassword(async (senha) => {
+                      setMesclando(true);
+                      try { await mergeDuplicateProducts(senha); } finally { setMesclando(false); }
+                    });
+                  } else {
+                    setMesclando(true);
+                    try { await mergeDuplicateProducts(); } finally { setMesclando(false); }
+                  }
+                }} disabled={mesclando} className="flex items-center gap-3 bg-[var(--bg-card)] border border-[var(--border-color)] p-4 rounded-2xl hover:bg-[var(--bg-main)] hover:shadow-lg transition-all active:scale-95 group text-left disabled:opacity-50">
                   <div className="p-2.5 bg-[var(--bg-main)] rounded-xl text-[var(--text-muted)] group-hover:text-emerald-500 transition-colors shrink-0">{mesclando ? <RefreshCw size={18} className="animate-spin"/> : <RefreshCw size={18}/>}</div>
                   <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-main)] flex-1">{mesclando ? 'Mesclando duplicados...' : 'Mesclar produtos duplicados'}</span>
-              </button>
+                </button>
           </div>
           </div>
 
@@ -542,7 +555,7 @@ horizontal para chegar em editar/estoque/excluir. */}
         titulo="Zerar Estoque de Todos os Produtos"
         descricao="Todos os produtos ficarão com estoque ZERO e desaparecerão da loja dos familiares até serem repostos. Esta ação NÃO pode ser desfeita."
         palavraChave="CONFIRMAR"
-        onConfirm={() => { setConfirmarEstoque(false); handleResetStock(); }}
+        onConfirm={() => { setConfirmarEstoque(false); if (onRequestMasterPassword) onRequestMasterPassword((senha) => handleResetStock(senha)); else handleResetStock(); }}
         onClose={() => setConfirmarEstoque(false)}
       />
 
@@ -551,7 +564,7 @@ horizontal para chegar em editar/estoque/excluir. */}
         titulo="Sanitizar Preços Corrompidos"
         descricao="Zera preço/custo de TODOS os produtos com valor absurdo (>R$ 100 mil) para que voltem à loja com valor manual. Use após uma NFe corrompida gerar preços gigantescos."
         palavraChave="SANITIZAR"
-        onConfirm={() => { setConfirmarSanitizar(false); void sanitizeCatalog(); }}
+        onConfirm={() => { setConfirmarSanitizar(false); if (onRequestMasterPassword) onRequestMasterPassword((senha) => sanitizeCatalog(senha)); else void sanitizeCatalog(); }}
         onClose={() => setConfirmarSanitizar(false)}
       />
 

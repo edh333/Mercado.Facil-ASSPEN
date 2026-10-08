@@ -144,7 +144,7 @@ export const AdminOrderDetailsModal: React.FC<AdminOrderDetailsModalProps> = ({
     try {
       // Cancelamento respeita a janela de 5 dias (revalidada no servidor);
       // estorno/devolução não tem prazo.
-      await refundOrder(order.id, motivo, confirmAcao === 'cancelar' ? { janelaDias: JANELA_CANCELAMENTO_DIAS } : undefined);
+      await refundOrder(order.id, motivo, confirmAcao === 'cancelar' ? { janelaDias: JANELA_CANCELAMENTO_DIAS, senhaMestra: senha } : { senhaMestra: senha });
       // Notifica o familiar sobre a ação financeira
       await sendSystemMessage({
         title: confirmAcao === 'cancelar' ? `Pedido #${order.id.slice(0, 6)} Cancelado` : `Pedido #${order.id.slice(0, 6)} Reembolsado`,

@@ -154,13 +154,15 @@ export type ResultadoRecebimentoFiado = {
 
 // 1. Receber Pagamento de Conta — abate a dívida NO SERVIDOR (atômico, clamp,
 // nunca fica negativa). Fallback local apenas quando a função ainda não existe.
-export async function receiveCustomerPayment(customerId: string, amount: number, sessionId?: string): Promise<ResultadoRecebimentoFiado> {
+// Exige senha mestra (2º fator) no servidor — o chamador deve obter a senha
+// via modal de autenticação antes de chamar.
+export async function receiveCustomerPayment(customerId: string, amount: number, sessionId?: string, senhaMestra?: string): Promise<ResultadoRecebimentoFiado> {
   const valor = Math.round(Number(amount) * 100) / 100;
   if (!(valor > 0)) throw new Error("Valor do pagamento deve ser maior que zero.");
 
   try {
     const fn = httpsCallable(getFunctions(), 'registrarPagamentoConta');
-    const res = await fn({ customerAccountId: customerId, amount: valor, sessionId: sessionId || null });
+    const res = await fn({ customerAccountId: customerId, amount: valor, sessionId: sessionId || null, senhaMestra });
     const data = res.data as any;
     if (data?.ok) return data;
   } catch (e: any) {

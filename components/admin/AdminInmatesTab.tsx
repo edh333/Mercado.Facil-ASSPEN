@@ -1,9 +1,10 @@
 import React from 'react';
 import { formatarMoeda } from '../../utils';
-import { Shield, Plus, Trash2, Search, UserCheck, FileUp, LayoutGrid, Smartphone, Loader2, Printer, Pencil, MapPin } from 'lucide-react';
+import { Shield, Plus, Trash2, Search, UserCheck, FileUp, LayoutGrid, Smartphone, Loader2, Printer, Pencil, MapPin, RotateCcw } from 'lucide-react';
 import { useApp } from '../../context/StoreContext';
 import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
 import { PreRegisteredInmate } from '../../types';
+import { gerarComprovanteDevolucaoAlvara } from '../../utils/printUtils';
 
 interface AdminInmatesTabProps {
   preRegisteredInmates: PreRegisteredInmate[];
@@ -12,21 +13,132 @@ interface AdminInmatesTabProps {
   setNewInmate: (data: any) => void;
   handleAddInmate: () => void;
   deletePreRegisteredInmate: (id: string) => void;
-  importInmatesCsv?: (file: File) => Promise<void>;
+  importInmatesCsv?: (file: File, senhaMestra?: string) => Promise<void>;
+  onRequestMasterPassword?: (callback: (senhaMestra: string) => void) => void;
   inmatesLimit?: number;
   loadMoreInmates?: () => void;
 }
 
 export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
-  preRegisteredInmates, users, newInmate, setNewInmate, handleAddInmate, deletePreRegisteredInmate, importInmatesCsv, inmatesLimit, loadMoreInmates
+  preRegisteredInmates, users, newInmate, setNewInmate, handleAddInmate, deletePreRegisteredInmate, importInmatesCsv, inmatesLimit, loadMoreInmates,
+  onRequestMasterPassword
 }) => {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [viewMode, setViewMode] = React.useState<'table' | 'cards'>('table');
   const [inmateParaExcluir, setInmateParaExcluir] = React.useState<any>(null);
+  const [inmateParaAlvara, setInmateParaAlvara] = React.useState<any>(null);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const { showNotification: notifCtx, updatePreRegisteredInmate, devolucaoAlvara } = useApp();
+
+  const handleDeleteInmate = (inmate: any) => {
+    const vinculados = inmate?.linkedUsers?.length || 0;
+    if (vinculados > 0) {
+      notifCtx(`NÃO É POSSÍVEL REMOVER: ${vinculados} familiar(es) vinculado(s) a ${inmate?.name || 'este interno'}. Transfira os familiares para outro interno antes de remover.`, 'error');
+      return;
+    }
+    setInmateParaExcluir(inmate);
+  };
+
+  const handleAlvaraReturn = (inmate: any) => {
+    const totalBalance = inmate?.totalBalance || 0;
+    if (totalBalance <= 0) {
+      notifCtx('Este interno não possui saldo a ser devolvido.', 'warning');
+      return;
+    }
+    setInmateParaAlvara(inmate);
+  };
+
+  const confirmAlvaraReturn = async (senhaMestra: string) => {
+    if (!inmateParaAlvara) return;
+    const linkedUsers = (users || []).filter(u =>
+      (u.assignedInmate?.id === inmateParaAlvara.id || u.assignedInmate === inmateParaAlvara.id) ||
+      (String(u.inmateCpf || u.prisonerCpf || '').replace(/\D/g, '') === String(inmateParaAlvara?.cpf || '').replace(/\D/g, ''))
+    );
+    const totalBalance = linkedUsers.reduce((sum, u) => sum + Number(u.walletBalance || 0), 0);
+    if (totalBalance <= 0) {
+      notifCtx('Saldo zerado — nada a devolver.', 'warning');
+      setInmateParaAlvara(null);
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const data = await devolucaoAlvara(
+        linkedUsers[0]?.id,
+        `Devolução por alvará do interno ${inmateParaAlvara?.name || '—'}`,
+        senhaMestra
+      );
+      if (data?.ok) {
+        notifCtx(`Devolução de R$ ${formatarMoeda(data.valorDevolvido)} realizada com sucesso!`, 'success');
+        // Gera o comprovante
+        const comprovante = data.comprovante;
+        if (comprovante) {
+          const texto = gerarComprovanteDevolucaoAlvara({
+            tipo: comprovante.tipo,
+            usuarioId: comprovante.usuarioId,
+            usuarioNome: comprovante.usuarioNome,
+            cpf: comprovante.cpf,
+            saldoAnterior: comprovante.saldoAnterior,
+            valorDevolvido: comprovante.valorDevolvido,
+            novoSaldo: comprovante.novoSaldo,
+            motivo: comprovante.motivo,
+            operador: comprovante.operador,
+            data: comprovante.data,
+          });
+          // Abre janela de impressão
+          const printWindow = window.open('', '_blank');
+          if (printWindow) {
+            const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Comprovante Alvará</title><style>
+              body { font-family: 'Segoe UI', Arial, sans-serif; color:#0f172a; padding:32px; background:#fff; font-family: 'Courier New', monospace; white-space: pre-wrap; }
+              .cabecalho { border-bottom:3px solid #059669; padding-bottom:16px; margin-bottom:20px; text-align:center; }
+              .cabecalho h1 { font-size:18px; text-transform:uppercase; letter-spacing:1px; color:#059669; }
+              .cabecalho p { font-size:12px; color:#64748b; margin-top:4px; }
+              .divisor { border-top:1px solid #e2e8f0; margin:16px 0; }
+              .linha { display:flex; justify-content:space-between; padding:8px 0; font-family: monospace; font-size:12px; }
+              .linha span:first-child { color:#64748b; }
+              .linha span:last-child { font-weight:700; color:#0f172a; }
+              .assinatura { margin-top:48px; border-top:1px solid #64748b; padding-top:8px; font-size:10px; text-transform:uppercase; text-align:center; color:#475569; }
+            </style></head><body>${gerarComprovanteDevolucaoAlvara({
+              tipo: 'DEVOLUÇÃO POR ALVARÁ',
+              usuarioId: comprovante.usuarioId,
+              usuarioNome: comprovante.usuarioNome,
+              cpf: comprovante.cpf,
+              saldoAnterior: comprovante.saldoAnterior,
+              valorDevolvido: comprovante.valorDevolvido,
+              novoSaldo: comprovante.novoSaldo,
+              motivo: comprovante.motivo,
+              operador: comprovante.operador,
+              data: comprovante.data,
+            }).replace('adicionarFeed()', '')}</style></head><body>${gerarComprovanteDevolucaoAlvara({
+              tipo: 'DEVOLUÇÃO POR ALVARÁ',
+              usuarioId: comprovante.usuarioId,
+              usuarioNome: comprovante.usuarioNome,
+              cpf: comprovante.cpf,
+              saldoAnterior: comprovante.saldoAnterior,
+              valorDevolvido: comprovante.valorDevolvido,
+              novoSaldo: comprovante.novoSaldo,
+              motivo: comprovante.motivo,
+              operador: comprovante.operador,
+              data: comprovante.data,
+            })}/body></html>`;
+            printWindow.document.write(html);
+            printWindow.document.close();
+            printWindow.focus();
+            setTimeout(() => { try { printWindow.print(); } catch { /* janela fechou */ } }, 350);
+          }
+        }
+        setInmateParaAlvara(null);
+      }
+    } catch (e: any) {
+      notifCtx('Erro na devolução: ' + (e?.message || 'Erro desconhecido'), 'error');
+    }
+    finally {
+      setIsLoading(false);
+    }
+  };
+
   // Edição do pré-cadastro: antes só existia CADASTRAR/EXCLUIR — a função
   // updatePreRegisteredInmate já existia no contexto, mas não tinha UI.
   const [editando, setEditando] = React.useState<PreRegisteredInmate | null>(null);
-  const { showNotification: notifCtx, updatePreRegisteredInmate } = useApp();
 
   const iniciarEdicao = (inmate: PreRegisteredInmate) => {
     setEditando(inmate);
@@ -78,19 +190,6 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
   const totalInmates = consolidatedData.length;
   const withFamily = consolidatedData.filter(i => i.linkedUsers.length > 0).length;
 
-  // Bloqueia exclusão de interno COM família vinculada: o saldo fica nos docs
-  // dos usuários, mas cadastros futuros daquele CPF seriam barrados (Login exige
-  // pré-cadastro) e a supervisão consolidada perderia a referência.
-  const handleDeleteInmate = (inmate: any) => {
-    const vinculados = inmate?.linkedUsers?.length || 0;
-    if (vinculados > 0) {
-      notifCtx(`NÃO É POSSÍVEL REMOVER: ${vinculados} familiar(es) vinculado(s) a ${inmate?.name || 'este interno'}. Transfira os familiares para outro interno antes de remover.`, 'error');
-      return;
-    }
-    setInmateParaExcluir(inmate);
-  };
-
-  // Imprime a lista completa de internos com saldo acumulado e familiares.
   const printInmateList = () => {
     const items = [...consolidatedData].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     if (items.length === 0) return;
@@ -150,7 +249,7 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
     </div>
     <p class="rodape">Documento gerado pelo sistema Mercado Fácil</p>
 </body>
-</html>`;
+        </html>`;
     const printWindow = window.open('', '_blank');
     if (printWindow) {
       printWindow.document.write(html);
@@ -172,7 +271,14 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
         <div className="flex flex-wrap gap-3">
             <label className="text-[10px] font-black uppercase text-indigo-500 border-2 border-indigo-500/20 px-4 py-2 rounded-xl bg-indigo-500/5 shadow-sm cursor-pointer hover:bg-indigo-500/10 transition-all flex items-center gap-2">
                 <FileUp size={14}/> Importar CSV
-                <input type="file" accept=".csv,.txt" className="hidden" onChange={e => e.target.files?.[0] && importInmatesCsv?.(e.target.files[0])} />
+                <input type="file" accept=".csv,.txt" className="hidden" onChange={e => {
+                const file = e.target.files?.[0];
+                if (file && onRequestMasterPassword) {
+                  onRequestMasterPassword((senha) => importInmatesCsv?.(file, senha));
+                } else if (file) {
+                  importInmatesCsv?.(file);
+                }
+              }} />
             </label>
             <div className="text-[10px] font-black uppercase text-[var(--text-main)] border-2 border-[var(--border-color)] px-4 py-2 rounded-xl bg-[var(--bg-main)]">
                 Total: {totalInmates}

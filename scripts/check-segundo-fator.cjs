@@ -15,6 +15,12 @@ const RAIZ = process.cwd();
 const SERVER = join(RAIZ, 'functions', 'index.js');
 const IGNORAR = new Set(['node_modules', 'build', 'dist', 'functions', 'tests', 'scripts', '.git', 'public']);
 
+// Callables OBRIGATÓRIAS que NÃO são chamadas do front (ex.: usadas via Admin SDK/CLI).
+// Adicionar aqui evita falso positivo no check de 2º fator.
+const EXCECAO_FRONT = new Set([
+  'redefinirSenhaAdmin', // chamada via Admin SDK/CLI, não pelo front web
+]);
+
 function walk(dir, acc = []) {
   for (const e of readdirSync(dir)) {
     if (IGNORAR.has(e)) continue;
@@ -162,6 +168,7 @@ console.log('');
 
 const suspicious = [];
 for (const nome of obrigatorias) {
+  if (EXCECAO_FRONT.has(nome)) continue;
   const lista = sites.get(nome);
   if (!lista || !lista.length) {
     suspicious.push({ nome, motivo: 'NAO CHAMADO PELO FRONT', site: null });

@@ -56,6 +56,13 @@ const fnResetarSistemaTotal = httpsCallable(functions, 'resetarSistemaTotal');
 const fnZerarCarteiras = httpsCallable(functions, 'zerarCarteiras');
 const fnListarBackups = httpsCallable(functions, 'listarBackups');
 const fnBaixarBackup = httpsCallable(functions, 'baixarBackup');
+const fnSanitizeCatalog = httpsCallable(functions, 'sanitizeCatalog');
+const fnMergeDuplicateProducts = httpsCallable(functions, 'mergeDuplicateProducts');
+const fnImportInmatesCsv = httpsCallable(functions, 'importInmatesCsv');
+const fnResetStock = httpsCallable(functions, 'resetStock');
+const fnResetFinance = httpsCallable(functions, 'resetFinance');
+const fnImportXmlProduct = httpsCallable(functions, 'importXmlProduct');
+const fnDevolucaoAlvara = httpsCallable(functions, 'devolucaoAlvara');
 
 // NOTE: o módulo contábil (DRE/CSV/ABC/extrato) foi migrado para
 // utils/contabil.ts e o parser de NFe (nota fiscal XML) para utils/invoiceParser.ts.
@@ -101,12 +108,6 @@ interface StoreContextType {
     logs: AuditLog[];
     appConfig: AppConfig;
     settings: AppConfig;
-    isLoading: boolean;
-    // "A sessão ainda está sendo resolvida" — o App.tsx troca a tela inteira
-    // por um loader enquanto isso. NÃO pode ser o isLoading global: aquele flag
-    // também é ligado por operações sem relação com auth (importar backup,
-    // importar XML, mesclar duplicados), e fazia o painel inteiro desmontar e
-    // remontar —Abortando modais abertos — no meio de uma importação.
     authLoading: boolean;
     systemMessages: SystemMessage[];
     messages: Message[];
@@ -162,7 +163,7 @@ interface StoreContextType {
     toggleUserCredit: (userId: string, allow: boolean) => Promise<void>;
     deleteUser: (userId: string) => void;
     processInvoiceImport: (data: InvoiceData, profitMargin: number) => Promise<void>;
-    importXmlProduct: (file: File, margin: number) => Promise<void>;
+    importXmlProduct: (file: File, margin: number, senhaMestra?: string) => Promise<void>;
     previewXmlImport: (file: File) => Promise<{ name: string; cost: number; qty: number; ean: string; brand: string }[]>;
     sanitizeCatalog: () => Promise<number>;
     updateAppConfig: (config: AppConfig) => void;
@@ -172,6 +173,7 @@ interface StoreContextType {
     resetSystem: (confirm: boolean, senhaMestra?: string) => void;
     resetStock: () => Promise<void>;
     resetFinance: () => Promise<void>;
+    devolucaoAlvara: (userId: string, motivo?: string, senhaMestra?: string) => Promise<{ ok: boolean; novoSaldo: number; valorDevolvido: number; comprovante: any }>;
 
     createAdminUser: (userData: Partial<User>) => Promise<void>;
     updateAdminPermissions: (userId: string, permissions: string[]) => Promise<void>;
@@ -217,7 +219,7 @@ interface StoreContextType {
     creditoCliente: number;
     realizarSaque: (valor: number) => Promise<boolean>;
     verificarCredito: (valor: number) => boolean;
-    refundOrder: (orderId: string, reason?: string, opts?: { janelaDias?: number }) => Promise<void>;
+    refundOrder: (orderId: string, reason?: string, opts?: { janelaDias?: number; senhaMestra?: string }) => Promise<void>;
     estornarPedido: (orderId: string, motivo: string, opts?: { janelaDias?: number; senhaMestra?: string }) => Promise<void>;
     resetCredits: (senhaMestra?: string) => Promise<void>;
     mergeDuplicateProducts: () => Promise<void>;
@@ -300,7 +302,6 @@ const DEFAULT_CONFIG: AppConfig = {
 
 
 export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [isLoading, setIsLoading] = useState(true);
     const [authReady, setAuthReady] = useState(false);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [offlineUnlocked, setOfflineUnlocked] = useState(false);
@@ -1318,13 +1319,15 @@ return false;
         const alvo = String(status || '').toLowerCase();
         if (!STATUS_VALIDOS.includes(alvo)) { showNotification("Status inválido.", "error"); return; }
 
-        // Status terminais (cancelamento/devolução) → SEMPRE via server (refundOrder/estornarVenda)
-        // Garante restauração atômica: estoque + carteira + fiado + caixa + auditoria.
+        // Status terminais (cancelamento/devolução/estorno) NÃO devem usar este caminho.
+        // Eles exigem senha mestra e restauração atômica server-side (estoque + carteira + fiado + caixa + auditoria).
+        // O fluxo correto é: UI chama executarRefund/handleRejectOrder que abrem modal de senha mestra
+        // e depois invocam refundOrder/estornarPedido com a senha validada.
         if (STATUS_TERMINAIS_SERVER.includes(alvo)) {
-            const reason = alvo.startsWith('cancel') ? 'Cancelado pelo administrador' :
-                           alvo.startsWith('rejeit') ? 'Rejeitado pelo administrador' :
-                           'Devolução administrativa';
-            await refundOrder(oid, reason);
+            showNotification(
+              'Para cancelar, rejeitar ou estornar, use o botão "Estornar/Reprovar" do pedido (exige senha mestra).',
+              'error'
+            );
             return;
         }
 
@@ -1433,7 +1436,7 @@ return false;
     };
 
     const processInvoiceImport = async (data: InvoiceData, profitMargin: number) => {
-        setIsLoading(true);
+        
         try {
             const batch = writeBatch(db);
             let supplierId = '';
@@ -1650,15 +1653,21 @@ return false;
             console.error("Erro na importação:", e);
             showNotification('Erro ao processar XML: ' + e.message, 'error');
         } finally {
-            setIsLoading(false);
+            
         }
     };
 
-    const importXmlProduct = async (file: File, margin: number) => {
+    const importXmlProduct = async (file: File, margin: number, senhaMestra?: string) => {
         const text = await file.text();
-        const data = parseInvoiceXML(text);
-        if (data) await processInvoiceImport(data, margin);
-        else {
+        const xmlBase64 = btoa(text);
+        try {
+            const res = await fnImportXmlProduct({ xmlBase64, margin, senhaMestra });
+            const data = res.data as any;
+            const loaded = data?.loaded || 0;
+            const updated = data?.updated || 0;
+            const created = data?.created || 0;
+            showNotification(`${loaded} itens processados: ${created} novos, ${updated} atualizados.`, 'success');
+        } catch (e: any) {
             // Erro rico: revela POR QUE o XML não pôde ser interpretado.
             let detalhe = 'o arquivo não parece ser uma NF-e válida';
             try {
@@ -1700,47 +1709,27 @@ return false;
 
     // Varre o catálogo inteiro e zera preço/custo absurdos (> R$ 100.000/un),
     // recuperando produtos corrompidos por NFe defeituosa (ex: margarina a R$ 78 bilhões).
-    const sanitizeCatalog = async () => {
-        const PLACAO = 100000;
-        let corrigidos = 0;
-        let lastDoc: any = null;
-        for (;;) {
-            const q = lastDoc
-                ? query(collection(db, 'products'), orderBy('name', 'asc'), startAfter(lastDoc), limit(1000))
-                : query(collection(db, 'products'), orderBy('name', 'asc'), limit(1000));
-            const snap = await getDocs(q);
-            if (snap.empty) break;
-            const batch = writeBatch(db);
-            let batchCount = 0;
-            for (const d of snap.docs) {
-                const p = d.data() as any;
-                const preco = Number(p.price);
-                const custo = Number(p.costPrice);
-                const novoPreco = preco > PLACAO ? 0 : preco;
-                const novoCusto = custo > PLACAO ? 0 : custo;
-                if (novoPreco !== preco || novoCusto !== custo) {
-                    batch.set(doc(db, 'products', d.id), { price: novoPreco, costPrice: novoCusto }, { merge: true });
-                    batchCount++;
-                }
+    const sanitizeCatalog = async (senhaMestra?: string) => {
+        try {
+            const res = await fnSanitizeCatalog({ senhaMestra });
+            const data = res.data as any;
+            const corrigidos = data?.corrigidos || 0;
+            if (corrigidos > 0) {
+                const PLACAO = 100000;
+                setProducts(prev => prev.map(p => ({
+                    ...p,
+                    price: Number(p.price) > PLACAO ? 0 : Number(p.price),
+                    costPrice: Number(p.costPrice) > PLACAO ? 0 : Number(p.costPrice)
+                })));
+                showNotification(`Sanitização: ${corrigidos} produto(s) com preço/custo corrompido zerado(s).`, 'success');
+            } else {
+                showNotification('Catálogo íntegro — nenhum preço absurdo encontrado.', 'info');
             }
-            if (batchCount > 0) {
-                await batch.commit();
-                corrigidos += batchCount;
-            }
-            if (snap.size < 1000) break;
-            lastDoc = snap.docs[snap.docs.length - 1];
+            return corrigidos;
+        } catch (e: any) {
+            showNotification('Erro na sanitização: ' + e.message, 'error');
+            throw e;
         }
-        if (corrigidos > 0) {
-            setProducts(prev => prev.map(p => ({
-                ...p,
-                price: Number(p.price) > PLACAO ? 0 : Number(p.price),
-                costPrice: Number(p.costPrice) > PLACAO ? 0 : Number(p.costPrice)
-            })));
-            showNotification(`Sanitização: ${corrigidos} produto(s) com preço/custo corrompido zerado(s).`, 'success');
-        } else {
-            showNotification('Catálogo íntegro — nenhum preço absurdo encontrado.', 'info');
-        }
-        return corrigidos;
     };
     const updateSettings = async (c: AppConfig) => {
         try {
@@ -1779,7 +1768,7 @@ return false;
     };
 
     const activateSystem = async (token: string): Promise<{ success: boolean; message: string }> => {
-        setIsLoading(true);
+        
         try {
             const cleanToken = token.trim().toUpperCase();
             // Regex para validar formato XXXX-XXXX-XXXX-XXXX
@@ -1827,7 +1816,7 @@ return false;
             console.error('Erro na ativação:', e);
             return { success: false, message: 'Erro ao validar token: ' + e.message };
         } finally {
-            setIsLoading(false);
+            
         }
     };
 
@@ -1888,41 +1877,30 @@ return false;
     };
     const updateAppConfig = updateSettings;
     const downloadBackup = async () => {
-        // 1) Tenta baixar o BACKUP COMPLETO do servidor (diário/manual gerado
-        //    pela Cloud Function — o export local abaixo é só um recorte parcial).
+        // Só BACKUP DO SERVIDOR — o fallback local exportava dados INCOMPLETOS
+        // (sem wallet_transactions completos, sem audit_logs). Se o servidor falhar,
+        // mostramos erro e orientamos retry; NÃO damos backup "falso".
         try {
             const listaRes: any = await fnListarBackups({});
             const backups = (listaRes?.data?.backups || []) as { nome: string; tamanho: number }[];
-            if (backups.length > 0) {
-                const baixarRes: any = await fnBaixarBackup({ nome: backups[0].nome });
-                const url = baixarRes?.data?.url;
-                if (url) {
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = backups[0].nome.split('/').pop() || 'backup-mercado-facil.json';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    return;
-                }
+            if (backups.length === 0) {
+                showNotification('Nenhum backup disponível no servidor. Execute um backup manual antes.', 'warning');
+                return;
             }
+            const baixarRes: any = await fnBaixarBackup({ nome: backups[0].nome });
+            const url = baixarRes?.data?.url;
+            if (!url) throw new Error('URL de download não retornada pelo servidor.');
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = backups[0].nome.split('/').pop() || 'backup-mercado-facil.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            showNotification('Backup baixado com sucesso!', 'success');
         } catch (e: any) {
-            console.warn('[backup] Servidor indisponível, usando export local parcial:', e?.message);
+            console.error('[backup] Falha ao baixar backup do servidor:', e);
+            showNotification('Falha ao baixar backup do servidor. Verifique conexão e tente novamente.', 'error');
         }
-        // 2) Fallback: export local dos dados em memória (parcial)
-        const sanitizeUsers = (users || []).map((u: any) => {
-            const { password, secondaryPassword, adminPassword, ...limpo } = u || {};
-            return limpo;
-        });
-        const { adminPassword, secondaryPassword, ...configSeguro } = appConfig || {};
-        const data = { users: sanitizeUsers, products, orders, suppliers, expenses, logs, appConfig: configSeguro, timestamp: new Date().toISOString() };
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `backup-mercado-facil-parcial-${new Date().toISOString().slice(0, 10)}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
     };
     const backupSystem = downloadBackup;
     const registrarAuditClient = async (acaoTipo: string, payloadAntes: any = null, payloadDepois: any = null) => {
@@ -1941,7 +1919,7 @@ return false;
     };
     const resetSystem = async (confirm: boolean, senhaMestra?: string) => {
         if (!confirm || currentUser?.role !== UserRole.ADMIN) return;
-        setIsLoading(true);
+        
         try {
             // Reset agora roda NO SERVIDOR, só para admin principal, com
             // rate limit — não é mais possível apagar o banco do cliente.
@@ -1952,32 +1930,25 @@ return false;
         } catch (e: any) {
             showNotification("Erro ao resetar: " + e.message, "error");
         } finally {
-            setIsLoading(false);
+            
         }
     };
-    const resetStock = async () => {
+    const resetStock = async (senhaMestra?: string) => {
         if (!currentUser || currentUser.role !== UserRole.ADMIN) return;
-        setIsLoading(true);
+        
         try {
-            const snapshot = await getDocs(query(collection(db, 'products')));
-            const ativos = snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) })).filter(p => (p as any).deleted !== true);
-            const antes = ativos.map(p => ({ id: p.id, nome: p.name, estoque: p.stock }));
-            for (let i = 0; i < ativos.length; i += 500) {
-                const batch = writeBatch(db);
-                const chunk = ativos.slice(i, i + 500);
-                chunk.forEach(p => batch.update(doc(db, 'products', p.id), { stock: 0 }));
-                await batch.commit();
-            }
-            await registrarAuditClient('ZERAR_ESTOQUE', { produtos: antes }, { status: 'ok', produtosZerados: ativos.length });
-            showNotification('Estoque zerado', 'success');
+            const res = await fnResetStock({ senhaMestra });
+            const data = res.data as any;
+            const produtosZerados = data?.produtosZerados || 0;
+            showNotification(`Estoque zerado: ${produtosZerados} produto(s).`, 'success');
         } catch (e: any) {
-            showNotification("Erro ao zerar estoque", "error");
+            showNotification("Erro ao zerar estoque: " + e.message, "error");
         } finally {
-            setIsLoading(false);
+            
         }
     };
     const registerUser = async (d: Partial<User>, f: File | null) => {
-        setIsLoading(true);
+        
         try {
             const cleanInmateCpf = (d.prisonerCpf || d.inmateCpf || '').replace(/\D/g, '');
             const preRegistered = preRegisteredInmates.find(inmate => (inmate?.cpf || '').replace(/\D/g, '') === cleanInmateCpf);
@@ -2036,7 +2007,7 @@ return false;
         } catch (e: any) {
             throw new Error(e.message);
         } finally {
-            setIsLoading(false);
+            
         }
     };
 
@@ -2069,19 +2040,19 @@ return false;
         }
     };
     const validateRecovery = async (userCpf: string, prisonerCpf: string, nomeCompleto: string): Promise<User> => {
-        setIsLoading(true);
+        
         try {
             // Valida no servidor (CPF do usuário + CPF do interno + nome completo cadastrado)
             await fnRedefinirSenhaPublica({ cpf: userCpf, cpfInterno: prisonerCpf, nomeCompleto, novaSenha: '__VALIDACAO__' });
             return { id: 'validated', cpf: userCpf, name: 'Validado' } as User;
-        } finally { setIsLoading(false); }
+        } finally {  }
     };
 
     const resetUserPassword = async (cpf: string, pCpf: string, pass: string, nomeCompleto: string) => {
-        setIsLoading(true); try {
+         try {
             await fnRedefinirSenhaPublica({ cpf, cpfInterno: pCpf, nomeCompleto, novaSenha: pass });
             showNotification("Senha alterada com sucesso!", "success");
-        } catch (e: any) { throw new Error(e.message); } finally { setIsLoading(false); }
+        } catch (e: any) { throw new Error(e.message); } finally {  }
     };
 
     const sendSystemMessage = async (msg: Partial<SystemMessage>) => { try { await addDoc(collection(db, 'systemMessages'), { id: crypto.randomUUID(), createdAt: new Date().toISOString(), type: 'info', ...msg }); } catch (e: any) { console.warn("[sendSystemMessage]", e.message); } };
@@ -2118,40 +2089,30 @@ return false;
 
         return [];
     };
-    const resetFinance = async () => {
+    const resetFinance = async (senhaMestra?: string) => {
         if (!currentUser || currentUser.role !== UserRole.ADMIN) return;
         try {
-            // GUARDA DE CAIXA VIVO: zerar com sessão ABERTA apagaria o dinheiro
-            // do balcão em operação (e o saldo de outros operadores). Exige
-            // fechamento de todas as sessões antes da limpeza.
-            const abertasSnap = await getDocs(query(collection(db, 'cash_sessions'), where('status', '==', 'open'), limit(1)));
-            if (!abertasSnap.empty) {
-                showNotification("Não é possível zerar o financeiro com sessão de caixa ABERTA. Feche todos os caixas antes de limpar.", "error");
-                return;
-            }
-            // cash_sessions NAO entra: as regras bloqueiam delete no cliente
-            // (firestore.rules: allow delete: if false). Incluir aqui fazia o
-            // batch ser REJEITADO — as despesas e o caixa legado já tinham
-            // sido apagados nos lotes anteriores (o erro só aparecia no fim),
-            // sobrando um financeiro pela metade e sem trilha de auditoria.
-            // O caixa físico tem auto-fechamento no servidor; zerar o
-            // financeiro é zerar despesa, não o histórico de sessões.
-            const [expSnap, cashSnap] = await Promise.all([
-                getDocs(collection(db, 'expenses')),
-                getDocs(collection(db, 'cashier'))
-            ]);
-            const antes = { despesas: expSnap.size, sessoesCaixa: cashSnap.size };
-            const allRefs = [...expSnap.docs, ...cashSnap.docs].map(d => d.ref);
-            for (let i = 0; i < allRefs.length; i += 500) {
-                const batch = writeBatch(db);
-                const chunk = allRefs.slice(i, i + 500);
-                chunk.forEach(ref => batch.delete(ref));
-                await batch.commit();
-            }
-            await registrarAuditClient('ZERAR_FINANCEIRO', antes, { status: 'ok' });
-            showNotification("Financeiro zerado com sucesso.", "success");
+            const res = await fnResetFinance({ senhaMestra });
+            const data = res.data as any;
+            const despesasRemovidas = data?.despesasRemovidas || 0;
+            const sessoesRemovidas = data?.sessoesRemovidas || 0;
+            showNotification(`Financeiro zerado: ${despesasRemovidas} despesas e ${sessoesRemovidas} sessões de caixa removidas.`, 'success');
         } catch (e: any) {
             showNotification("Erro ao zerar financeiro: " + e.message, "error");
+        }
+    };
+
+    const devolucaoAlvara = async (userId: string, motivo?: string, senhaMestra?: string) => {
+        if (!currentUser || currentUser.role !== UserRole.ADMIN) return;
+        try {
+            const res = await fnDevolucaoAlvara({ userId, motivo: motivo || 'Devolução por alvará', senhaMestra });
+            const data = res.data as any;
+            const valorDevolvido = data?.valorDevolvido || 0;
+            showNotification(`Devolução de R$ ${formatarMoeda(valorDevolvido)} realizada com sucesso!`, 'success');
+            return data;
+        } catch (e: any) {
+            showNotification("Erro na devolução por alvará: " + e.message, "error");
+            throw e;
         }
     };
 
@@ -2170,7 +2131,7 @@ return false;
     };
 
     const archiveData = async (orderIds: string[], expenseIds: string[]) => {
-        setIsLoading(true);
+        
         try {
             const batch = writeBatch(db);
             orderIds.forEach(id => batch.update(doc(db, 'orders', id), { deleted: true }));
@@ -2180,7 +2141,7 @@ return false;
         } catch (e: any) {
             showNotification('Erro ao limpar dados: ' + e.message, 'error');
         } finally {
-            setIsLoading(false);
+            
         }
     };
 
@@ -2561,46 +2522,21 @@ return false;
         }
     };
 
-    const importInmatesCsv = async (file: File) => {
+    const importInmatesCsv = async (file: File, senhaMestra?: string) => {
         if (!currentUser || currentUser.role !== UserRole.ADMIN) return;
-        setIsLoading(true);
+        
         try {
             const text = await file.text();
-            const lines = text.split('\n');
-            const entries: { id: string; name: string; cpf: string }[] = [];
-            const seenCpfs = new Set<string>();
-            // Deduplica também contra o banco: reimportar a planilha (ou importar
-            // CPF já cadastrado à mão) NÃO cria o interno em duplicidade.
-            const existingCpfs = new Set((preRegisteredInmates || []).map(i => String(i.cpf || '').replace(/\D/g, '')));
-            let skippedExisting = 0;
-
-            for (let line of lines) {
-                const [name, cpf] = line.split(',').map(s => (s || '').trim());
-                if (name && cpf) {
-                    const cleanCpf = (cpf || '').replace(/\D/g, '');
-                    if (cleanCpf.length !== 11 || seenCpfs.has(cleanCpf)) continue;
-                    if (existingCpfs.has(cleanCpf)) { skippedExisting++; continue; }
-                    seenCpfs.add(cleanCpf);
-                    entries.push({ id: crypto.randomUUID(), name: name.toUpperCase(), cpf: cleanCpf });
-                }
-            }
-
-            if (entries.length === 0) {
-                showNotification("Nenhum dado válido encontrado no CSV. Use o formato: NOME,CPF", "warning");
-                return;
-            }
-
-            for (let i = 0; i < entries.length; i += 500) {
-                const batch = writeBatch(db);
-                const chunk = entries.slice(i, i + 500);
-                chunk.forEach(e => batch.set(doc(db, 'pre_registered_inmates', e.id), e));
-                await batch.commit();
-            }
-            showNotification(`${entries.length} internos importados com sucesso!${skippedExisting > 0 ? ` (${skippedExisting} já existentes foram ignorados)` : ''}`, 'success');
+            const csvBase64 = btoa(text);
+            const res = await fnImportInmatesCsv({ csvBase64, senhaMestra });
+            const data = res.data as any;
+            const importados = data?.importados || 0;
+            const ignorados = data?.ignorados || 0;
+            showNotification(`${importados} internos importados com sucesso!${ignorados > 0 ? ` (${ignorados} já existentes foram ignorados)` : ''}`, 'success');
         } catch (e: any) {
             showNotification("Erro na importação: " + e.message, "error");
         } finally {
-            setIsLoading(false);
+            
         }
     };
 
@@ -2659,7 +2595,7 @@ return false;
                             setCreditoCliente(0);
                             setCurrentUser(montarAdminOffline(sessao.name));
                             setAuthReady(true);
-                            setIsLoading(false);
+                            
                             return;
                         }
                     }
@@ -2675,7 +2611,7 @@ return false;
                     setPreRegisteredInmates([]);
                     setAppConfig(DEFAULT_CONFIG);
                     setAuthReady(true);
-                    setIsLoading(false);
+                    
                 }
                 return;
             }
@@ -2833,7 +2769,7 @@ return false;
                     try { await signOut(auth).catch(() => {}); } catch { /* noop */ }
                 }
             } finally {
-                if (ativo) { setAuthReady(true); setIsLoading(false); }
+                if (ativo) { setAuthReady(true);  }
             }
         });
         return () => { ativo = false; unsub(); };
@@ -3139,7 +3075,6 @@ useEffect(() => {
         let unsubProducts: Unsubscribe | null = null;
         let unsubConfig: Unsubscribe | null = null;
         let unsubSystemMsg: Unsubscribe | null = null;
-        let safetyTimeout: any = null;
 
         const semSenhasConfig = (cfg: any) => {
             const { adminPassword, secondaryPassword, ...seguro } = cfg || {};
@@ -3173,14 +3108,11 @@ useEffect(() => {
                 const data = semSenhasConfig(docSnap.data());
                 setAppConfig({ ...DEFAULT_CONFIG, ...data });
             }
-            setIsLoading(false);
-        }, (err) => { onErr('config')(err); setIsLoading(false); });
+            
+        }, (err) => { onErr('config')(err);  });
 
         // Initialize config doc if needed (separate from listener to avoid write loop)
         initConfig();
-
-        // Safety timeout
-        safetyTimeout = setTimeout(() => setIsLoading(false), 8000);
 
         unsubProducts = onSnapshot(query(collection(db, 'products'), orderBy('name', 'asc'), limit(productsLimit)), (snapshot) => {
             const items = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Product));
@@ -3191,7 +3123,6 @@ useEffect(() => {
         unsubSystemMsg = onSnapshot(query(collection(db, 'systemMessages'), orderBy('createdAt', 'desc'), limit(20)), (s) => setSystemMessages(s.docs.map(d => ({ ...d.data(), id: d.id } as SystemMessage))), onErr('systemMessages'));
 
         return () => {
-            clearTimeout(safetyTimeout);
             if (unsubProducts) unsubProducts();
             if (unsubConfig) unsubConfig();
             if (unsubSystemMsg) unsubSystemMsg();
@@ -3330,7 +3261,7 @@ useEffect(() => {
 
     return (
         <StoreContext.Provider value={{
-            currentUser, users, products, productsCache, orders, units: INITIAL_UNITS, cart, appConfig, suppliers, expenses, logs, isLoading, authLoading: !authReady, systemMessages, messages, notifications, settings: appConfig, storageUsage,
+            currentUser, users, products, productsCache, orders, units: INITIAL_UNITS, cart, appConfig, suppliers, expenses, logs, authLoading: !authReady, systemMessages, messages, notifications, settings: appConfig, storageUsage,
             creditoCliente, realizarSaque, verificarCredito, finalizarVendaComCredito,
             login, loginAdmin, loginFamiliar, logout, registerUser, recoverPassword, validateRecovery, createAdminUser, updateAdminPermissions, resetUserPassword,
             addToCart, removeFromCart, clearCart, createOrder, searchOrders,
@@ -3345,66 +3276,23 @@ useEffect(() => {
             approveUser, updateUserStatus, toggleUserCredit, deleteUser, suspendUser,
             addSupplier, removeSupplier, addExpense, addWithdrawal, toggleFinanceEntries,
             processInvoiceImport, importXmlProduct, previewXmlImport, sanitizeCatalog, updateAppConfig, updateSettings: updateAppConfig,
-            downloadBackup, backupSystem: downloadBackup, resetSystem, resetStock, resetFinance, resetCredits, checkPermission, sendSystemMessage, sendMessage, markMessageRead, showNotification, removeNotification,
+            downloadBackup, backupSystem: downloadBackup, resetSystem, resetStock, resetFinance, resetCredits, devolucaoAlvara, checkPermission, sendSystemMessage, sendMessage, markMessageRead, showNotification, removeNotification,
             depositToWallet, approveWalletTransaction, rejectWalletTransaction, getWalletTransactions, withdrawWalletCredit, attachAdminProof, reenviarComprovante,
             validateMasterPassword, validateDualMasterPassword, validateAnyMasterPassword, defineMasterPassword, masterPasswordStatus, addPreRegisteredInmate, updatePreRegisteredInmate, deletePreRegisteredInmate, preRegisteredInmates, refundOrder, estornarPedido, buscarPedidosParaEstorno, importInmatesCsv, updateAdminPassword,
             isInstallable: !!deferredPrompt, installApp,
             isLoggingOut,
             tryOfflineUnlock, isOfflineUnlocked: offlineUnlocked, logoutOffline,
-            mergeDuplicateProducts: async () => {
-                setIsLoading(true);
+            mergeDuplicateProducts: async (senhaMestra?: string) => {
+                
                 try {
-                    // Busca paginada (mesmo padrão da sanitização do catálogo):
-                    // nunca lê a coleção inteira de uma vez, mesmo com milhares de itens.
-                    const todosBrutos: Product[] = [];
-                    let ultimo: any = null;
-                    for (;;) {
-                        const q = ultimo
-                            ? query(collection(db, 'products'), orderBy('name', 'asc'), startAfter(ultimo), limit(1000))
-                            : query(collection(db, 'products'), orderBy('name', 'asc'), limit(1000));
-                        const snap = await getDocs(q);
-                        if (snap.empty) break;
-                        snap.docs.forEach(d => todosBrutos.push({ ...d.data(), id: d.id } as Product));
-                        if (snap.size < 1000) break;
-                        ultimo = snap.docs[snap.docs.length - 1];
-                    }
-                    const todos = todosBrutos.filter(p => (p as any).deleted !== true);
-                    const groups: Record<string, Product[]> = {};
-                    todos.forEach(p => {
-                        let key = p.ean ? String(p.ean).replace(/^0+/, '').trim() : '';
-                        if (!key) key = normalizeName(p?.name || '');
-                        if (!groups[key]) groups[key] = [];
-                        groups[key].push(p);
-                    });
-
-                    let mergedCount = 0;
-                    for (const key in groups) {
-                        const group = groups[key];
-                        if (group.length <= 1) continue;
-
-                        // Sort to keep the highest price / most complete product as master
-                        group.sort((a, b) => b.price - a.price);
-                        const master = group[0];
-                        let extraStock = 0;
-
-                        const batch = writeBatch(db);
-                        for (let i = 1; i < group.length; i++) {
-                            const duplicate = group[i];
-                            extraStock += (duplicate.stock || 0);
-                            batch.update(doc(db, 'products', duplicate.id), { deleted: true, mergedInto: master.id });
-                            mergedCount++;
-                        }
-
-                        if (extraStock > 0) {
-                            batch.update(doc(db, 'products', master.id), {
-                                stock: (master.stock || 0) + extraStock
-                            });
-                        }
-                        await batch.commit();
-                    }
-                    showNotification(`Limpeza concluída! ${mergedCount} produtos duplicados foram fundidos.`, 'success');
+                    const res = await fnMergeDuplicateProducts({ senhaMestra });
+                    const data = res.data as any;
+                    const fundidos = data?.fundidos || 0;
+                    showNotification(`Limpeza concluída! ${fundidos} produtos duplicados foram fundidos.`, 'success');
+                } catch (e: any) {
+                    showNotification('Erro ao fundir duplicados: ' + e.message, 'error');
                 } finally {
-                    setIsLoading(false);
+                    
                 }
             },
             adminDirectSale: async (targetUserId, items, paymentMethod, total, payments: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30'; amount: number }[] | undefined, change, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string, fiado30UserId?: string, senhaPrimaria?: string, senhaSecundaria?: string, sessaoCaixaId?: string, descontoPct?: number) => {

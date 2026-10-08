@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db } from '../../firebase';
 import { SENTRY_ATIVO } from '../../utils/sentry';
@@ -158,11 +158,12 @@ export const MaintenanceCenter: React.FC<Props> = ({
   const marcarFeito = async (id: string) => {
     const por = currentUser?.name || currentUser?.email || 'admin';
     try {
-      await setDoc(
-        doc(db, 'settings', 'checklist'),
-        { ['realizacoes.' + id]: { realizadaEm: new Date().toISOString(), por } },
-        { merge: true },
-      );
+      // Usa updateDoc com FieldValue para evitar race condition entre admins
+      // setDoc com merge: true sobrescreve o mapa 'realizacoes' inteiro —
+      // dois admins marcando itens diferentes ao mesmo tempo perdem uma marcação.
+      await updateDoc(doc(db, 'settings', 'checklist'), {
+        [`realizacoes.${id}`]: { realizadaEm: new Date().toISOString(), por }
+      });
     } catch (e: any) {
       console.error('[MaintenanceCenter] falha ao marcar item do checklist:', e);
     }

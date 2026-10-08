@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { db } from '../../firebase';
 import { collection, query, where, getDocs, orderBy, limit, Timestamp } from 'firebase/firestore';
 import { Order } from '../../types';
@@ -31,22 +31,24 @@ interface DailySales {
 // TTL de 5 min evita leituras repetidas de centenas de docs e deixa a troca
 // de aba instantânea; o botão "Atualizar" força re-busca sob demanda.
 const BI_CACHE_TTL_MS = 5 * 60 * 1000;
-let biCache: { data: { allOrders: Order[]; discrepanciesTotal: number }; fetchedAt: number } | null = null;
 
 export const AdminDashboardCharts: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [allOrders, setAllOrders] = useState<Order[]>([]);
   const [discrepanciesTotal, setDiscrepanciesTotal] = useState(0);
   const [forceRefresh, setForceRefresh] = useState(0);
-  const [lastUpdate, setLastUpdate] = useState<number>(biCache?.fetchedAt || 0);
+  const [lastUpdate, setLastUpdate] = useState<number>(0);
   const RC = useRecharts();
+
+  // Cache interno ao componente (substitui variável global biCache)
+  const cacheRef = useRef<{ data: { allOrders: Order[]; discrepanciesTotal: number }; fetchedAt: number } | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
-      if (biCache && Date.now() - biCache.fetchedAt < BI_CACHE_TTL_MS) {
-        setAllOrders(biCache.data.allOrders);
-        setDiscrepanciesTotal(biCache.data.discrepanciesTotal);
-        setLastUpdate(biCache.fetchedAt);
+      if (cacheRef.current && Date.now() - cacheRef.current.fetchedAt < BI_CACHE_TTL_MS) {
+        setAllOrders(cacheRef.current.data.allOrders);
+        setDiscrepanciesTotal(cacheRef.current.data.discrepanciesTotal);
+        setLastUpdate(cacheRef.current.fetchedAt);
         setLoading(false);
         return;
       }
@@ -90,7 +92,7 @@ export const AdminDashboardCharts: React.FC = () => {
           if (diff < 0) discTotal += Math.abs(diff);
         });
 
-        biCache = { data: { allOrders: combined, discrepanciesTotal: discTotal }, fetchedAt: Date.now() };
+        cacheRef.current = { data: { allOrders: combined, discrepanciesTotal: discTotal }, fetchedAt: Date.now() };
         setAllOrders(combined);
         setDiscrepanciesTotal(discTotal);
         setLastUpdate(Date.now());
