@@ -19,7 +19,6 @@ import {
   isMaster as isMasterAdmin 
 } from '../components/admin/adminUtils';
 import { Menu, X, Banknote, Trash2, BarChart3, FileText, AlertTriangle } from 'lucide-react';
-import { useAdminNav, useShortcuts, useWalletTransactions, useAdminStats, useChartData, usePendingCounts, useCsvExport } from '../hooks/admin';
 
 // Import all modular subcomponents
 import { AdminSidebar } from '../components/admin/AdminSidebar';
@@ -291,6 +290,7 @@ const isMaster = isMasterAdmin(currentUser);
     const tabPermissions: Record<string, string> = {
       'orders': 'orders',
       'products': 'products',
+      'sales': 'sales',
       'cash': 'cash',
       'inmates': 'inmates',
       'users': 'users',
@@ -491,7 +491,11 @@ const isMaster = isMasterAdmin(currentUser);
     }
     handleProtectedAction(async (senhaMestra: string) => {
       try {
-        await importXmlProduct(xmlFile, parseFloat(margin) / 100, senhaMestra);
+        // Margem em PERCENTUAL (30 = +30%): quem soma é o servidor
+        // (1 + margem/100). Dividir aqui por 100 dobrava a divisão e o preço
+        // saía ~igual ao custo. Não-numérico vira 0.
+        const margemPct = parseFloat(margin);
+        await importXmlProduct(xmlFile, Number.isFinite(margemPct) ? margemPct : 0, senhaMestra);
         setXmlFile(null);
         showNotification('XML importado com sucesso!', 'success');
       } catch (error: any) {
@@ -510,14 +514,14 @@ const isMaster = isMasterAdmin(currentUser);
       const inputPass = (authPass || '').trim();
       const status = await masterPasswordStatus();
       if (!status.definida) {
-        // Primeiro acesso: senha mestra ainda não definida — libera para configurá-la
+        // Senha mestra ainda não configurada: BLOQUEIA a ação pendente. Antes
+        // o callback rodava sem senha e TODAS as callables de 2º fator
+        // (importXmlProduct, zerarCarteiras...) recusavam depois do clique.
+        // A configuração da senha acontece em Configurações — não aqui.
         setShowAuthModal(false);
         setAuthPass('');
-        if (pendingConfigAction) {
-          pendingConfigAction();
-          setPendingConfigAction(null);
-        }
-        showNotification('Senha mestra ainda não configurada. Defina uma ao entrar.', 'info');
+        setPendingConfigAction(null);
+        showNotification('Senha mestra ainda não configurada. Defina-a em Configurações antes de executar esta ação.', 'error');
         return;
       }
       if (!inputPass) {

@@ -21,6 +21,9 @@ import {
   motivoTokenDownloadInvalido,
   TOKEN_DOWNLOAD_TTL_MINUTOS,
   TOKEN_DOWNLOAD_MAX_USOS,
+  parseInvoiceXML,
+  normalizeName,
+  stringSimilarity,
 } from "./logic.js";
 
 describe("arredondar (centavos)", () => {
@@ -519,5 +522,97 @@ describe("motivoTokenDownloadInvalido", () => {
   it("expirado tem precedencia sobre consumido", () => {
     const depoisDoTtl = T0 + TOKEN_DOWNLOAD_TTL_MINUTOS * 60 * 1000 + 1;
     expect(motivoTokenDownloadInvalido(valido({ usos: 999 }), depoisDoTtl)).toBe("expirado");
+  });
+});
+
+// ───────────────────────────────────────────────────────────────────────────
+// PARSER DE NFe (parseInvoiceXML) — port de utils/invoiceParser.ts.
+// A prévia do painel usa o parser do navegador; este é o da importação.
+// Precisam enxergar os MESMOS campos para o que o operador confere ser o que
+// persiste.
+// ───────────────────────────────────────────────────────────────────────────
+const NFE_SEM_PREFIXO = `<?xml version="1.0" encoding="UTF-8"?>
+<nfeProc versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">
+  <NFe><infNFe>
+    <emit><xNome>DISTRIBUIDORA CENTRAL LTDA</xNome><CNPJ>12345678000195</CNPJ></emit>
+    <det nItem="1"><prod>
+      <cProd>FJ-1</cProd><cEAN>7891000100103</cEAN><xProd>ARROZ BRANCO TP1 5KG</xProd>
+      <NCM>06031900</NCM><uCom>KG</uCom><qCom>2.0000</qCom><vUnCom>4.99</vUnCom><vProd>9.98</vProd>
+    </prod></det>
+  </infNFe></NFe>
+</nfeProc>`;
+
+const NFE_PREFIXADA = `<nfe:NFe xmlns:nfe="http://www.portalfiscal.inf.br/nfe">
+  <nfe:emit><nfe:xNome>FORNECEDOR X</nfe:xNome><nfe:CNPJ>99999999000191</nfe:CNPJ></nfe:emit>
+  <nfe:det nItem="1"><nfe:prod>
+    <nfe:cProd>P1</nfe:cProd><nfe:cEAN>SEM GTIN</nfe:cEAN><nfe:xProd>CAFE PILAO 500G</nfe:xProd>
+    <nfe:NCM>09012100</nfe:NCM><nfe:uCom>UN</nfe:uCom><nfe:qCom>1.0000</nfe:qCom><nfe:vUnCom>22.90</nfe:vUnCom>
+  </nfe:prod></nfe:det>
+</nfe:NFe>`;
+
+describe("parseInvoiceXML (NFe)", () => {
+  it("lê emitente e item com ponto decimal (layout oficial da NFe)", () => {
+    const data = parseInvoiceXML(NFE_SEM_PREFIXO);
+    expect(data).not.toBeNull();
+    expect(data.supplier).toEqual({ name: "DISTRIBUIDORA CENTRAL LTDA", cnpj: "12345678000195" });
+    expect(data.items).toHaveLength(1);
+    const [item] = data.items;
+    expect(item.name).toBe("ARROZ BRANCO TP1 5KG");
+    expect(item.costPrice).toBe(4.99); // "4.99" = R$ 4,99 — NÃO 499
+    expect(item.quantity).toBe(2);
+    expect(item.ean).toBe("7891000100103");
+    expect(item.description).toContain("NCM: 06031900");
+    expect(item.description).toContain("Und: KG");
+  });
+
+  it("casa por nome local: XML com prefixo nfe: também é lido", () => {
+    const data = parseInvoiceXML(NFE_PREFIXADA);
+    expect(data).not.toBeNull();
+    expect(data.supplier.name).toBe("FORNECEDOR X");
+    expect(data.items[0].name).toBe("CAFE PILAO 500G");
+    expect(data.items[0].costPrice).toBe(22.9);
+    expect(data.items[0].ean).toBe("P1"); // SEM GTIN inválido => código do fornecedor
+  });
+
+  it("vírgula decimal, qCom zerado e custo corrompido caem nos fallbacks", () => {
+    const xml = NFE_SEM_PREFIXO
+      .replace("4.99", "8,50")        // decimal BR
+      .replace("2.0000", "0")         // qCom inválido => 1
+      .replace("9.98", "10.50");
+    const data = parseInvoiceXML(xml);
+    expect(data.items[0].costPrice).toBe(8.5);
+    expect(data.items[0].quantity).toBe(1);
+  });
+
+  it("custo absurdo (> R$ 100k) usa vProd/qCom e, se ainda absurdo, zera", () => {
+    const xmlCorrompido = NFE_SEM_PREFIXO.replace("4.99", "78434600000");
+    // vProd 9.98 / qCom 2 => 4.99 (recuperado)
+    expect(parseInvoiceXML(xmlCorrompido).items[0].costPrice).toBe(4.99);
+
+    const tudoCorrompido = xmlCorrompido.replace("9.98", "78434600000");
+    expect(parseInvoiceXML(tudoCorrompido).items[0].costPrice).toBe(0);
+  });
+
+  it("rejeita XML quebrado, texto comum, HTML e XML sem itens", () => {
+    expect(parseInvoiceXML("<NFe><det></NFe>")).toBeNull();
+    expect(parseInvoiceXML("isto nao e uma nota")).toBeNull();
+    expect(parseInvoiceXML("<html><body>oi</body></html>")).toBeNull();
+    expect(parseInvoiceXML("")).toBeNull();
+  });
+});
+
+describe("normalizeName / stringSimilarity (dedup de importação e merge)", () => {
+  it("normaliza igual ao front (utils.ts)", () => {
+    expect(normalizeName("Açúcar Refinado")).toBe("ACUCARREFINADO");
+    expect(normalizeName("Chocolate Lacta")).toBe("CHOCOLATELACTA");
+    expect(normalizeName("  ARROZ  BRANCO 5KG ")).toBe("ARROZBRANCO5KG");
+    expect(normalizeName("")).toBe("");
+  });
+
+  it("similaridade de Levenshtein normalizada", () => {
+    expect(stringSimilarity("arroz", "arroz")).toBe(1);
+    expect(stringSimilarity("", "")).toBe(1);
+    expect(stringSimilarity("abc", "abd")).toBeCloseTo(2 / 3);
+    expect(stringSimilarity("coca", "cocacola")).toBeCloseTo(0.5);
   });
 });

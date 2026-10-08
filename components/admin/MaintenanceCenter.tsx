@@ -157,14 +157,29 @@ export const MaintenanceCenter: React.FC<Props> = ({
 
   const marcarFeito = async (id: string) => {
     const por = currentUser?.name || currentUser?.email || 'admin';
+    const marcacao = { realizadaEm: new Date().toISOString(), por };
     try {
       // Usa updateDoc com FieldValue para evitar race condition entre admins
       // setDoc com merge: true sobrescreve o mapa 'realizacoes' inteiro —
       // dois admins marcando itens diferentes ao mesmo tempo perdem uma marcação.
       await updateDoc(doc(db, 'settings', 'checklist'), {
-        [`realizacoes.${id}`]: { realizadaEm: new Date().toISOString(), por }
+        [`realizacoes.${id}`]: marcacao
       });
     } catch (e: any) {
+      // O doc settings/checklist só nasce na PRIMEIRA marcação: updateDoc em
+      // doc inexistente falha e a marcação se perdia em silêncio. Cria o doc
+      // com caminho aninhado (realizacoes.<id>) + merge — preserva marcações
+      // concorrentes, ao contrário de gravar o mapa inteiro.
+      const naoExiste = e?.code === 'not-found' || /not.?found|does not exist/i.test(String(e?.message || ''));
+      if (naoExiste) {
+        try {
+          await setDoc(doc(db, 'settings', 'checklist'), { [`realizacoes.${id}`]: marcacao }, { merge: true });
+          return;
+        } catch (e2: any) {
+          console.error('[MaintenanceCenter] falha ao criar settings/checklist:', e2);
+          return;
+        }
+      }
       console.error('[MaintenanceCenter] falha ao marcar item do checklist:', e);
     }
   };

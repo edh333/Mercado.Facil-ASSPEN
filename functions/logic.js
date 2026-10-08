@@ -6,6 +6,9 @@
 // ──────────────────────────────────────────────
 "use strict";
 
+// DOM parser para a NFe (Node não tem DOMParser nativo).
+const { DOMParser } = require("@xmldom/xmldom");
+
 /** Arredonda para 2 casas decimais (moeda). Nunca lança. */
 function arredondar(v) {
   return Math.round((Number(v) || 0) * 100) / 100;
@@ -652,10 +655,311 @@ function detectarAnomalias(entrada) {
   });
 }
 
+// ───────────────────────────────────────────────────────────────────────────
+// NOMES DE PRODUTO — normalização p/ deduplicação (port de utils.ts)
+// ───────────────────────────────────────────────────────────────────────────
+
+function toTitleCase(str) {
+  return str.replace(/\w\S*/g, (txt) => {
+    if (["PET", "UVA", "COCA", "OVO", "USA", "IP", "LED", "PVC", "SAB", "DET", "YPE", "OMO", "QBOA", "SP"].includes(txt.toUpperCase())) return txt.toUpperCase();
+    if (["KG", "ML", "L", "G", "M", "UN", "CM", "MM"].includes(txt.toUpperCase())) return txt.toLowerCase();
+    if (["DE", "DA", "DO", "EM", "COM", "E", "POR", "PARA", "SEM"].includes(txt.toUpperCase())) return txt.toLowerCase();
+    return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+  });
+}
+
+function cleanProductName(name) {
+  if (!name) return "";
+
+  let cleaned = name.toUpperCase();
+  cleaned = cleaned.replace(/^[\d\s.-]+/, "");
+  cleaned = cleaned.replace(/\(.*?\)/g, " ");
+  cleaned = cleaned.replace(/[*'"_]/g, " ");
+
+  const abbrevs = {
+    BISC: "BISCOITO", "BISC.": "BISCOITO",
+    REFRIG: "REFRIGERANTE", REF: "REFRIGERANTE", "REF.": "REFRIGERANTE",
+    SAB: "SABONETE", "SAB.": "SABONETE",
+    DET: "DETERGENTE", "DET.": "DETERGENTE",
+    AMAC: "AMACIANTE", "AMAC.": "AMACIANTE",
+    CR: "CREME", "CR.": "CREME",
+    PAST: "PASTA", ESC: "ESCOVA", "ESC.": "ESCOVA",
+    PAP: "PAPEL", HIG: "HIGIENICO", "HIG.": "HIGIENICO",
+    CHOC: "CHOCOLATE", "CHOC.": "CHOCOLATE", BOMB: "BOMBOM",
+    BAT: "BATATA", PAL: "PALHA", ACO: "ACO",
+    INST: "INSTANTANEO", "INST.": "INSTANTANEO",
+    LIMP: "LIMPEZA", MULTI: "MULTIUSO",
+    DESINF: "DESINFETANTE", "DESINF.": "DESINFETANTE",
+    ABS: "ABSORVENTE", "ABS.": "ABSORVENTE",
+    COND: "CONDICIONADOR", "COND.": "CONDICIONADOR",
+    SHAMP: "SHAMPOO", SHAM: "SHAMPOO",
+  };
+
+  cleaned = cleaned.split(/\s+/).map((word) => abbrevs[word] || word).join(" ");
+
+  const trashWords = [
+    "CAIXA", "CX", "CX.", "FARDO", "FDO", "FD", "FD.",
+    "PACOTE", "PCT", "PCTE", "PCT.", "DISPLAY", "DSP",
+    "DUZIA", "CARTELA", "CART",
+    "PROMOCAO", "OFERTA", "GRATIS", "L.V.", "PAGUE", "LEVE",
+    "SABORES", "SABOR", "SAB", "DE", "DA", "DO", "DOS", "DAS", "COM", "E", "EM", "PARA",
+  ];
+
+  trashWords.forEach((word) => {
+    const regexEnd = new RegExp(`\\s+${word.replace(".", "\\.")}$`, "gi");
+    const regexMid = new RegExp(`\\s+${word.replace(".", "\\.")}\\s+`, "gi");
+    cleaned = cleaned.replace(regexEnd, "");
+    cleaned = cleaned.replace(regexMid, " ");
+  });
+
+  cleaned = cleaned.replace(/\s+\d+\.\d{2}$/, "");
+  cleaned = cleaned.replace(/\s{2,}/g, " ").replace(/^[\.\-\s]+|[\.\-\s]+$/g, "").trim();
+
+  return toTitleCase(cleaned);
+}
+
+/** Chave de comparação de nomes: sem acento, sem espaço, sem pontuação. */
+function normalizeName(name) {
+  return cleanProductName(name).toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Z0-9]/g, "");
+}
+
+/** Similaridade de Levenshtein normalizada (0..1). "" vs "" = 1. */
+function stringSimilarity(a, b) {
+  const longer = a.length >= b.length ? a : b;
+  const shorter = a.length < b.length ? a : b;
+  if (longer.length === 0) return 1.0;
+  const costs = [];
+  for (let i = 0; i <= shorter.length; i++) costs[i] = i;
+  for (let i = 1; i <= longer.length; i++) {
+    let prev = i;
+    for (let j = 1; j <= shorter.length; j++) {
+      const val = longer[i - 1] === shorter[j - 1] ? costs[j - 1] : Math.min(
+        costs[j - 1] + 1,
+        prev + 1,
+        costs[j] + 1
+      );
+      costs[j - 1] = prev;
+      prev = val;
+    }
+    costs[shorter.length] = prev;
+  }
+  return (longer.length - costs[shorter.length]) / longer.length;
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// PARSER DE NOTA FISCAL ELETRÔNICA (NFe XML)
+// Port de utils/invoiceParser.ts para o servidor — mesma semântica da prévia
+// do painel (fallbacks qCom/vUnCom, GTIN, saneamento de custo/qtd) para o
+// operador importar exatamente o que conferiu. DOM via @xmldom/xmldom (Node
+// não tem DOMParser nativo). A busca casa por nome LOCAL (localName),
+// ignorando prefixo nfe:/NFe: — o getElementsByTagName comum NÃO faz isso em
+// XML prefixado (o comentário do port do front dizia o contrário).
+// ───────────────────────────────────────────────────────────────────────────
+
+/** Elementos descendentes cujo nome LOCAL casa com `nome` (ignora prefixo). */
+function tagsLocais(raiz, nome) {
+  const todos = raiz.getElementsByTagName("*");
+  const achados = [];
+  for (let i = 0; i < todos.length; i++) {
+    const el = todos[i];
+    const local = String(el.localName || el.tagName || "").split(":").pop();
+    if (local === nome) achados.push(el);
+  }
+  return achados;
+}
+
+function tagPorNome(raiz, nome) {
+  const encontrados = tagsLocais(raiz, nome);
+  return encontrados.length > 0 ? encontrados[0] : null;
+}
+
+function textoTag(el, nome) {
+  const tag = tagPorNome(el, nome);
+  return ((tag && tag.textContent) || "").replace(/\u00A0/g, " ").trim();
+}
+
+function numeroNfe(el, nome) {
+  // Layout oficial da NFe usa SEMPRE ponto como separador decimal
+  // ("<vUnCom>4.99</vUnCom>" = R$ 4,99). Só ponto → decimal direto; só
+  // vírgula → BR; os dois → o ÚLTIMO separador é o decimal.
+  let s = textoTag(el, nome).replace(/\s/g, "");
+  if (!s) return NaN;
+  const temVirgula = s.includes(",");
+  const temPonto = s.includes(".");
+  if (temVirgula && temPonto) {
+    s = s.lastIndexOf(",") > s.lastIndexOf(".")
+      ? s.replace(/\./g, "").replace(/,/g, ".")
+      : s.replace(/,/g, "");
+  } else if (temVirgula) {
+    s = s.replace(/\./g, "").replace(/,/g, ".");
+  }
+  const n = parseFloat(s);
+  return isNaN(n) ? NaN : n;
+}
+
+function ehGtin(v) {
+  return /^\d{8,14}$/.test(v);
+}
+
+function parseInvoiceXML(xml) {
+  try {
+    let problemas = "";
+    let doc;
+    try {
+      doc = new DOMParser({
+        onError: (nivel, mensagem) => {
+          if (nivel !== "warning" && !problemas) problemas = String(mensagem || "");
+        },
+      }).parseFromString(xml, "text/xml");
+    } catch (e) {
+      // ParseError do xmldom (tag desalinhada, raiz ausente...) ≈ parsererror.
+      console.error("[parseInvoiceXML] XML inválido:", e && e.message ? e.message : e);
+      return null;
+    }
+    if (problemas || !doc || !doc.documentElement) {
+      console.error("[parseInvoiceXML] XML inválido:", problemas || "sem elemento raiz");
+      return null;
+    }
+
+    const result = { items: [] };
+
+    // Fornecedor (emitente) — caminhos NFe e NFeProc (autorização)
+    const emit = tagPorNome(doc, "emit");
+    if (emit) {
+      const nome = textoTag(emit, "xNome");
+      const cnpj = textoTag(emit, "CNPJ") || textoTag(emit, "CPF");
+      result.supplier = { name: nome, cnpj };
+    }
+
+    // Itens (produtos) — namespace-safe por nome local
+    const dets = tagsLocais(doc, "det");
+    for (let i = 0; i < dets.length; i++) {
+      const prodElement = tagPorNome(dets[i], "prod");
+      if (!prodElement) continue;
+
+      const name = textoTag(prodElement, "xProd");
+      if (!name) continue;
+
+      const ean = textoTag(prodElement, "cEAN") || textoTag(prodElement, "cEANTrib") || "";
+      const eanValido = ehGtin(ean);
+      const code = textoTag(prodElement, "cProd") || "";
+      const ncm = textoTag(prodElement, "NCM");
+      const unidade = textoTag(prodElement, "uCom") || textoTag(prodElement, "uTrib") || "UN";
+
+      // Marca: lista conhecida ou primeira palavra em maiúsculas
+      let brand = "";
+      const brandList = [
+        "ALBA", "AVIANCA", "BIC", "LOREAL", "NESTLE", "NESTLÉ", "DANONE", "AMBEV", "HEINEKEN", "COCA COLA", "COCA-COLA", "PEPSI",
+        "SKOL", "BRASEIRO", "PERNAMBUCANAS", "HAVAN", "SAMSUNG", "LG", "PHILCO", "ELECTROLUX", "BRASTEMP", "CONSUL", "XIAOMI",
+        "MOTOROLA", "APPLE", "POSITIVO", "MULTILASER", "ARNO", "MONDIAL", "PARATI", "MARILAN", "UNILEVER", "P&G", "BRF", "JBS",
+        "AURORA", "MINUANO", "SADIA", "PERDIGAO", "PERDIGÃO", "SEARA", "KIMBERLY", "COLGATE", "PALMOLIVE", "NIVEA", "JOHNSON",
+        "OAKLEY", "NIKE", "ADIDAS", "PUMA", "FILA", "ASICS", "MIZUNO", "KAPPA", "UMBRO", "PENALTY", "TOPPER", "LUPO", "TRIFIL",
+        "HERING", "MALWEE", "MARISA", "C&A", "REACHUELO", "RENNER", "ZARA", "LEVIS", "DIESEL", "CALVIN KLEIN", "GUESS",
+        "TOMMY HILFIGER", "LACOSTE", "HUGO BOSS", "ARMANI", "ROLEX", "PANDORA", "VIVARA", "CHILLI BEANS", "RAY-BAN",
+        "NATURA", "AVON", "BOTICARIO", "EUDORA", "JEQUITI", "PAMPERS", "HUGGIES", "TURMA DA MONICA", "RENOVE", "VEJA",
+        "OMOR", "IPÊ", "LIMPOL", "YPÊ", "MINUANO", "BOMBRIL", "TIXAN", "ARIEL", "BRILHANTE", "SUFRESH", "TANG", "MID",
+        "CAMP", "VALLE", "KAPO", "MAGUARY", "GAROTO", "LACTA", "HERSHEY", "ARCOR", "M&M", "FINI", "DOCILE",
+      ];
+      const brandRegex = new RegExp(`(?:^|\\s)(${brandList.join("|")})(?:\\s|$)`, "i");
+      const brandMatch = name.match(brandRegex);
+      if (brandMatch && brandMatch[1]) {
+        brand = brandMatch[1].trim().toUpperCase();
+      } else {
+        const words = name.split(" ");
+        if (words[0] && words[0].length > 2 && words[0] === words[0].toUpperCase() && !/^\d+$/.test(words[0]) && !["COM", "PARA", "SEM", "PROD", "KIT"].includes(words[0])) {
+          brand = words[0];
+        }
+      }
+
+      // Quantidade e preço com fallbacks: qCom → qTrib / vUnCom → vProd/qCom → vUnTrib
+      let quantity = numeroNfe(prodElement, "qCom");
+      if (isNaN(quantity) || quantity <= 0) quantity = numeroNfe(prodElement, "qTrib");
+      if (isNaN(quantity) || quantity <= 0) quantity = 1;
+
+      let costPrice = numeroNfe(prodElement, "vUnCom");
+      if (isNaN(costPrice) || costPrice <= 0) {
+        const qtdRef = numeroNfe(prodElement, "qCom") || quantity;
+        const vProd = numeroNfe(prodElement, "vProd");
+        if (!isNaN(vProd) && qtdRef > 0) costPrice = vProd / qtdRef;
+        else costPrice = numeroNfe(prodElement, "vUnTrib");
+      }
+      if (isNaN(costPrice) || costPrice < 0) costPrice = 0;
+
+      // SANITY: preço plausível de supermercado (R$ 0,01 a R$ 100.000/un).
+      // NFe corrompida ("vUnCom=78.434.600.000") → tenta vProd/qCom e vUnTrib;
+      // se continuar absurdo, zera para o operador ajustar na tela.
+      const PRECO_PLAUSIVEL = 100000;
+      if (costPrice > PRECO_PLAUSIVEL) {
+        const qtdRef = numeroNfe(prodElement, "qCom") || quantity;
+        const vProd = numeroNfe(prodElement, "vProd");
+        const tentativa = (!isNaN(vProd) && qtdRef > 0) ? vProd / qtdRef : numeroNfe(prodElement, "vUnTrib");
+        if (!isNaN(tentativa) && tentativa > 0 && tentativa <= PRECO_PLAUSIVEL) costPrice = tentativa;
+        else costPrice = 0;
+      }
+
+      // Quantidade absurda (> 999.999) indica qCom corrompida na NFe
+      if (quantity > 999999) quantity = 1;
+
+      let category = "Geral";
+      if (ncm) {
+        if (ncm.startsWith("02") || ncm.startsWith("03")) category = "Carnes";
+        else if (ncm.startsWith("04") || ncm.startsWith("05")) category = "Laticínios";
+        else if (ncm.startsWith("09")) category = "Bebidas";
+        else if (ncm.startsWith("16") || ncm.startsWith("19")) category = "Massas";
+        else if (ncm.startsWith("17") || ncm.startsWith("20")) category = "Bebidas";
+        else if (ncm.startsWith("21") || ncm.startsWith("22")) category = "Chocolate";
+        else if (ncm.startsWith("23")) category = "Rações";
+        else if (ncm.startsWith("24")) category = "Bebidas Alcoólicas";
+        else if (ncm.startsWith("25") || ncm.startsWith("28")) category = "Cervejas";
+        else if (ncm.startsWith("30") || ncm.startsWith("32")) category = "Condimentos";
+        else if (ncm.startsWith("33")) category = "Sopas";
+        else if (ncm.startsWith("34")) category = "Sal";
+        else if (ncm.startsWith("35")) category = "Açúcar";
+        else if (ncm.startsWith("36")) category = "Café";
+        else if (ncm.startsWith("38")) category = "Sabão";
+        else if (ncm.startsWith("39") || ncm.startsWith("40")) category = "Sabonetes";
+        else if (ncm.startsWith("44")) category = "Perfumes";
+        else if (ncm.startsWith("48")) category = "Papel";
+        else if (ncm.startsWith("49")) category = "Revistas";
+        else if (ncm.startsWith("61")) category = "Medicamentos";
+        else if (ncm.startsWith("62")) category = "Higiene";
+        else if (ncm.startsWith("63")) category = "Absorventes";
+        else if (ncm.startsWith("64") || ncm.startsWith("65")) category = "Higiene Pessoal";
+        else if (ncm.startsWith("70") || ncm.startsWith("73")) category = "Limpeza";
+        else if (ncm.startsWith("84")) category = "Utensílios";
+        else if (ncm.startsWith("85") || ncm.startsWith("87")) category = "Eletrodomésticos";
+        else if (ncm.startsWith("90")) category = "Suprimentos";
+        else if (ncm.startsWith("94")) category = "Bebidas";
+      }
+
+      // Código de barras: GTIN válido da nota, senão o código do fornecedor
+      const codigoBarras = eanValido ? ean : (code || undefined);
+      result.items.push({
+        name,
+        costPrice,
+        quantity,
+        category,
+        description: `${code ? "Código: " + code + " | " : ""}NCM: ${ncm} | Und: ${unidade}`,
+        ean: codigoBarras,
+        barcode: codigoBarras,
+        brand: brand || undefined,
+      });
+    }
+
+    return result.items.length > 0 ? result : null;
+  } catch (e) {
+    console.error("[parseInvoiceXML] Erro ao processar XML:", e);
+    return null;
+  }
+}
+
 module.exports = {
   arredondar,
   cleanCpf,
   validarCpf,
+  normalizeName,
+  stringSimilarity,
+  parseInvoiceXML,
   sanitizarToken,
   validarItensPuros,
   calcularPartesPagamento,

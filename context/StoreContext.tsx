@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode, useRef } from 'react';
 import { User, Product, Order, PrisonUnit, UserRole, CartItem, OrderStatus, AppConfig, Supplier, Expense, AuditLog, InmateLocation, SystemMessage, ThemeOption, Message, Notification, WalletTransaction, toUserRole } from '../types';
-import { cleanProductName, normalizeName, stringSimilarity, fileToBase64, formatarMoeda, getNetworkTime } from '../utils';
+import { cleanProductName, normalizeName, stringSimilarity, fileToBase64, textToBase64, formatarMoeda, getNetworkTime } from '../utils';
 import { listarVendasOffline, salvarVendaOffline, removerVendaOffline, marcarErroVendaOffline, marcarAjustadaVendaOffline, descartarVendaOffline, rearmarVendaOffline, podeTentarSync, LIMITE_FILA, VendaOffline } from '../utils/offlineQueue';
 import { verificarInternetReal } from '../utils/netStatus';
 import {
@@ -1659,7 +1659,9 @@ return false;
 
     const importXmlProduct = async (file: File, margin: number, senhaMestra?: string) => {
         const text = await file.text();
-        const xmlBase64 = btoa(text);
+        // btoa direto quebra com acento (InvalidCharacterError) — usa o
+        // codificador UTF-8 seguro.
+        const xmlBase64 = textToBase64(text);
         try {
             const res = await fnImportXmlProduct({ xmlBase64, margin, senhaMestra });
             const data = res.data as any;
@@ -2527,7 +2529,7 @@ return false;
         
         try {
             const text = await file.text();
-            const csvBase64 = btoa(text);
+            const csvBase64 = textToBase64(text);
             const res = await fnImportInmatesCsv({ csvBase64, senhaMestra });
             const data = res.data as any;
             const importados = data?.importados || 0;

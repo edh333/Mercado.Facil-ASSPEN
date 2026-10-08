@@ -27,6 +27,9 @@ const {
   motivoTokenDownloadInvalido,
   TOKEN_DOWNLOAD_TTL_MINUTOS,
   detectarAnomalias,
+  normalizeName,
+  stringSimilarity,
+  parseInvoiceXML,
 } = require("./logic");
 
 if (!admin.apps.length) {
@@ -1472,8 +1475,12 @@ exports.devolucaoAlvara = onCall({
   logger.info(`[devolucaoAlvara] operador=${caller.id} usuario=${userId}`);
 
   let saldoAnterior = 0;
-  let novoSaldoFinal = 0;
-  let usuarioNome = "";
+  // Capturados DENTRO da transação e usados DEPOIS dela: referenciar `ud`
+  // (escopo do callback) no bloco seguinte dava ReferenceError e, pior, o
+  // erro estourava DEPOIS do commit — o crédito já estava creditado sem
+  // auditoria/comprovante. `usuarioAlvo` antes era global implícito.
+  let usuarioAlvo = "";
+  let usuarioCpf = "";
   let valorDevolvido = 0;
 
   await db.runTransaction(async (t) => {
@@ -1494,6 +1501,7 @@ exports.devolucaoAlvara = onCall({
     }
 
     usuarioAlvo = ud.name || userId;
+    usuarioCpf = cleanCpf(ud.inmateCpf || ud.prisonerCpf || ud.cpf || "");
 
     // Crédito na carteira do usuário
     t.update(uRef, { walletBalance: admin.firestore.FieldValue.increment(arredondar(valorDevolvido)) });
@@ -1522,7 +1530,7 @@ exports.devolucaoAlvara = onCall({
     tipo: "DEVOLUÇÃO POR ALVARÁ",
     usuarioId: userId,
     usuarioNome: usuarioAlvo,
-    cpf: cleanCpf(ud.inmateCpf || ud.prisonerCpf || ud.cpf || ""),
+    cpf: usuarioCpf,
     saldoAnterior,
     valorDevolvido,
     novoSaldo,
@@ -5522,6 +5530,9 @@ exports.mergeDuplicateProducts = onCall({
   produtos.forEach(p => {
     let key = p.ean ? String(p.ean).replace(/^0+/, "").trim() : "";
     if (!key) key = normalizeName(p?.name || "");
+    // Sem EAN e sem nome normalizável: NÃO agrupa — senão todos os "sem nome"
+    // cairiam na mesma chave e seriam fundidos num produto só.
+    if (!key) return;
     if (!groups[key]) groups[key] = [];
     groups[key].push({ id: p.id, name: p.name, ean: p.ean, stock: Number(p.stock || 0), price: Number(p.price || 0), costPrice: Number(p.costPrice || 0) });
   });
@@ -5641,28 +5652,22 @@ exports.importXmlProduct = onCall({
   const caller = await exigirAdminPermissao(request, "products");
   await verificarSenhaMestra(request.data?.senhaMestra);
   const xmlBase64 = String(request.data?.xmlBase64 || "");
-  const margin = Number(request.data?.margin) || 0;
+  // Margem em PERCENTUAL (30 = +30%): o painel envia parseFloat(margem).
+  // Antes o front dividia por 100 e o servidor dividia de novo → o preço de
+  // venda saía ~igual ao custo. Negativo/não-numérico vira 0.
+  const marginRaw = Number(request.data?.margin);
+  const profitMargin = Number.isFinite(marginRaw) && marginRaw >= 0 ? Math.min(marginRaw, 1000) : 0;
   if (!xmlBase64) throw new HttpsError("invalid-argument", "XML (base64) não informado.");
   const xmlText = Buffer.from(xmlBase64, "base64").toString("utf8");
   const data = parseInvoiceXML(xmlText);
-  if (!data) {
-    let detalhe = "o arquivo não parece ser uma NF-e válida";
-    try {
-      const doc2 = new DOMParser().parseFromString(xmlText, "text/xml");
-      const perr = doc2.querySelector("parsererror");
-      if (perr && perr.textContent) {
-        detalhe = perr.textContent.slice(0, 200);
-      } else if (!/NFe|NFeProc|nf-e|NFE/i.test(xmlText.slice(0, 2000))) {
-        detalhe = "o XML não contém uma NF-e (nó <NFe> ou <NFeProc>)";
-      } else {
-        detalhe = "nenhum <det>/<prod> com nome válido foi encontrado na NFe";
-      }
-    } catch { /* ignora: mantém a mensagem padrão */ }
-    throw new HttpsError("invalid-argument", `Falha ao interpretar o XML — ${detalhe}.`);
+  if (!data || !Array.isArray(data.items) || data.items.length === 0) {
+    // O front reparseia o arquivo no próprio catch e monta o diagnóstico
+    // detalhado (parsererror / sem <det>) — aqui basta a recusa.
+    throw new HttpsError("invalid-argument", "Falha ao interpretar o XML — arquivo inválido ou sem itens de produto.");
   }
-  const profitMargin = margin;
-  const batch = db.batch();
-  let supplierId = "";
+  if (data.items.length > 5000) {
+    throw new HttpsError("invalid-argument", "XML com itens demais (máximo: 5000).");
+  }
   const normSemUnidade = (nome) => normalizeName(nome).replace(/(UN|CX|PCT|PCTE|FD|FDO|DSP|UNID|CART|LT|GR|KG|ML|L|G|M|CM|MM)$/g, "");
   const pesosCompativeis = (a, b) => {
     const pesos = (s) => (s.match(/\d+[.,]?\d*\s*(?:KG|G|ML|L|M|GR|LT|CM|MM)/gi) || []).map(m => m.replace(/\s/g, ""));
@@ -5680,18 +5685,26 @@ exports.importXmlProduct = onCall({
     if ((p.name || "").trim().toUpperCase() === (item.name || "").trim().toUpperCase()) return true;
     return stringSimilarity(nI, nP) >= 0.9 && pesosCompativeis(item.name, p.name || "");
   };
+  let supplierId = "";
+  // Escritas acumuladas aqui e committadas em lotes de 450: o Firestore
+  // limita um batch a 500 ops e uma NFe grande passa disso com folga
+  // (antes: um batch único → "maximum batch size exceeded" e nada importava).
+  const ops = [];
   if (data.supplier?.name) {
     const exSupplier = await db.collection("suppliers").where("name", "==", data.supplier.name).limit(1).get();
     if (!exSupplier.empty) {
       supplierId = exSupplier.docs[0].id;
     } else {
       supplierId = crypto.randomUUID();
-      batch.set(db.collection("suppliers").doc(supplierId), {
-        id: supplierId,
-        name: data.supplier.name || "Fornecedor",
-        cnpjOrCpf: data.supplier.cnpj || "",
-        contact: "",
-        description: "Importação Automática"
+      ops.push({
+        ref: db.collection("suppliers").doc(supplierId),
+        data: {
+          id: supplierId,
+          name: data.supplier.name || "Fornecedor",
+          cnpjOrCpf: data.supplier.cnpj || "",
+          contact: "",
+          description: "Importação Automática"
+        }
       });
     }
   }
@@ -5708,11 +5721,16 @@ exports.importXmlProduct = onCall({
     lastDoc = snap.docs[snap.docs.length - 1];
   }
   const localProducts = allProducts.filter(p => p.deleted !== true);
+  // Sanções idênticas à prévia do painel: custo > R$ 100k/un vira 0 e qtd >
+  // 999.999 vira 1 — o que o operador confere é exatamente o que persiste.
+  const PRECO_PLAUSIVEL = 100000;
   let loadedCount = 0, updatedCount = 0, newCount = 0;
   for (const item of data.items) {
-    const costPriceRaw = Number(item.costPrice) || 0;
-    const priceRaw = costPriceRaw > 0 ? Math.round(costPriceRaw * (1 + profitMargin / 100)) : 0;
-    const stockRaw = Number(item.quantity) || 0;
+    const custoRaw = Number(item.costPrice) || 0;
+    const custo = custoRaw > PRECO_PLAUSIVEL ? 0 : custoRaw;
+    const qtdRaw = Number(item.quantity) || 0;
+    const stockRaw = qtdRaw > 999999 ? 1 : Math.max(0, qtdRaw);
+    const priceRaw = custo > 0 ? Math.round(custo * (1 + profitMargin / 100)) : 0;
     const eanRaw = String(item.ean || item.barcode || "").replace(/^0+/, "").trim();
     let match = null;
     for (const p of localProducts) {
@@ -5720,15 +5738,21 @@ exports.importXmlProduct = onCall({
     }
     if (match) {
       const novoStock = (match.stock || 0) + stockRaw;
-      batch.set(db.collection("products").doc(match.id), { stock: novoStock, price: priceRaw, costPrice: costPriceRaw, ean: eanRaw || match.ean }, { merge: true });
+      ops.push({ ref: db.collection("products").doc(match.id), data: { stock: novoStock, price: priceRaw, costPrice: custo, ean: eanRaw || match.ean } });
+      // Espelho local em dia: o MESMO produto 2x no mesmo XML soma as duas
+      // ocorrências (antes a segunda era ignorada e o estoque ficava errado).
+      match.stock = novoStock;
+      match.price = priceRaw;
+      match.costPrice = custo;
+      if (eanRaw) match.ean = eanRaw;
       updatedCount++;
     } else {
       const newId = crypto.randomUUID();
-      batch.set(db.collection("products").doc(newId), {
+      ops.push({ ref: db.collection("products").doc(newId), data: {
         id: newId,
         name: item.name,
         price: priceRaw,
-        costPrice: costPriceRaw,
+        costPrice: custo,
         stock: stockRaw,
         ean: eanRaw,
         barcode: eanRaw,
@@ -5736,13 +5760,21 @@ exports.importXmlProduct = onCall({
         category: item.category || "",
         minStock: 5,
         createdAt: new Date().toISOString()
-      });
+      } });
+      localProducts.push({ id: newId, name: item.name, stock: stockRaw, price: priceRaw, costPrice: custo, ean: eanRaw, barcode: eanRaw });
       newCount++;
     }
     loadedCount++;
   }
-  await batch.commit();
-  await registrarAudit(caller.id, "IMPORT_XML_PRODUCT", null, { loaded: loadedCount, updated: updatedCount, created: newCount });
+  let escritas = 0;
+  while (ops.length > 0) {
+    const lote = ops.splice(0, 450);
+    const batch = db.batch();
+    for (const op of lote) batch.set(op.ref, op.data, { merge: true });
+    await batch.commit();
+    escritas += lote.length;
+  }
+  await registrarAudit(caller.id, "IMPORT_XML_PRODUCT", null, { loaded: loadedCount, updated: updatedCount, created: newCount, escritas, margemPct: profitMargin });
   return { loaded: loadedCount, updated: updatedCount, created: newCount, totalInXml: data.items.length };
 });
 

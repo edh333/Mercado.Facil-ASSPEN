@@ -54,51 +54,33 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
       (u.assignedInmate?.id === inmateParaAlvara.id || u.assignedInmate === inmateParaAlvara.id) ||
       (String(u.inmateCpf || u.prisonerCpf || '').replace(/\D/g, '') === String(inmateParaAlvara?.cpf || '').replace(/\D/g, ''))
     );
-    const totalBalance = linkedUsers.reduce((sum, u) => sum + Number(u.walletBalance || 0), 0);
+    // Devolve de TODOS os familiares com saldo: a validação somava o saldo de
+    // todos, mas a chamada creditava só linkedUsers[0] — o restante ficava
+    // retido. Agora é um chamado por familiar com saldo.
+    const alvos = linkedUsers.filter(u => Number(u.walletBalance || 0) > 0);
+    const totalBalance = alvos.reduce((sum, u) => sum + Number(u.walletBalance || 0), 0);
     if (totalBalance <= 0) {
       notifCtx('Saldo zerado — nada a devolver.', 'warning');
       setInmateParaAlvara(null);
       return;
     }
     setIsLoading(true);
-    try {
-      const data = await devolucaoAlvara(
-        linkedUsers[0]?.id,
-        `Devolução por alvará do interno ${inmateParaAlvara?.name || '—'}`,
-        senhaMestra
-      );
-      if (data?.ok) {
-        notifCtx(`Devolução de R$ ${formatarMoeda(data.valorDevolvido)} realizada com sucesso!`, 'success');
-        // Gera o comprovante
-        const comprovante = data.comprovante;
-        if (comprovante) {
-          const texto = gerarComprovanteDevolucaoAlvara({
-            tipo: comprovante.tipo,
-            usuarioId: comprovante.usuarioId,
-            usuarioNome: comprovante.usuarioNome,
-            cpf: comprovante.cpf,
-            saldoAnterior: comprovante.saldoAnterior,
-            valorDevolvido: comprovante.valorDevolvido,
-            novoSaldo: comprovante.novoSaldo,
-            motivo: comprovante.motivo,
-            operador: comprovante.operador,
-            data: comprovante.data,
-          });
-          // Abre janela de impressão
-          const printWindow = window.open('', '_blank');
-          if (printWindow) {
-            const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Comprovante Alvará</title><style>
-              body { font-family: 'Segoe UI', Arial, sans-serif; color:#0f172a; padding:32px; background:#fff; font-family: 'Courier New', monospace; white-space: pre-wrap; }
-              .cabecalho { border-bottom:3px solid #059669; padding-bottom:16px; margin-bottom:20px; text-align:center; }
-              .cabecalho h1 { font-size:18px; text-transform:uppercase; letter-spacing:1px; color:#059669; }
-              .cabecalho p { font-size:12px; color:#64748b; margin-top:4px; }
-              .divisor { border-top:1px solid #e2e8f0; margin:16px 0; }
-              .linha { display:flex; justify-content:space-between; padding:8px 0; font-family: monospace; font-size:12px; }
-              .linha span:first-child { color:#64748b; }
-              .linha span:last-child { font-weight:700; color:#0f172a; }
-              .assinatura { margin-top:48px; border-top:1px solid #64748b; padding-top:8px; font-size:10px; text-transform:uppercase; text-align:center; color:#475569; }
-            </style></head><body>${gerarComprovanteDevolucaoAlvara({
-              tipo: 'DEVOLUÇÃO POR ALVARÁ',
+    let totalDevolvido = 0;
+    let falhas = 0;
+    const comprovantes: string[] = [];
+    for (const u of alvos) {
+      try {
+        const data = await devolucaoAlvara(
+          u.id,
+          `Devolução por alvará do interno ${inmateParaAlvara?.name || '—'}`,
+          senhaMestra
+        );
+        if (data?.ok) {
+          totalDevolvido += Number(data.valorDevolvido || 0);
+          const comprovante = data.comprovante;
+          if (comprovante) {
+            comprovantes.push(gerarComprovanteDevolucaoAlvara({
+              tipo: comprovante.tipo,
               usuarioId: comprovante.usuarioId,
               usuarioNome: comprovante.usuarioNome,
               cpf: comprovante.cpf,
@@ -108,32 +90,42 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
               motivo: comprovante.motivo,
               operador: comprovante.operador,
               data: comprovante.data,
-            }).replace('adicionarFeed()', '')}</style></head><body>${gerarComprovanteDevolucaoAlvara({
-              tipo: 'DEVOLUÇÃO POR ALVARÁ',
-              usuarioId: comprovante.usuarioId,
-              usuarioNome: comprovante.usuarioNome,
-              cpf: comprovante.cpf,
-              saldoAnterior: comprovante.saldoAnterior,
-              valorDevolvido: comprovante.valorDevolvido,
-              novoSaldo: comprovante.novoSaldo,
-              motivo: comprovante.motivo,
-              operador: comprovante.operador,
-              data: comprovante.data,
-            })}/body></html>`;
-            printWindow.document.write(html);
-            printWindow.document.close();
-            printWindow.focus();
-            setTimeout(() => { try { printWindow.print(); } catch { /* janela fechou */ } }, 350);
+            }));
           }
         }
-        setInmateParaAlvara(null);
+      } catch {
+        falhas++; // o contexto já exibiu a notificação de erro desta chamada
       }
-    } catch (e: any) {
-      notifCtx('Erro na devolução: ' + (e?.message || 'Erro desconhecido'), 'error');
     }
-    finally {
-      setIsLoading(false);
+    // Impressão única: um comprovante por familiar na mesma janela.
+    if (comprovantes.length > 0) {
+      const texto = comprovantes.join('\n');
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        const corpo = texto
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+        const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Comprovante Alvará</title><style>
+          body { font-family: 'Courier New', monospace; color:#0f172a; padding:32px; background:#fff; white-space: pre-wrap; }
+        </style></head><body>${corpo}</body></html>`;
+        printWindow.document.write(html);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => { try { printWindow.print(); } catch { /* janela fechou */ } }, 350);
+      }
     }
+    if (totalDevolvido > 0 && (alvos.length > 1 || falhas > 0)) {
+      // Com 1 acerto o contexto já avisou "Devolução de R$ X realizada".
+      notifCtx(
+        falhas > 0
+          ? `Devolução parcial de R$ ${formatarMoeda(totalDevolvido)} — ${falhas} familiar(es) falharam. Repita para os pendentes.`
+          : `R$ ${formatarMoeda(totalDevolvido)} devolvidos em ${alvos.length} carteira(s).`,
+        falhas > 0 ? 'warning' : 'success'
+      );
+    }
+    setInmateParaAlvara(null);
+    setIsLoading(false);
   };
 
   // Edição do pré-cadastro: antes só existia CADASTRAR/EXCLUIR — a função
@@ -430,6 +422,13 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
                                                 <Pencil size={18}/>
                                             </button>
                                             <button
+                                                onClick={() => handleAlvaraReturn(inmate)}
+                                                title="Devolver saldo por alvará"
+                                                className="p-3 bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-amber-500 hover:border-amber-500/20 hover:bg-amber-500/5 rounded-xl transition-all shadow-sm active:scale-95"
+                                            >
+                                                <RotateCcw size={18}/>
+                                            </button>
+                                            <button
                                                 onClick={() => handleDeleteInmate(inmate)}
                                                 className="p-3 bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-red-500 hover:border-red-500/20 hover:bg-red-500/5 rounded-xl transition-all shadow-sm active:scale-95"
                                             >
@@ -491,6 +490,13 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
                                     <Pencil size={18}/>
                                 </button>
                                 <button
+                                    onClick={() => handleAlvaraReturn(inmate)}
+                                    title="Devolver saldo por alvará"
+                                    className="p-3 bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-amber-500 hover:border-amber-500/20 hover:bg-amber-500/5 rounded-xl transition-all shadow-sm active:scale-95"
+                                >
+                                    <RotateCcw size={18}/>
+                                </button>
+                                <button
                                     onClick={() => handleDeleteInmate(inmate)}
                                     className="p-3 bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-red-500 hover:border-red-500/20 hover:bg-red-500/5 rounded-xl transition-all shadow-sm active:scale-95"
                                 >
@@ -522,6 +528,22 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
         palavraChave="REMOVER"
         onConfirm={() => { if (inmateParaExcluir?.id) deletePreRegisteredInmate(inmateParaExcluir.id); setInmateParaExcluir(null); }}
         onClose={() => setInmateParaExcluir(null)}
+      />
+      <ConfirmacaoDestrutiva
+        isOpen={inmateParaAlvara !== null}
+        titulo="Devolução por Alvará"
+        descricao={`Devolver R$ ${formatarMoeda(inmateParaAlvara?.totalBalance || 0)} (saldo acumulado de ${inmateParaAlvara?.name || 'este interno'}) para as carteiras de TODOS os familiares vinculados com saldo? A senha mestra será exigida e o comprovante será impresso para assinatura.`}
+        semDigitar
+        processando={isLoading}
+        onConfirm={() => {
+          if (!inmateParaAlvara) return;
+          if (onRequestMasterPassword) {
+            onRequestMasterPassword((senha) => confirmAlvaraReturn(senha));
+          } else {
+            confirmAlvaraReturn('');
+          }
+        }}
+        onClose={() => { if (!isLoading) setInmateParaAlvara(null); }}
       />
     </div>
   );

@@ -15,6 +15,7 @@
     "node": "22"
   },
   "dependencies": {
+    "@xmldom/xmldom": "^0.9.12",
     "bcryptjs": "^2.4.3",
     "firebase-admin": "^12.7.0",
     "firebase-functions": "^5.1.1"

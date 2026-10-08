@@ -506,19 +506,39 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
 
   let cupom = "";
   cupom += `${divisorDuplo}\n`;
-  // Cabeçalho centralizado (padrão térmico profissional)
-  cupom += `${centrarTexto(inst, 48)}\n`;
-  if (app && app !== inst) cupom += `${centrarTexto(app, 48)}\n`;
-  if (cnpj) cupom += `${centrarTexto(`CNPJ: ${cnpj}`, 48)}\n`;
+  // Cabeçalho compacto: cada linha a menos é papel economizado em TODA venda.
+  // inst+app e CNPJ+TEL só viram 2 linhas quando juntos estouram 48 colunas.
+  let nomeTitulo = inst;
+  if (app && app !== inst) {
+    const menor = inst.length < app.length ? inst : app;
+    const maior = inst.length < app.length ? app : inst;
+    // Um nome contém o outro (ex.: "MERCADO FACIL" dentro de "MERCADO FACIL
+    // PDV"): imprime só o mais completo em vez de repetir o mesmo nome 2x.
+    nomeTitulo = maior.toLowerCase().includes(menor.toLowerCase()) ? maior : `${inst} - ${app}`;
+  }
+  if (nomeTitulo.length <= 48) {
+    cupom += `${centrarTexto(nomeTitulo, 48)}\n`;
+  } else {
+    cupom += `${centrarTexto(inst, 48)}\n`;
+    cupom += `${centrarTexto(app, 48)}\n`;
+  }
+  const linhaDocumento = [cnpj ? `CNPJ: ${cnpj}` : '', telefone ? `TEL: ${telefone}` : '']
+    .filter(Boolean)
+    .join('  ');
+  if (linhaDocumento && linhaDocumento.length <= 48) {
+    cupom += `${centrarTexto(linhaDocumento, 48)}\n`;
+  } else {
+    if (cnpj) cupom += `${centrarTexto(`CNPJ: ${cnpj}`, 48)}\n`;
+    if (telefone) cupom += `${centrarTexto(`TEL: ${telefone}`, 48)}\n`;
+  }
   if (endereco) cupom += `${centrarTexto(endereco, 48)}\n`;
-  if (telefone) cupom += `${centrarTexto(`TEL: ${telefone}`, 48)}\n`;
   cupom += `${centrarTexto(docName, 48)}\n`;
   if (!fiscalEmission) cupom += `${centrarTexto('NAO E DOCUMENTO FISCAL', 48)}\n`;
   if (fiscalId) cupom += `${centrarTexto(fiscalId, 48)}\n`;
   cupom += `${divisorDuplo}\n`;
 
   if (cancelado) {
-    cupom += `\n${centrarTexto('* CUPOM CANCELADO / DEVOLVIDO *', 48)}\n\n`;
+    cupom += `${centrarTexto('* CUPOM CANCELADO / DEVOLVIDO *', 48)}\n`;
     cupom += `${divisor}\n`;
   }
 
@@ -532,8 +552,17 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
   })();
   const dt = dtNormalizado.toLocaleString("pt-BR");
   cupom += formatarLinhaDupla("DATA:", dt, 48) + "\n";
-  cupom += formatarLinhaDupla("ID:", `#${String(data.id || '---').slice(0, 12).toUpperCase()}`, 48) + "\n";
-  cupom += formatarLinhaDupla("OPER:", String(data.operatorName || 'ADMIN').toUpperCase().slice(0, 15), 48) + "\n";
+  // ID + operador na MESMA linha: são dados de apoio, e cada linha separada
+  // é mais uma linha de papel por venda. Só volta a 2 linhas se não couber.
+  const idPedido = `#${String(data.id || '---').slice(0, 12).toUpperCase()}`;
+  const operador = String(data.operatorName || 'ADMIN').toUpperCase().slice(0, 15);
+  const linhaIdOper = `ID: ${idPedido}  OPER: ${operador}`;
+  if (linhaIdOper.length <= 48) {
+    cupom += `${linhaIdOper}\n`;
+  } else {
+    cupom += formatarLinhaDupla("ID:", idPedido, 48) + "\n";
+    cupom += formatarLinhaDupla("OPER:", operador, 48) + "\n";
+  }
   if (data.unitName) {
     cupom += formatarLinhaDupla("UNIDADE:", limparLinha(data.unitName, 22), 48) + "\n";
   }
@@ -571,8 +600,9 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
     }
   }
 
+  // Sem divisor após o cabeçalho de colunas: o `divisor` acima já separa o
+  // bloco de dados do cabeçalho — uma régua a menos por venda.
   cupom += `${"ITEM".padEnd(26)}${"QTD X UN".padStart(9)}${"TOTAL".padStart(13)}\n`;
-  cupom += `${divisor}\n`;
   for (const item of itens) {
     const nome = String(item?.name || item?.nome || 'ITEM').toUpperCase();
     const qtd = Number(item.quantity) || 1;
@@ -629,8 +659,9 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
 
   const payments = Array.isArray(data.payments) ? data.payments : [];
   if (payments.length > 0) {
-    // Sem divisor: a `divisorDuplo` do TOTAL PEDIDO já fecha o bloco anterior.
-    cupom += `FORMAS DE PAGAMENTO\n`;
+    // Sem título "FORMAS DE PAGAMENTO" e sem divisor: a `divisorDuplo` do
+    // TOTAL PEDIDO já fecha o bloco anterior e o nome do método (DINHEIRO,
+    // PIX, CARTEIRA...) identifica cada linha sozinho — 1 linha a menos/venda.
     const nomesMetodo: any = { PIX: 'PIX', WALLET: 'CARTEIRA', CASH: 'DINHEIRO', CARD: 'CARTAO', FIADO: 'FIADO' };
     for (const p of payments) {
       const metodo = nomesMetodo[p.method] || String(p.method || '?').toUpperCase();
@@ -672,7 +703,7 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
   const seedA = idClean.slice(0, 8).padEnd(8, '0');
   const seedB = (seedA.split('').reverse().join('') + seedA).slice(0, 8).padEnd(8, '0');
   cupom += `${centrarTexto(`AUTH: SEC-${seedA}-${seedB}`, 48)}\n`;
-  cupom += `${divisorDuplo}\n`;
+  // Sem régua de fechamento: a `divisorDuplo` acima já abre o bloco do rodapé.
   // Alimentação final da bobina. O CNPJ NÃO é repetido aqui (já sai no
   // cabeçalho) e a linha "FIM DO CUPOM - BOBINA 80MM" foi removida: era
   // informação interna de impressão, não útil a quem recebe o cupom, e
@@ -1064,7 +1095,7 @@ export function gerarComprovanteDevolucaoAlvara(params: {
   data: string;
 }): string {
   const { tipo, usuarioId, usuarioNome, cpf, saldoAnterior, valorDevolvido, novoSaldo, motivo, operador, data } = params;
-  const divisor = "=".repeat(40);
+  const divisor = "-".repeat(40);
   const divisorDuplo = "=".repeat(40);
 
   let texto = "";
@@ -1074,7 +1105,11 @@ export function gerarComprovanteDevolucaoAlvara(params: {
   texto += `${divisorDuplo}\n`;
   texto += `Data/Hora: ${data}\n`;
   texto += `${divisor}\n`;
-  texto += `Tipo: ${tipo}\n`;
+  // O cabeçalho acima já diz "COMPROVANTE DE DEVOLUÇÃO POR ALVARÁ" — repetir
+  // o tipo aqui era a mesma informação duas vezes (1 linha de papel a mais).
+  if (tipo && !/devolu[cç][aã]o\s+por\s+alv[áa]ra?/i.test(tipo)) {
+    texto += `Tipo: ${tipo}\n`;
+  }
   texto += `Motivo: ${motivo}\n`;
   texto += `${divisor}\n`;
   texto += `${formatarLinhaDupla("Interno:", usuarioNome)}\n`;
@@ -1086,10 +1121,11 @@ export function gerarComprovanteDevolucaoAlvara(params: {
   texto += `${formatarLinhaDupla("Novo Saldo:", "R$ " + formatarMoeda(novoSaldo))}\n`;
   texto += `${divisor}\n`;
   texto += `Operador: ${String(operador).slice(0, 34)}\n`;
-  texto += `Data/Hora: ${data}\n`;
   texto += `${divisorDuplo}\n`;
   texto += `Assinatura: _______________________\n`;
-  texto += `${divisorDuplo}\n`;
-  texto += `adicionarFeed()`;
+  // Sem régua final: a de cima já fecha o bloco e o feed abaixo dá espaço
+  // para a guilhotina. BUG: aqui era `texto += 'adicionarFeed()'` (string
+  // literal) — o comprovante imprimia a palavra "adicionarFeed()" no papel.
+  texto += adicionarFeed();
   return texto;
 }

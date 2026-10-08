@@ -134,6 +134,22 @@ export const stringSimilarity = (a: string, b: string): number => {
   return (longer.length - costs[shorter.length]) / longer.length;
 };
 
+/**
+ * Base64 UTF-8 seguro. `btoa(text)` direto lança InvalidCharacterError com
+ * acento/caixa alta (XML de NFe e CSV de internos têm "Ç", "Ã", "©"...).
+ * Codifica em UTF-8 e transmite os bytes por btoa em fatias de 32k (spread
+ * de array maior que isso estoura o stack).
+ */
+export const textToBase64 = (text: string): string => {
+  const bytes = new TextEncoder().encode(text);
+  let bin = '';
+  const FATIA = 0x8000;
+  for (let i = 0; i < bytes.length; i += FATIA) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + FATIA));
+  }
+  return btoa(bin);
+};
+
 export const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();

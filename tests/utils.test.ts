@@ -11,8 +11,9 @@ import {
 mascararCpf,
   isAdminRole,
   isVendedorRole,
+  textToBase64,
 } from '../utils';
-import { montarEscPos, gerarCupomEntregaRaw, gerarRelatorioInadimplentes } from '../utils/printUtils';
+import { montarEscPos, gerarCupomEntregaRaw, gerarRelatorioInadimplentes, gerarComprovanteDevolucaoAlvara } from '../utils/printUtils';
 import { toUserRole, UserRole } from '../types';
 
 describe('validateCPF', () => {
@@ -247,8 +248,10 @@ describe('montarEscPos (ESC/POS 80mm)', () => {
     expect(cupom.endsWith('\n\n\n')).toBe(true);
   });
 
-  it('cupom completo de venda cabe em 32 linhas (regressão de papel)', () => {
-    // Antes: 39 linhas + 16 linhas de feed duplicado num cupom simples.
+  it('cupom completo de venda cabe em 28 linhas (regressão de papel)', () => {
+    // Antes: 39 linhas + 16 linhas de feed duplicado num cupom simples;
+    // depois 32; agora 26 com cabeçalho compacto (inst+app e CNPJ+TEL numa
+    // linha só, ID+OPER juntos, sem título de pagamento e sem régua extra).
     // Trava o tamanho para impedir que texto redundante volte a crescer.
     const cupom = gerarCupomEntregaRaw({
       id: 'AB12CD34EF56',
@@ -268,8 +271,8 @@ describe('montarEscPos (ESC/POS 80mm)', () => {
       address: 'AVENIDA BRASIL 1234 CENTRO VILENA MT',
     });
     const linhas = cupom.split('\n');
-    // +1 tolerância para a quebra do endereço conforme o texto cadastrado.
-    expect(linhas.length).toBeLessThanOrEqual(33);
+    // 26 entradas no cenário completo; folga de +2 para campos extras.
+    expect(linhas.length).toBeLessThanOrEqual(28);
     expect(Math.max(...linhas.map(l => l.length))).toBeLessThanOrEqual(48);
   });
 });
@@ -372,5 +375,58 @@ describe('toUserRole', () => {
 
   it('manager NAO pode virar FAMILY (instalador admin e painel dependem disso)', () => {
     expect(toUserRole('manager')).not.toBe(UserRole.FAMILY);
+  });
+});
+
+describe('textToBase64 (base64 UTF-8 de XML/CSV)', () => {
+  const texto = 'Açúcar, café & "queijo" — ÇÃO 2º © R$ 1,99';
+
+  it('btoa direto quebra com acento (o bug que motivou o helper)', () => {
+    expect(() => btoa(texto)).toThrow();
+  });
+
+  it('roundtrip UTF-8: os bytes originais voltam após decodificar', () => {
+    const b64 = textToBase64(texto);
+    const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    expect(new TextDecoder('utf-8').decode(bytes)).toBe(texto);
+  });
+
+  it('texto puro ASCII gera o mesmo resultado do btoa', () => {
+    expect(textToBase64('NFe 12345;TESTE')).toBe(btoa('NFe 12345;TESTE'));
+  });
+
+  it('aceita string vazia', () => {
+    expect(textToBase64('')).toBe('');
+  });
+});
+
+describe('comprovante de devolução por alvará', () => {
+  const base = {
+    tipo: 'DEVOLUÇÃO POR ALVARÁ',
+    usuarioId: 'uid123',
+    usuarioNome: 'JOAO SILVA',
+    cpf: '111.444.777-35',
+    saldoAnterior: 100,
+    valorDevolvido: 40,
+    novoSaldo: 60,
+    motivo: 'alvara judicial',
+    operador: 'ADMIN',
+    data: '08/10/2026 10:00',
+  };
+
+  it('nunca imprime o texto literal "adicionarFeed()" no papel', () => {
+    // BUG: `texto += 'adicionarFeed()'` (string sem template literal) fazia o
+    // comprovante terminar com a palavra "adicionarFeed()" impressa.
+    const texto = gerarComprovanteDevolucaoAlvara(base);
+    expect(texto).not.toContain('adicionarFeed()');
+    expect(texto.endsWith('\n\n\n')).toBe(true);
+  });
+
+  it('não repete Data/Hora nem o tipo que já está no cabeçalho', () => {
+    const texto = gerarComprovanteDevolucaoAlvara(base);
+    expect(texto.match(/Data\/Hora:/g)?.length).toBe(1);
+    expect(texto).not.toContain('Tipo:');
+    expect(texto).toContain('Motivo: alvara judicial');
+    expect(texto).toContain('Valor Devolvido:');
   });
 });
