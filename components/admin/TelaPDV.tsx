@@ -895,7 +895,7 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
                               <span className="truncate">{cli.responsavel || 'SEM NOME'}</span>
                             </span>
                             {cli.interno && (
-                              <span className="text-[10px] font-medium uppercase tracking-wide text-slate-500 truncate pl-[22px]">
+                              <span className="text-[11px] font-black uppercase tracking-wide text-emerald-700 truncate pl-[22px]">
                                 Interno: {cli.interno}
                               </span>
                             )}

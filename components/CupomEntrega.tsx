@@ -144,9 +144,10 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
               </p>
             )}
             {cli.interno && (
-              <div className="mt-1 pt-1 border-t border-dashed border-gray-400">
-                <p className="font-bold text-[10px]">DESTINATÁRIO INTERNO: {cli.interno}</p>
-                {cli.internoCpf && <p className="font-bold text-[9px] opacity-80">CPF INTERNO: {mascararCpf(cli.internoCpf)}</p>}
+              <div className="mt-1.5 pt-1 border-t-2 border-gray-700">
+                <p className="bg-black text-white font-black uppercase text-[9px] px-1 py-0.5 inline-block tracking-widest">Destinatário Interno</p>
+                <p className="font-black uppercase leading-tight text-base mt-0.5">{cli.interno}</p>
+                {cli.internoCpf && <p className="font-bold text-[10px] opacity-80">CPF INTERNO: {mascararCpf(cli.internoCpf)}</p>}
               </div>
             )}
           </div>
@@ -303,7 +304,7 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
           <div className="border-t border-black w-3/4 mx-auto"></div>
           <p className="font-black uppercase text-[9px] mt-1">Assinatura do Recebedor</p>
           {(data.inmateName || data.prisonerName) && (
-            <p className="font-bold text-[9px] opacity-70">({data.inmateName || data.prisonerName})</p>
+            <p className="font-black uppercase text-[11px] mt-1">{data.inmateName || data.prisonerName}</p>
           )}
         </div>
       )}
