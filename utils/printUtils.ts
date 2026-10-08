@@ -36,6 +36,56 @@ export function centrarTexto(texto: string, larguraTotal = 48): string {
   return ' '.repeat(esq) + t + ' '.repeat(total - esq);
 }
 
+/** Corta na largura da bobina parando na fronteira de palavra (nunca no
+ * meio) e sinalizando com "..." — o corte de 48 chars do meio da palavra
+ * era o que deixava o cabeçalho ilegível. */
+function cortarPorPalavra(texto: string, largura: number): string {
+  const t = String(texto ?? '').trim();
+  if (t.length <= largura) return t;
+  const corte = t.slice(0, Math.max(1, largura - 3));
+  const espaco = corte.lastIndexOf(' ');
+  const base = espaco > 0 ? corte.slice(0, espaco) : corte;
+  return base.trimEnd() + '...';
+}
+
+/** Quebra texto longo em linhas de até `largura` na fronteira de palavras. */
+function quebrarPorPalavra(texto: string, largura: number): string[] {
+  const linhas: string[] = [];
+  let atual = '';
+  for (const palavra of String(texto ?? '').trim().split(/\s+/).filter(Boolean)) {
+    const teste = atual ? `${atual} ${palavra}` : palavra;
+    if (teste.length <= largura) { atual = teste; continue; }
+    if (atual) { linhas.push(atual); atual = ''; }
+    atual = palavra.length > largura ? cortarPorPalavra(palavra, largura) : palavra;
+  }
+  if (atual) linhas.push(atual);
+  return linhas;
+}
+
+/**
+ * Título institucional dos cupons — SEMPRE curto.
+ *
+ * Não-fiscal: UMA linha só, na ordem appName → sigla (texto após o último
+ * " - " do institutionName, ex.: "ASSPEN") → institutionName; se nenhum
+ * couber, corta na fronteira de palavra com "...". O nome legal completo
+ * (~80 chars) cortado no meio dominava o cabeçalho e custava até 2 linhas
+ * de papel em cada venda.
+ *
+ * Fiscal (fiscalEmission): exceção — o nome legal completo quebra em
+ * até 2 linhas (identificação da empresa registrada no CNPJ).
+ */
+function tituloInstitucional(config: any, largura = 48, padrao = 'MERCADO FACIL'): string[] {
+  const normalizar = (v: any) => String(v ?? '').replace(/[\r\n]+/g, ' ').trim().toUpperCase();
+  const inst = normalizar(config?.institutionName);
+  const app = normalizar(config?.appName);
+  if (config?.fiscalEmission === true) {
+    return quebrarPorPalavra(inst || app || padrao, largura).slice(0, 2);
+  }
+  const sigla = inst.includes(' - ') ? inst.split(' - ').pop()!.trim() : '';
+  const candidatos = [app, sigla, inst].filter(Boolean);
+  return [candidatos.find(c => c.length <= largura) || cortarPorPalavra(app || inst || padrao, largura)];
+}
+
 const ESC = "\x1B";
 const GS = "\x1D";
 
@@ -124,14 +174,14 @@ export function gerarCupomFechamento(dadosCaixa: any, config?: any): string {
   const divisor = "-".repeat(40);
   const divisorDuplo = "=".repeat(40);
 
-  const inst = String(config?.institutionName || 'MERCADO FACIL PDV').slice(0, 40).toUpperCase();
-  const appName = String(config?.appName || '').slice(0, 40).toUpperCase();
   const cnpj = String(config?.cnpj || '').trim().toUpperCase().slice(0, 18);
 
   let cupom = "";
   cupom += `========================================\n`;
-  cupom += `${centrarTexto(inst, 40)}\n`;
-  if (appName) cupom += `${centrarTexto(appName, 40)}\n`;
+  // Título curto em 1 linha (eram 2 linhas de nome completo + appName).
+  for (const linhaTitulo of tituloInstitucional(config, 40, 'MERCADO FACIL PDV')) {
+    cupom += `${centrarTexto(linhaTitulo, 40)}\n`;
+  }
   if (cnpj) cupom += `${centrarTexto(`CNPJ: ${cnpj}`, 40)}\n`;
   cupom += `========================================\n\n`;
 
@@ -481,8 +531,6 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
 
   const limparLinha = (v: any, max = 48) => String(v ?? '').replace(/[\r\n]+/g, ' ').trim().toUpperCase().slice(0, max);
 
-  const inst = limparLinha(config?.institutionName || config?.appName || 'MERCADO FACIL');
-  const app = limparLinha(config?.appName || 'MERCADO FACIL');
   const fiscalEmission = config?.fiscalEmission === true;
   const docName = limparLinha(
     config?.customReceiptDocName ||
@@ -505,22 +553,12 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
   const cancelado = ['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'rejected', 'rejeitado'].includes(status);
 
   let cupom = "";
-  cupom += `${divisorDuplo}\n`;
-  // Cabeçalho compacto: cada linha a menos é papel economizado em TODA venda.
-  // inst+app e CNPJ+TEL só viram 2 linhas quando juntos estouram 48 colunas.
-  let nomeTitulo = inst;
-  if (app && app !== inst) {
-    const menor = inst.length < app.length ? inst : app;
-    const maior = inst.length < app.length ? app : inst;
-    // Um nome contém o outro (ex.: "MERCADO FACIL" dentro de "MERCADO FACIL
-    // PDV"): imprime só o mais completo em vez de repetir o mesmo nome 2x.
-    nomeTitulo = maior.toLowerCase().includes(menor.toLowerCase()) ? maior : `${inst} - ${app}`;
-  }
-  if (nomeTitulo.length <= 48) {
-    cupom += `${centrarTexto(nomeTitulo, 48)}\n`;
-  } else {
-    cupom += `${centrarTexto(inst, 48)}\n`;
-    cupom += `${centrarTexto(app, 48)}\n`;
+  // Cabeçalho compacto — cada linha a menos é papel economizado em TODA venda:
+  // sem régua inicial, título de 1 linha curta (tituloInstitucional), CNPJ+TEL
+  // juntos, endereço só no cupom fiscal (a UNIDADE já localiza a venda) e
+  // documento + aviso legal fundidos numa linha quando cabem.
+  for (const linhaTitulo of tituloInstitucional(config, 48)) {
+    cupom += `${centrarTexto(linhaTitulo, 48)}\n`;
   }
   const linhaDocumento = [cnpj ? `CNPJ: ${cnpj}` : '', telefone ? `TEL: ${telefone}` : '']
     .filter(Boolean)
@@ -531,9 +569,15 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
     if (cnpj) cupom += `${centrarTexto(`CNPJ: ${cnpj}`, 48)}\n`;
     if (telefone) cupom += `${centrarTexto(`TEL: ${telefone}`, 48)}\n`;
   }
-  if (endereco) cupom += `${centrarTexto(endereco, 48)}\n`;
-  cupom += `${centrarTexto(docName, 48)}\n`;
-  if (!fiscalEmission) cupom += `${centrarTexto('NAO E DOCUMENTO FISCAL', 48)}\n`;
+  if (fiscalEmission && endereco) cupom += `${centrarTexto(endereco, 48)}\n`;
+  const linhaDocLegal = fiscalEmission ? docName : `${docName} - NAO E DOCUMENTO FISCAL`;
+  if (linhaDocLegal.length <= 48) {
+    cupom += `${centrarTexto(linhaDocLegal, 48)}\n`;
+  } else {
+    // Nome de documento customizado longo demais: doc e aviso legal em 2 linhas.
+    cupom += `${centrarTexto(docName, 48)}\n`;
+    if (!fiscalEmission) cupom += `${centrarTexto('NAO E DOCUMENTO FISCAL', 48)}\n`;
+  }
   if (fiscalId) cupom += `${centrarTexto(fiscalId, 48)}\n`;
   cupom += `${divisorDuplo}\n`;
 
@@ -1019,13 +1063,12 @@ export function gerarBoletimDiario(dados: any, config?: any): string {
   const divisor = "-".repeat(40);
   const divisorDuplo = "=".repeat(40);
 
-  const inst = String(config?.institutionName || 'MERCADO FACIL PDV').slice(0, 40).toUpperCase();
-  const appName = String(config?.appName || '').slice(0, 40).toUpperCase();
-
   let cupom = "";
   cupom += `========================================\n`;
-  cupom += `${centrarTexto(inst, 40)}\n`;
-  if (appName) cupom += `${centrarTexto(appName, 40)}\n`;
+  // Título curto em 1 linha (eram 2 linhas de nome completo + appName).
+  for (const linhaTitulo of tituloInstitucional(config, 40, 'MERCADO FACIL PDV')) {
+    cupom += `${centrarTexto(linhaTitulo, 40)}\n`;
+  }
   cupom += `${centrarTexto('BOLETIM DIARIO', 40)}\n`;
   cupom += `${centrarTexto(dados?.data || new Date().toLocaleDateString('pt-BR'), 40)}\n`;
   cupom += `${divisorDuplo}\n\n`;

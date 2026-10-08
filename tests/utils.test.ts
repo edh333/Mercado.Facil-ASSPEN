@@ -13,7 +13,7 @@ mascararCpf,
   isVendedorRole,
   textToBase64,
 } from '../utils';
-import { montarEscPos, gerarCupomEntregaRaw, gerarRelatorioInadimplentes, gerarComprovanteDevolucaoAlvara } from '../utils/printUtils';
+import { montarEscPos, gerarCupomEntregaRaw, gerarCupomFechamento, gerarBoletimDiario, gerarRelatorioInadimplentes, gerarComprovanteDevolucaoAlvara } from '../utils/printUtils';
 import { toUserRole, UserRole } from '../types';
 
 describe('validateCPF', () => {
@@ -240,19 +240,21 @@ describe('montarEscPos (ESC/POS 80mm)', () => {
     // útil a quem recebe o cupom.
     expect(cupom).not.toContain('BOBINA 80MM');
 
-    // O nome do documento já dizia "NAO FISCAL"; a linha seguinte repetia a
-    // mesma ideia. Fica só a linha legalmente útil.
-    expect(cupom).not.toContain('CUPOM DE ENTREGA - NAO FISCAL');
+    // Documento + aviso legal numa linha só (eram 2 linhas por venda).
+    expect(cupom).toContain('CUPOM DE ENTREGA - NAO E DOCUMENTO FISCAL');
+    expect((cupom.match(/NAO E DOCUMENTO FISCAL/g) || []).length).toBe(1);
 
     // Alimentação final curta: 3 linhas, não 6.
     expect(cupom.endsWith('\n\n\n')).toBe(true);
   });
 
-  it('cupom completo de venda cabe em 28 linhas (regressão de papel)', () => {
+  it('cupom completo de venda cabe em 24 linhas (regressão de papel)', () => {
     // Antes: 39 linhas + 16 linhas de feed duplicado num cupom simples;
-    // depois 32; agora 26 com cabeçalho compacto (inst+app e CNPJ+TEL numa
-    // linha só, ID+OPER juntos, sem título de pagamento e sem régua extra).
-    // Trava o tamanho para impedir que texto redundante volte a crescer.
+    // depois 32, depois 26; agora 23 com cabeçalho minimalista (título de
+    // 1 linha curta, sem régua inicial, sem endereço, CNPJ+TEL juntos,
+    // ID+OPER juntos, documento+aviso legal fundidos, sem título de
+    // pagamento e sem régua extra). Trava o tamanho para impedir que
+    // texto redundante volte a crescer.
     const cupom = gerarCupomEntregaRaw({
       id: 'AB12CD34EF56',
       operatorName: 'Joao',
@@ -271,9 +273,70 @@ describe('montarEscPos (ESC/POS 80mm)', () => {
       address: 'AVENIDA BRASIL 1234 CENTRO VILENA MT',
     });
     const linhas = cupom.split('\n');
-    // 26 entradas no cenário completo; folga de +2 para campos extras.
-    expect(linhas.length).toBeLessThanOrEqual(28);
+    // 23 entradas no cenário completo; folga de +1 para campos extras.
+    expect(linhas.length).toBeLessThanOrEqual(24);
     expect(Math.max(...linhas.map(l => l.length))).toBeLessThanOrEqual(48);
+  });
+});
+
+describe('cabeçalho compacto do cupom (nome curto, menos papel)', () => {
+  const ASSPEN_LONGO = 'ASSOCIAÇÃO DOS SERVIDORES DO SISTEMA PENAL DE PEIXOTO DE AZEVEDO / MT - ASSPEN';
+  const cfgAsspen = {
+    institutionName: ASSPEN_LONGO,
+    appName: ASSPEN_LONGO.split(' - ')[0],
+    cnpj: '12.345.678/0001-90',
+    contactPhone: '65 99999-8888',
+    address: 'RUA DAS FLORES 123 CENTRO',
+  };
+  const venda = { id: 'X1', items: [{ name: 'ARROZ', quantity: 1, priceAtPurchase: 10 }], total: 10 };
+
+  it('nome institucional vira sigla de 1 linha (nunca o nome inteiro cortado no meio)', () => {
+    const cupom = gerarCupomEntregaRaw(venda, cfgAsspen);
+    expect(cupom.split('\n')[0].trim()).toBe('ASSPEN');
+    expect(cupom).not.toContain('ASSOCIACAO');
+    expect(cupom.split('\n').filter(l => l.trim() === 'ASSPEN')).toHaveLength(1);
+  });
+
+  it('documento + aviso legal fundidos numa linha só', () => {
+    const cupom = gerarCupomEntregaRaw(venda, cfgAsspen);
+    expect(cupom).toContain('CUPOM DE ENTREGA - NAO E DOCUMENTO FISCAL');
+    expect((cupom.match(/NAO E DOCUMENTO FISCAL/g) || []).length).toBe(1);
+  });
+
+  it('endereço sai do cupom de venda (a UNIDADE já localiza) e volta no fiscal', () => {
+    const naoFiscal = gerarCupomEntregaRaw(venda, cfgAsspen);
+    expect(naoFiscal).not.toContain('RUA DAS FLORES');
+
+    const fiscal = gerarCupomEntregaRaw(venda, { ...cfgAsspen, fiscalEmission: true });
+    expect(fiscal).toContain('RUA DAS FLORES');
+    // Nome legal completo em até 2 linhas (exigência junto ao CNPJ).
+    expect(fiscal.toUpperCase()).toContain('PEIXOTO DE AZEVEDO / MT - ASSPEN');
+    expect(fiscal).not.toContain('NAO E DOCUMENTO FISCAL');
+  });
+
+  it('corta na fronteira de palavra quando nenhum nome cabe', () => {
+    const semEspaco = gerarCupomEntregaRaw({ id: 'X', items: [] }, { institutionName: 'A'.repeat(60) });
+    const p1 = semEspaco.split('\n')[0].trim();
+    expect(p1.length).toBeLessThanOrEqual(48);
+    expect(p1.endsWith('...')).toBe(true);
+
+    const comEspacos = gerarCupomEntregaRaw({ id: 'X', items: [] }, {
+      institutionName: 'ASSOCIACAO DOS COMERCIANTES DE PEIXOTO DE AZEVEDO MATO GROSSO ESTADO',
+    });
+    const p2 = comEspacos.split('\n')[0].trim();
+    expect(p2.endsWith('...')).toBe(true);
+    expect(p2).toContain('ASSOCIACAO DOS COMERCIANTES');
+    expect(p2.length).toBeLessThanOrEqual(48);
+  });
+
+  it('fechamento de caixa e boletim diário também usam título curto de 1 linha', () => {
+    const fech = gerarCupomFechamento({ operatorId: 'ADMIN' }, cfgAsspen);
+    expect(fech).not.toContain('ASSOCIACAO');
+    expect(fech.split('\n')[1].trim()).toBe('ASSPEN');
+
+    const bol = gerarBoletimDiario({ data: '01/01/2026' }, cfgAsspen);
+    expect(bol).not.toContain('ASSOCIACAO');
+    expect(bol.split('\n')[1].trim()).toBe('ASSPEN');
   });
 });
 
