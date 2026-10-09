@@ -6,6 +6,7 @@ import { collection, query, orderBy, onSnapshot, doc, updateDoc, limit } from 'f
 import { db } from '../firebase';
 import { useTheme } from '../context/ThemeContext';
 import { OnlineStatusIndicator } from '../components/OnlineStatusIndicator';
+import { lerUltimaAbaAdmin, salvarUltimaAbaAdmin } from '../utils/ultimaAba';
 import { OfflineSalesBanner } from '../components/admin/OfflineSalesBanner';
 import { PageHeader, UiButton } from '../components/ui';
 
@@ -59,8 +60,8 @@ const ForbiddenMessage = () => (
     <div className="w-20 h-20 rounded-2xl bg-red-50 border border-red-200 flex items-center justify-center mb-6">
       <span className="text-3xl font-black text-red-500">!</span>
     </div>
-    <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight mb-2">Acesso Negado</h2>
-    <p className="text-slate-500 text-sm max-w-sm">
+    <h2 className="text-2xl font-black text-[var(--text-main)] uppercase tracking-tight mb-2">Acesso Negado</h2>
+    <p className="text-[var(--text-muted)] text-sm max-w-sm">
       Você não tem permissão para acessar esta seção. Consulte o administrador do sistema.
     </p>
   </div>
@@ -325,11 +326,26 @@ const isMaster = isMasterAdmin(currentUser);
     }
   }, [canAccessTab, activeTab, roleLoading]);
 
+  // Restaura a última aba aberta (conveniência: o operador volta de onde parou).
+  // Só executa UMA vez, depois que roles carregam; cai no padrão 'home' se o
+  // valor salvo não for válido/liberado (canAccessTab é a fonte única da verdade).
+  const restoreuUltimaAba = React.useRef(false);
+  useEffect(() => {
+    if (roleLoading || restoreuUltimaAba.current) return;
+    restoreuUltimaAba.current = true;
+    const inicial = lerUltimaAbaAdmin();
+    if (inicial !== activeTab && canAccessTab(inicial)) {
+      setActiveTab(inicial);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canAccessTab, roleLoading]);
+
   // Navegação centralizada com verificação de permissão.
   // Memoizada para identidade estável (evita re-renders filhos e garante que atalhos F1-F12 usem a versão atual).
   const goToTab = React.useCallback((tab: string) => {
     if (canAccessTab(tab)) {
       setActiveTab(tab);
+      salvarUltimaAbaAdmin(tab);
     } else {
       showNotification('Permissão negada para esta seção.', 'error');
     }
@@ -708,7 +724,7 @@ const isMaster = isMasterAdmin(currentUser);
   }, [orders]);
 
 return (
-    <div className="min-h-screen bg-[var(--bg-main)] text-slate-900 flex font-sans overflow-x-hidden">
+    <div className="min-h-screen bg-[var(--bg-main)] text-[var(--text-main)] flex font-sans overflow-x-hidden">
        
        {/* Sidebar Integration */}
 <AdminSidebar
@@ -741,7 +757,7 @@ return (
             <p className="text-[11px] font-black uppercase tracking-wide leading-snug flex-1">
               Cota gratuita do Firebase atingida hoje. Partes do sistema podem ficar temporariamente indisponíveis até a cota renovar (meia-noite UTC). Para funcionamento livre e permanente (1.500 usuários/dia), ative o plano Blaze: Firebase Console → Usage e Billing → Upgrade.
             </p>
-            <button onClick={() => window.open('https://console.firebase.google.com/u/0/project/_/usage/billing', '_blank')} className="shrink-0 bg-white text-amber-600 px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-amber-50 transition-all">
+            <button onClick={() => window.open('https://console.firebase.google.com/u/0/project/_/usage/billing', '_blank')} className="shrink-0 bg-[var(--bg-card)] text-amber-600 px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-[var(--bg-muted)] transition-all">
               Ativar agora
             </button>
           </div>
@@ -770,7 +786,7 @@ return (
           menuButton={
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="md:hidden text-slate-500 hover:bg-slate-100 p-2 rounded-lg border border-slate-200 touch-target"
+              className="md:hidden text-[var(--text-muted)] hover:bg-[var(--bg-muted)] p-2 rounded-lg border border-[var(--border-color)] touch-target"
             >
               {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
@@ -1012,13 +1028,13 @@ return (
                   <div className="flex gap-2 mb-6 print:hidden">
                     <button
                       onClick={() => setReportsMode('visual')}
-                      className={`px-5 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 ${reportsMode === 'visual' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'}`}
+                      className={`px-5 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 ${reportsMode === 'visual' ? 'bg-[var(--primary-color)] text-white shadow-lg shadow-black/20' : 'bg-[var(--bg-card)] text-[var(--text-muted)] border border-[var(--border-color)] hover:bg-[var(--bg-muted)]'}`}
                     >
                       <BarChart3 size={16} /> Painel Visual
                     </button>
                     <button
                       onClick={() => setReportsMode('formal')}
-                      className={`px-5 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 ${reportsMode === 'formal' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'}`}
+                      className={`px-5 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 ${reportsMode === 'formal' ? 'bg-[var(--primary-color)] text-white shadow-lg shadow-black/20' : 'bg-[var(--bg-card)] text-[var(--text-muted)] border border-[var(--border-color)] hover:bg-[var(--bg-muted)]'}`}
                     >
                       <FileText size={16} /> Relatórios Formais
                     </button>

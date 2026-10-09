@@ -107,15 +107,18 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       root.style.setProperty('--border-color', '#27272a');         // zinc-800
       root.style.setProperty('--glass-border', 'rgba(255,255,255,0.08)');
     } else {
-      // Light mode premium (estética asspen/shadcn — fundo quente, tinta escura)
-      root.style.setProperty('--bg-main', '#f8fafc');              // slate-50
+      // Light mode premium (estética asspen/shadcn — fundo quente, tinta escura).
+      // Palette zinc (WARMA), alinhada ao dark/zinc: antes o light usava slate
+      // (tom FRIO/azulado) e o dark usava zinc — trocar de tema "esfriava" o app.
+      // Agora light e dark compartilham o mesmo tom, só invertendo a luminância.
+      root.style.setProperty('--bg-main', '#fafaf9');              // zinc-50 (quente)
       root.style.setProperty('--bg-card', '#ffffff');              // white
-      root.style.setProperty('--bg-input', 'rgba(0,0,0,0.03)');
-      root.style.setProperty('--bg-muted', 'rgba(15,23,42,0.05)');
-      root.style.setProperty('--text-main', '#0f172a');            // slate-900
-      root.style.setProperty('--text-muted', '#64748b');           // slate-500
-      root.style.setProperty('--border-color', '#e2e8f0');         // slate-200
-      root.style.setProperty('--glass-border', 'rgba(15,23,42,0.08)');
+      root.style.setProperty('--bg-input', 'rgba(24,24,27,0.045)');
+      root.style.setProperty('--bg-muted', 'rgba(24,24,27,0.055)');
+      root.style.setProperty('--text-main', '#18181b');            // zinc-900
+      root.style.setProperty('--text-muted', '#71717a');           // zinc-500
+      root.style.setProperty('--border-color', '#e4e4e7');         // zinc-200
+      root.style.setProperty('--glass-border', 'rgba(24,24,27,0.08)');
     }
 
     // Wallpaper Global
