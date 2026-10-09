@@ -238,7 +238,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
 
       {/* ─── Summary Cards ─── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-[var(--bg-card)] p-6 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-amber-500 relative overflow-hidden group">
+        <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm border-l-4 border-l-amber-500 relative overflow-hidden group">
           <div className="absolute inset-0 bg-gradient-to-br from-amber-50 to-transparent pointer-events-none" />
           <p className="text-slate-500 font-black text-[10px] uppercase tracking-[0.2em] mb-1 relative z-10">Aportes Pendentes</p>
           <div className="flex items-end justify-between relative z-10">
@@ -246,63 +246,63 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
             <span className="text-[10px] font-black bg-amber-100 text-amber-600 px-3 py-1.5 rounded-xl border border-amber-200">{stats.pendingCount} Itens</span>
           </div>
         </div>
-        <div className="bg-[var(--bg-card)] p-6 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-emerald-500 relative overflow-hidden group">
+        <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm border-l-4 border-l-emerald-500 relative overflow-hidden group">
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 to-transparent pointer-events-none" />
           <p className="text-slate-500 font-black text-[10px] uppercase tracking-[0.2em] mb-1 relative z-10">Aprovados Hoje</p>
           <h3 className="text-3xl font-black text-emerald-600 tracking-tighter group-hover:scale-105 transition-transform origin-left relative z-10">R$ {formatarMoeda(stats.totalApprovedToday)}</h3>
         </div>
-        <div className="bg-[var(--bg-card)] p-6 rounded-[2rem] border border-[var(--border-color)] shadow-sm border-l-4 border-l-blue-500 relative overflow-hidden group">
+        <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm border-l-4 border-l-blue-500 relative overflow-hidden group">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-transparent pointer-events-none" />
           <div className="relative z-10">
             <p className="text-slate-500 font-black text-[10px] uppercase tracking-[0.2em] mb-1">Sistema de Créditos</p>
-            <h3 className="text-xl font-bold text-[var(--text-main)] tracking-tight leading-none">Fluxo de Carteira</h3>
+            <h3 className="text-xl font-bold text-slate-900 tracking-tight leading-none">Fluxo de Carteira</h3>
           </div>
           <CreditCard size={40} className="text-blue-500/30 relative z-10 transform group-hover:rotate-12 transition-transform duration-500" />
         </div>
       </div>
 
       {/* ─── Header & Sub-Tabs ─── */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[var(--bg-card)] p-6 rounded-[2rem] border border-[var(--border-color)] shadow-sm">
-        <h2 className="text-xl font-bold text-[var(--text-main)] flex items-center gap-3 tracking-tight">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
+        <h2 className="text-xl font-bold text-slate-900 flex items-center gap-3 tracking-tight">
           <div className="p-2 bg-emerald-100 rounded-xl">
             <CreditCard size={20} className="text-emerald-600" />
           </div>
           Movimentações
         </h2>
-        <div className="flex bg-[var(--bg-muted)] rounded-2xl p-1.5 w-full md:w-auto border border-[var(--border-color)]">
-          <button onClick={() => setActiveSubTab('ALL')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-[1.25rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'ALL' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-500 hover:text-[var(--text-main)]'}`}>Todos</button>
-          <button onClick={() => setActiveSubTab('DEPOSITS')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-[1.25rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'DEPOSITS' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-500 hover:text-[var(--text-main)]'}`}>Depósitos</button>
-          <button onClick={() => setActiveSubTab('WITHDRAWALS')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-[1.25rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'WITHDRAWALS' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-500 hover:text-[var(--text-main)]'}`}>Saídas e Compras</button>
-          <button onClick={() => setActiveSubTab('SALDOS')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-[1.25rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'SALDOS' ? 'bg-indigo-500 text-white shadow-md' : 'text-slate-500 hover:text-[var(--text-main)]'}`}>Saldos</button>
+        <div className="flex bg-slate-100 rounded-2xl p-1.5 w-full md:w-auto border border-slate-200">
+          <button onClick={() => setActiveSubTab('ALL')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-[1.25rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'ALL' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Todos</button>
+          <button onClick={() => setActiveSubTab('DEPOSITS')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-[1.25rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'DEPOSITS' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Depósitos</button>
+          <button onClick={() => setActiveSubTab('WITHDRAWALS')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-[1.25rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'WITHDRAWALS' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Saídas e Compras</button>
+          <button onClick={() => setActiveSubTab('SALDOS')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-[1.25rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'SALDOS' ? 'bg-indigo-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Saldos</button>
         </div>
-        <button onClick={exportWalletToCSV} className="px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 bg-[var(--bg-muted)] text-[var(--text-main)] hover:bg-slate-200 hover:scale-105 active:scale-95 border border-[var(--border-color)]">
+        <button onClick={exportWalletToCSV} className="px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 bg-slate-100 text-slate-700 hover:bg-slate-200 hover:scale-105 active:scale-95 border border-slate-200">
           <Download size={16} /> Exportar CSV
         </button>
       </div>
 
       {/* ─── Search & Date Filters ─── */}
-      <div className="bg-[var(--bg-card)] p-6 rounded-[2rem] border border-[var(--border-color)] shadow-sm">
+      <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-[2] relative group">
             <div className="absolute left-5 top-1/2 -translate-y-1/2 transition-colors z-10 text-slate-400 group-focus-within:text-emerald-500">
               <Search size={20} />
             </div>
             <input
-              className="w-full pl-14 pr-6 py-4 rounded-[1.5rem] bg-[var(--bg-muted)] border border-[var(--border-color)] focus:border-emerald-500 outline-none font-bold text-sm text-[var(--text-main)] transition-all placeholder:text-slate-400 uppercase tracking-widest"
+              className="w-full pl-14 pr-6 py-4 rounded-[1.5rem] bg-slate-50 border border-slate-200 focus:border-emerald-500 outline-none font-bold text-sm text-slate-900 transition-all placeholder:text-slate-400 uppercase tracking-widest"
               placeholder="BUSCAR POR NOME OU CPF"
               value={userSearch}
               onChange={e => setUserSearch(e.target.value)}
             />
           </div>
           <div className="flex-1 flex flex-wrap gap-3">
-            <div className="flex bg-[var(--bg-muted)] rounded-2xl p-1.5 border border-[var(--border-color)] flex-1 overflow-hidden">
-              <button onClick={() => applyQuickDate('ALL')} className={`flex-1 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'ALL' ? 'bg-[var(--bg-card)] text-[var(--text-main)] shadow-sm' : 'text-slate-500 hover:text-[var(--text-main)]'}`}>Todas</button>
+            <div className="flex bg-slate-100 rounded-2xl p-1.5 border border-slate-200 flex-1 overflow-hidden">
+              <button onClick={() => applyQuickDate('ALL')} className={`flex-1 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'ALL' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>Todas</button>
               <button onClick={() => applyQuickDate('TODAY')} className={`flex-1 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'TODAY' ? 'bg-emerald-100 text-emerald-700' : 'text-emerald-600/70 hover:text-emerald-600'}`}>Hoje</button>
               <button onClick={() => applyQuickDate('WEEK')} className={`flex-1 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'WEEK' ? 'bg-blue-100 text-blue-700' : 'text-blue-600/70 hover:text-blue-600'}`}>Semana</button>
               <button onClick={() => applyQuickDate('MONTH')} className={`flex-1 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'MONTH' ? 'bg-indigo-100 text-indigo-700' : 'text-indigo-600/70 hover:text-indigo-600'}`}>30 Dias</button>
             </div>
-            <input type="date" className="w-36 flex-1 min-w-[120px] px-4 py-3 bg-[var(--bg-muted)] border border-[var(--border-color)] focus:border-emerald-500 rounded-2xl text-[11px] font-black uppercase text-[var(--text-main)] outline-none" value={financeFilters?.start || ''} onChange={e => { setFinanceFilters({...financeFilters, start: e.target.value}); setQuickDateFilter('ALL'); }} />
-            <input type="date" className="w-36 flex-1 min-w-[120px] px-4 py-3 bg-[var(--bg-muted)] border border-[var(--border-color)] focus:border-emerald-500 rounded-2xl text-[11px] font-black uppercase text-[var(--text-main)] outline-none" value={financeFilters?.end || ''} onChange={e => { setFinanceFilters({...financeFilters, end: e.target.value}); setQuickDateFilter('ALL'); }} />
+            <input type="date" className="w-36 flex-1 min-w-[120px] px-4 py-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-2xl text-[11px] font-black uppercase text-slate-900 outline-none" value={financeFilters?.start || ''} onChange={e => { setFinanceFilters({...financeFilters, start: e.target.value}); setQuickDateFilter('ALL'); }} />
+            <input type="date" className="w-36 flex-1 min-w-[120px] px-4 py-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-2xl text-[11px] font-black uppercase text-slate-900 outline-none" value={financeFilters?.end || ''} onChange={e => { setFinanceFilters({...financeFilters, end: e.target.value}); setQuickDateFilter('ALL'); }} />
           </div>
         </div>
       </div>
@@ -310,13 +310,13 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
       {/* ─── SALDOS: quem tem crédito na carteira + dívidas de fiado ─── */}
       {activeSubTab === 'SALDOS' && (
         <div className="space-y-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[var(--bg-card)] p-6 rounded-[2rem] border border-[var(--border-color)] shadow-sm">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-indigo-100 rounded-xl">
                 <Wallet size={20} className="text-indigo-600" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-[var(--text-main)] tracking-tight">Saldos e Créditos</h2>
+                <h2 className="text-xl font-bold text-slate-900 tracking-tight">Saldos e Créditos</h2>
                 <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mt-1">
                   Quem tem crédito na carteira e quem deve no fiado — visão consolidada
                   {saldosAtualizadoEm && <span className="text-emerald-600 ml-2">· Atualizado {saldosAtualizadoEm.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>}
@@ -324,7 +324,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
               </div>
             </div>
             <div className="flex gap-3">
-              <button onClick={exportSaldosCSV} className="px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 bg-[var(--bg-muted)] text-[var(--text-main)] hover:bg-slate-200 hover:scale-105 active:scale-95 border border-[var(--border-color)]">
+              <button onClick={exportSaldosCSV} className="px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 bg-slate-100 text-slate-700 hover:bg-slate-200 hover:scale-105 active:scale-95 border border-slate-200">
                 <Download size={16} /> Exportar CSV
               </button>
               <button onClick={printSaldos} className="px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 bg-emerald-500 text-white hover:bg-emerald-600 hover:scale-105 active:scale-95 shadow-md">
@@ -335,12 +335,12 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* CARTEIRA */}
-            <div className="bg-[var(--bg-card)] rounded-[2.5rem] border border-[var(--border-color)] shadow-sm overflow-hidden">
-              <div className="p-6 border-b border-[var(--border-color)] flex items-center justify-between gap-3 bg-gradient-to-br from-emerald-50/80 to-transparent">
+            <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between gap-3 bg-gradient-to-br from-emerald-50/80 to-transparent">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 bg-emerald-500 text-white rounded-xl"><Users size={18} /></div>
                   <div>
-                    <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-main)]">Créditos de Carteira</h3>
+                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">Créditos de Carteira</h3>
                     <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">Usuários com saldo positivo</p>
                   </div>
                 </div>
@@ -351,7 +351,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                   </p>
                 </div>
               </div>
-              <div className="max-h-[480px] overflow-y-auto divide-y divide-[var(--border-color)]">
+              <div className="max-h-[480px] overflow-y-auto divide-y divide-slate-100">
                 {(() => {
                   const termo = (userSearch || '').toLowerCase();
                   const lista = (users || [])
@@ -364,9 +364,9 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                     </div>
                   );
                   return lista.map(u => (
-                    <div key={u.id} className="p-5 flex items-center justify-between gap-4 hover:bg-[var(--bg-muted)] transition-colors">
+                    <div key={u.id} className="p-5 flex items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
                       <div className="min-w-0">
-                        <p className="font-black text-[var(--text-main)] text-sm uppercase tracking-tight truncate">{u.name || '—'}</p>
+                        <p className="font-black text-slate-900 text-sm uppercase tracking-tight truncate">{u.name || '—'}</p>
                         <p className="text-[9px] text-slate-400 font-black tracking-widest mt-1">
                           CPF: <span className="font-mono">{u.cpf || 'N/A'}</span>
                         </p>
@@ -384,12 +384,12 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
             </div>
 
             {/* FIADO */}
-            <div className="bg-[var(--bg-card)] rounded-[2.5rem] border border-[var(--border-color)] shadow-sm overflow-hidden">
-              <div className="p-6 border-b border-[var(--border-color)] flex items-center justify-between gap-3 bg-gradient-to-br from-red-50/80 to-transparent">
+            <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between gap-3 bg-gradient-to-br from-red-50/80 to-transparent">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 bg-red-500 text-white rounded-xl"><TrendingDown size={18} /></div>
                   <div>
-                    <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-main)]">Dívidas de Fiado</h3>
+                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">Dívidas de Fiado</h3>
                     <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">Contas de clientes em aberto</p>
                   </div>
                 </div>
@@ -400,7 +400,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                   </p>
                 </div>
               </div>
-              <div className="max-h-[480px] overflow-y-auto divide-y divide-[var(--border-color)]">
+              <div className="max-h-[480px] overflow-y-auto divide-y divide-slate-100">
                 {(() => {
                   const termo = (userSearch || '').toLowerCase();
                   const lista = fiadoAccounts
@@ -417,10 +417,10 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                     const limite = Number(a.creditLimit) || 0;
                     const pct = limite > 0 ? Math.min(100, Math.round((divida / limite) * 100)) : 0;
                     return (
-                      <div key={a.id} className="p-5 hover:bg-[var(--bg-muted)] transition-colors">
+                      <div key={a.id} className="p-5 hover:bg-slate-50 transition-colors">
                         <div className="flex items-center justify-between gap-4">
                           <div className="min-w-0">
-                            <p className="font-black text-[var(--text-main)] text-sm uppercase tracking-tight truncate">{a.nome || a.name || '—'}</p>
+                            <p className="font-black text-slate-900 text-sm uppercase tracking-tight truncate">{a.nome || a.name || '—'}</p>
                             <p className="text-[9px] text-slate-400 font-black tracking-widest mt-1">
                               CPF: <span className="font-mono">{a.cpf || 'N/A'}</span>
                               {limite > 0 && <span className="ml-3">LIMITE: R$ {formatarMoeda(limite)}</span>}
@@ -434,7 +434,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                           </div>
                         </div>
                         {limite > 0 && (
-                          <div className="mt-3 h-1.5 bg-[var(--bg-muted)] rounded-full overflow-hidden">
+                          <div className="mt-3 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                             <div className={`h-full rounded-full ${pct >= 90 ? 'bg-red-500' : pct >= 60 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${pct}%` }} />
                           </div>
                         )}
@@ -449,12 +449,12 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
       )}
 
       {/* ─── Transaction Table ─── */}
-      <div className="bg-[var(--bg-card)] rounded-[2.5rem] border border-[var(--border-color)] shadow-sm overflow-hidden">
+      <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
 
         {/* Desktop Table */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="text-left text-slate-500 font-black text-[10px] uppercase tracking-[0.2em] border-b border-[var(--border-color)] bg-[var(--bg-muted)]">
+            <thead className="text-left text-slate-500 font-black text-[10px] uppercase tracking-[0.2em] border-b border-slate-200 bg-slate-50">
               <tr>
                 <th className="p-6">Data/Hora</th>
                 <th className="p-6">Usuário / Beneficiário</th>
@@ -464,7 +464,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                 <th className="p-6 text-center">Ações</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[var(--border-color)]">
+            <tbody className="divide-y divide-slate-100">
               {loadingWallet ? (
                 <tr><td colSpan={6} className="p-20 text-center"><div className="flex flex-col items-center gap-3 text-slate-300"><CreditCard size={48} className="animate-pulse"/><p className="text-xs font-black uppercase tracking-[0.3em]">Sincronizando Dados...</p></div></td></tr>
               ) : filteredTx.length === 0 ? (
@@ -472,16 +472,16 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
               ) : filteredTx.map(tx => (
                 <tr
                   key={tx.id}
-                  className={`transition-all hover:bg-[var(--bg-muted)] group ${tx.status === 'pending' && tx.type === 'deposit' ? 'bg-amber-50/60' : ''}`}
+                  className={`transition-all hover:bg-slate-50 group ${tx.status === 'pending' && tx.type === 'deposit' ? 'bg-amber-50/60' : ''}`}
                 >
                   <td className="p-6">
-                    <div className="text-[10px] text-[var(--text-main)] font-black leading-tight tracking-widest">
+                    <div className="text-[10px] text-slate-900 font-black leading-tight tracking-widest">
                       {new Date(tx.createdAt).toLocaleDateString('pt-BR')}<br/>
                       <span className="text-slate-400">{new Date(tx.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
                     </div>
                   </td>
                   <td className="p-6">
-                    <div className="font-black text-[var(--text-main)] text-sm uppercase tracking-tight truncate max-w-[250px] group-hover:text-emerald-600 transition-colors">{tx.userName || tx.payerName || '—'}</div>
+                    <div className="font-black text-slate-900 text-sm uppercase tracking-tight truncate max-w-[250px] group-hover:text-emerald-600 transition-colors">{tx.userName || tx.payerName || '—'}</div>
                     <div className="text-[9px] text-slate-400 font-black mt-1 tracking-widest">
                       CPF: <span className="font-mono">{tx.inmateCpf || tx.cpf || 'N/A'}</span>
                       {tx.description && <span className="ml-3 italic opacity-60 font-normal normal-case tracking-normal">• {tx.description}</span>}
@@ -520,7 +520,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                         )}
                         <button
                           onClick={() => onSelectTransaction?.(tx)}
-                          className="px-4 py-2 min-h-[44px] rounded-xl text-[9px] font-black uppercase tracking-[0.2em] bg-[var(--bg-muted)] text-[var(--text-main)] hover:bg-slate-200 active:scale-95 transition-all border border-[var(--border-color)]"
+                          className="px-4 py-2 min-h-[44px] rounded-xl text-[9px] font-black uppercase tracking-[0.2em] bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-95 transition-all border border-slate-200"
                         >
                           Detalhes
                         </button>
@@ -529,7 +529,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                       <div className="flex items-center justify-center">
                         <button
                           onClick={() => onSelectTransaction?.(tx)}
-                          className="px-4 py-2 min-h-[44px] rounded-xl text-[9px] font-black uppercase tracking-[0.2em] bg-[var(--bg-muted)] text-[var(--text-main)] hover:bg-slate-200 active:scale-95 transition-all border border-[var(--border-color)]"
+                          className="px-4 py-2 min-h-[44px] rounded-xl text-[9px] font-black uppercase tracking-[0.2em] bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-95 transition-all border border-slate-200"
                         >
                           Detalhes
                         </button>
@@ -545,7 +545,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
         </div>
 
         {/* Mobile Cards */}
-        <div className="md:hidden divide-y divide-[var(--border-color)]">
+        <div className="md:hidden divide-y divide-slate-100">
           {loadingWallet ? (
             <div className="p-10 text-center text-slate-300"><CreditCard size={40} className="mx-auto mb-3 animate-pulse"/><p className="text-[10px] font-black uppercase tracking-[0.3em]">Sincronizando...</p></div>
           ) : filteredTx.length === 0 ? (
@@ -565,12 +565,12 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
               </div>
 
               <div>
-                <p className="font-black text-[var(--text-main)] text-base uppercase tracking-tight truncate">{tx.userName || tx.payerName || '—'}</p>
+                <p className="font-black text-slate-900 text-base uppercase tracking-tight truncate">{tx.userName || tx.payerName || '—'}</p>
                 <p className="text-[10px] text-slate-400 font-black mt-1 tracking-widest">CPF: <span className="font-mono">{tx.inmateCpf || tx.cpf || 'N/A'}</span></p>
                 {tx.description && <p className="text-[10px] text-slate-400 italic mt-2 truncate">{tx.description}</p>}
               </div>
 
-              <div className="flex justify-between items-center mt-2 border-t border-[var(--border-color)] pt-4">
+              <div className="flex justify-between items-center mt-2 border-t border-slate-100 pt-4">
                 <div className="flex flex-col">
                   <p className="text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Valor Total</p>
                   <p className={`font-black text-xl tracking-tighter ${tx.amount > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
@@ -598,7 +598,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                       )}
                       <button
                         onClick={() => onSelectTransaction?.(tx)}
-                        className="flex items-center gap-1 text-[9px] font-black text-[var(--text-main)] uppercase cursor-pointer bg-[var(--bg-muted)] hover:bg-slate-200 px-4 py-2 min-h-[44px] rounded-xl border border-[var(--border-color)] active:scale-95 transition-all"
+                        className="flex items-center gap-1 text-[9px] font-black text-slate-700 uppercase cursor-pointer bg-slate-100 hover:bg-slate-200 px-4 py-2 min-h-[44px] rounded-xl border border-slate-200 active:scale-95 transition-all"
                       >
                         Detalhes <ChevronRight size={14}/>
                       </button>

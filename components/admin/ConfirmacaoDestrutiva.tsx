@@ -43,9 +43,9 @@ export const ConfirmacaoDestrutiva: React.FC<ConfirmacaoDestrutivaProps> = ({
             icon={<AlertTriangle size={20} />}
             closeOnBackdrop={!processando}
             footer={
-                <div className="flex flex-col sm:flex-row justify-end items-center gap-3 bg-[var(--bg-muted)] border-t border-[var(--border-color)] px-6 py-4 mt-6 w-full md:w-auto">
+                <div className="flex flex-col sm:flex-row justify-end items-center gap-3 bg-slate-50 border-t border-slate-100 px-6 py-4 mt-6 w-full md:w-auto">
                     <button type="button" onClick={onClose} disabled={processando}
-                        className="w-full sm:w-auto h-11 px-6 bg-[var(--bg-card)] border border-[var(--border-color)] text-slate-600 font-bold text-sm rounded-xl hover:bg-[var(--bg-muted)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        className="w-full sm:w-auto h-11 px-6 bg-white border border-slate-200 text-slate-600 font-bold text-sm rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                         Cancelar
                     </button>
                     <button type="button" onClick={onConfirm} disabled={!valido || processando}
@@ -72,7 +72,7 @@ export const ConfirmacaoDestrutiva: React.FC<ConfirmacaoDestrutivaProps> = ({
                 ) : (
                 <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center gap-3">
                     <span className="text-[9px] font-black uppercase tracking-widest text-red-600 shrink-0">Digite</span>
-                    <span className="px-3 py-1 rounded-lg bg-[var(--bg-card)] border-2 border-dashed border-red-300 text-red-700 font-black text-sm tracking-[0.3em] tnum select-all">{palavraChave}</span>
+                    <span className="px-3 py-1 rounded-lg bg-white border-2 border-dashed border-red-300 text-red-700 font-black text-sm tracking-[0.3em] tnum select-all">{palavraChave}</span>
                     <span className="text-[9px] font-black uppercase tracking-widest text-red-600">para liberar</span>
                 </div>
                 )}
@@ -86,7 +86,7 @@ export const ConfirmacaoDestrutiva: React.FC<ConfirmacaoDestrutivaProps> = ({
                     onChange={e => setTexto(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter' && valido && !processando) onConfirm(); }}
                     placeholder="••••••"
-                    className="w-full bg-[var(--bg-muted)] border-2 border-[var(--border-color)] focus:border-red-500 p-4 rounded-2xl font-black text-center text-lg uppercase tracking-[0.3em] outline-none transition-colors disabled:opacity-50"
+                    className="w-full bg-slate-50 border-2 border-slate-200 focus:border-red-500 p-4 rounded-2xl font-black text-center text-lg uppercase tracking-[0.3em] outline-none transition-colors disabled:opacity-50"
                 />
                 )}
             </div>

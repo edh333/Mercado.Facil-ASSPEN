@@ -46,14 +46,14 @@ export const TelaPosVenda: React.FC<TelaPosVendaProps> = ({
         role="dialog"
         aria-modal="true"
         aria-label="Venda concluída"
-        className="w-full max-w-md bg-[var(--bg-card)] rounded-3xl shadow-2xl border border-[var(--border-color)] overflow-hidden"
+        className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden"
       >
         {/* Cabeçalho */}
         <div className="px-6 pt-7 pb-5 text-center bg-gradient-to-b from-emerald-50 to-white">
           <div className="w-16 h-16 mx-auto rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/30">
             <CheckCircle2 size={32} strokeWidth={2.5} />
           </div>
-          <h2 className="mt-4 text-xl font-black uppercase tracking-widest text-[var(--text-main)]">
+          <h2 className="mt-4 text-xl font-black uppercase tracking-widest text-slate-900">
             Venda concluída
           </h2>
           <p className="mt-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">
@@ -63,7 +63,7 @@ export const TelaPosVenda: React.FC<TelaPosVendaProps> = ({
 
         {/* Resumo financeiro */}
         <div className="px-6 pb-5">
-          <div className="rounded-2xl bg-[var(--bg-muted)] border border-[var(--border-color)] p-4">
+          <div className="rounded-2xl bg-slate-50 border border-slate-200 p-4">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
                 Total
@@ -72,12 +72,12 @@ export const TelaPosVenda: React.FC<TelaPosVendaProps> = ({
                 {formatarMoeda(resumo.total)}
               </span>
             </div>
-            <div className="mt-3 pt-3 border-t border-[var(--border-color)] space-y-1.5">
+            <div className="mt-3 pt-3 border-t border-slate-200 space-y-1.5">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-slate-500 uppercase tracking-wider">
                   Pagamento
                 </span>
-                <span className="font-black text-[var(--text-main)]">
+                <span className="font-black text-slate-700">
                   {resumo.metodoRotulo}
                 </span>
               </div>
@@ -86,7 +86,7 @@ export const TelaPosVenda: React.FC<TelaPosVendaProps> = ({
                   <span className="font-bold text-slate-500 uppercase tracking-wider">
                     Composição
                   </span>
-                  <span className="font-black text-[var(--text-main)] text-right">
+                  <span className="font-black text-slate-700 text-right">
                     {resumo.composicao
                       .map((p) => `${p.metodoRotulo} ${formatarMoeda(p.valor)}`)
                       .join(' · ')}
@@ -107,7 +107,7 @@ export const TelaPosVenda: React.FC<TelaPosVendaProps> = ({
                 <span className="font-bold text-slate-500 uppercase tracking-wider">
                   Itens
                 </span>
-                <span className="font-black text-[var(--text-main)]">
+                <span className="font-black text-slate-700">
                   {resumo.itens}
                 </span>
               </div>
@@ -162,7 +162,7 @@ export const TelaPosVenda: React.FC<TelaPosVendaProps> = ({
               </button>
               <button
                 onClick={onConcluir}
-                className="h-12 rounded-2xl bg-[var(--bg-card)] border-2 border-slate-300 text-[var(--text-main)] font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 hover:bg-[var(--bg-muted)]"
+                className="h-12 rounded-2xl bg-white border-2 border-slate-300 text-slate-800 font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 hover:bg-slate-50"
               >
                 <ShoppingCart size={16} />
                 Nova venda

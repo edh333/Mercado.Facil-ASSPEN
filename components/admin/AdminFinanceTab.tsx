@@ -578,7 +578,7 @@ const cashTotais = useMemo(() => {
                         {diff !== 0 ? `${diff > 0 ? '+' : ''}${diff.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '—'}
                       </td>
                       <td className="p-4 text-center">
-                        <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${aberta ? 'bg-emerald-100 text-emerald-700' : s.autoClosed ? 'bg-amber-100 text-amber-700' : 'bg-[var(--bg-muted)] text-slate-500'}`}>
+                        <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${aberta ? 'bg-emerald-100 text-emerald-700' : s.autoClosed ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
                           {aberta ? 'Aberto' : s.autoClosed ? 'Auto-fechado' : 'Fechado'}
                         </span>
                       </td>
@@ -597,7 +597,7 @@ const cashTotais = useMemo(() => {
               <div key={s.id} className="py-4 flex flex-col gap-2">
                 <div className="flex justify-between items-center">
                   <span className="font-bold uppercase text-sm text-[var(--text-main)]">{s.operatorName || s.operatorId || '—'}</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${aberta ? 'bg-emerald-100 text-emerald-700' : s.autoClosed ? 'bg-amber-100 text-amber-700' : 'bg-[var(--bg-muted)] text-slate-500'}`}>
+                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${aberta ? 'bg-emerald-100 text-emerald-700' : s.autoClosed ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
                     {aberta ? 'Aberto' : s.autoClosed ? 'Auto-fechado' : 'Fechado'}
                   </span>
                 </div>
@@ -802,7 +802,7 @@ const cashTotais = useMemo(() => {
               <button
                 type="button"
                 onClick={() => setShowExpenseModal(false)}
-                className="px-6 py-3 rounded-xl bg-[var(--bg-muted)] hover:bg-slate-200 text-[var(--text-main)] font-black uppercase text-[10px] tracking-widest transition-all active:scale-95"
+                className="px-6 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-black uppercase text-[10px] tracking-widest transition-all active:scale-95"
               >
                 Cancelar
               </button>
@@ -823,7 +823,7 @@ const cashTotais = useMemo(() => {
           <form id="expense-form" onSubmit={handleExpenseSubmit} className="p-4 md:p-5 space-y-4">
             <button type="submit" id="expense-form-submit" className="hidden" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="md:col-span-2 p-4 rounded-2xl border-2 border-red-200 bg-[var(--bg-card)] focus-within:border-red-500 transition-all shadow-sm">
+              <div className="md:col-span-2 p-4 rounded-2xl border-2 border-red-200 bg-white focus-within:border-red-500 transition-all shadow-sm">
                 <label className="text-[var(--text-main)] font-black text-[10px] uppercase mb-1.5 block tracking-widest ml-1">Finalidade da Despesa *</label>
                 <input
                   className="w-full bg-transparent font-black text-xl text-[var(--text-main)] focus:outline-none uppercase placeholder:text-[var(--text-muted)] placeholder:uppercase placeholder:tracking-widest"
@@ -834,7 +834,7 @@ const cashTotais = useMemo(() => {
                 />
               </div>
 
-              <div className="p-4 rounded-2xl border-2 border-red-200 bg-[var(--bg-card)] focus-within:border-red-500 transition-all shadow-sm">
+              <div className="p-4 rounded-2xl border-2 border-red-200 bg-white focus-within:border-red-500 transition-all shadow-sm">
                 <label className="text-[var(--text-main)] font-black text-[10px] uppercase mb-1.5 block tracking-widest ml-1">Valor Total (R$) *</label>
                 <input
                   type="text"
@@ -847,7 +847,7 @@ const cashTotais = useMemo(() => {
                 />
               </div>
 
-              <div className="p-4 rounded-2xl border-2 border-red-200 bg-[var(--bg-card)] focus-within:border-red-500 transition-all shadow-sm">
+              <div className="p-4 rounded-2xl border-2 border-red-200 bg-white focus-within:border-red-500 transition-all shadow-sm">
                 <label className="text-[var(--text-main)] font-black text-[10px] uppercase mb-1.5 block tracking-widest ml-1">Categoria de Custo</label>
                 <select
                   className="w-full bg-transparent font-black text-sm text-[var(--text-main)] focus:outline-none uppercase appearance-none cursor-pointer"
@@ -861,7 +861,7 @@ const cashTotais = useMemo(() => {
                 </select>
               </div>
 
-              <div className="p-4 rounded-2xl border-2 border-red-200 bg-[var(--bg-card)] focus-within:border-red-500 transition-all shadow-sm">
+              <div className="p-4 rounded-2xl border-2 border-red-200 bg-white focus-within:border-red-500 transition-all shadow-sm">
                 <label className="text-[var(--text-main)] font-black text-[10px] uppercase mb-1.5 block tracking-widest ml-1">Nome do Recebedor *</label>
                 <input
                   className="w-full bg-transparent font-black text-sm text-[var(--text-main)] focus:outline-none uppercase placeholder:text-[var(--text-muted)] placeholder:uppercase placeholder:tracking-widest"
@@ -872,7 +872,7 @@ const cashTotais = useMemo(() => {
                 />
               </div>
 
-              <div className="p-4 rounded-2xl border-2 border-red-200 bg-[var(--bg-card)] focus-within:border-red-500 transition-all shadow-sm">
+              <div className="p-4 rounded-2xl border-2 border-red-200 bg-white focus-within:border-red-500 transition-all shadow-sm">
                 <label className="text-[var(--text-main)] font-black text-[10px] uppercase mb-1.5 block tracking-widest ml-1">Documento do Recebedor (CPF/CNPJ)</label>
                 <input
                   className="w-full bg-transparent font-black text-sm text-[var(--text-main)] focus:outline-none uppercase placeholder:text-[var(--text-muted)] placeholder:uppercase placeholder:tracking-widest"
@@ -882,7 +882,7 @@ const cashTotais = useMemo(() => {
                 />
               </div>
 
-              <div className="p-4 rounded-2xl border-2 border-red-200 bg-[var(--bg-card)] focus-within:border-red-500 transition-all shadow-sm">
+              <div className="p-4 rounded-2xl border-2 border-red-200 bg-white focus-within:border-red-500 transition-all shadow-sm">
                 <label className="text-[var(--text-main)] font-black text-[10px] uppercase mb-1.5 block tracking-widest ml-1">Conta Débito</label>
                 <select
                   className="w-full bg-transparent font-black text-sm text-[var(--text-main)] focus:outline-none uppercase appearance-none cursor-pointer"
@@ -895,7 +895,7 @@ const cashTotais = useMemo(() => {
                 </select>
               </div>
 
-              <div className="md:col-span-2 p-4 rounded-2xl border-2 border-red-200 bg-[var(--bg-card)] focus-within:border-red-500 transition-all shadow-sm">
+              <div className="md:col-span-2 p-4 rounded-2xl border-2 border-red-200 bg-white focus-within:border-red-500 transition-all shadow-sm">
                 <label className="text-[var(--text-main)] font-black text-[10px] uppercase mb-1.5 block tracking-widest ml-1">Observações Adicionais</label>
                 <textarea
                   className="w-full bg-transparent font-black text-sm text-[var(--text-main)] focus:outline-none h-24 resize-none placeholder:text-[var(--text-muted)] placeholder:uppercase placeholder:tracking-widest uppercase"
@@ -923,7 +923,7 @@ const cashTotais = useMemo(() => {
             <div className="bg-emerald-50 p-5 rounded-2xl border border-emerald-100 space-y-2">
               <div className="flex justify-between text-xs">
                 <span className="font-black uppercase text-emerald-600 text-[9px] tracking-widest">Descrição</span>
-                <span className="font-bold text-[var(--text-main)] uppercase text-right">{printReceipt.description}</span>
+                <span className="font-bold text-slate-900 uppercase text-right">{printReceipt.description}</span>
               </div>
               <div className="flex justify-between text-xs">
                 <span className="font-black uppercase text-emerald-600 text-[9px] tracking-widest">Valor</span>
@@ -931,7 +931,7 @@ const cashTotais = useMemo(() => {
               </div>
               <div className="flex justify-between text-xs">
                 <span className="font-black uppercase text-emerald-600 text-[9px] tracking-widest">Recibo</span>
-                <span className="font-mono font-bold text-[var(--text-main)]">#{printReceipt.auditDocNumber || printReceipt.recipientDoc}</span>
+                <span className="font-mono font-bold text-slate-900">#{printReceipt.auditDocNumber || printReceipt.recipientDoc}</span>
               </div>
             </div>
 
@@ -949,7 +949,7 @@ const cashTotais = useMemo(() => {
               </button>
               <button
                 onClick={() => setPrintReceipt(null)}
-                className="w-full py-4 bg-[var(--bg-muted)] text-slate-600 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all"
+                className="w-full py-4 bg-slate-100 text-slate-600 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all"
               >
                 Imprimir Depois
               </button>

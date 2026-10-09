@@ -291,29 +291,29 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
     <div className="animate-slideUp space-y-6">
 
       {/* ─── Main Tab Toggle ─── */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[var(--bg-card)] p-5 rounded-3xl border border-[var(--border-color)] shadow-sm">
-        <h2 className="text-xl font-bold text-[var(--text-main)] flex items-center gap-2 tracking-tight">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
+        <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2 tracking-tight">
           <Users size={24} className="text-emerald-500" /> Gestão de Usuários
         </h2>
-        <div className="flex flex-wrap bg-[var(--bg-muted)] rounded-2xl p-1 border border-[var(--border-color)] gap-1 w-full md:w-auto justify-center md:justify-start">
+        <div className="flex flex-wrap bg-slate-100 rounded-2xl p-1 border border-slate-200 gap-1 w-full md:w-auto justify-center md:justify-start">
           <button
             onClick={() => setMainTab('CARDS')}
-            className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${mainTab === 'CARDS' ? 'bg-[var(--bg-card)] text-[var(--text-main)] shadow-sm' : 'text-slate-500 hover:text-[var(--text-main)]'}`}
+            className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${mainTab === 'CARDS' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
           >
             <Users size={14} /> Cadastros
           </button>
           <button
             onClick={() => setMainTab('VINCULOS')}
-            className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${mainTab === 'VINCULOS' ? 'bg-[var(--bg-card)] text-[var(--text-main)] shadow-sm' : 'text-slate-500 hover:text-[var(--text-main)]'}`}
+            className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${mainTab === 'VINCULOS' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
           >
             <Link2 size={14} /> Vínculos Prisionais
           </button>
         </div>
         {mainTab === 'CARDS' && (
-          <div className="flex bg-[var(--bg-muted)] rounded-xl p-1 border border-[var(--border-color)] w-full md:w-auto overflow-x-auto custom-scrollbar">
+          <div className="flex bg-slate-100 rounded-xl p-1 border border-slate-200 w-full md:w-auto overflow-x-auto custom-scrollbar">
             {(['ALL','PENDING','ACTIVE','SUSPENDED'] as const).map(f => (
               <button key={f} onClick={() => setStatusFilter(f)}
-                className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${statusFilter === f ? 'bg-emerald-600 text-white' : 'text-slate-500 hover:text-[var(--text-main)]'}`}>
+                className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${statusFilter === f ? 'bg-emerald-600 text-white' : 'text-slate-500 hover:text-slate-900'}`}>
                 {f === 'ALL' ? 'Tudo' : f === 'PENDING' ? 'Pendentes' : f === 'ACTIVE' ? 'Ativos' : 'Bloqueados'}
               </button>
             ))}
@@ -324,11 +324,11 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
       {/* ─── Search ─── */}
       <div className="flex flex-col md:flex-row gap-4">
         <div className="flex-1 relative group">
-          <div className="absolute left-4 top-1/2 -translate-y-1/2 bg-[var(--bg-card)] p-2.5 rounded-2xl border border-[var(--border-color)] group-focus-within:bg-slate-900 group-focus-within:border-slate-900 transition-all duration-300 z-10 shadow-sm">
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 bg-white p-2.5 rounded-2xl border border-slate-200 group-focus-within:bg-slate-900 group-focus-within:border-slate-900 transition-all duration-300 z-10 shadow-sm">
             <Search className="text-slate-400 group-focus-within:text-white transition-colors" size={20} />
           </div>
           <input
-            className="w-full pl-16 pr-6 py-4 bg-[var(--bg-card)] border-2 border-[var(--border-color)] focus:border-emerald-500 rounded-[2.5rem] outline-none font-black text-xs text-[var(--text-main)] transition-all placeholder:text-slate-400 uppercase tracking-widest shadow-sm"
+            className="w-full pl-16 pr-6 py-4 bg-white border-2 border-slate-200 focus:border-emerald-500 rounded-[2.5rem] outline-none font-black text-xs text-slate-900 transition-all placeholder:text-slate-400 uppercase tracking-widest shadow-sm"
             placeholder="PESQUISAR FAMILIAR OU INTERNO..."
             value={userSearch}
             onChange={e => setUserSearch(e.target.value)}
@@ -336,10 +336,10 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
         </div>
         {mainTab === 'CARDS' && (
           <>
-            <button onClick={() => setShowPasswords(!showPasswords)} className={`px-8 py-4 rounded-[2.5rem] border-2 transition-all flex items-center justify-center gap-3 font-black text-[10px] uppercase tracking-widest shadow-sm ${showPasswords ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-main)]'}`}>
+            <button onClick={() => setShowPasswords(!showPasswords)} className={`px-8 py-4 rounded-[2.5rem] border-2 transition-all flex items-center justify-center gap-3 font-black text-[10px] uppercase tracking-widest shadow-sm ${showPasswords ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
               {showPasswords ? <><EyeOff size={18}/> Ocultar</> : <><Eye size={18}/> Senhas</>}
             </button>
-            <button onClick={() => setShowBulkActions(!showBulkActions)} className={`px-6 py-4 rounded-[2.5rem] border-2 transition-all flex items-center justify-center gap-3 font-black text-[10px] uppercase tracking-widest shadow-sm ${showBulkActions ? 'bg-slate-900 border-slate-900 text-white' : 'bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-main)]'}`}>
+            <button onClick={() => setShowBulkActions(!showBulkActions)} className={`px-6 py-4 rounded-[2.5rem] border-2 transition-all flex items-center justify-center gap-3 font-black text-[10px] uppercase tracking-widest shadow-sm ${showBulkActions ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
               <CheckSquare size={18}/> {showBulkActions ? 'Cancelar' : 'Selecionar'}
             </button>
             <button onClick={printPresenceList} title="Gerar Lista de Presença com saldos para impressão" className="px-6 py-4 rounded-[2.5rem] border-2 border-teal-600/30 bg-teal-50 text-teal-700 hover:bg-teal-600 hover:text-white hover:border-teal-600 transition-all flex items-center justify-center gap-3 font-black text-[10px] uppercase tracking-widest shadow-sm">
@@ -354,9 +354,9 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
 
       {/* ─── VINCULOS TAB ─── */}
       {mainTab === 'VINCULOS' && (
-        <div className="bg-[var(--bg-card)] rounded-[2.5rem] border border-[var(--border-color)] shadow-sm overflow-hidden">
-          <div className="p-6 border-b border-[var(--border-color)]">
-            <h3 className="font-black text-[var(--text-main)] uppercase tracking-tight flex items-center gap-2 text-sm">
+        <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
+          <div className="p-6 border-b border-slate-100">
+            <h3 className="font-black text-slate-900 uppercase tracking-tight flex items-center gap-2 text-sm">
               <Link2 size={18} className="text-emerald-500"/> Cruzamento Familiar ↔ Interno
             </h3>
             <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1">
@@ -365,7 +365,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm min-w-[800px]">
-              <thead className="bg-[var(--bg-muted)] border-b border-[var(--border-color)] text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">
+              <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">
                 <tr>
                   <th className="p-5 text-left">Familiar / Comprador</th>
                   <th className="p-5 text-left">Interno Vinculado</th>
@@ -374,11 +374,11 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                   <th className="p-5 text-center">Ações Rápidas</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[var(--border-color)]">
+              <tbody className="divide-y divide-slate-100">
                 {filteredUsers.length === 0 ? (
                   <tr><td colSpan={5} className="p-16 text-center text-slate-300 font-black uppercase tracking-widest text-xs">Nenhum usuário encontrado.</td></tr>
                 ) : filteredUsers.map(u => (
-                  <tr key={u.id} onClick={() => setViewingUser(u)} className="hover:bg-[var(--bg-muted)] transition-colors group cursor-pointer">
+                  <tr key={u.id} onClick={() => setViewingUser(u)} className="hover:bg-slate-50 transition-colors group cursor-pointer">
                     <td className="p-5">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-2xl flex items-center justify-center font-black text-white text-sm flex-shrink-0"
@@ -386,7 +386,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                           {(u.name || '?').charAt(0)}
                         </div>
                         <div>
-                          <p className="font-black text-[var(--text-main)] uppercase tracking-tight text-sm truncate max-w-[180px]">{u.name || '—'}</p>
+                          <p className="font-black text-slate-900 uppercase tracking-tight text-sm truncate max-w-[180px]">{u.name || '—'}</p>
                           <p className="text-[9px] text-slate-400 font-mono">{u.cpf || '—'}</p>
                           <p className="text-[9px] text-slate-400 font-bold uppercase mt-0.5 truncate max-w-[200px]">
                             {[u.relationship || u.kinship, u.phone && 'Tel: ' + u.phone, u.rg && 'RG: ' + u.rg].filter(Boolean).join(' • ') || '—'}
@@ -398,7 +398,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                       <div className="flex items-center gap-2">
                         <ShieldCheck size={14} className="text-slate-400 flex-shrink-0" />
                         <div>
-                          <p className="font-black text-[var(--text-main)] uppercase tracking-tight text-sm truncate max-w-[180px]">{u.inmateName || '—'}</p>
+                          <p className="font-black text-slate-900 uppercase tracking-tight text-sm truncate max-w-[180px]">{u.inmateName || '—'}</p>
                           <p className="text-[9px] text-slate-400 font-mono">{u.inmateCpf || '—'}</p>
                           {u.address ? (
                             <p className="text-[9px] text-slate-400 font-bold uppercase mt-0.5 truncate max-w-[200px]">{u.address}</p>
@@ -411,7 +411,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                         {u.status === 'active' ? 'Ativo' : u.status === 'suspended' ? 'Bloqueado' : 'Pendente'}
                       </span>
                     </td>
-                    <td className="p-5 text-right font-black text-[var(--text-main)]">
+                    <td className="p-5 text-right font-black text-slate-900">
                       R$ {formatarMoeda(u.walletBalance || 0)}
                     </td>
                     <td className="p-5">
@@ -419,7 +419,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                         {/* Editar */}
                         <button
                           onClick={() => setViewingUser(u)}
-                          className="p-2.5 bg-[var(--bg-muted)] text-slate-600 hover:bg-emerald-500 hover:text-white rounded-xl border border-[var(--border-color)] shadow-sm active:scale-95 transition-all"
+                          className="p-2.5 bg-slate-100 text-slate-600 hover:bg-emerald-500 hover:text-white rounded-xl border border-slate-200 shadow-sm active:scale-95 transition-all"
                           title="Editar Cadastro"
                         >
                           <FileText size={16} />
@@ -464,7 +464,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                         {toggleExcepcionalFlag && (
                           <button
                             onClick={() => toggleExcepcionalFlag(u.id, !u.autorizacaoExcepcional)}
-                            className={`p-2.5 rounded-xl border shadow-sm active:scale-95 transition-all ${u.autorizacaoExcepcional ? 'bg-purple-100 text-purple-700 border-purple-300 hover:bg-purple-200' : 'bg-[var(--bg-muted)] text-slate-400 border-[var(--border-color)] hover:bg-purple-50 hover:text-purple-500'}`}
+                            className={`p-2.5 rounded-xl border shadow-sm active:scale-95 transition-all ${u.autorizacaoExcepcional ? 'bg-purple-100 text-purple-700 border-purple-300 hover:bg-purple-200' : 'bg-slate-100 text-slate-400 border-slate-200 hover:bg-purple-50 hover:text-purple-500'}`}
                             title={u.autorizacaoExcepcional ? 'Exceção ativa - clique para remover' : 'Permitir ultrapassar limite semanal'}
                           >
                             <CheckSquare size={16} />
@@ -512,17 +512,17 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
           {/* User Cards Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {filteredUsers.length === 0 ? (
-              <div className="col-span-full py-20 text-center bg-[var(--bg-card)] rounded-[3rem] border-4 border-dashed border-[var(--border-color)] text-slate-300">
+              <div className="col-span-full py-20 text-center bg-white rounded-[3rem] border-4 border-dashed border-slate-200 text-slate-300">
                 <Users size={64} className="mx-auto mb-4"/>
                 <p className="font-black uppercase tracking-[0.2em]">Nenhum familiar encontrado</p>
               </div>
             ) : filteredUsers.map(u => (
-              <div key={u.id} onClick={() => setViewingUser(u)} className={`bg-[var(--bg-card)] p-6 rounded-[2.5rem] shadow-sm border-2 hover:shadow-xl transition-all group relative overflow-visible cursor-pointer ${showBulkActions && selectedUsers.has(u.id) ? 'border-emerald-500 ring-2 ring-emerald-500/20' : 'border-[var(--border-color)]'}`}>
+              <div key={u.id} onClick={() => setViewingUser(u)} className={`bg-white p-6 rounded-[2.5rem] shadow-sm border-2 hover:shadow-xl transition-all group relative overflow-visible cursor-pointer ${showBulkActions && selectedUsers.has(u.id) ? 'border-emerald-500 ring-2 ring-emerald-500/20' : 'border-slate-200'}`}>
                 <div className={`absolute top-0 right-0 w-24 h-24 blur-[50px] -mr-12 -mt-12 opacity-5 ${u.status === 'active' ? 'bg-emerald-500' : u.status === 'suspended' ? 'bg-red-500' : 'bg-amber-500'}`} />
 
                 <div className="flex items-start gap-5 relative z-10">
                   {showBulkActions && (
-                    <button onClick={(e) => { e.stopPropagation(); toggleUserSelection(u.id); }} className="flex-shrink-0 p-2 rounded-xl border-2 border-[var(--border-color)] hover:border-emerald-500 hover:bg-emerald-50 transition-all">
+                    <button onClick={(e) => { e.stopPropagation(); toggleUserSelection(u.id); }} className="flex-shrink-0 p-2 rounded-xl border-2 border-slate-200 hover:border-emerald-500 hover:bg-emerald-50 transition-all">
                       {selectedUsers.has(u.id) ? <CheckCircle className="text-emerald-500" size={24}/> : <Square className="text-slate-400" size={24}/>}
                     </button>
                   )}
@@ -532,7 +532,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 mb-1">
-                      <h3 className="font-black text-base text-[var(--text-main)] uppercase tracking-tight truncate">{u?.name || 'Sem nome'}</h3>
+                      <h3 className="font-black text-base text-slate-900 uppercase tracking-tight truncate">{u?.name || 'Sem nome'}</h3>
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest border ${statusBadge(u.status || '')}`}>{({ active: 'Ativo', pending: 'Pendente', suspended: 'Suspenso' } as any)[u.status] || u.status}</span>
                     </div>
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-tight truncate">CPF: {u?.cpf || '—'} • Tel: {u?.phone || '—'}</p>
@@ -541,7 +541,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                     ) : null}
 
                     <div className="flex flex-wrap items-center gap-2 mt-3">
-                      <div className="flex items-center gap-1.5 px-3 py-1 bg-[var(--bg-muted)] rounded-full border border-[var(--border-color)] text-slate-500 text-[9px] font-black uppercase tracking-tighter">
+                      <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 rounded-full border border-slate-200 text-slate-500 text-[9px] font-black uppercase tracking-tighter">
                         <ShieldCheck size={12}/> {u?.inmateName || '—'}
                       </div>
                       {u?.relationship || u?.kinship ? (
@@ -550,14 +550,14 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                         </div>
                       ) : null}
                       {u?.rg ? (
-                        <div className="px-3 py-1 bg-[var(--bg-muted)] rounded-full border border-[var(--border-color)] text-slate-500 text-[9px] font-black uppercase tracking-tighter">
+                        <div className="px-3 py-1 bg-slate-50 rounded-full border border-slate-200 text-slate-500 text-[9px] font-black uppercase tracking-tighter">
                           RG: {u.rg}
                         </div>
                       ) : null}
                       <div className="px-3 py-1 bg-emerald-50 rounded-full border border-emerald-200 text-emerald-700 text-[10px] font-bold tracking-tighter">
                         SALDO: R$ {formatarMoeda(u.walletBalance || 0)}
                       </div>
-                      <button onClick={(e) => { e.stopPropagation(); toggleUserCredit(u.id, !(u.allowCredit !== false)); }} className={`px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-tighter border transition-all ${u.allowCredit !== false ? 'bg-indigo-50 text-indigo-600 border-indigo-200' : 'bg-[var(--bg-muted)] text-slate-400 border-[var(--border-color)] opacity-60'}`}>
+                      <button onClick={(e) => { e.stopPropagation(); toggleUserCredit(u.id, !(u.allowCredit !== false)); }} className={`px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-tighter border transition-all ${u.allowCredit !== false ? 'bg-indigo-50 text-indigo-600 border-indigo-200' : 'bg-slate-100 text-slate-400 border-slate-200 opacity-60'}`}>
                         CRÉDITO: {u.allowCredit !== false ? 'LIBERADO' : 'BLOQUEADO'}
                       </button>
                     </div>
@@ -571,15 +571,15 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-4 mt-6 pt-5 border-t border-[var(--border-color)] relative z-10">
+                <div className="flex flex-wrap items-center justify-between gap-4 mt-6 pt-5 border-t border-slate-100 relative z-10">
                   <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                    <button onClick={() => setViewingUser(u)} className="p-3 bg-[var(--bg-muted)] text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl border border-[var(--border-color)] shadow-sm active:scale-95 transition-all" title="Ver Documentação"><FileText size={18}/></button>
+                    <button onClick={() => setViewingUser(u)} className="p-3 bg-slate-100 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl border border-slate-200 shadow-sm active:scale-95 transition-all" title="Ver Documentação"><FileText size={18}/></button>
                     <button onClick={() => downloadUserReport(u)} className="p-3 bg-blue-50 text-blue-500 hover:bg-blue-600 hover:text-white rounded-xl border border-blue-200 shadow-sm active:scale-95 transition-all" title="Extrato JSON"><BarChart2 size={18}/></button>
                     {/* Dropdown com mais ações */}
                     <div className="relative">
                       <button
                         onClick={() => setOpenDropdown(openDropdown === u.id ? null : u.id)}
-                        className="p-3 bg-[var(--bg-muted)] text-slate-500 hover:text-[var(--text-main)] hover:bg-slate-200 rounded-xl border border-[var(--border-color)] shadow-sm active:scale-95 transition-all"
+                        className="p-3 bg-slate-100 text-slate-500 hover:text-slate-900 hover:bg-slate-200 rounded-xl border border-slate-200 shadow-sm active:scale-95 transition-all"
                         title="Mais Ações"
                       >
                         <MoreVertical size={18}/>
@@ -587,14 +587,14 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                       {openDropdown === u.id && (
                         <>
                           <div className="fixed inset-0 z-40" onClick={() => setOpenDropdown(null)} />
-                          <div className="absolute right-0 top-full mt-1 z-50 bg-[var(--bg-card)] rounded-2xl shadow-xl border border-[var(--border-color)] py-2 min-w-[200px] animate-scaleIn origin-top-right">
+                          <div className="absolute right-0 top-full mt-1 z-50 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 min-w-[200px] animate-scaleIn origin-top-right">
                             {canManageCredits && (
-                              <button onClick={() => { onAddCredit(u); setOpenDropdown(null); }} className="w-full flex items-center gap-3 px-5 py-3 text-[var(--text-main)] hover:bg-emerald-50 hover:text-emerald-600 text-xs font-black uppercase tracking-widest transition-all"><PlusCircle size={16}/> Aporte Manual</button>
+                              <button onClick={() => { onAddCredit(u); setOpenDropdown(null); }} className="w-full flex items-center gap-3 px-5 py-3 text-slate-700 hover:bg-emerald-50 hover:text-emerald-600 text-xs font-black uppercase tracking-widest transition-all"><PlusCircle size={16}/> Aporte Manual</button>
                             )}
-                            <button onClick={() => { setShowWithdrawalModal({ userId: u?.id || '', userName: u?.name || '', isRefund: true }); setOpenDropdown(null); }} className="w-full flex items-center gap-3 px-5 py-3 text-[var(--text-main)] hover:bg-indigo-50 hover:text-indigo-600 text-xs font-black uppercase tracking-widest transition-all"><RefreshCw size={16}/> Estornar</button>
-                            <button onClick={() => { setShowWithdrawalModal({ userId: u?.id || '', userName: u?.name || '' }); setOpenDropdown(null); }} className="w-full flex items-center gap-3 px-5 py-3 text-[var(--text-main)] hover:bg-orange-50 hover:text-orange-600 text-xs font-black uppercase tracking-widest transition-all"><MinusCircle size={16}/> Retirada Manual</button>
+                            <button onClick={() => { setShowWithdrawalModal({ userId: u?.id || '', userName: u?.name || '', isRefund: true }); setOpenDropdown(null); }} className="w-full flex items-center gap-3 px-5 py-3 text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 text-xs font-black uppercase tracking-widest transition-all"><RefreshCw size={16}/> Estornar</button>
+                            <button onClick={() => { setShowWithdrawalModal({ userId: u?.id || '', userName: u?.name || '' }); setOpenDropdown(null); }} className="w-full flex items-center gap-3 px-5 py-3 text-slate-700 hover:bg-orange-50 hover:text-orange-600 text-xs font-black uppercase tracking-widest transition-all"><MinusCircle size={16}/> Retirada Manual</button>
                             {toggleExcepcionalFlag && (
-                              <button onClick={() => { toggleExcepcionalFlag(u.id, !u.autorizacaoExcepcional); setOpenDropdown(null); }} className={`w-full flex items-center gap-3 px-5 py-3 text-xs font-black uppercase tracking-widest transition-all ${u.autorizacaoExcepcional ? 'text-purple-700 hover:bg-purple-50' : 'text-[var(--text-main)] hover:bg-purple-50 hover:text-purple-600'}`}><CheckSquare size={16}/> {u.autorizacaoExcepcional ? 'Remover Exceção' : 'Autorização Excepcional'}</button>
+                              <button onClick={() => { toggleExcepcionalFlag(u.id, !u.autorizacaoExcepcional); setOpenDropdown(null); }} className={`w-full flex items-center gap-3 px-5 py-3 text-xs font-black uppercase tracking-widest transition-all ${u.autorizacaoExcepcional ? 'text-purple-700 hover:bg-purple-50' : 'text-slate-700 hover:bg-purple-50 hover:text-purple-600'}`}><CheckSquare size={16}/> {u.autorizacaoExcepcional ? 'Remover Exceção' : 'Autorização Excepcional'}</button>
                             )}
                           </div>
                         </>
@@ -613,7 +613,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                         <Ban size={16}/> Bloquear
                       </button>
                     ) : (
-                      <button onClick={() => suspendUser(u.id, false)} className="px-5 py-2.5 bg-[var(--bg-muted)] text-[var(--text-main)] border border-[var(--border-color)] rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all">
+                      <button onClick={() => suspendUser(u.id, false)} className="px-5 py-2.5 bg-slate-100 text-slate-900 border border-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all">
                         Desbloquear
                       </button>
                     )}
@@ -629,17 +629,17 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
       )}
       {showImportModal && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={() => { if (!importando) setShowImportModal(false); }}>
-          <div className="bg-[var(--bg-card)] w-full max-w-2xl rounded-[2rem] shadow-2xl border border-[var(--border-color)] p-6 space-y-4 animate-scaleIn max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white w-full max-w-2xl rounded-[2rem] shadow-2xl border border-slate-200 p-6 space-y-4 animate-scaleIn max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
-              <h3 className="font-black text-[var(--text-main)] flex items-center gap-2 text-[11px] uppercase tracking-widest">
+              <h3 className="font-black text-slate-900 flex items-center gap-2 text-[11px] uppercase tracking-widest">
                 <Upload size={18} className="text-emerald-500"/> Importar Usuários em Lote
               </h3>
-              <button onClick={() => setShowImportModal(false)} className="p-2 hover:bg-[var(--bg-muted)] rounded-xl text-slate-500 transition-all"><X size={18}/></button>
+              <button onClick={() => setShowImportModal(false)} className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 transition-all"><X size={18}/></button>
             </div>
 
-            <div className="bg-[var(--bg-muted)] rounded-2xl p-4 border border-[var(--border-color)] text-[11px] text-slate-600 leading-relaxed space-y-2">
-              <p className="font-black text-[var(--text-main)] uppercase tracking-widest text-[10px]">Formato (uma pessoa por linha — separador ; vírgula ou TAB)</p>
-              <code className="block bg-[var(--bg-card)] rounded-xl p-3 border border-[var(--border-color)] font-mono text-[10px] text-[var(--text-main)]">nome;cpf;email;role;cpfDoInterno;telefone</code>
+            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 text-[11px] text-slate-600 leading-relaxed space-y-2">
+              <p className="font-black text-slate-900 uppercase tracking-widest text-[10px]">Formato (uma pessoa por linha — separador ; vírgula ou TAB)</p>
+              <code className="block bg-white rounded-xl p-3 border border-slate-200 font-mono text-[10px] text-slate-700">nome;cpf;email;role;cpfDoInterno;telefone</code>
               <p className="text-slate-500">role: <b>FAMILY</b> (exige o CPF do interno) ou <b>user</b>. Máx. 500 por importação. Linhas inválidas ou duplicadas são <b>puladas</b> — o motivo aparece abaixo.</p>
               <p className="text-slate-500">Sem senha na linha, vale a "senha padrão" abaixo; senão o próprio CPF.</p>
             </div>
@@ -649,7 +649,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
               onChange={(e) => { setImportRows(e.target.value); setImportResultado(null); }}
               placeholder={'JOÃO DA SILVA;111.222.333-44;;FAMILY;000.000.000-00;11999999999\nMARIA OLIVEIRA;555.666.777-88;maria@email.com;user;;'}
               spellCheck={false}
-              className="w-full h-44 rounded-2xl border-2 border-[var(--border-color)] focus:border-emerald-500 outline-none p-3 font-mono text-[11px] text-[var(--text-main)] bg-[var(--bg-card)] resize-y"
+              className="w-full h-44 rounded-2xl border-2 border-slate-200 focus:border-emerald-500 outline-none p-3 font-mono text-[11px] text-slate-800 bg-white resize-y"
             />
 
             <div className="grid md:grid-cols-2 gap-3 items-end">
@@ -660,7 +660,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                   value={senhaPadraoImport}
                   onChange={(e) => setSenhaPadraoImport(e.target.value)}
                   placeholder="ex.: 123456 (mínimo 6)"
-                  className="w-full mt-1 px-4 py-2.5 rounded-xl border-2 border-[var(--border-color)] focus:border-emerald-500 outline-none text-xs text-[var(--text-main)]"
+                  className="w-full mt-1 px-4 py-2.5 rounded-xl border-2 border-slate-200 focus:border-emerald-500 outline-none text-xs text-slate-800"
                 />
               </label>
               <label className="flex items-center gap-2 pb-1 cursor-pointer select-none">
@@ -676,7 +676,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
             )}
 
             {importResultado && (
-              <div className={`rounded-2xl border p-4 text-xs space-y-2 ${importResultado.erro ? 'border-red-200 bg-red-50 text-red-700' : 'border-[var(--border-color)] bg-[var(--bg-muted)] text-[var(--text-main)]'}`}>
+              <div className={`rounded-2xl border p-4 text-xs space-y-2 ${importResultado.erro ? 'border-red-200 bg-red-50 text-red-700' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
                 <p className="font-black uppercase tracking-widest text-[10px]">
                   {importResultado.erro ? 'Falha na importação' : `Importação concluída: ${importResultado.totalCriados} criado(s), ${importResultado.totalPulados} pulado(s)`}
                 </p>
@@ -691,7 +691,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
             )}
 
             <div className="flex justify-end gap-3 pt-2">
-              <button onClick={() => setShowImportModal(false)} disabled={importando} className="px-6 py-3 rounded-2xl border-2 border-[var(--border-color)] text-slate-600 hover:bg-[var(--bg-muted)] text-[10px] font-black uppercase tracking-widest transition-all">
+              <button onClick={() => setShowImportModal(false)} disabled={importando} className="px-6 py-3 rounded-2xl border-2 border-slate-200 text-slate-600 hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest transition-all">
                 Fechar
               </button>
               <button onClick={executarImportacao} disabled={importando || linhasInferidas.length === 0} className="px-6 py-3 rounded-2xl bg-emerald-600 text-white hover:brightness-110 disabled:opacity-40 text-[10px] font-black uppercase tracking-widest shadow-md flex items-center gap-2 transition-all active:scale-95">

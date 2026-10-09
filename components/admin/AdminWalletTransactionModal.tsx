@@ -58,7 +58,7 @@ const ComprovanteImg: React.FC<{ src: string; onBlocked?: () => void }> = ({ src
         onClick={() => setPreviewOpen(true)}
       >
         {isPdf ? (
-          <div className="w-full h-full flex flex-col items-center justify-center p-6 bg-[var(--bg-muted)] rounded-xl border border-[var(--border-color)]">
+          <div className="w-full h-full flex flex-col items-center justify-center p-6 bg-slate-50 rounded-xl border border-slate-200">
             <FileText size={48} className="text-emerald-500 mb-3" />
             <p className="font-black text-emerald-600 text-sm mb-1">Comprovante em PDF</p>
             <p className="text-[10px] text-slate-500 text-center mb-4">Clique para abrir em tela cheia</p>
@@ -310,7 +310,7 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
             )}
           </div>
         )}
-        <div className="p-4 bg-[var(--bg-muted)] border border-[var(--border-color)] rounded-2xl space-y-2.5">
+        <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2.5">
           <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
             <Shield size={14}/> Integridade do Comprovante
           </p>
@@ -328,13 +328,13 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
           </div>
           <div className="flex items-center justify-between gap-3">
             <span className="text-[9px] font-black text-slate-400 uppercase shrink-0">Tamanho</span>
-            <span className={`text-[10px] font-black ${suspeitoTamanho ? 'text-red-600' : 'text-[var(--text-main)]'}`}>
+            <span className={`text-[10px] font-black ${suspeitoTamanho ? 'text-red-600' : 'text-slate-700'}`}>
               {tx.proofSize ? formatarBytes(tx.proofSize) + (suspeitoTamanho ? ' — abaixo do mínimo' : '') : '—'}
             </span>
           </div>
           <div className="flex items-center justify-between gap-3">
             <span className="text-[9px] font-black text-slate-400 uppercase shrink-0">Tipo</span>
-            <span className="text-[10px] font-black text-[var(--text-main)] uppercase">{mimeExibicao}</span>
+            <span className="text-[10px] font-black text-slate-700 uppercase">{mimeExibicao}</span>
           </div>
           {temHash && (
             <button
@@ -391,8 +391,8 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
 
             {/* Transaction Data */}
             <div className="lg:col-span-7 space-y-8">
-              <div className="bg-[var(--bg-card)] p-8 rounded-[3rem] border border-[var(--border-color)] shadow-xl relative overflow-hidden group">
-                <div className="absolute top-0 right-0 p-8 opacity-[0.03] text-[var(--text-main)] group-hover:rotate-12 transition-transform duration-700"></div>
+              <div className="bg-white p-8 rounded-[3rem] border border-slate-200 shadow-xl relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-8 opacity-[0.03] text-slate-900 group-hover:rotate-12 transition-transform duration-700"></div>
 
                 <h4 className="text-[10px] font-black uppercase text-slate-500 tracking-[0.3em] mb-8 flex items-center gap-2">
                     <Activity size={16}/> Mapa da Operação
@@ -403,8 +403,8 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
                       <div>
                         <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-2">Origem do Recurso</span>
                         <div className="flex items-center gap-3">
-                            <div className="p-2 bg-[var(--bg-muted)] rounded-xl text-slate-500"><User size={16}/></div>
-                            <span className="font-black text-[var(--text-main)] text-sm uppercase tracking-tight truncate">{transaction.payerName || 'FAMILIAR / VISITANTE'}</span>
+                            <div className="p-2 bg-slate-100 rounded-xl text-slate-500"><User size={16}/></div>
+                            <span className="font-black text-slate-900 text-sm uppercase tracking-tight truncate">{transaction.payerName || 'FAMILIAR / VISITANTE'}</span>
                         </div>
                       </div>
 
@@ -412,7 +412,7 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
                         <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-2">Destino (Interno)</span>
                         <div className="flex items-center gap-3">
                             <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl"><UserCheck size={16}/></div>
-                            <span className="font-black text-[var(--text-main)] text-sm uppercase tracking-tight truncate">{transaction.inmateName || 'N/A'}</span>
+                            <span className="font-black text-slate-900 text-sm uppercase tracking-tight truncate">{transaction.inmateName || 'N/A'}</span>
                         </div>
                         <p className="text-[10px] font-black text-slate-500 mt-1.5 ml-11 uppercase">CPF: {transaction.inmateCpf || '---'}</p>
                       </div>
@@ -420,7 +420,7 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
 
                   <div className="flex items-center gap-4 py-4">
                     <div className="h-px flex-1 bg-slate-200"></div>
-                    <div className="p-2 bg-[var(--bg-muted)] rounded-full text-slate-600"><ArrowRight size={14}/></div>
+                    <div className="p-2 bg-slate-100 rounded-full text-slate-600"><ArrowRight size={14}/></div>
                     <div className="h-px flex-1 bg-slate-200"></div>
                   </div>
 
@@ -496,7 +496,7 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
 
                 <button
                     onClick={() => setShowNotaPromissoria(true)}
-                    className="w-full py-5 bg-[var(--bg-card)] border-2 border-slate-300 text-[var(--text-main)] rounded-3xl font-black text-[11px] uppercase tracking-[0.2em] hover:bg-[var(--bg-muted)] active:scale-95 transition-all flex items-center justify-center gap-3"
+                    className="w-full py-5 bg-white border-2 border-slate-300 text-slate-700 rounded-3xl font-black text-[11px] uppercase tracking-[0.2em] hover:bg-slate-50 active:scale-95 transition-all flex items-center justify-center gap-3"
                 >
                     <FileText size={20}/> Emitir Nota Promissória
                 </button>
@@ -508,10 +508,10 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
               <h4 className="text-[10px] font-black uppercase text-slate-500 tracking-[0.3em] flex items-center gap-2 pl-4">
                   <ImageIcon size={16}/> Evidência de Depósito
               </h4>
-              <div className="flex-1 min-h-[400px] bg-[var(--bg-card)] p-4 rounded-[3rem] border-2 border-dashed border-[var(--border-color)] flex items-center justify-center overflow-hidden shadow-2xl group relative">
+              <div className="flex-1 min-h-[400px] bg-white p-4 rounded-[3rem] border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden shadow-2xl group relative">
                 {proofSrc && proofSrc !== 'PENDENTE_UPLOAD_LOCAL_CACHE' ? (
                   (proofSrc).toLowerCase().includes('.pdf') || (proofSrc).toLowerCase().includes('pdf') ? (
-                    <div className="w-full h-full flex flex-col items-center justify-center p-6 bg-[var(--bg-muted)] rounded-xl border border-[var(--border-color)]">
+                    <div className="w-full h-full flex flex-col items-center justify-center p-6 bg-slate-50 rounded-xl border border-slate-200">
                       <FileText size={48} className="text-emerald-500 mb-3" />
                       <p className="font-black text-emerald-600 text-sm mb-1">Comprovante em PDF</p>
                       <p className="text-[10px] text-slate-500 text-center mb-4">PDFs não podem ser visualizados inline devido a restrições de segurança do navegador.</p>
@@ -554,7 +554,7 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
 
                 {proofSrc && proofSrc !== 'PENDENTE_UPLOAD_LOCAL_CACHE' && (
                     <div className="absolute inset-0 bg-black/40 opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                         <span className="bg-[var(--bg-card)] text-black px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-2xl">Clique para Expandir</span>
+                         <span className="bg-white text-black px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-2xl">Clique para Expandir</span>
                     </div>
                 )}
               </div>

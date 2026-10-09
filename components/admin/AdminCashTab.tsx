@@ -39,9 +39,9 @@ const fmtTs = (ts: Timestamp | null) => {
 // ──────────────────────────────────────────────
 
 const Stat: React.FC<{ label: string; value: string; color?: string; icon?: React.ReactNode }> = ({
-  label, value, color = 'text-[var(--text-main)]', icon
+  label, value, color = 'text-slate-900', icon
 }) => (
-  <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl p-4 flex items-center gap-3 shadow-sm hover:shadow-md transition-shadow">
+  <div className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center gap-3 shadow-sm hover:shadow-md transition-shadow">
     {icon && <div className="shrink-0">{icon}</div>}
     <div>
       <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide">{label}</p>
@@ -51,14 +51,14 @@ const Stat: React.FC<{ label: string; value: string; color?: string; icon?: Reac
 );
 
 const MovementRow: React.FC<{ m: CashMovement; type: 'in' | 'out' }> = ({ m, type }) => (
-  <div className="flex items-center justify-between py-2 border-b border-[var(--border-color)] last:border-0">
+  <div className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
     <div className="flex items-center gap-2">
       {type === 'in'
         ? <TrendingUp size={14} className="text-emerald-500 shrink-0" />
         : <TrendingDown size={14} className="text-red-500 shrink-0" />
       }
       <div>
-        <p className="text-sm font-medium text-[var(--text-main)]">{m.reason}</p>
+        <p className="text-sm font-medium text-slate-800">{m.reason}</p>
         <p className="text-[10px] text-slate-400">{fmtTs(m.timestamp)}</p>
       </div>
     </div>
@@ -313,14 +313,14 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-[var(--text-main)]">Controle de Caixa</h2>
+          <h2 className="text-2xl font-bold text-slate-900">Controle de Caixa</h2>
           <p className="text-slate-500 text-sm mt-1">Abertura, Suprimento, Sangria e Fechamento</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={handleBoletim} title="Boletim do Dia (prestação de contas)" className="p-2 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-all">
             <ClipboardList size={18} />
           </button>
-          <button onClick={reload} className="p-2 rounded-xl border border-[var(--border-color)] text-slate-500 hover:bg-[var(--bg-muted)] transition-all">
+          <button onClick={reload} className="p-2 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-100 transition-all">
             <RefreshCw size={18} />
           </button>
         </div>
@@ -334,7 +334,7 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
             : <AlertTriangle className={`${closeResult.diff < 0 ? 'text-red-500' : 'text-amber-500'} mt-0.5 shrink-0`} size={20} />
           }
           <div className="flex-1">
-            <p className="font-bold text-[var(--text-main)]">Auditoria de Fechamento</p>
+            <p className="font-bold text-slate-800">Auditoria de Fechamento</p>
             <p className="text-sm text-slate-600">Esperado: <strong>{fmt(closeResult.expected)}</strong> · Contado: <strong>{fmt(closeResult.expected + closeResult.diff)}</strong></p>
             <p className={`text-sm font-bold mt-1 ${closeResult.diff === 0 ? 'text-emerald-600' : closeResult.diff < 0 ? 'text-red-600' : 'text-amber-600'}`}>
               {closeResult.diff === 0 ? 'Caixa conferido e correto!' : closeResult.diff > 0 ? `Sobra de ${fmt(closeResult.diff)}` : `Falta de ${fmt(Math.abs(closeResult.diff))}`}
@@ -386,7 +386,7 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
               Sangria
             </button>
             <button onClick={() => setModal('close')}
-              className="flex flex-col items-center gap-1.5 p-4 bg-[var(--bg-muted)] hover:bg-slate-200 border border-slate-300 rounded-2xl text-[var(--text-main)] font-semibold text-sm transition-all active:scale-95 col-span-2 sm:col-span-1">
+              className="flex flex-col items-center gap-1.5 p-4 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-2xl text-slate-700 font-semibold text-sm transition-all active:scale-95 col-span-2 sm:col-span-1">
               <LogOut size={22} />
               Fechar Caixa
             </button>
@@ -394,8 +394,8 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
 
           {/* Movements */}
           {((session.supplements || []).length > 0 || (session.withdrawals || []).length > 0) && (
-            <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl p-4 mb-4">
-              <p className="text-sm font-bold text-[var(--text-main)] mb-3">Movimentações</p>
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 mb-4">
+              <p className="text-sm font-bold text-slate-700 mb-3">Movimentações</p>
               {(session.supplements || []).map((m, i) => <MovementRow key={`s${i}`} m={m} type="in" />)}
               {(session.withdrawals || []).map((m, i) => <MovementRow key={`w${i}`} m={m} type="out" />)}
             </div>
@@ -404,10 +404,10 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
       ) : (
         /* ══════════════ NO SESSION VIEW ══════════════ */
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="w-20 h-20 rounded-full bg-[var(--bg-muted)] flex items-center justify-center mb-4">
+          <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center mb-4">
             <Unlock size={36} className="text-slate-400" />
           </div>
-          <h3 className="text-xl font-bold text-[var(--text-main)] mb-2">Caixa Fechado</h3>
+          <h3 className="text-xl font-bold text-slate-800 mb-2">Caixa Fechado</h3>
           <p className="text-slate-500 text-sm mb-6 max-w-xs">Abra o caixa para começar a registrar as movimentações do dia.</p>
           <button
             onClick={() => setModal('open')}
@@ -424,7 +424,7 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
         <div className="mt-4">
           <button
             onClick={() => setExpandHistory(h => !h)}
-            className="flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-[var(--text-main)] transition-colors"
+            className="flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors"
           >
             <Clock size={16} />
             Histórico de Sessões ({history.length})
@@ -434,16 +434,16 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
           {expandHistory && (
             <div className="mt-3 space-y-2">
               {history.map(s => (
-                <div key={s.id} className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4">
+                <div key={s.id} className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4">
                   <div>
                     <p className="text-xs text-slate-500">{fmtTs(s.openedAt)} → {fmtTs(s.closedAt)}</p>
-                    <p className="text-sm font-bold text-[var(--text-main)] mt-0.5">Inicial: {fmt(s.initialBalance)}</p>
+                    <p className="text-sm font-bold text-slate-800 mt-0.5">Inicial: {fmt(s.initialBalance)}</p>
                     {s.status === 'closed' && s.closedByName && (
                       <p className="text-[10px] text-slate-400 mt-0.5">Fechado por: {s.closedByName}</p>
                     )}
                   </div>
                   <div className="text-right shrink-0">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${s.status === 'open' ? 'bg-emerald-100 text-emerald-700' : 'bg-[var(--bg-muted)] text-slate-500'}`}>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${s.status === 'open' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
                       {s.status === 'open' ? 'Aberto' : 'Fechado'}
                     </span>
                     {s.status === 'closed' && (s.cashDifference ?? s.balanceDiff) !== undefined && (
@@ -453,7 +453,7 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
                     )}
                   </div>
                   {s.status === 'closed' && (
-                    <button onClick={() => handlePrint(s)} className="p-2 rounded-xl text-slate-400 hover:text-[var(--text-main)] hover:bg-[var(--bg-muted)] transition-all">
+                    <button onClick={() => handlePrint(s)} className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all">
                       <Printer size={16} />
                     </button>
                   )}
@@ -476,7 +476,7 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
         footer={
           <div className="flex gap-3 w-full">
             <button onClick={() => { setModal(null); setAmount(''); setReason(''); }}
-              className="flex-1 py-3 rounded-2xl border border-[var(--border-color)] text-slate-600 font-semibold text-sm hover:bg-[var(--bg-muted)] transition-all">
+              className="flex-1 py-3 rounded-2xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-all">
               Cancelar
             </button>
             <button
@@ -506,37 +506,37 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
                 <input type="number" min="0.01" step="0.01" value={amount}
                   onChange={e => setAmount(e.target.value)}
                   placeholder="0,00"
-                  className="block w-full max-w-xs mx-auto border border-slate-300 rounded-xl px-4 py-3 text-lg font-bold text-[var(--text-main)] text-center focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 mb-3" />
+                  className="block w-full max-w-xs mx-auto border border-slate-300 rounded-xl px-4 py-3 text-lg font-bold text-slate-900 text-center focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 mb-3" />
                 <label className="block text-xs font-semibold text-slate-600 mb-1 text-center">Motivo</label>
                 <input type="text" value={reason}
                   onChange={e => setReason(e.target.value)}
                   placeholder="Ex: Troco inicial, Retirada p/ cofre..."
-                  className="block w-full max-w-xs mx-auto border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-[var(--text-main)] text-center focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 mb-4" />
+                  className="block w-full max-w-xs mx-auto border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 text-center focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 mb-4" />
               </>
             )}
             {modal === 'open' && (
               <input type="number" min="0" step="0.01" value={initialBalance}
                 onChange={e => setInitialBalance(e.target.value)}
                 placeholder="Ex: 100,00"
-                className="block w-full max-w-xs mx-auto border border-slate-300 rounded-xl px-4 py-3 text-lg font-bold text-[var(--text-main)] text-center focus:outline-none focus:ring-2 focus:ring-emerald-400 mb-4" />
+                className="block w-full max-w-xs mx-auto border border-slate-300 rounded-xl px-4 py-3 text-lg font-bold text-slate-900 text-center focus:outline-none focus:ring-2 focus:ring-emerald-400 mb-4" />
             )}
 
             {modal === 'close' && (
               <>
-                <p className="text-2xl font-black text-[var(--text-main)] mb-4">{session ? fmt(session.currentBalance) : '—'}</p>
-                <div className="mb-4 max-h-44 overflow-y-auto rounded-xl border border-[var(--border-color)] p-2 bg-slate-50/60">
+                <p className="text-2xl font-black text-slate-800 mb-4">{session ? fmt(session.currentBalance) : '—'}</p>
+                <div className="mb-4 max-h-44 overflow-y-auto rounded-xl border border-slate-200 p-2 bg-slate-50/60">
                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Conferência por cédulas/moedas</p>
                   <div className="grid grid-cols-2 gap-1.5">
                     {DENOMINACOES.map((d) => (
-                      <label key={d} className="flex items-center gap-1 text-[11px] font-semibold text-slate-600 bg-[var(--bg-card)] rounded-lg px-2 py-1 border border-[var(--border-color)]">
+                      <label key={d} className="flex items-center gap-1 text-[11px] font-semibold text-slate-600 bg-white rounded-lg px-2 py-1 border border-slate-100">
                         <span className="w-10 shrink-0 text-right">R$ {d}</span>
                         <input type="number" min="0" step={d < 1 ? 'any' : '1'} placeholder="0" value={denoms[String(d)] || ''}
                           onChange={(e) => setDenoms((prev) => ({ ...prev, [String(d)]: e.target.value }))}
-                          className="w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded-md px-1 py-0.5 text-sm font-bold text-[var(--text-main)] focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                          className="w-full bg-white border border-slate-200 rounded-md px-1 py-0.5 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-400" />
                       </label>
                     ))}
                   </div>
-                  <p className="text-[11px] text-slate-500 mt-2">Total pela contagem: <strong className="text-[var(--text-main)]">{fmt(contagemTotal)}</strong></p>
+                  <p className="text-[11px] text-slate-500 mt-2">Total pela contagem: <strong className="text-slate-900">{fmt(contagemTotal)}</strong></p>
                   <button type="button" onClick={() => setClosedBalance(contagemTotal.toFixed(2))}
                     className="mt-1 w-full py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-black uppercase tracking-widest hover:bg-emerald-100 transition-all active:scale-95">
                     Usar contagem
@@ -546,7 +546,7 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
                 <input type="number" min="0" step="0.01" value={closedBalance}
                   onChange={e => setClosedBalance(e.target.value)}
                   placeholder="0,00"
-                  className="block w-full max-w-xs mx-auto border border-slate-300 rounded-xl px-4 py-3 text-lg font-bold text-[var(--text-main)] text-center focus:outline-none focus:ring-2 focus:ring-red-400 mb-4" />
+                  className="block w-full max-w-xs mx-auto border border-slate-300 rounded-xl px-4 py-3 text-lg font-bold text-slate-900 text-center focus:outline-none focus:ring-2 focus:ring-red-400 mb-4" />
               </>
             )}
           </div>
@@ -564,7 +564,7 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
         icon={<ClipboardList size={20} />}
         footer={
           <div className="flex gap-2 w-full">
-            <button onClick={handleBoletimDownload} className="flex-1 py-2.5 rounded-2xl border border-[var(--border-color)] text-slate-600 font-semibold text-xs hover:bg-[var(--bg-muted)] transition-all flex items-center justify-center gap-1.5">
+            <button onClick={handleBoletimDownload} className="flex-1 py-2.5 rounded-2xl border border-slate-200 text-slate-600 font-semibold text-xs hover:bg-slate-50 transition-all flex items-center justify-center gap-1.5">
               <Download size={14} /> TXT
             </button>
             <button onClick={handleBoletimPrint} className="flex-1 py-2.5 rounded-2xl text-white font-bold text-xs flex items-center justify-center gap-1.5 hover:brightness-110 transition-all active:scale-95" style={{ backgroundColor: primaryColor }}>
@@ -580,9 +580,9 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
                 <p className="text-xs text-slate-400 text-center py-4">Nenhuma venda registrada hoje.</p>
               )}
               {boletim.formas.map((f: any) => (
-                <div key={f.metodo} className="flex items-center justify-between text-sm border-b border-[var(--border-color)] py-1.5">
-                  <span className="font-bold text-[var(--text-main)] uppercase">{f.metodo} <span className="text-slate-400 font-semibold">({f.quantidade})</span></span>
-                  <span className="font-black text-[var(--text-main)]">R$ {f.total.toFixed(2)}</span>
+                <div key={f.metodo} className="flex items-center justify-between text-sm border-b border-slate-100 py-1.5">
+                  <span className="font-bold text-slate-800 uppercase">{f.metodo} <span className="text-slate-400 font-semibold">({f.quantidade})</span></span>
+                  <span className="font-black text-slate-900">R$ {f.total.toFixed(2)}</span>
                 </div>
               ))}
               <div className="flex items-center justify-between text-sm py-2.5 bg-slate-900 text-white rounded-xl px-3">

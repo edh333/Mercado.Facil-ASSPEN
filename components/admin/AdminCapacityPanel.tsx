@@ -122,21 +122,21 @@ export const AdminCapacityPanel: React.FC = () => {
   };
 
   const Card = ({ label, valor, cor }: { label: string; valor: string; cor: string }) => (
-    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] p-5 shadow-sm">
+    <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
       <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-2">{label}</p>
       <p className={`text-2xl font-black tracking-tight ${cor}`}>{valor}</p>
     </div>
   );
 
   return (
-    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] p-6 shadow-sm space-y-5">
+    <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <div className="p-3 bg-emerald-100 rounded-2xl">
             <Gauge size={22} className="text-emerald-600" />
           </div>
           <div>
-            <h3 className="font-black text-sm text-[var(--text-main)] uppercase tracking-wider">Capacidade de Atendimento</h3>
+            <h3 className="font-black text-sm text-slate-700 uppercase tracking-wider">Capacidade de Atendimento</h3>
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Pedidos por período • usuários • estimativa de uso do banco de dados</p>
           </div>
         </div>
@@ -176,24 +176,24 @@ export const AdminCapacityPanel: React.FC = () => {
         <Card label="Últimos 7 Dias" valor={capacidade.semana === null ? '—' : fmt(capacidade.semana)} cor="text-blue-600" />
         <Card label="Últimos 30 Dias" valor={capacidade.mes === null ? '—' : fmt(capacidade.mes)} cor="text-purple-600" />
         <Card label="Último Ano" valor={capacidade.ano === null ? '—' : fmt(capacidade.ano)} cor="text-amber-600" />
-        <Card label="Total Histórico" valor={capacidade.total === null ? '—' : fmt(capacidade.total)} cor="text-[var(--text-main)]" />
+        <Card label="Total Histórico" valor={capacidade.total === null ? '—' : fmt(capacidade.total)} cor="text-slate-800" />
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <div className="bg-[var(--bg-muted)] rounded-2xl border border-[var(--border-color)] p-4">
+        <div className="bg-slate-50 rounded-2xl border border-slate-200 p-4">
           <div className="flex items-center gap-2 mb-2">
             <Users size={16} className="text-blue-500" />
             <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Famílias Ativas</p>
           </div>
-          <p className="text-xl font-black text-[var(--text-main)]">{familiaresCadastrados}</p>
+          <p className="text-xl font-black text-slate-900">{familiaresCadastrados}</p>
           <p className="text-[9px] text-slate-400 font-bold uppercase">de {familiaresTotal} cadastrados</p>
         </div>
-        <div className="bg-[var(--bg-muted)] rounded-2xl border border-[var(--border-color)] p-4">
+        <div className="bg-slate-50 rounded-2xl border border-slate-200 p-4">
           <div className="flex items-center gap-2 mb-2">
             <ShoppingBag size={16} className="text-emerald-500" />
             <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Média por Dia (30d)</p>
           </div>
-          <p className="text-xl font-black text-[var(--text-main)]">
+          <p className="text-xl font-black text-slate-900">
             {capacidade.mes === null ? '—' : fmt(Math.round(capacidade.mes / 30))}
           </p>
           <p className="text-[9px] text-slate-400 font-bold uppercase">pedidos/dia na média</p>
@@ -220,7 +220,7 @@ export const AdminCapacityPanel: React.FC = () => {
           <button
             onClick={() => { setShowCleanupModal(true); setCleanupResult(null); setCleanupErro(''); }}
             disabled={cleanupRunning}
-            className="shrink-0 px-6 py-3 bg-[var(--bg-card)] text-red-600 rounded-xl font-black text-[11px] uppercase tracking-wider flex items-center gap-2 hover:bg-red-50 active:scale-95 transition-all disabled:opacity-60"
+            className="shrink-0 px-6 py-3 bg-white text-red-600 rounded-xl font-black text-[11px] uppercase tracking-wider flex items-center gap-2 hover:bg-red-50 active:scale-95 transition-all disabled:opacity-60"
           >
             <ShieldCheck size={16} /> Limpar Dados Antigos
           </button>
@@ -251,7 +251,7 @@ export const AdminCapacityPanel: React.FC = () => {
               <button
                 onClick={() => setShowCleanupModal(false)}
                 disabled={cleanupRunning}
-                className="flex-1 py-3.5 bg-[var(--bg-muted)] text-slate-600 rounded-xl font-black text-[11px] uppercase tracking-wider hover:bg-slate-200 active:scale-95 transition-all disabled:opacity-50 border border-[var(--border-color)]"
+                className="flex-1 py-3.5 bg-slate-100 text-slate-600 rounded-xl font-black text-[11px] uppercase tracking-wider hover:bg-slate-200 active:scale-95 transition-all disabled:opacity-50 border border-slate-200"
               >
                 Cancelar
               </button>
@@ -267,7 +267,7 @@ export const AdminCapacityPanel: React.FC = () => {
         }
       >
         <div className="p-6 space-y-4">
-          <div className="bg-[var(--bg-muted)] border border-[var(--border-color)] rounded-xl p-4 text-[11px] font-bold text-slate-600 leading-relaxed space-y-2">
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-[11px] font-bold text-slate-600 leading-relaxed space-y-2">
             <p className="flex items-start gap-2"><Download size={14} className="text-emerald-600 shrink-0 mt-0.5" /> <span>1º — O sistema cria uma <b>cópia de segurança completa</b> (arquivo JSON no Storage com link de download válido por 7 dias).</span></p>
             <p className="flex items-start gap-2"><ShieldCheck size={14} className="text-emerald-600 shrink-0 mt-0.5" /> <span>2º — Grava uma <b>cópia permanente em historico_geral</b> (trilha de auditoria, nunca se perde).</span></p>
             <p className="flex items-start gap-2"><Trash2 size={14} className="text-red-500 shrink-0 mt-0.5" /> <span>3º — Remove da operação os <b>pedidos, depósitos e despesas mais antigos</b> do que o período escolhido. Pedidos pendentes de análise <b>nunca</b> são removidos.</span></p>
@@ -280,7 +280,7 @@ export const AdminCapacityPanel: React.FC = () => {
               value={diasLimpeza}
               onChange={e => setDiasLimpeza(Number(e.target.value))}
               disabled={cleanupRunning}
-              className="w-full px-4 py-3 rounded-xl border-2 border-[var(--border-color)] bg-[var(--bg-muted)] font-black text-sm outline-none focus:border-emerald-500 disabled:opacity-50"
+              className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-slate-50 font-black text-sm outline-none focus:border-emerald-500 disabled:opacity-50"
             >
               <option value={30}>30 dias (agressivo)</option>
               <option value={60}>60 dias</option>
@@ -304,22 +304,22 @@ export const AdminCapacityPanel: React.FC = () => {
                 <>
                   <p className="flex items-center gap-2"><ShieldCheck size={16} /> Limpeza concluída com sucesso! <b>{fmt(cleanupResult.total)}</b> registros arquivados:</p>
                   <div className="grid grid-cols-3 gap-2 text-center">
-                    <div className="bg-[var(--bg-card)] rounded-xl py-2 px-1 border border-emerald-200">
+                    <div className="bg-white rounded-xl py-2 px-1 border border-emerald-200">
                       <p className="text-[9px] text-emerald-600 uppercase font-black">Pedidos</p>
                       <p className="font-black">{fmt(cleanupResult.porColecao?.orders || 0)}</p>
                     </div>
-                    <div className="bg-[var(--bg-card)] rounded-xl py-2 px-1 border border-emerald-200">
+                    <div className="bg-white rounded-xl py-2 px-1 border border-emerald-200">
                       <p className="text-[9px] text-emerald-600 uppercase font-black">Depósitos</p>
                       <p className="font-black">{fmt(cleanupResult.porColecao?.wallet_transactions || 0)}</p>
                     </div>
-                    <div className="bg-[var(--bg-card)] rounded-xl py-2 px-1 border border-emerald-200">
+                    <div className="bg-white rounded-xl py-2 px-1 border border-emerald-200">
                       <p className="text-[9px] text-emerald-600 uppercase font-black">Despesas</p>
                       <p className="font-black">{fmt(cleanupResult.porColecao?.expenses || 0)}</p>
                     </div>
                   </div>
                   <p className="text-[10px] text-emerald-600 leading-relaxed">Cópia de segurança salva em <b>historico_geral</b> (permanente) e, quando disponível, arquivo JSON no Storage.</p>
                   {(cleanupResult.arquivosApagados > 0 || cleanupResult.arquivosFalha > 0) && (
-                    <p className="text-[10px] text-slate-600 leading-relaxed bg-[var(--bg-card)] rounded-xl py-2 px-3 border border-emerald-200">
+                    <p className="text-[10px] text-slate-600 leading-relaxed bg-white rounded-xl py-2 px-3 border border-emerald-200">
                       Arquivos de comprovante apagados do armazenamento: <b>{fmt(cleanupResult.arquivosApagados || 0)}</b>
                       {cleanupResult.arquivosFalha > 0 && <> ({fmt(cleanupResult.arquivosFalha)} com falha — espaço não liberado nesses; serão apagados na próxima limpeza)</>}.
                     </p>
@@ -354,7 +354,7 @@ export const AdminCapacityPanel: React.FC = () => {
                   disabled={cleanupRunning}
                   placeholder="Digite a senha mestra para confirmar a limpeza"
                   autoComplete="new-password"
-                  className="w-full px-4 py-3 rounded-xl border-2 border-[var(--border-color)] bg-[var(--bg-muted)] font-black text-sm outline-none focus:border-red-500 disabled:opacity-50"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-slate-50 font-black text-sm outline-none focus:border-red-500 disabled:opacity-50"
                 />
                 <p className="text-[9px] text-slate-400 font-bold mt-1">A limpeza apaga dados fisicamente — o servidor só executa com a senha mestra validada.</p>
               </div>
@@ -387,7 +387,7 @@ export const AdminCapacityPanel: React.FC = () => {
           <div className="flex flex-col sm:flex-row gap-3 w-full">
             <button
               onClick={() => setShowCapacityModal(false)}
-              className="flex-1 py-3.5 bg-[var(--bg-muted)] text-slate-600 rounded-xl font-black text-[11px] uppercase tracking-wider hover:bg-slate-200 active:scale-95 transition-all border border-[var(--border-color)]"
+              className="flex-1 py-3.5 bg-slate-100 text-slate-600 rounded-xl font-black text-[11px] uppercase tracking-wider hover:bg-slate-200 active:scale-95 transition-all border border-slate-200"
             >
               Cancelar
             </button>
@@ -401,7 +401,7 @@ export const AdminCapacityPanel: React.FC = () => {
         }
       >
         <div className="p-6 space-y-4">
-          <div className="bg-[var(--bg-muted)] border border-[var(--border-color)] rounded-xl p-4 text-[11px] font-bold text-slate-600 leading-relaxed space-y-2">
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-[11px] font-bold text-slate-600 leading-relaxed space-y-2">
             <p className="flex items-start gap-2"><Gauge size={14} className="text-emerald-600 shrink-0 mt-0.5" /> <span>Aumenta a capacidade de <b>cadastro</b> e o <b>histórico carregado na tela</b>. Os valores são mantidos automaticamente de um jeito seguro — os dados antigos continuam sendo arquivados com cópia de segurança, então o plano gratuito atende por anos.</span></p>
           </div>
 
@@ -410,7 +410,7 @@ export const AdminCapacityPanel: React.FC = () => {
             <select
               value={capProdutos}
               onChange={e => setCapProdutos(Number(e.target.value))}
-              className="w-full px-4 py-3 rounded-xl border-2 border-[var(--border-color)] bg-[var(--bg-muted)] font-black text-sm outline-none focus:border-emerald-500"
+              className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-slate-50 font-black text-sm outline-none focus:border-emerald-500"
             >
               {opcoes(productsLimit, [500, 1000, 2000, 5000]).map(v => <option key={v} value={v}>{v.toLocaleString('pt-BR')}</option>)}
             </select>
@@ -422,7 +422,7 @@ export const AdminCapacityPanel: React.FC = () => {
             <select
               value={capMembros}
               onChange={e => setCapMembros(Number(e.target.value))}
-              className="w-full px-4 py-3 rounded-xl border-2 border-[var(--border-color)] bg-[var(--bg-muted)] font-black text-sm outline-none focus:border-emerald-500"
+              className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-slate-50 font-black text-sm outline-none focus:border-emerald-500"
             >
               {opcoes(usersLimit, [2000, 5000, 10000]).map(v => <option key={v} value={v}>{v.toLocaleString('pt-BR')}</option>)}
             </select>
@@ -435,7 +435,7 @@ export const AdminCapacityPanel: React.FC = () => {
             <select
               value={capHistorico}
               onChange={e => setCapHistorico(Number(e.target.value))}
-              className="w-full px-4 py-3 rounded-xl border-2 border-[var(--border-color)] bg-[var(--bg-muted)] font-black text-sm outline-none focus:border-emerald-500"
+              className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-slate-50 font-black text-sm outline-none focus:border-emerald-500"
             >
               {opcoes(Math.max(ordersLimit, expensesLimit), [50, 100, 200, 500, 1000]).map(v => <option key={v} value={v}>{v.toLocaleString('pt-BR')} últimos</option>)}
             </select>

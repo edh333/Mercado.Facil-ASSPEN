@@ -421,7 +421,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
           size="lg"
           footer={
             <>
-              <button type="button" onClick={() => { setShowProductModal(false); setEditingProduct(null); }} className="flex-1 py-4 bg-[var(--bg-card)] text-[var(--text-main)] font-bold rounded-xl hover:bg-[var(--bg-muted)] uppercase text-[11px] tracking-widest transition-all border border-slate-300 shadow-sm hover:shadow-md active:scale-[0.98]">Cancelar</button>
+              <button type="button" onClick={() => { setShowProductModal(false); setEditingProduct(null); }} className="flex-1 py-4 bg-white text-slate-700 font-bold rounded-xl hover:bg-slate-50 uppercase text-[11px] tracking-widest transition-all border border-slate-300 shadow-sm hover:shadow-md active:scale-[0.98]">Cancelar</button>
               <button type="submit" form="product-form" disabled={isProductLoading || !productForm.name.trim()} className="flex-[2] py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md shadow-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/30 flex items-center justify-center gap-3 uppercase text-[11px] tracking-widest transition-all px-6 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">
                 {isProductLoading ? <Loader2 size={18} className="animate-spin"/> : <Check size={18} />}
                 {editingProduct ? 'Salvar Alterações' : 'Cadastrar Produto'}
@@ -444,16 +444,16 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                    {/* IMAGE MANAGEMENT */}
                    <div className="md:col-span-1">
-                       <div className="bg-[var(--bg-card)] rounded-xl border-2 border-[var(--border-color)] p-4 space-y-3">
+                       <div className="bg-white rounded-xl border-2 border-slate-200 p-4 space-y-3">
                            <label className="text-slate-600 font-black text-[10px] uppercase tracking-widest block">Foto do Produto</label>
-                           <div className="w-full aspect-square rounded-lg bg-[var(--bg-muted)] border border-[var(--border-color)] overflow-hidden flex items-center justify-center relative group">
+                           <div className="w-full aspect-square rounded-lg bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center relative group">
                                {productForm.imageUrl ? (
                                    <>
                                        <img src={productForm.imageUrl} className="w-full h-full object-contain p-2" alt="Preview" onError={(e) => { (e.target as HTMLImageElement).onerror = null; (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%2394a3b8%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z%22/%3E%3Cline x1=%224%22 y1=%2222%22 x2=%2220%22 y2=%222%22/%3E%3C/svg%3E'; (e.target as HTMLImageElement).classList.add('opacity-30'); }} />
                                        <button
                                            type="button"
                                            onClick={() => setProductForm({...productForm, imageUrl: ''})}
-                                           className="absolute top-1 right-1 bg-white/90 hover:bg-red-500 hover:text-white rounded-lg p-1.5 shadow-sm border border-[var(--border-color)] transition-all opacity-100"
+                                           className="absolute top-1 right-1 bg-white/90 hover:bg-red-500 hover:text-white rounded-lg p-1.5 shadow-sm border border-slate-200 transition-all opacity-100"
                                            title="Remover imagem"
                                        >
                                            <X size={14} />
@@ -468,7 +468,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                                <label className="text-slate-400 font-bold text-[9px] uppercase tracking-widest block mb-1">Link da Imagem (URL)</label>
                                <input
                                    type="text"
-                                   className="w-full bg-[var(--bg-muted)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-xs font-medium text-[var(--text-main)] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-400 transition-all"
+                                   className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-400 transition-all"
                                    placeholder="https://..."
                                    value={productForm.imageUrl || ''}
                                    onChange={e => setProductForm({...productForm, imageUrl: e.target.value})}
@@ -499,11 +499,11 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                                onChange={e => setProductForm({...productForm, brand: e.target.value.toUpperCase()})}
                                placeholder="EX: NESTLÉ, COCA-COLA..."
                            />
-<div className="bg-[var(--bg-card)] p-4 rounded-xl border-2 border-[var(--border-color)] transition-all focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
+<div className="bg-white p-4 rounded-xl border-2 border-slate-200 transition-all focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
                                 <label className="text-slate-600 font-black text-[10px] uppercase tracking-widest block mb-2">Categoria</label>
                                 <input
                                     list="lista-categorias-produto"
-                                    className="w-full bg-[var(--bg-muted)] border border-[var(--border-color)] rounded-xl px-3 py-2.5 text-sm font-bold text-[var(--text-main)] outline-none placeholder:text-slate-400 transition-all focus:border-emerald-500"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-900 outline-none placeholder:text-slate-400 transition-all focus:border-emerald-500"
                                     placeholder="Escolha ou digite..."
                                     value={productForm.category}
                                     onChange={e => setProductForm({...productForm, category: e.target.value})}
@@ -519,9 +519,9 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                {/* MIDDLE ROW: Código EAN + Custo + Margem */}
                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                    <div className="space-y-1">
-                       <div className="bg-[var(--bg-card)] p-4 rounded-xl border-2 border-[var(--border-color)] focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
+                       <div className="bg-white p-4 rounded-xl border-2 border-slate-200 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
                            <div className="flex justify-between items-center mb-2">
-                               <label className="text-[var(--text-main)] font-black text-[10px] uppercase tracking-widest">Código de Barras (EAN)</label>
+                               <label className="text-slate-700 font-black text-[10px] uppercase tracking-widest">Código de Barras (EAN)</label>
                                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[9px] font-black uppercase tracking-wider">Leitor Ativo</span>
                            </div>
                            <input
@@ -535,7 +535,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                                    }
                                }}
                                placeholder="Escaneie ou digite o código"
-                               className="w-full bg-[var(--bg-muted)] border border-[var(--border-color)] rounded-xl font-bold text-[var(--text-main)] text-sm outline-none px-4 py-2.5 placeholder:text-slate-400 transition-all focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                               className="w-full bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 text-sm outline-none px-4 py-2.5 placeholder:text-slate-400 transition-all focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                            />
                        </div>
                        <p className={`text-[9px] font-bold uppercase tracking-wider px-1 flex items-center gap-1 ${scanAviso?.tipo === 'verde' ? 'text-emerald-600' : scanAviso?.tipo === 'amarelo' ? 'text-amber-600' : 'text-blue-600'}`}>
@@ -596,9 +596,9 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                        onChange={e => setProductForm({...productForm, minStock: e.target.value})}
                        type="number"
                    />
-                     <div className="bg-[var(--bg-card)] p-4 rounded-xl border-2 border-[var(--border-color)] transition-all focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
+                     <div className="bg-white p-4 rounded-xl border-2 border-slate-200 transition-all focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
                          <div className="flex justify-between items-center mb-2 gap-2">
-                             <label className="text-[var(--text-main)] font-black text-[10px] uppercase tracking-widest">Preço de Venda (R$)</label>
+                             <label className="text-slate-700 font-black text-[10px] uppercase tracking-widest">Preço de Venda (R$)</label>
                              {priceManual ? (
                                  <span className="flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[9px] font-black uppercase tracking-wider">
                                      <Lock size={9} /> Travado
@@ -617,7 +617,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                                  setProductForm({...productForm, price: e.target.value});
                              }}
                              placeholder="Ajusta sozinho pela margem — digite para travar"
-                             className="w-full bg-[var(--bg-muted)] border border-[var(--border-color)] rounded-xl font-bold text-[var(--text-main)] text-sm outline-none px-4 py-2.5 placeholder:text-slate-400 transition-all focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                             className="w-full bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 text-sm outline-none px-4 py-2.5 placeholder:text-slate-400 transition-all focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                          />
                          {priceManual && (
                              <button
@@ -706,9 +706,9 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
           size="sm"
         >
                    <div className="p-8 space-y-6">
-                      <div className="bg-[var(--bg-muted)] p-5 rounded-2xl border border-[var(--border-color)]">
+                      <div className="bg-slate-100 p-5 rounded-2xl border border-slate-200">
                           <p className="text-[9px] font-black text-slate-400 uppercase mb-1 opacity-60">Beneficiário</p>
-                          <p className="font-black text-[var(--text-main)] text-base uppercase tracking-tight truncate">{showWithdrawalModal.userName}</p>
+                          <p className="font-black text-slate-900 text-base uppercase tracking-tight truncate">{showWithdrawalModal.userName}</p>
                       </div>
 
 <div className="space-y-5">
@@ -719,7 +719,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                                     <input
                                       type="number"
                                       step="0.01"
-                                      className="w-full pl-16 pr-5 py-5 bg-[var(--bg-muted)] border-2 border-[var(--border-color)] group-focus-within:border-emerald-500 group-focus-within:ring-4 group-focus-within:ring-emerald-500/20 rounded-2xl font-black text-3xl text-[var(--text-main)] outline-none transition-all placeholder:text-slate-400"
+                                      className="w-full pl-16 pr-5 py-5 bg-slate-100 border-2 border-slate-200 group-focus-within:border-emerald-500 group-focus-within:ring-4 group-focus-within:ring-emerald-500/20 rounded-2xl font-black text-3xl text-slate-900 outline-none transition-all placeholder:text-slate-400"
                                       placeholder="0,00"
                                       value={withdrawalAmount}
                                       onChange={e => setWithdrawalAmount(e.target.value)}
@@ -730,7 +730,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                             <div>
                                 <label className="text-slate-600 font-black text-[10px] uppercase tracking-widest mb-3 block">Motivo / Observação</label>
                                 <textarea
-                                  className="w-full p-5 bg-[var(--bg-muted)] border-2 border-[var(--border-color)] focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 rounded-2xl font-black text-[var(--text-main)] text-sm outline-none h-28 resize-none placeholder:text-slate-400 uppercase"
+                                  className="w-full p-5 bg-slate-100 border-2 border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 rounded-2xl font-black text-slate-900 text-sm outline-none h-28 resize-none placeholder:text-slate-400 uppercase"
                                   placeholder="Descreva o motivo da operação..."
                                   value={withdrawalReason}
                                   onChange={e => setWithdrawalReason(e.target.value)}
@@ -745,7 +745,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                                   <KeyRound size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-amber-500"/>
                                   <input
                                     type={mostrarSenhaWithdrawal ? 'text' : 'password'}
-                                    className="w-full pl-14 pr-14 py-5 bg-[var(--bg-muted)] border-2 border-[var(--border-color)] group-focus-within:border-amber-500 group-focus-within:ring-4 group-focus-within:ring-amber-500/20 rounded-2xl font-black text-lg text-[var(--text-main)] outline-none transition-all placeholder:text-slate-400"
+                                    className="w-full pl-14 pr-14 py-5 bg-slate-100 border-2 border-slate-200 group-focus-within:border-amber-500 group-focus-within:ring-4 group-focus-within:ring-amber-500/20 rounded-2xl font-black text-lg text-slate-900 outline-none transition-all placeholder:text-slate-400"
                                     placeholder="••••••••"
                                     value={withdrawalPassword}
                                     onChange={e => setWithdrawalPassword(e.target.value)}
@@ -776,7 +776,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                       <div className="flex gap-3 pt-2">
                           <button
                             onClick={() => { setShowWithdrawalModal(null); setWithdrawalPassword(''); }}
-                            className="flex-1 py-5 bg-[var(--bg-muted)] text-slate-600 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all touch-target active:scale-[0.98]"
+                            className="flex-1 py-5 bg-slate-100 text-slate-600 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all touch-target active:scale-[0.98]"
                           >
                             Cancelar
                           </button>
@@ -795,13 +795,13 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
       {/* MODAL: MASTER AUTH PREMIUM */}
       {showAuthModal && (
         <div className="modal-container" role="dialog" aria-modal="true" aria-label="Autorização">
-            <form onSubmit={async (e) => { e.preventDefault(); setIsAuthLoading(true); try { await handleAuthConfirm(); } finally { setIsAuthLoading(false); } }} className="glass-card w-full max-w-sm rounded-3xl overflow-hidden border border-[var(--border-color)] animate-slideUp relative" style={{ background: 'linear-gradient(135deg, #0f172a, #1e293b, #0f172a)' }}>
-                <div className="relative bg-[var(--bg-card)] rounded-2xl p-8 text-center border border-slate-200/80 shadow-xl m-4 md:m-6">
+            <form onSubmit={async (e) => { e.preventDefault(); setIsAuthLoading(true); try { await handleAuthConfirm(); } finally { setIsAuthLoading(false); } }} className="glass-card w-full max-w-sm rounded-3xl overflow-hidden border border-slate-200 animate-slideUp relative" style={{ background: 'linear-gradient(135deg, #0f172a, #1e293b, #0f172a)' }}>
+                <div className="relative bg-white rounded-2xl p-8 text-center border border-slate-200/80 shadow-xl m-4 md:m-6">
                     <div className="w-14 h-14 mx-auto mb-5 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-700 flex items-center justify-center shadow-lg shadow-slate-900/20">
                         <Lock size={24} strokeWidth={2.2} className="text-emerald-400"/>
                     </div>
 
-                    <h2 className="text-xl font-black text-[var(--text-main)] uppercase tracking-tight">Autorização</h2>
+                    <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Autorização</h2>
                     <p className="text-xs font-semibold text-slate-500 mt-1">Digite a senha para liberar esta operação</p>
 
                     <div className="relative mt-6 mb-7 group/input">
@@ -811,7 +811,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                         <input
                             type={mostrarSenhaAuth ? 'text' : 'password'}
                             autoCapitalize="none" autoCorrect="off" autoComplete="off" spellCheck={false}
-                            className="w-full pl-11 pr-12 py-3.5 bg-slate-50/70 border border-[var(--border-color)] focus:border-emerald-500 focus:bg-[var(--bg-card)] focus:ring-2 focus:ring-emerald-500/15 rounded-xl font-bold text-lg tracking-[0.35em] text-[var(--text-main)] outline-none transition-all placeholder:text-slate-300 relative z-10"
+                            className="w-full pl-11 pr-12 py-3.5 bg-slate-50/70 border border-slate-200 focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/15 rounded-xl font-bold text-lg tracking-[0.35em] text-slate-900 outline-none transition-all placeholder:text-slate-300 relative z-10"
                             placeholder="••••"
                             value={authPass}
                             onChange={e => setAuthPass(e.target.value)}
@@ -835,7 +835,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                             {isAuthLoading ? <><Loader2 size={16} className="animate-spin" /> Validando...</> : 'Confirmar Acesso'}
                             {!isAuthLoading && <Check size={16} />}
                         </button>
-                        <button type="button" disabled={isAuthLoading} onClick={() => { setShowAuthModal(false); setAuthPass(''); }} className="w-full py-3 bg-[var(--bg-muted)] border border-[var(--border-color)] text-slate-600 font-black hover:bg-slate-200 uppercase text-[10px] tracking-widest rounded-xl transition-all touch-target active:scale-[0.98] disabled:opacity-60">Cancelar</button>
+                        <button type="button" disabled={isAuthLoading} onClick={() => { setShowAuthModal(false); setAuthPass(''); }} className="w-full py-3 bg-slate-100 border border-slate-200 text-slate-600 font-black hover:bg-slate-200 uppercase text-[10px] tracking-widest rounded-xl transition-all touch-target active:scale-[0.98] disabled:opacity-60">Cancelar</button>
                     </div>
                 </div>
             </form>
@@ -930,7 +930,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
             <button onClick={handleRawPrint} className="h-11 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-90 bg-emerald-600 text-white hover:bg-emerald-500 shadow-sm">
               <Printer size={14}/> Imprimir na Fiscal
             </button>
-            <button onClick={handleBaixarTxt} className="h-11 px-4 bg-[var(--bg-muted)] border border-[var(--border-color)] text-[var(--text-main)] text-xs font-black tracking-wider rounded-xl hover:bg-[var(--bg-muted)] transition-colors flex items-center justify-center" title="Baixar .txt para impressão externa">
+            <button onClick={handleBaixarTxt} className="h-11 px-4 bg-slate-50 border border-slate-200 text-slate-700 text-xs font-black tracking-wider rounded-xl hover:bg-slate-100 transition-colors flex items-center justify-center" title="Baixar .txt para impressão externa">
               TXT
             </button>
             <button onClick={async () => {
@@ -949,7 +949,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
         {printOrder && (
         <>
           <div className="w-full bg-slate-100/70 flex-1 overflow-y-auto p-4 md:p-6 flex justify-center items-start" style={{ minHeight: '200px' }}>
-            <div className="bg-[var(--bg-card)] shadow-xl border border-[var(--border-color)] rounded-lg p-6 max-w-md mx-auto transition-transform">
+            <div className="bg-white shadow-xl border border-slate-100 rounded-lg p-6 max-w-md mx-auto transition-transform">
               <div className="shadow-sm origin-top" style={{ width: '76mm', margin: '0 auto' }}>
                 <CupomEntrega order={printOrder} remainingBalance={printOrder.walletBalanceAfter} config={(settings as any)} />
               </div>
@@ -999,7 +999,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                   setStockEditPassword('');
                   setStockEditError('');
                 }}
-                className="flex-1 py-3 bg-[var(--bg-muted)] text-[var(--text-main)] rounded-xl font-black uppercase hover:bg-slate-200"
+                className="flex-1 py-3 bg-slate-100 text-slate-700 rounded-xl font-black uppercase hover:bg-slate-200"
               >
                 Cancelar
               </button>
@@ -1014,17 +1014,17 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
           }
         >
           <div className="p-6 space-y-6">
-            <div className="bg-[var(--bg-muted)] p-6 rounded-2xl border border-[var(--border-color)]">
-              <h3 className="font-black text-[var(--text-main)] mb-2">{showStockEditModal.name}</h3>
+            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+              <h3 className="font-black text-slate-900 mb-2">{showStockEditModal.name}</h3>
               <p className="text-sm text-slate-500">Código: {showStockEditModal.barcode || showStockEditModal.ean || showStockEditModal.id?.slice(0, 8)}</p>
               <div className="mt-4 flex items-center gap-4">
                 <div className="flex-1">
                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Estoque Atual</p>
-                  <p className="text-3xl font-black text-[var(--text-main)]">{showStockEditModal.stock ?? 0} UN</p>
+                  <p className="text-3xl font-black text-slate-900">{showStockEditModal.stock ?? 0} UN</p>
                 </div>
                 <div className="flex-1">
                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Estoque Mínimo</p>
-                  <p className="text-xl font-black text-[var(--text-main)]">{showStockEditModal.minStock ?? 0} UN</p>
+                  <p className="text-xl font-black text-slate-700">{showStockEditModal.minStock ?? 0} UN</p>
                 </div>
               </div>
             </div>
@@ -1038,7 +1038,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                   step="1"
                   value={stockEditForm}
                   onChange={(e) => setStockEditForm(e.target.value)}
-                  className="w-full px-4 py-4 bg-[var(--bg-muted)] border-2 border-[var(--border-color)] rounded-xl font-black text-2xl text-center text-[var(--text-main)] outline-none focus:border-emerald-500"
+                  className="w-full px-4 py-4 bg-slate-50 border-2 border-slate-200 rounded-xl font-black text-2xl text-center text-slate-900 outline-none focus:border-emerald-500"
                   placeholder="0"
                   autoFocus
                 />
@@ -1055,7 +1055,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                       setStockEditError('');
                     }}
                     onKeyDown={(e) => e.key === 'Enter' && handleStockEditSubmit()}
-                    className="w-full pl-4 pr-14 py-3 bg-[var(--bg-muted)] border-2 border-[var(--border-color)] focus:border-emerald-500 rounded-xl font-black text-lg outline-none transition-colors placeholder:text-slate-400"
+                    className="w-full pl-4 pr-14 py-3 bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 rounded-xl font-black text-lg outline-none transition-colors placeholder:text-slate-400"
                     placeholder="••••••••"
                     autoComplete="off"
                   />
@@ -1097,15 +1097,15 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
 export default AdminModals;
 
 const PremiumInput = ({ label, value, onChange, placeholder, type = "text", error, required, inputMode }: { label: string; value: string; onChange: (e: any) => void; placeholder?: string; type?: string; error?: string; required?: boolean; inputMode?: "none" | "text" | "tel" | "url" | "email" | "numeric" | "decimal" | "search" }) => (
-    <div className={`bg-[var(--bg-card)] p-4 rounded-xl border-2 transition-all ${error ? 'border-red-500 focus-within:border-red-500 focus-within:ring-4 focus-within:ring-red-500/20' : 'border-[var(--border-color)] focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20'}`}>
+    <div className={`bg-white p-4 rounded-xl border-2 transition-all ${error ? 'border-red-500 focus-within:border-red-500 focus-within:ring-4 focus-within:ring-red-500/20' : 'border-slate-200 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20'}`}>
        <div className="flex justify-between items-center mb-2">
-         <label className="text-[var(--text-main)] font-black text-[10px] uppercase tracking-widest">{label}</label>
+         <label className="text-slate-700 font-black text-[10px] uppercase tracking-widest">{label}</label>
          {required && <span className="text-red-400 text-[10px] font-bold">*OBRIGATÓRIO</span>}
        </div>
        <input
           type={type}
           inputMode={inputMode}
-          className={`w-full bg-[var(--bg-muted)] border rounded-xl font-bold text-[var(--text-main)] text-sm outline-none px-4 py-2.5 placeholder:text-slate-400 transition-all ${error ? 'border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20' : 'border-[var(--border-color)] focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20'}`}
+          className={`w-full bg-slate-50 border rounded-xl font-bold text-slate-900 text-sm outline-none px-4 py-2.5 placeholder:text-slate-400 transition-all ${error ? 'border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20' : 'border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20'}`}
           placeholder={placeholder}
           value={value}
           onChange={onChange}
@@ -1115,14 +1115,14 @@ const PremiumInput = ({ label, value, onChange, placeholder, type = "text", erro
 );
 
 const ToggleSwitch = ({ label, sublabel, checked, onChange }: any) => (
-    <div className="bg-[var(--bg-card)] p-4 rounded-xl flex items-center justify-between border-2 border-[var(--border-color)]">
+    <div className="bg-white p-4 rounded-xl flex items-center justify-between border-2 border-slate-200">
         <div>
-            <p className="text-[10px] font-bold text-[var(--text-main)] uppercase tracking-widest">{label}</p>
+            <p className="text-[10px] font-bold text-slate-900 uppercase tracking-widest">{label}</p>
             <p className="text-[9px] text-slate-400 font-bold uppercase mt-0.5">{sublabel}</p>
         </div>
         <label className="relative inline-flex items-center cursor-pointer">
             <input type="checkbox" className="sr-only peer" checked={checked} onChange={onChange} />
-            <div className="w-12 h-7 bg-slate-600 rounded-full peer peer-checked:bg-emerald-500 transition-all after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-[var(--bg-card)] after:rounded-full after:h-6 after:w-6 after:transition-all after:shadow-lg peer-checked:after:translate-x-5"></div>
+            <div className="w-12 h-7 bg-slate-600 rounded-full peer peer-checked:bg-emerald-500 transition-all after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all after:shadow-lg peer-checked:after:translate-x-5"></div>
         </label>
     </div>
 );
