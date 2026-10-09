@@ -342,7 +342,7 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
                   {editando && (
                       <button
                           onClick={cancelarEdicao}
-                          className="w-full py-3 bg-slate-100 text-slate-600 font-black rounded-2xl hover:bg-slate-200 transition-all uppercase text-[10px] tracking-widest"
+                          className="w-full py-3 bg-[var(--bg-muted)] text-slate-600 font-black rounded-2xl hover:bg-slate-200 transition-all uppercase text-[10px] tracking-widest"
                       >
                           Cancelar Edição
                       </button>
@@ -369,7 +369,7 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
                     />
                 </div>
             </div>
-            <div className="overflow-x-auto overflow-y-auto max-h-[600px] divide-y divide-slate-200 custom-scrollbar">
+            <div className="overflow-x-auto overflow-y-auto max-h-[600px] divide-y divide-[var(--border-color)] custom-scrollbar">
                 {viewMode === 'table' && (
                     <table className="w-full text-left">
                         <thead className="bg-[var(--bg-main)] text-[var(--text-muted)] font-black uppercase text-[9px] tracking-widest sticky top-0 border-b border-[var(--border-color)]">
@@ -388,7 +388,7 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
                                     <td className="p-5">
                                         <div className="flex items-center gap-3 flex-wrap">
                                             <div className="font-black text-[var(--text-main)] text-sm uppercase tracking-tight">{inmate?.name || 'Sem nome'}</div>
-                                            <span className="text-[9px] bg-slate-200 text-slate-800 px-2 py-0.5 rounded font-black tracking-widest">{inmate?.cpf || '—'}</span>
+                                            <span className="text-[9px] bg-slate-200 text-[var(--text-main)] px-2 py-0.5 rounded font-black tracking-widest">{inmate?.cpf || '—'}</span>
                                             {inmate?.unit && <span className="text-[9px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-black tracking-widest flex items-center gap-1"><MapPin size={9}/>{inmate.unit}</span>}
                                         </div>
                                     </td>
@@ -401,7 +401,7 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
                                                     </div>
                                                 ))}
                                                 {inmate.linkedUsers && inmate.linkedUsers.length > 3 && (
-                                                    <div className="w-8 h-8 rounded-full border-2 border-white bg-slate-200 flex items-center justify-center text-slate-800 text-[10px] font-black shadow-sm">
+                                                    <div className="w-8 h-8 rounded-full border-2 border-white bg-slate-200 flex items-center justify-center text-[var(--text-main)] text-[10px] font-black shadow-sm">
                                                         +{inmate.linkedUsers.length - 3}
                                                     </div>
                                                 )}
@@ -453,7 +453,7 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-3 mb-1.5 flex-wrap">
                                 <p className="font-black text-[var(--text-main)] text-sm uppercase tracking-tight truncate">{inmate?.name || 'Sem nome'}</p>
-                                <span className="text-[9px] bg-slate-200 text-slate-800 px-2 py-0.5 rounded font-black tracking-widest shrink-0">{inmate?.cpf || '—'}</span>
+                                <span className="text-[9px] bg-slate-200 text-[var(--text-main)] px-2 py-0.5 rounded font-black tracking-widest shrink-0">{inmate?.cpf || '—'}</span>
                                 {inmate?.unit && <span className="text-[9px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-black tracking-widest flex items-center gap-1 shrink-0"><MapPin size={9}/>{inmate.unit}</span>}
                             </div>
                             <div className="flex items-center gap-4 mt-2">
@@ -464,7 +464,7 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
                                         </div>
                                     ))}
                                     {inmate.linkedUsers && inmate.linkedUsers.length > 3 && (
-                                        <div className="w-8 h-8 rounded-full border-2 border-white bg-slate-200 flex items-center justify-center text-slate-800 text-[10px] font-black shadow-sm">
+                                        <div className="w-8 h-8 rounded-full border-2 border-white bg-slate-200 flex items-center justify-center text-[var(--text-main)] text-[10px] font-black shadow-sm">
                                             +{inmate.linkedUsers.length - 3}
                                         </div>
                                     )}

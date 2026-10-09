@@ -217,8 +217,8 @@ export function AdminCustomersTab({
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-        <h2 className="text-xl font-bold text-slate-900 flex items-center gap-3 tracking-tight">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm">
+        <h2 className="text-xl font-bold text-[var(--text-main)] flex items-center gap-3 tracking-tight">
           <CreditCard size={24} className="text-emerald-500" /> Contas a Pagar
         </h2>
         <button
@@ -253,19 +253,19 @@ export function AdminCustomersTab({
               <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke={riskHex} strokeWidth="3" strokeDasharray={`${Math.min(riskPct, 100)}, 100`} strokeLinecap="round" />
             </svg>
           </div>
-          <div className="mt-2 w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+          <div className="mt-2 w-full h-1.5 bg-[var(--bg-muted)] rounded-full overflow-hidden">
             <div className={`h-full rounded-full transition-all ${riskColor}`} style={{ width: `${Math.min(riskPct, 100)}%` }} />
           </div>
         </div>
-        <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-2xl p-6 border border-slate-200 shadow-sm">
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-2xl p-6 border border-[var(--border-color)] shadow-sm">
           <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-1">Clientes Cadastrados</p>
-          <p className="text-3xl font-black text-slate-700">{accounts.length}</p>
+          <p className="text-3xl font-black text-[var(--text-main)]">{accounts.length}</p>
         </div>
-        <div className="flex flex-col gap-2 p-4 rounded-2xl border border-slate-200 bg-white shadow-sm justify-center">
-          <button onClick={() => imprimirCupom(gerarRelatorioInadimplentes(accounts))} className="w-full py-3 bg-slate-50 hover:bg-slate-100 text-slate-900 border border-slate-200 rounded-xl font-black text-[9px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm">
+        <div className="flex flex-col gap-2 p-4 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] shadow-sm justify-center">
+          <button onClick={() => imprimirCupom(gerarRelatorioInadimplentes(accounts))} className="w-full py-3 bg-[var(--bg-muted)] hover:bg-[var(--bg-muted)] text-[var(--text-main)] border border-[var(--border-color)] rounded-xl font-black text-[9px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm">
             <Printer size={16} /> Lista de Devedores
           </button>
-          <button onClick={exportCSV} className="w-full py-3 bg-slate-50 hover:bg-slate-100 text-slate-900 border border-slate-200 rounded-xl font-black text-[9px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm">
+          <button onClick={exportCSV} className="w-full py-3 bg-[var(--bg-muted)] hover:bg-[var(--bg-muted)] text-[var(--text-main)] border border-[var(--border-color)] rounded-xl font-black text-[9px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm">
             <Download size={16} /> Exportar CSV
           </button>
         </div>
@@ -280,7 +280,7 @@ export function AdminCustomersTab({
           { key: 'exhausted', label: 'Limite Esgotado' },
           { key: 'blocked', label: 'Bloqueados' },
         ] as const).map(f => (
-          <button key={f.key} onClick={() => setFilterType(f.key)} className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 ${filterType === f.key ? 'bg-emerald-500 text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}>
+          <button key={f.key} onClick={() => setFilterType(f.key)} className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 ${filterType === f.key ? 'bg-emerald-500 text-white shadow-md' : 'bg-[var(--bg-card)] text-slate-600 border border-[var(--border-color)] hover:bg-[var(--bg-muted)]'}`}>
             {f.label}
           </button>
         ))}
@@ -294,7 +294,7 @@ export function AdminCustomersTab({
           placeholder="BUSCAR CLIENTE POR NOME OU CPF..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="w-full pl-12 pr-4 py-4 rounded-2xl bg-white border border-slate-200 text-slate-900 font-bold text-sm placeholder:text-slate-500 outline-none focus:border-emerald-500 transition-all shadow-sm uppercase tracking-widest"
+          className="w-full pl-12 pr-4 py-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-main)] font-bold text-sm placeholder:text-slate-500 outline-none focus:border-emerald-500 transition-all shadow-sm uppercase tracking-widest"
         />
       </div>
 
@@ -304,16 +304,16 @@ export function AdminCustomersTab({
           <RefreshCw className="animate-spin text-emerald-500" size={32} />
         </div>
       ) : filtered.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 md:p-16 text-center">
+        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] shadow-sm p-8 md:p-16 text-center">
           <CreditCard size={48} className="mx-auto mb-4 text-slate-400" />
-          <p className="font-black text-slate-900 text-lg uppercase tracking-tight mb-1">
+          <p className="font-black text-[var(--text-main)] text-lg uppercase tracking-tight mb-1">
             {search ? 'Nenhum cliente encontrado' : 'Nenhum cliente cadastrado'}
           </p>
           <p className="text-slate-500 text-sm">Cadastre clientes para vender no fiado.</p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="divide-y divide-slate-100">
+        <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] shadow-sm overflow-hidden">
+          <div className="divide-y divide-[var(--border-color)]">
             {filtered.map(c => {
               const usedPct = c.creditLimit > 0 ? ((c.currentDebt || 0) / c.creditLimit) * 100 : 0;
               const isOverLimit = c.currentDebt >= c.creditLimit && c.creditLimit > 0;
@@ -327,13 +327,13 @@ export function AdminCustomersTab({
                 return dias >= 30;
               })();
               return (
-                <div key={c.id} className={`flex items-center gap-5 p-5 hover:bg-slate-50 transition-all ${c.status === 'blocked' ? 'opacity-50' : ''}`}>
+                <div key={c.id} className={`flex items-center gap-5 p-5 hover:bg-[var(--bg-muted)] transition-all ${c.status === 'blocked' ? 'opacity-50' : ''}`}>
                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${isOverLimit ? 'bg-red-100 text-red-600' : usedPct > 70 ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>
                     <Users size={22} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-bold text-slate-900 text-sm truncate">{c.nome}</p>
+                      <p className="font-bold text-[var(--text-main)] text-sm truncate">{c.nome}</p>
                       {c.status === 'blocked' && <span className="text-[10px] font-black text-red-600 bg-red-50 px-2 py-0.5 rounded uppercase tracking-wider border border-red-200">Bloqueado</span>}
                       {vencida30 && <span className="text-[10px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded uppercase tracking-wider border border-orange-200">VENCIDA · 30 DIAS</span>}
                     </div>
@@ -347,7 +347,7 @@ export function AdminCustomersTab({
                       </span>
                     </div>
                     {c.creditLimit > 0 && (
-                      <div className="mt-2 w-full max-w-[200px] h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="mt-2 w-full max-w-[200px] h-1.5 bg-[var(--bg-muted)] rounded-full overflow-hidden">
                         <div className={`h-full rounded-full transition-all ${isOverLimit ? 'bg-red-500' : usedPct > 70 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min(usedPct, 100)}%` }} />
                       </div>
                     )}
@@ -362,7 +362,7 @@ export function AdminCustomersTab({
                     </button>
                     <button
                       onClick={() => { setEditData({ id: c.id, nome: c.nome, cpf: c.cpf, telefone: c.telefone, creditLimit: c.creditLimit, status: c.status }); setCreditLimitOriginal(Number(c.creditLimit) || 0); setSenhaMestra(''); setShowModal(true); }}
-                      className="p-2.5 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl border border-slate-200 transition-all active:scale-95"
+                      className="p-2.5 bg-[var(--bg-muted)] text-slate-600 hover:bg-slate-200 rounded-xl border border-[var(--border-color)] transition-all active:scale-95"
                       title="Editar"
                     >
                       <Save size={16} />
@@ -392,7 +392,7 @@ export function AdminCustomersTab({
         icon={<Users size={20} />}
         footer={
           <div className="flex gap-3 w-full">
-            <button onClick={() => { setShowModal(false); setEditData(null); }} className="flex-1 py-3 rounded-2xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all">
+            <button onClick={() => { setShowModal(false); setEditData(null); }} className="flex-1 py-3 rounded-2xl border border-[var(--border-color)] text-slate-600 font-bold text-sm hover:bg-[var(--bg-muted)] transition-all">
               Cancelar
             </button>
             <button onClick={handleSave} disabled={saving || !editData?.nome?.trim()} className="flex-1 py-3 rounded-2xl bg-emerald-500 text-white font-bold text-sm shadow-md hover:bg-emerald-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
@@ -411,7 +411,7 @@ export function AdminCustomersTab({
                 type="text"
                 value={editData.nome || ''}
                 onChange={e => setEditData({ ...editData, nome: e.target.value.toUpperCase() })}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-900 font-semibold outline-none focus:border-emerald-500 transition-all"
+                className="w-full px-4 py-3 rounded-xl border border-[var(--border-color)] text-[var(--text-main)] font-semibold outline-none focus:border-emerald-500 transition-all"
                 placeholder="NOME COMPLETO"
               />
             </div>
@@ -423,7 +423,7 @@ export function AdminCustomersTab({
                   inputMode="numeric"
                   value={formatCPF(editData.cpf || '')}
                   onChange={e => setEditData({ ...editData, cpf: formatCPF(e.target.value) })}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-900 font-semibold outline-none focus:border-emerald-500 transition-all"
+                  className="w-full px-4 py-3 rounded-xl border border-[var(--border-color)] text-[var(--text-main)] font-semibold outline-none focus:border-emerald-500 transition-all"
                   placeholder="000.000.000-00"
                 />
               </div>
@@ -434,7 +434,7 @@ export function AdminCustomersTab({
                   inputMode="tel"
                   value={formatPhone(editData.telefone || '')}
                   onChange={e => setEditData({ ...editData, telefone: formatPhone(e.target.value) })}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-900 font-semibold outline-none focus:border-emerald-500 transition-all"
+                  className="w-full px-4 py-3 rounded-xl border border-[var(--border-color)] text-[var(--text-main)] font-semibold outline-none focus:border-emerald-500 transition-all"
                   placeholder="(65) 99999-9999"
                 />
               </div>
@@ -445,7 +445,7 @@ export function AdminCustomersTab({
                 type="number"
                 value={editData.creditLimit || 0}
                 onChange={e => setEditData({ ...editData, creditLimit: parseMoeda(e.target.value) })}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-900 font-black outline-none focus:border-emerald-500 transition-all"
+                className="w-full px-4 py-3 rounded-xl border border-[var(--border-color)] text-[var(--text-main)] font-black outline-none focus:border-emerald-500 transition-all"
               />
             </div>
             <div>
@@ -456,7 +456,7 @@ export function AdminCustomersTab({
                   type="password"
                   value={senhaMestra}
                   onChange={e => setSenhaMestra(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-900 font-semibold outline-none focus:border-emerald-500 transition-all"
+                  className="w-full px-4 py-3 rounded-xl border border-[var(--border-color)] text-[var(--text-main)] font-semibold outline-none focus:border-emerald-500 transition-all"
                   placeholder="••••••••"
                   autoComplete="off"
                 />
@@ -473,7 +473,7 @@ export function AdminCustomersTab({
               </div>
             )}
             {editData.id && (
-              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+              <div className="p-4 bg-[var(--bg-muted)] rounded-xl border border-[var(--border-color)]">
                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Saldo Devedor Atual</p>
                 <p className="text-xl font-black text-red-600">R$ {formatarMoeda(accounts.find(a => a.id === editData.id)?.currentDebt || 0)}</p>
               </div>
@@ -493,7 +493,7 @@ export function AdminCustomersTab({
         icon={<DollarSign size={20} />}
         footer={
           <div className="flex gap-3 w-full">
-            <button onClick={() => setPayModal(null)} className="flex-1 py-3 rounded-2xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all">
+            <button onClick={() => setPayModal(null)} className="flex-1 py-3 rounded-2xl border border-[var(--border-color)] text-slate-600 font-bold text-sm hover:bg-[var(--bg-muted)] transition-all">
               Cancelar
             </button>
             <button
@@ -510,11 +510,11 @@ export function AdminCustomersTab({
         {payModal && (
         <div className="p-6">
           <div className="space-y-4">
-            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+            <div className="p-4 bg-[var(--bg-muted)] rounded-xl border border-[var(--border-color)]">
               <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Cliente</p>
-              <p className="font-bold text-slate-900">{payModal.customer.nome}</p>
+              <p className="font-bold text-[var(--text-main)]">{payModal.customer.nome}</p>
               <p className="text-[10px] text-slate-500 mt-1">Telefone: {payModal.customer.telefone || '—'}</p>
-              <div className="mt-3 pt-3 border-t border-slate-200 flex justify-between">
+              <div className="mt-3 pt-3 border-t border-[var(--border-color)] flex justify-between">
                 <span className="text-xs font-black text-slate-500 uppercase">Dívida Atual</span>
                 <span className="text-lg font-black text-red-600">R$ {formatarMoeda(payModal.customer.currentDebt || 0)}</span>
               </div>
@@ -527,7 +527,7 @@ export function AdminCustomersTab({
                 step="0.01"
                 value={payAmount}
                 onChange={e => setPayAmount(e.target.value)}
-                className="w-full px-4 py-4 rounded-xl border border-emerald-200 text-slate-900 font-black text-2xl outline-none focus:border-emerald-500 transition-all text-center"
+                className="w-full px-4 py-4 rounded-xl border border-emerald-200 text-[var(--text-main)] font-black text-2xl outline-none focus:border-emerald-500 transition-all text-center"
                 placeholder="0,00"
                 autoFocus
               />

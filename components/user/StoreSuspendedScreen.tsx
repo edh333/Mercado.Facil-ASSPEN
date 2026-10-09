@@ -24,7 +24,7 @@ export const StoreSuspendedScreen: React.FC<StoreSuspendedScreenProps> = ({
 }) => {
     return (
         <div className="max-w-md mx-auto py-6 md:py-10 flex flex-col items-center">
-            <div className="relative w-full bg-white border border-slate-200 rounded-3xl p-6 md:p-8 shadow-xl shadow-slate-200/60 overflow-hidden">
+            <div className="relative w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded-3xl p-6 md:p-8 shadow-xl shadow-slate-200/60 overflow-hidden">
                 {/* Tarja superior */}
                 <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-400" />
 
@@ -33,11 +33,11 @@ export const StoreSuspendedScreen: React.FC<StoreSuspendedScreenProps> = ({
                         <Lock size={28} strokeWidth={2.2} />
                     </div>
 
-                    <span className="inline-flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-full px-3 py-1 text-[9px] font-black uppercase tracking-widest text-slate-500 mb-4">
+                    <span className="inline-flex items-center gap-1.5 bg-[var(--bg-muted)] border border-[var(--border-color)] rounded-full px-3 py-1 text-[9px] font-black uppercase tracking-widest text-slate-500 mb-4">
                         <ShieldCheck size={11} /> Balanço interno em andamento
                     </span>
 
-                    <h2 className="text-lg md:text-xl font-black text-slate-900 tracking-tight mb-2 uppercase">
+                    <h2 className="text-lg md:text-xl font-black text-[var(--text-main)] tracking-tight mb-2 uppercase">
                         Catálogo Temporariamente Indisponível
                     </h2>
                     <p className="text-sm text-slate-500 leading-relaxed mb-6 px-1">
@@ -46,10 +46,10 @@ export const StoreSuspendedScreen: React.FC<StoreSuspendedScreenProps> = ({
                     </p>
 
                     {/* Saldo atual — presente também no mobile */}
-                    <div className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-center justify-between mb-4 text-left">
+                    <div className="w-full bg-[var(--bg-muted)] border border-[var(--border-color)] rounded-2xl p-4 flex items-center justify-between mb-4 text-left">
                         <div>
                             <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Saldo Disponível</p>
-                            <p className="text-lg font-black tracking-tight text-slate-900">
+                            <p className="text-lg font-black tracking-tight text-[var(--text-main)]">
                                 <span className="text-[11px] font-bold text-slate-400 mr-0.5">R$</span>
                                 {formatarMoeda(saldo || 0)}
                             </p>
@@ -68,15 +68,15 @@ export const StoreSuspendedScreen: React.FC<StoreSuspendedScreenProps> = ({
                     </button>
 
                     {/* Instrução */}
-                    <div className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-left mt-4">
+                    <div className="w-full bg-[var(--bg-muted)] border border-[var(--border-color)] rounded-2xl p-4 text-left mt-4">
                         <div className="flex gap-3">
                             <div className="mt-0.5 p-1.5 bg-emerald-50 border border-emerald-100 rounded-lg text-emerald-600 shrink-0">
                                 <ArrowUpRight size={15} />
                             </div>
                             <div>
-                                <h4 className="text-[10px] font-black text-slate-700 uppercase tracking-wider mb-1">Como proceder?</h4>
+                                <h4 className="text-[10px] font-black text-[var(--text-main)] uppercase tracking-wider mb-1">Como proceder?</h4>
                                 <p className="text-xs text-slate-500 leading-relaxed">
-                                    Toque em <strong className="text-slate-700 font-bold">"+ Enviar Crédito"</strong> acima
+                                    Toque em <strong className="text-[var(--text-main)] font-bold">"+ Enviar Crédito"</strong> acima
                                     (ou no botão do topo da página) para transferir valores via PIX para a custódia do interno.
                                     O saldo fica disponível assim que o pagamento for confirmado.
                                 </p>
@@ -86,7 +86,7 @@ export const StoreSuspendedScreen: React.FC<StoreSuspendedScreenProps> = ({
                 </div>
 
                 {/* Rodapé */}
-                <div className="pt-4 border-t border-slate-100 mt-6 flex items-center justify-center gap-2 text-[10px] text-slate-400 font-bold">
+                <div className="pt-4 border-t border-[var(--border-color)] mt-6 flex items-center justify-center gap-2 text-[10px] text-slate-400 font-bold">
                     <Smartphone size={13} /> Acesso liberado para depósitos e movimentações
                 </div>
             </div>

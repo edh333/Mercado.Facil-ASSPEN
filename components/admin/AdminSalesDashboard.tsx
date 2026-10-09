@@ -246,13 +246,13 @@ export const AdminSalesDashboard: React.FC<AdminSalesDashboardProps> = ({ orders
   );
 
   const CardMetrica = ({ icon, label, value, delta, sub }: { icon: React.ReactNode; label: string; value: string; delta?: number; sub?: string }) => (
-    <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-all">
+    <div className="bg-[var(--bg-card)] rounded-3xl border border-[var(--border-color)] p-6 shadow-sm hover:shadow-md transition-all">
       <div className="flex items-center justify-between mb-4">
-        <div className="p-2.5 rounded-2xl bg-slate-100">{icon}</div>
+        <div className="p-2.5 rounded-2xl bg-[var(--bg-muted)]">{icon}</div>
         {delta !== undefined && <Delta value={delta} />}
       </div>
       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
-      <p className="text-2xl font-black text-slate-900 tracking-tight mt-1">{value}</p>
+      <p className="text-2xl font-black text-[var(--text-main)] tracking-tight mt-1">{value}</p>
       {sub && <p className="text-[10px] font-bold text-slate-400 mt-1">{sub}</p>}
     </div>
   );
@@ -260,13 +260,13 @@ export const AdminSalesDashboard: React.FC<AdminSalesDashboardProps> = ({ orders
   return (
     <div className="space-y-6 animate-slideUp pb-2">
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm">
         <div className="flex items-center gap-3">
           <div className="p-3 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl text-white shadow-lg shadow-emerald-500/30">
             <Sparkles size={22} />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-slate-900 tracking-tight">Painel de Vendas</h2>
+            <h2 className="text-lg font-bold text-[var(--text-main)] tracking-tight">Painel de Vendas</h2>
             <p className="text-[11px] font-bold text-slate-500">{range.label} · {vendasPeriodo.length} venda(s) · {fmt(totals.receita)}</p>
             {carregando && (
               <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-1.5">
@@ -284,7 +284,7 @@ export const AdminSalesDashboard: React.FC<AdminSalesDashboardProps> = ({ orders
       </div>
 
       {/* Periodo */}
-      <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm">
+      <div className="bg-[var(--bg-card)] rounded-3xl border border-[var(--border-color)] p-5 shadow-sm">
         <div className="flex flex-wrap items-center gap-2">
           {([
             { id: 'today', label: 'Hoje' },
@@ -297,7 +297,7 @@ export const AdminSalesDashboard: React.FC<AdminSalesDashboardProps> = ({ orders
             <button
               key={p.id}
               onClick={() => setPeriodo(p.id)}
-              className={`px-4 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-wider transition-all ${periodo === p.id ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+              className={`px-4 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-wider transition-all ${periodo === p.id ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20' : 'bg-[var(--bg-muted)] text-slate-500 hover:bg-slate-200'}`}
             >
               {p.label}
             </button>
@@ -306,9 +306,9 @@ export const AdminSalesDashboard: React.FC<AdminSalesDashboardProps> = ({ orders
         {periodo === 'custom' && (
           <div className="flex flex-wrap items-center gap-3 mt-4 animate-fadeIn">
             <Calendar size={16} className="text-slate-400" />
-            <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)} className="px-4 py-2.5 bg-slate-100 border-2 border-slate-200 focus:border-emerald-500 rounded-xl font-black text-xs text-slate-900 outline-none" />
+            <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)} className="px-4 py-2.5 bg-[var(--bg-muted)] border-2 border-[var(--border-color)] focus:border-emerald-500 rounded-xl font-black text-xs text-[var(--text-main)] outline-none" />
             <span className="text-slate-400 font-black text-xs">até</span>
-            <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="px-4 py-2.5 bg-slate-100 border-2 border-slate-200 focus:border-emerald-500 rounded-xl font-black text-xs text-slate-900 outline-none" />
+            <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="px-4 py-2.5 bg-[var(--bg-muted)] border-2 border-[var(--border-color)] focus:border-emerald-500 rounded-xl font-black text-xs text-[var(--text-main)] outline-none" />
           </div>
         )}
       </div>
@@ -323,10 +323,10 @@ export const AdminSalesDashboard: React.FC<AdminSalesDashboardProps> = ({ orders
 
       {/* Graficos principais */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+        <div className="bg-[var(--bg-card)] rounded-3xl border border-[var(--border-color)] p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-6">
             <TrendingUp size={20} className="text-emerald-500" />
-            <h3 className="font-black text-sm text-slate-700 uppercase tracking-wider">Faturamento por Dia</h3>
+            <h3 className="font-black text-sm text-[var(--text-main)] uppercase tracking-wider">Faturamento por Dia</h3>
           </div>
           {porDia.length === 0 || vendasPeriodo.length === 0 || !RC ? (
             <div className="h-72 flex items-center justify-center">
@@ -356,10 +356,10 @@ export const AdminSalesDashboard: React.FC<AdminSalesDashboardProps> = ({ orders
           )}
         </div>
 
-        <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+        <div className="bg-[var(--bg-card)] rounded-3xl border border-[var(--border-color)] p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-6">
             <PieChartIcon size={20} className="text-emerald-500" />
-            <h3 className="font-black text-sm text-slate-700 uppercase tracking-wider">Formas de Pagamento</h3>
+            <h3 className="font-black text-sm text-[var(--text-main)] uppercase tracking-wider">Formas de Pagamento</h3>
           </div>
           {porPagamento.length === 0 || !RC ? (
             <div className="h-72 flex items-center justify-center">
@@ -382,7 +382,7 @@ export const AdminSalesDashboard: React.FC<AdminSalesDashboardProps> = ({ orders
                   <div key={i} className="flex items-center gap-2">
                     <span className="w-3 h-3 rounded-full" style={{ backgroundColor: e.color }} />
                     <span className="text-[11px] font-bold text-slate-600">{e.method}</span>
-                    <span className="text-[10px] font-black text-slate-900">{fmt(e.amount)}</span>
+                    <span className="text-[10px] font-black text-[var(--text-main)]">{fmt(e.amount)}</span>
                   </div>
                 ))}
               </div>
@@ -393,16 +393,16 @@ export const AdminSalesDashboard: React.FC<AdminSalesDashboardProps> = ({ orders
 
       {/* Top produtos + detalhamento */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-5 bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+        <div className="lg:col-span-5 bg-[var(--bg-card)] rounded-3xl border border-[var(--border-color)] p-6 shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <Package size={20} className="text-emerald-500" />
-              <h3 className="font-black text-sm text-slate-700 uppercase tracking-wider">Top Produtos</h3>
+              <h3 className="font-black text-sm text-[var(--text-main)] uppercase tracking-wider">Top Produtos</h3>
             </div>
             <select
               value={topLimit}
               onChange={e => setTopLimit(Number(e.target.value))}
-              className="px-3 py-2 bg-slate-100 rounded-xl font-black text-[10px] text-slate-600 uppercase border-2 border-slate-200 focus:border-emerald-500 outline-none"
+              className="px-3 py-2 bg-[var(--bg-muted)] rounded-xl font-black text-[10px] text-slate-600 uppercase border-2 border-[var(--border-color)] focus:border-emerald-500 outline-none"
             >
               <option value={5}>Top 5</option>
               <option value={10}>Top 10</option>
@@ -418,12 +418,12 @@ export const AdminSalesDashboard: React.FC<AdminSalesDashboardProps> = ({ orders
                   <div className="flex items-center justify-between mb-1.5 gap-3">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="w-5 h-5 rounded-lg text-[9px] font-black flex items-center justify-center shrink-0" style={{ backgroundColor: PALETA[p.i % PALETA.length] + '22', color: PALETA[p.i % PALETA.length] }}>{p.i + 1}º</span>
-                      <span className="font-bold text-xs text-slate-700 truncate uppercase">{p.name}</span>
+                      <span className="font-bold text-xs text-[var(--text-main)] truncate uppercase">{p.name}</span>
                     </div>
-                    <span className="font-black text-xs text-slate-900 shrink-0">{fmt(p.fat)}</span>
+                    <span className="font-black text-xs text-[var(--text-main)] shrink-0">{fmt(p.fat)}</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="flex-1 h-2 bg-[var(--bg-muted)] rounded-full overflow-hidden">
                       <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.max(3, p.pct)}%`, backgroundColor: PALETA[p.i % PALETA.length] }} />
                     </div>
                     <span className="text-[9px] font-black text-slate-400 shrink-0 w-20 text-right">{fmtNum(p.qtd)} un</span>
@@ -434,15 +434,15 @@ export const AdminSalesDashboard: React.FC<AdminSalesDashboardProps> = ({ orders
           )}
         </div>
 
-        <div className="lg:col-span-7 bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+        <div className="lg:col-span-7 bg-[var(--bg-card)] rounded-3xl border border-[var(--border-color)] p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-6">
             <RefreshCcw size={20} className="text-emerald-500" />
-            <h3 className="font-black text-sm text-slate-700 uppercase tracking-wider">Detalhamento Diário</h3>
+            <h3 className="font-black text-sm text-[var(--text-main)] uppercase tracking-wider">Detalhamento Diário</h3>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-200 text-left text-[10px] font-black text-slate-500 uppercase tracking-wider">
+                <tr className="border-b border-[var(--border-color)] text-left text-[10px] font-black text-slate-500 uppercase tracking-wider">
                   <th className="pb-3 pr-4">Data</th>
                   <th className="pb-3 pr-4 text-right">Vendas</th>
                   <th className="pb-3 pr-4 text-right">Faturamento</th>
@@ -458,12 +458,12 @@ export const AdminSalesDashboard: React.FC<AdminSalesDashboardProps> = ({ orders
                   return diasComVenda.slice(0, 60).map((row, i) => {
                     acum += row.total;
                     return (
-                      <tr key={i} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                        <td className="py-3 pr-4 font-bold text-slate-800">{row.date}</td>
-                        <td className="py-3 pr-4 text-right font-bold text-slate-800">{row.count}</td>
+                      <tr key={i} className="border-b border-[var(--border-color)] hover:bg-[var(--bg-muted)] transition-colors">
+                        <td className="py-3 pr-4 font-bold text-[var(--text-main)]">{row.date}</td>
+                        <td className="py-3 pr-4 text-right font-bold text-[var(--text-main)]">{row.count}</td>
                         <td className="py-3 pr-4 text-right font-black text-emerald-600">{fmt(row.total)}</td>
                         <td className="py-3 pr-4 text-right font-bold text-slate-600">{row.count > 0 ? fmt(row.total / row.count) : '—'}</td>
-                        <td className="py-3 text-right font-black text-slate-900">{fmt(acum)}</td>
+                        <td className="py-3 text-right font-black text-[var(--text-main)]">{fmt(acum)}</td>
                       </tr>
                     );
                   });

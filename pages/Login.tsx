@@ -310,12 +310,12 @@ const [recoveryName, setRecoveryName] = useState('');
                             <Store size={18} />
                         </div>
                         <div className="leading-tight">
-                            <p className="text-lg font-bold tracking-tight text-slate-900">{isAdmin ? 'Painel Administrativo' : (settings?.appName || 'ASSPEN')}</p>
+                            <p className="text-lg font-bold tracking-tight text-[var(--text-main)]">{isAdmin ? 'Painel Administrativo' : (settings?.appName || 'ASSPEN')}</p>
                             <p className="text-xs text-slate-500">{isAdmin ? 'Acesso restrito' : 'Gestão Penitenciária'}</p>
                         </div>
                     </div>
 
-                    <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xl shadow-slate-900/[0.06] sm:p-8">
+                    <div className="rounded-2xl border border-slate-200/80 bg-[var(--bg-card)] p-6 shadow-xl shadow-slate-900/[0.06] sm:p-8">
 
                         {/* Identidade do app acoplado (desktop/PWA com modo fixo):
                             deixa claro qual aplicativo está aberto e quem pode entrar */}
@@ -333,7 +333,7 @@ const [recoveryName, setRecoveryName] = useState('');
                             <button
                                 type="button"
                                 onClick={onVolver}
-                                className="w-full mb-4 py-2.5 rounded-xl font-semibold text-sm text-slate-500 hover:text-slate-700 bg-slate-50 border border-slate-200 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                                className="w-full mb-4 py-2.5 rounded-xl font-semibold text-sm text-slate-500 hover:text-[var(--text-main)] bg-[var(--bg-muted)] border border-[var(--border-color)] flex items-center justify-center gap-2 transition-all cursor-pointer"
                             >
                                 <ArrowLeft size={16} /> Voltar ao Início
                             </button>
@@ -346,19 +346,19 @@ const [recoveryName, setRecoveryName] = useState('');
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, y: -10 }}
-                                    className="flex bg-slate-100 p-1 rounded-lg mb-6"
+                                    className="flex bg-[var(--bg-muted)] p-1 rounded-lg mb-6"
                                 >
                                     <button
                                         type="button"
                                         onClick={() => setActiveTab('login')}
-                                        className={`flex-1 py-3.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${activeTab === 'login' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                                        className={`flex-1 py-3.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${activeTab === 'login' ? 'bg-[var(--bg-card)] text-[var(--text-main)] shadow-sm' : 'text-slate-500 hover:text-[var(--text-main)]'}`}
                                     >
                                         Entrar
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => setActiveTab('register')}
-                                        className={`flex-1 py-3.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${activeTab === 'register' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                                        className={`flex-1 py-3.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${activeTab === 'register' ? 'bg-[var(--bg-card)] text-[var(--text-main)] shadow-sm' : 'text-slate-500 hover:text-[var(--text-main)]'}`}
                                     >
                                         Criar Conta
                                     </button>
@@ -368,7 +368,7 @@ const [recoveryName, setRecoveryName] = useState('');
 
                         {!isAdmin && !isRecovery && (
                             <div className="mb-6">
-                                <h1 className="text-xl font-bold tracking-tight text-slate-900">
+                                <h1 className="text-xl font-bold tracking-tight text-[var(--text-main)]">
                                     {isRegister ? 'Criar sua conta' : 'Bem-vindo de volta'}
                                 </h1>
                                 <p className="mt-1 text-sm text-slate-500">
@@ -378,7 +378,7 @@ const [recoveryName, setRecoveryName] = useState('');
                         )}
                         {(isAdmin || isRecovery) && (
                             <div className="mb-6">
-                                <h1 className="text-xl font-bold tracking-tight text-slate-900">
+                                <h1 className="text-xl font-bold tracking-tight text-[var(--text-main)]">
                                     {isAdmin ? 'Painel Administrativo' : 'Recuperar Acesso'}
                                 </h1>
                                 <p className="mt-1 text-sm text-slate-500">
@@ -425,7 +425,7 @@ const [recoveryName, setRecoveryName] = useState('');
                                         <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-[0.18em] mb-4 text-center">Vínculo Prisional</p>
                                         <div className="space-y-3">
                                             <SelectInput label="Parentesco" value={regData.kinship} onChange={(e: any) => setRegData({ ...regData, kinship: e.target.value })} required>
-                                                <option value="" disabled className="text-slate-700">Selecione o parentesco</option>
+                                                <option value="" disabled className="text-[var(--text-main)]">Selecione o parentesco</option>
                                                 <option value="Mãe">Mãe</option>
                                                 <option value="Pai">Pai</option>
                                                 <option value="Esposa">Esposa</option>
@@ -445,7 +445,7 @@ const [recoveryName, setRecoveryName] = useState('');
 
                                     <div
                                         onClick={() => fileInputRef.current?.click()}
-                                        className={`group border border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all duration-300 relative overflow-hidden ${fileObject ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 bg-slate-50 hover:border-emerald-400 hover:bg-emerald-50/40'}`}
+                                        className={`group border border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all duration-300 relative overflow-hidden ${fileObject ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 bg-[var(--bg-muted)] hover:border-emerald-400 hover:bg-emerald-50/40'}`}
                                     >
                                         <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={e => e.target.files && setFileObject(e.target.files[0])} />
                                         {fileObject ? (
@@ -454,8 +454,8 @@ const [recoveryName, setRecoveryName] = useState('');
                                                 <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-widest">Documento Anexado</p>
                                             </div>
                                         ) : (
-                                            <div className="flex flex-col items-center gap-2 text-slate-500 group-hover:text-slate-700">
-                                                <div className="w-12 h-12 bg-white border border-slate-200 rounded-2xl flex items-center justify-center shadow-sm">
+                                            <div className="flex flex-col items-center gap-2 text-slate-500 group-hover:text-[var(--text-main)]">
+                                                <div className="w-12 h-12 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl flex items-center justify-center shadow-sm">
                                                     <Upload size={22} />
                                                 </div>
                                                 <p className="text-[11px] font-bold uppercase tracking-widest">Anexar RG ou CNH</p>
@@ -473,7 +473,7 @@ const [recoveryName, setRecoveryName] = useState('');
                                             <CheckCircle size={13} className="absolute top-1 left-1 text-white opacity-0 peer-checked:opacity-100 pointer-events-none transition-opacity" />
                                         </div>
                                         <span className="text-[11px] font-semibold leading-relaxed text-slate-600">
-                                            <span className="font-black text-slate-700">AVISO LEGAL:</span> Documento ou comprovante falso configura crime de Estelionato (Art. 171) e Falsificação (Art. 297 do CP), sujeito a processo criminal e banimento.
+                                            <span className="font-black text-[var(--text-main)]">AVISO LEGAL:</span> Documento ou comprovante falso configura crime de Estelionato (Art. 171) e Falsificação (Art. 297 do CP), sujeito a processo criminal e banimento.
                                         </span>
                                     </label>
                                 </div>
@@ -484,7 +484,7 @@ const [recoveryName, setRecoveryName] = useState('');
                                 <div className="space-y-4 animate-fadeIn">
                                     {recoveryStep === 1 ? (
                                         <>
-                                            <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                            <div className="flex items-center gap-3 p-4 bg-[var(--bg-muted)] rounded-2xl border border-[var(--border-color)]">
                                                 <KeyRound size={18} className="text-emerald-500 shrink-0" />
                                                 <p className="text-[11px] font-bold text-slate-500 leading-snug">Informe os dados para localizarmos sua senha de acesso.</p>
                                             </div>
@@ -521,7 +521,7 @@ const [recoveryName, setRecoveryName] = useState('');
                                             <button
                                                 type="button"
                                                 onClick={() => setShowFirstAdminSetup(false)}
-                                                className="text-[11px] font-bold text-slate-500 hover:text-slate-900 uppercase tracking-widest mx-auto block transition-all cursor-pointer"
+                                                className="text-[11px] font-bold text-slate-500 hover:text-[var(--text-main)] uppercase tracking-widest mx-auto block transition-all cursor-pointer"
                                             >
                                                 Já existem administradores? Clique aqui
                                             </button>
@@ -573,7 +573,7 @@ const [recoveryName, setRecoveryName] = useState('');
                                             onKeyDown={(e: any) => { if (e.key === 'Enter') { e.preventDefault(); handleOfflineUnlock(); } }}
                                             placeholder="Senha de login do administrador"
                                             autoComplete="current-password"
-                                            className="min-w-0 flex-1 rounded-lg border border-amber-300 bg-white px-3 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-amber-500 focus:outline-none"
+                                            className="min-w-0 flex-1 rounded-lg border border-amber-300 bg-[var(--bg-card)] px-3 py-2.5 text-sm text-[var(--text-main)] placeholder:text-slate-400 focus:border-amber-500 focus:outline-none"
                                         />
                                         <button
                                             type="button"
@@ -631,12 +631,12 @@ const [recoveryName, setRecoveryName] = useState('');
                         </form>
 
                         {/* Footer Actions */}
-                        <div className="mt-8 pt-5 border-t border-slate-100 text-center">
+                        <div className="mt-8 pt-5 border-t border-[var(--border-color)] text-center">
                             {(isAdmin || isRecovery) && !modoAdmin ? (
                                 <button
                                     type="button"
                                     onClick={() => { if (onVolver) { onVolver(); } else { setActiveTab('login'); } }}
-                                    className="text-[11px] font-bold text-slate-500 hover:text-slate-900 flex items-center justify-center gap-2 mx-auto transition-all uppercase tracking-widest cursor-pointer"
+                                    className="text-[11px] font-bold text-slate-500 hover:text-[var(--text-main)] flex items-center justify-center gap-2 mx-auto transition-all uppercase tracking-widest cursor-pointer"
                                 >
                                     <ArrowLeft size={16} /> Voltar ao Início
                                 </button>
@@ -645,7 +645,7 @@ const [recoveryName, setRecoveryName] = useState('');
                                     <button
                                         type="button"
                                         onClick={() => setActiveTab('admin')}
-                                        className="text-[10px] font-bold text-slate-400 hover:text-slate-700 transition-all flex items-center justify-center gap-2 mx-auto uppercase tracking-[0.25em] cursor-pointer"
+                                        className="text-[10px] font-bold text-slate-400 hover:text-[var(--text-main)] transition-all flex items-center justify-center gap-2 mx-auto uppercase tracking-[0.25em] cursor-pointer"
                                     >
                                         <Settings size={13} /> Área Administrativa
                                     </button>
@@ -674,12 +674,12 @@ const PremiumInput = ({ icon: Icon, label, value, onChange, type = "text", actio
     return (
         <div>
             <label htmlFor={inputId} className="block text-xs font-semibold tracking-wide text-slate-500 mb-2 ml-1">{label}</label>
-            <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/70 px-3.5 transition-all focus-within:border-slate-400 dark:border-slate-700 dark:bg-slate-800/50 dark:focus-within:border-slate-500">
+            <div className="flex items-center gap-3 rounded-lg border border-[var(--border-color)] bg-slate-50/70 px-3.5 transition-all focus-within:border-slate-400 dark:border-slate-700 dark:bg-slate-800/50 dark:focus-within:border-slate-500">
                 <Icon size={17} className="text-slate-400 shrink-0 dark:text-slate-500" aria-hidden="true" />
                 <input
                     type={type}
                     id={inputId}
-                    className="flex-1 py-3 bg-transparent border-none outline-none text-sm font-semibold text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500"
+                    className="flex-1 py-3 bg-transparent border-none outline-none text-sm font-semibold text-[var(--text-main)] dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500"
                     placeholder="Digite aqui"
                     value={value}
                     onChange={onChange}
@@ -704,10 +704,10 @@ const SelectInput = ({ label, value, onChange, children, required = true, id, er
     return (
         <div>
             <label htmlFor={selectId} className="block text-xs font-semibold tracking-wide text-slate-500 mb-2 ml-1">{label}</label>
-            <div className="relative rounded-lg border border-slate-200 bg-slate-50/70 transition-all focus-within:border-slate-400 dark:border-slate-700 dark:bg-slate-800/50 dark:focus-within:border-slate-500">
+            <div className="relative rounded-lg border border-[var(--border-color)] bg-slate-50/70 transition-all focus-within:border-slate-400 dark:border-slate-700 dark:bg-slate-800/50 dark:focus-within:border-slate-500">
                 <select
                     id={selectId}
-                    className="w-full px-3.5 py-3 bg-transparent border-none outline-none text-sm font-semibold text-slate-900 appearance-none cursor-pointer tracking-wide"
+                    className="w-full px-3.5 py-3 bg-transparent border-none outline-none text-sm font-semibold text-[var(--text-main)] appearance-none cursor-pointer tracking-wide"
                     value={value}
                     onChange={onChange}
                     required={required}

@@ -34,7 +34,7 @@ const color = (s?: string): string => {
   if (['delivered', 'entregue'].includes(st)) return 'bg-indigo-50 text-indigo-700 border-indigo-200';
   if (['cancelled', 'cancelado'].includes(st)) return 'bg-rose-50 text-rose-700 border-rose-200';
   if (['refunded', 'devolvido', 'reembolsado', 'estornado'].includes(st)) return 'bg-purple-50 text-purple-700 border-purple-200';
-  return 'bg-slate-50 text-slate-600 border-slate-200';
+  return 'bg-[var(--bg-muted)] text-slate-600 border-[var(--border-color)]';
 };
 
 const payment = (o: Order): string => {
@@ -66,25 +66,25 @@ export const AdminOrderHistoryModal: React.FC<AdminOrderHistoryModalProps> = ({ 
       size="md"
     >
       <div className="px-5 py-4">
-        <div className="flex items-center justify-between bg-slate-50 rounded-xl border border-slate-200 px-4 py-3 mb-4">
+        <div className="flex items-center justify-between bg-[var(--bg-muted)] rounded-xl border border-[var(--border-color)] px-4 py-3 mb-4">
           <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Total de compras</span>
           <span className="text-lg font-black text-emerald-600">{formatarMoeda(totalGasto)}</span>
         </div>
 
         {history.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-14 text-center">
-            <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mb-4">
+            <div className="w-16 h-16 bg-[var(--bg-muted)] rounded-2xl flex items-center justify-center mb-4">
               <ShoppingBag size={28} className="text-slate-400" />
             </div>
-            <p className="text-sm font-black text-slate-700 uppercase tracking-wide mb-1">Nenhum pedido encontrado</p>
+            <p className="text-sm font-black text-[var(--text-main)] uppercase tracking-wide mb-1">Nenhum pedido encontrado</p>
             <p className="text-xs text-slate-400 font-bold">Nenhum pedido registrado para este CPF.</p>
           </div>
         ) : (
           <div className="flex flex-col gap-2.5 max-h-[55vh] overflow-y-auto pr-1">
             {history.map(o => (
-              <div key={o.id} className="flex items-center justify-between gap-3 bg-white rounded-xl border border-slate-200 px-4 py-3 hover:border-slate-300 transition-colors">
+              <div key={o.id} className="flex items-center justify-between gap-3 bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] px-4 py-3 hover:border-slate-300 transition-colors">
                 <div className="min-w-0">
-                  <p className="font-black text-[11px] text-slate-900 truncate">
+                  <p className="font-black text-[11px] text-[var(--text-main)] truncate">
                     Pedido #{String(o.id).slice(0, 8).toUpperCase()}
                   </p>
                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
@@ -97,7 +97,7 @@ export const AdminOrderHistoryModal: React.FC<AdminOrderHistoryModalProps> = ({ 
                   )}
                 </div>
                 <div className="flex flex-col items-end gap-1 shrink-0">
-                  <span className="text-sm font-black text-slate-900">{formatarMoeda(Number(o.total) || 0)}</span>
+                  <span className="text-sm font-black text-[var(--text-main)]">{formatarMoeda(Number(o.total) || 0)}</span>
                   <span className={`text-[10px] font-black uppercase tracking-[0.15em] px-2 py-0.5 rounded-full border ${color(o.status)}`}>
                     {translate(o.status)}
                   </span>
@@ -108,7 +108,7 @@ export const AdminOrderHistoryModal: React.FC<AdminOrderHistoryModalProps> = ({ 
         )}
       </div>
 
-      <div className="px-5 py-3.5 border-t border-slate-100 flex justify-end">
+      <div className="px-5 py-3.5 border-t border-[var(--border-color)] flex justify-end">
         <button
           onClick={onClose}
           className="px-5 py-2.5 rounded-xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-[0.2em] hover:bg-slate-700 active:scale-95 transition-all"

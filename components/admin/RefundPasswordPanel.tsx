@@ -67,28 +67,28 @@ export const RefundPasswordPanel: React.FC<RefundPasswordPanelProps> = ({
 
       {/* Resumo do pedido */}
       {order && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-2.5">
+        <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl p-4 space-y-2.5">
           <div className="flex justify-between items-center gap-3 flex-wrap">
             <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Cliente</span>
-            <span className="text-xs font-black text-slate-900 truncate">
+            <span className="text-xs font-black text-[var(--text-main)] truncate">
               {order.userName || '—'} · {formatCPF(order.userCpf)}
             </span>
           </div>
           <div className="flex justify-between items-center gap-3 flex-wrap">
             <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Interno</span>
-            <span className="text-xs font-black text-slate-900 truncate">{order.inmateName || '—'}</span>
+            <span className="text-xs font-black text-[var(--text-main)] truncate">{order.inmateName || '—'}</span>
           </div>
           <div className="flex justify-between items-center gap-3 flex-wrap">
             <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Pagamento</span>
-            <span className="text-xs font-black text-slate-900 uppercase">
+            <span className="text-xs font-black text-[var(--text-main)] uppercase">
               {order.paymentMethod === 'WALLET' ? 'Carteira' : order.paymentMethod === 'CASH' ? 'Dinheiro' : order.paymentMethod === 'FIADO' ? 'Fiado' : order.paymentMethod === 'CARD' ? 'Cartão' : order.paymentMethod === 'MIXED' ? 'Misto' : 'PIX'}
             </span>
           </div>
           <div className="flex justify-between items-center gap-3 flex-wrap">
             <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Itens</span>
-            <span className="text-xs font-black text-slate-900">{(order.items || []).length} produto(s)</span>
+            <span className="text-xs font-black text-[var(--text-main)]">{(order.items || []).length} produto(s)</span>
           </div>
-          <div className="flex justify-between items-center gap-3 pt-2.5 border-t border-slate-100">
+          <div className="flex justify-between items-center gap-3 pt-2.5 border-t border-[var(--border-color)]">
             <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Valor Total</span>
             <span className="text-xl font-black text-[var(--text-main)] tracking-tighter">
               R$ {formatarMoeda(Number(order.total))}
@@ -110,7 +110,7 @@ export const RefundPasswordPanel: React.FC<RefundPasswordPanelProps> = ({
           maxLength={200}
           rows={3}
           placeholder="Descreva o motivo — será exibido ao familiar e gravado na auditoria"
-          className="w-full bg-slate-50 border-2 border-slate-200 focus:border-[var(--border-color)] p-4 rounded-2xl text-sm font-bold text-slate-900 outline-none resize-none disabled:opacity-60"
+          className="w-full bg-[var(--bg-muted)] border-2 border-[var(--border-color)] focus:border-[var(--border-color)] p-4 rounded-2xl text-sm font-bold text-[var(--text-main)] outline-none resize-none disabled:opacity-60"
         />
         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 text-right">{motivo.length}/200</p>
       </div>
@@ -130,7 +130,7 @@ export const RefundPasswordPanel: React.FC<RefundPasswordPanelProps> = ({
               disabled={processando}
               autoComplete="current-password"
               placeholder="••••••••"
-              className="w-full bg-slate-50 border-2 border-slate-200 focus:border-[var(--border-color)] p-4 pr-12 rounded-2xl text-sm font-black text-slate-900 outline-none transition-colors disabled:opacity-60"
+              className="w-full bg-[var(--bg-muted)] border-2 border-[var(--border-color)] focus:border-[var(--border-color)] p-4 pr-12 rounded-2xl text-sm font-black text-[var(--text-main)] outline-none transition-colors disabled:opacity-60"
             />
             <button
               type="button"
@@ -160,7 +160,7 @@ export const RefundPasswordPanel: React.FC<RefundPasswordPanelProps> = ({
           type="button"
           onClick={onCancel}
           disabled={processando}
-          className="px-6 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-[10px] uppercase tracking-[0.2em] transition-all disabled:opacity-40"
+          className="px-6 py-3 rounded-xl bg-[var(--bg-muted)] hover:bg-slate-200 text-slate-600 font-black text-[10px] uppercase tracking-[0.2em] transition-all disabled:opacity-40"
         >
           Cancelar
         </button>
@@ -179,7 +179,7 @@ export const RefundPasswordPanel: React.FC<RefundPasswordPanelProps> = ({
         </button>
       </div>
 
-      <p className="text-[10px] font-bold text-slate-400 flex items-center gap-2 bg-slate-50 rounded-xl p-3">
+      <p className="text-[10px] font-bold text-slate-400 flex items-center gap-2 bg-[var(--bg-muted)] rounded-xl p-3">
         <ShieldCheck size={14} className="text-slate-500 shrink-0" />
         Esta ação restaura estoque e devolve valores automaticamente, e fica registrada na auditoria de segurança.
       </p>

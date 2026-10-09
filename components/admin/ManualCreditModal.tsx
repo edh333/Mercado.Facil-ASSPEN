@@ -80,11 +80,11 @@ export const ManualCreditModal: React.FC<ManualCreditModalProps> = ({ user, onCl
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-slate-100 p-4 rounded-2xl border border-slate-200">
+          <div className="bg-[var(--bg-muted)] p-4 rounded-2xl border border-[var(--border-color)]">
             <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Saldo Atual</p>
-            <p className="font-black text-slate-900 text-lg tracking-tight">R$ {formatarMoeda(user.walletBalance || 0)}</p>
+            <p className="font-black text-[var(--text-main)] text-lg tracking-tight">R$ {formatarMoeda(user.walletBalance || 0)}</p>
           </div>
-          <div className="bg-slate-100 p-4 rounded-2xl border border-slate-200">
+          <div className="bg-[var(--bg-muted)] p-4 rounded-2xl border border-[var(--border-color)]">
             <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Status</p>
             <p className={`font-black text-sm uppercase tracking-tight ${user.status === 'active' ? 'text-emerald-600' : user.status === 'pending' ? 'text-amber-600' : 'text-red-500'}`}>{user.status || '—'}</p>
           </div>
@@ -111,7 +111,7 @@ export const ManualCreditModal: React.FC<ManualCreditModalProps> = ({ user, onCl
                 type="number"
                 step="0.01"
                 min="0.01"
-                className="w-full pl-16 pr-5 py-5 bg-slate-100 border-2 border-slate-200 group-focus-within:border-emerald-500 group-focus-within:ring-4 group-focus-within:ring-emerald-500/20 rounded-2xl font-black text-3xl text-slate-900 outline-none transition-all placeholder:text-slate-400"
+                className="w-full pl-16 pr-5 py-5 bg-[var(--bg-muted)] border-2 border-[var(--border-color)] group-focus-within:border-emerald-500 group-focus-within:ring-4 group-focus-within:ring-emerald-500/20 rounded-2xl font-black text-3xl text-[var(--text-main)] outline-none transition-all placeholder:text-slate-400"
                 placeholder="0,00"
                 value={amount}
                 onChange={e => setAmount(e.target.value)}
@@ -127,7 +127,7 @@ export const ManualCreditModal: React.FC<ManualCreditModalProps> = ({ user, onCl
           <div>
             <label className="text-slate-600 font-black text-[10px] uppercase tracking-widest mb-3 block">Motivo / Observação</label>
             <textarea
-              className="w-full p-5 bg-slate-100 border-2 border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 rounded-2xl font-black text-slate-900 text-sm outline-none h-24 resize-none placeholder:text-slate-400 uppercase"
+              className="w-full p-5 bg-[var(--bg-muted)] border-2 border-[var(--border-color)] focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 rounded-2xl font-black text-[var(--text-main)] text-sm outline-none h-24 resize-none placeholder:text-slate-400 uppercase"
               placeholder="Descreva o motivo do aporte..."
               value={reason}
               onChange={e => setReason(e.target.value)}
@@ -141,7 +141,7 @@ export const ManualCreditModal: React.FC<ManualCreditModalProps> = ({ user, onCl
               <KeyRound size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-amber-500"/>
               <input
                 type={mostrarSenha ? 'text' : 'password'}
-                className="w-full pl-14 pr-14 py-5 bg-slate-100 border-2 border-slate-200 group-focus-within:border-amber-500 group-focus-within:ring-4 group-focus-within:ring-amber-500/20 rounded-2xl font-black text-lg text-slate-900 outline-none transition-all placeholder:text-slate-400"
+                className="w-full pl-14 pr-14 py-5 bg-[var(--bg-muted)] border-2 border-[var(--border-color)] group-focus-within:border-amber-500 group-focus-within:ring-4 group-focus-within:ring-amber-500/20 rounded-2xl font-black text-lg text-[var(--text-main)] outline-none transition-all placeholder:text-slate-400"
                 placeholder="••••••••"
                 value={senhaMestra}
                 onChange={e => setSenhaMestra(e.target.value)}
@@ -197,7 +197,7 @@ export const ManualCreditModal: React.FC<ManualCreditModalProps> = ({ user, onCl
           <button
             onClick={onClose}
             disabled={loading}
-            className="w-full py-4 bg-slate-100 text-slate-600 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all touch-target active:scale-[0.98] disabled:opacity-40"
+            className="w-full py-4 bg-[var(--bg-muted)] text-slate-600 font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all touch-target active:scale-[0.98] disabled:opacity-40"
           >
             Cancelar
           </button>

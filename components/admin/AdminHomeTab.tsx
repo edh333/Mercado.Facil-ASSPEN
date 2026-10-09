@@ -123,7 +123,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
         {onOpenShortcuts && (
           <button
             onClick={onOpenShortcuts}
-            className="flex items-center gap-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold px-4 py-2 rounded-xl text-xs shadow-sm transition-all active:scale-95 cursor-pointer ml-auto"
+            className="flex items-center gap-2 bg-slate-200 hover:bg-slate-300 text-[var(--text-main)] font-bold px-4 py-2 rounded-xl text-xs shadow-sm transition-all active:scale-95 cursor-pointer ml-auto"
           >
             <Zap size={14} className="text-amber-600" /> ATALHOS (?)
           </button>
@@ -138,7 +138,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
         ) : (
           <>
             {todayPayments.rows.map((r, ri) => (
-              <span key={r.method} className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-[10px] font-black text-slate-700">
+              <span key={r.method} className="flex items-center gap-1.5 bg-[var(--bg-muted)] border border-[var(--border-color)] rounded-lg px-2.5 py-1.5 text-[10px] font-black text-[var(--text-main)]">
                 <span className="w-2 h-2 rounded-full" style={{ backgroundColor: ['#10b981', '#6366f1', '#f59e0b', '#3b82f6', '#ef4444', '#8b5cf6'][ri % 6] }}></span>
                 {r.label}: <span className="text-emerald-600">{formatarMoeda(r.amount)}</span>
               </span>
@@ -187,7 +187,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
                     <h3 className="text-4xl font-black text-[var(--text-main)] tracking-tighter">R$ {formatarMoeda(stats.salesTotal)}</h3>
                     <div className="mt-4 flex items-center gap-2">
                         <div className="w-2 h-2 bg-[var(--primary-color)] rounded-full animate-pulse"></div>
-                        <span className="text-[9px] font-black text-slate-700 uppercase">Processamento Ativo</span>
+                        <span className="text-[9px] font-black text-[var(--text-main)] uppercase">Processamento Ativo</span>
                     </div>
                 </div>
             </div>
@@ -198,7 +198,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
                     <h3 className="text-4xl font-black text-[var(--text-main)] tracking-tighter">{stats.ordersCount} <span className="text-sm text-blue-600 opacity-90 uppercase ml-1">Itens</span></h3>
                     <div className="mt-4 flex items-center gap-2">
                         <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                        <span className="text-[9px] font-black text-slate-700 uppercase">Sincronizado com Nuvem</span>
+                        <span className="text-[9px] font-black text-[var(--text-main)] uppercase">Sincronizado com Nuvem</span>
                     </div>
                 </div>
             </div>
@@ -211,7 +211,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
                 <div className="mt-4 flex items-center justify-between relative z-10">
                     <div className="flex items-center gap-2">
                         <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse shadow-[0_0_8px_#f97316]"></div>
-                        <span className="text-[9px] font-black text-slate-700 uppercase">Requer Atenção</span>
+                        <span className="text-[9px] font-black text-[var(--text-main)] uppercase">Requer Atenção</span>
                     </div>
                     <div className="w-10 h-10 bg-orange-600 text-white rounded-2xl flex items-center justify-center shadow-[0_0_15px_rgba(249,115,22,0.4)] group-hover:scale-110 transition-transform"><Zap size={20}/></div>
                 </div>
@@ -276,7 +276,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
         <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl p-5 flex items-center gap-4 shadow-sm">
           <div className="p-3 bg-red-50 rounded-xl text-red-600 shrink-0"><PackageX size={20}/></div>
           <div className="flex-1 min-w-0">
-            <p className="font-black text-slate-900 text-sm uppercase tracking-tight">Alerta de Estoque</p>
+            <p className="font-black text-[var(--text-main)] text-sm uppercase tracking-tight">Alerta de Estoque</p>
             <div className="flex flex-wrap gap-2 mt-2">
               {criticalStock.slice(0, 4).map(p => (
                 <span key={p.id} className="px-2.5 py-1 bg-red-50 border border-red-200 rounded-lg text-red-600 text-[9px] font-black uppercase whitespace-nowrap">
@@ -284,7 +284,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
                 </span>
               ))}
               {criticalStock.length > 4 && (
-                <span className="px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-lg text-slate-600 text-[9px] font-black uppercase">+{criticalStock.length - 4} mais</span>
+                <span className="px-2.5 py-1 bg-[var(--bg-muted)] border border-[var(--border-color)] rounded-lg text-slate-600 text-[9px] font-black uppercase">+{criticalStock.length - 4} mais</span>
               )}
               {zeroStock > 0 && (
                 <span className="px-2.5 py-1 bg-red-600 text-white rounded-lg text-[9px] font-black uppercase">{zeroStock} zerados</span>
@@ -348,7 +348,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
                 <div className="w-24 h-24 bg-[var(--bg-card)] rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl text-[var(--text-muted)]">
                     <ArrowDownCircle size={48}/>
                 </div>
-                <p className="text-sm font-black text-slate-800 tracking-wide uppercase">Tudo em dia! Nenhuma validação pendente</p>
+                <p className="text-sm font-black text-[var(--text-main)] tracking-wide uppercase">Tudo em dia! Nenhuma validação pendente</p>
               </div>
             )}
           </div>

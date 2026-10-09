@@ -101,7 +101,7 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
   const statusLabel =
     user.status === 'active' ? 'Ativo' : user.status === 'suspended' ? 'Bloqueado' : 'Pendente de Aprovação';
 
-  const inputCls = "w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-400 uppercase transition-all";
+  const inputCls = "w-full bg-[var(--bg-muted)] border border-[var(--border-color)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-main)] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-400 uppercase transition-all";
   const labelCls = "text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-1.5 ml-1";
 
   return (
@@ -124,7 +124,7 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
     >
 
         {/* Sections Nav */}
-        <div className="sticky top-0 z-10 flex bg-slate-100 border-b border-slate-200 p-2 gap-2 shrink-0">
+        <div className="sticky top-0 z-10 flex bg-[var(--bg-muted)] border-b border-[var(--border-color)] p-2 gap-2 shrink-0">
           {([
             { key: 'GERAL', label: 'Dados & Documento', icon: FileText },
             { key: 'SALDO', label: 'Saldo & Créditos', icon: CreditCard },
@@ -133,7 +133,7 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
             <button
               key={key}
               onClick={() => setActiveSection(key)}
-              className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${activeSection === key ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+              className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${activeSection === key ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:text-[var(--text-main)]'}`}
             >
               <Icon size={15} /> {label}
             </button>
@@ -145,7 +145,7 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
             <div className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
                 {/* Form */}
-                <div className="lg:col-span-3 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                <div className="lg:col-span-3 bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm space-y-4">
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-500">Dados Cadastrais</h4>
                     {user.status === 'pending' && (
@@ -186,7 +186,7 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
                     <label className={labelCls}>Endereço</label>
                     <input className={inputCls} value={form.address || ''} onChange={e => setForm({ ...form, address: e.target.value.toUpperCase() })} />
                   </div>
-                  <div className="pt-4 border-t border-slate-100">
+                  <div className="pt-4 border-t border-[var(--border-color)]">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className={labelCls}>Interno Vinculado</label>
@@ -220,7 +220,7 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
                 </div>
 
                 {/* Documento */}
-                <div className="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col">
+                <div className="lg:col-span-2 bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm flex flex-col">
                   <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-500 mb-4 flex items-center gap-2">
                     <Camera size={15} className="text-emerald-600" /> Documento do Cadastro
                   </h4>
@@ -234,16 +234,16 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
                   ) : docUrl ? (
                     <div className="flex flex-col flex-1 min-h-[350px]">
                       {/* Preview Area */}
-                      <div className="flex-1 min-h-[300px] max-h-[500px] bg-white rounded-xl border border-slate-200 relative overflow-hidden flex flex-col">
+                      <div className="flex-1 min-h-[300px] max-h-[500px] bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] relative overflow-hidden flex flex-col">
                         {isPdf ? (
-                          <div className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-50 rounded-xl">
+                          <div className="flex-1 flex flex-col items-center justify-center p-6 bg-[var(--bg-muted)] rounded-xl">
                             <FileText size={64} className="text-emerald-500 mb-4" />
                             <p className="font-black text-emerald-600 text-lg mb-2">Documento em PDF</p>
                             <p className="text-sm text-slate-500 text-center mb-6 max-w-md">PDFs não podem ser visualizados inline devido a restrições de segurança do navegador. Use os botões abaixo para abrir, imprimir ou baixar.</p>
                           </div>
                         ) : (
                           <div
-                            className="relative flex-1 min-h-[260px] rounded-xl overflow-hidden border border-slate-200 bg-slate-100 cursor-pointer flex items-center justify-center"
+                            className="relative flex-1 min-h-[260px] rounded-xl overflow-hidden border border-[var(--border-color)] bg-[var(--bg-muted)] cursor-pointer flex items-center justify-center"
                             onClick={() => setPreviewDoc(true)}
                           >
                             <img src={docUrl} alt="Documento do cadastro" className="w-full h-full object-contain" loading="lazy" decoding="async" onLoad={() => setDocCarregando(false)} />
@@ -260,7 +260,7 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
                       </div>
                       
                       {/* Action Buttons Below Preview */}
-                      <div className="flex flex-wrap gap-3 mt-4 p-2 bg-slate-50 rounded-xl border border-slate-200">
+                      <div className="flex flex-wrap gap-3 mt-4 p-2 bg-[var(--bg-muted)] rounded-xl border border-[var(--border-color)]">
                         {isPdf ? (
                           <>
                             <button 
@@ -279,7 +279,7 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
                               href={docUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="flex-1 min-w-[140px] py-3 px-4 bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-[10px] font-black uppercase transition-all block text-center hover:bg-slate-200"
+                              className="flex-1 min-w-[140px] py-3 px-4 bg-[var(--bg-muted)] border border-[var(--border-color)] text-[var(--text-main)] rounded-xl text-[10px] font-black uppercase transition-all block text-center hover:bg-slate-200"
                             >
                               <ExternalLink size={14} className="mr-1" /> Nova Aba
                             </a>
@@ -302,7 +302,7 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
                               href={docUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="flex-1 min-w-[140px] py-3 px-4 bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-[10px] font-black uppercase transition-all block text-center hover:bg-slate-200"
+                              className="flex-1 min-w-[140px] py-3 px-4 bg-[var(--bg-muted)] border border-[var(--border-color)] text-[var(--text-main)] rounded-xl text-[10px] font-black uppercase transition-all block text-center hover:bg-slate-200"
                             >
                               <ExternalLink size={14} className="mr-1" /> Nova Aba
                             </a>
@@ -311,7 +311,7 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
                       </div>
                     </div>
                   ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-slate-100 rounded-2xl border border-slate-200">
+                    <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-[var(--bg-muted)] rounded-2xl border border-[var(--border-color)]">
                       <FileText size={40} className="text-slate-300 mb-3" />
                       <p className="font-black text-slate-400 uppercase text-sm">Nenhum documento anexado</p>
                     </div>
@@ -325,25 +325,25 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
           {activeSection === 'SALDO' && (
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                <div className="bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm">
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Saldo Disponível</p>
                   <h3 className="text-3xl font-black text-emerald-600 tracking-tighter">R$ {formatarMoeda(user.walletBalance || 0)}</h3>
                 </div>
-                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                <div className="bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm">
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Total Depositado</p>
                   <h3 className="text-3xl font-black text-blue-600 tracking-tighter">R$ {formatarMoeda(totalDepositos)}</h3>
                 </div>
-                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                <div className="bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm">
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Total Gasto</p>
                   <h3 className="text-3xl font-black text-red-600 tracking-tighter">R$ {formatarMoeda(totalGasto)}</h3>
                 </div>
-                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                <div className="bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm">
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Gasto Semanal</p>
                   <h3 className="text-3xl font-black text-amber-600 tracking-tighter">R$ {formatarMoeda(user.weeklySpent || 0)}</h3>
                 </div>
               </div>
 
-              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-3">
+              <div className="bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm space-y-3">
                 <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-500">Ações de Crédito</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {canManageCredits && onAddCredit && (
@@ -356,14 +356,14 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
                   )}
                   <button
                     onClick={() => toggleUserCredit(user.id, !(user.allowCredit !== false))}
-                    className={`py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 border active:scale-95 transition-all ${user.allowCredit !== false ? 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100' : 'bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200'}`}
+                    className={`py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 border active:scale-95 transition-all ${user.allowCredit !== false ? 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100' : 'bg-[var(--bg-muted)] border-[var(--border-color)] text-slate-500 hover:bg-slate-200'}`}
                   >
                     <ShieldCheck size={17} /> Crédito: {user.allowCredit !== false ? 'LIBERADO' : 'BLOQUEADO'}
                   </button>
                   {toggleExcepcionalFlag && (
                     <button
                       onClick={() => toggleExcepcionalFlag(user.id, !user.autorizacaoExcepcional)}
-                      className={`py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 border active:scale-95 transition-all ${user.autorizacaoExcepcional ? 'bg-purple-100 border-purple-300 text-purple-700 hover:bg-purple-200' : 'bg-slate-100 border-slate-200 text-slate-500 hover:bg-purple-50 hover:text-purple-600'}`}
+                      className={`py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 border active:scale-95 transition-all ${user.autorizacaoExcepcional ? 'bg-purple-100 border-purple-300 text-purple-700 hover:bg-purple-200' : 'bg-[var(--bg-muted)] border-[var(--border-color)] text-slate-500 hover:bg-purple-50 hover:text-purple-600'}`}
                     >
                       <AlertTriangle size={17} /> {user.autorizacaoExcepcional ? 'Exceção Semanal ATIVA' : 'Autorização Excepcional'}
                     </button>
@@ -371,7 +371,7 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
                 </div>
               </div>
 
-              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-3">
+              <div className="bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm space-y-3">
                 <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-500">Status de Acesso</h4>
                 <div className="flex flex-wrap gap-3">
                   {user.status !== 'active' && (
@@ -405,25 +405,25 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
           {activeSection === 'HISTORICO' && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Pedidos */}
-              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <div className="bg-[var(--bg-card)] rounded-3xl border border-[var(--border-color)] shadow-sm overflow-hidden">
+                <div className="p-5 border-b border-[var(--border-color)] flex items-center justify-between">
                   <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-500 flex items-center gap-2">
                     <ShoppingCart size={15} className="text-emerald-600" /> Pedidos ({userOrders.length})
                   </h4>
                 </div>
-                <div className="max-h-[420px] overflow-y-auto custom-scrollbar divide-y divide-slate-100">
+                <div className="max-h-[420px] overflow-y-auto custom-scrollbar divide-y divide-[var(--border-color)]">
                   {userOrders.length === 0 ? (
                     <p className="p-10 text-center text-slate-300 font-black uppercase text-xs">Nenhum pedido</p>
                   ) : userOrders.map(o => (
-                    <div key={o.id} className="p-4 flex items-center justify-between gap-3 hover:bg-slate-50 transition-colors">
+                    <div key={o.id} className="p-4 flex items-center justify-between gap-3 hover:bg-[var(--bg-muted)] transition-colors">
                       <div className="min-w-0">
-                        <p className="font-black text-slate-900 text-xs uppercase tracking-tight truncate">#{o.id.slice(0, 8).toUpperCase()}</p>
+                        <p className="font-black text-[var(--text-main)] text-xs uppercase tracking-tight truncate">#{o.id.slice(0, 8).toUpperCase()}</p>
                         <p className="text-[9px] text-slate-400 font-bold mt-0.5">
                           {o.date ? new Date(o.date).toLocaleString('pt-BR') : '—'} • {o.items?.reduce((s, i) => s + (i.quantity || 0), 0)} itens
                         </p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="font-black text-slate-900 text-sm">R$ {formatarMoeda(o.total || 0)}</p>
+                        <p className="font-black text-[var(--text-main)] text-sm">R$ {formatarMoeda(o.total || 0)}</p>
                         <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${o.status === 'cancelled' ? 'bg-red-50 text-red-600 border-red-200' : o.status === 'delivered' ? 'bg-blue-50 text-blue-600 border-blue-200' : o.status === 'paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-amber-50 text-amber-600 border-amber-200'}`}>
                           {o.status}
                         </span>
@@ -434,19 +434,19 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
               </div>
 
               {/* Transações de Carteira */}
-              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <div className="bg-[var(--bg-card)] rounded-3xl border border-[var(--border-color)] shadow-sm overflow-hidden">
+                <div className="p-5 border-b border-[var(--border-color)] flex items-center justify-between">
                   <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-500 flex items-center gap-2">
                     <CreditCard size={15} className="text-blue-600" /> Aportes & Movimentações ({userTxs.length})
                   </h4>
                 </div>
-                <div className="max-h-[420px] overflow-y-auto custom-scrollbar divide-y divide-slate-100">
+                <div className="max-h-[420px] overflow-y-auto custom-scrollbar divide-y divide-[var(--border-color)]">
                   {userTxs.length === 0 ? (
                     <p className="p-10 text-center text-slate-300 font-black uppercase text-xs">Nenhuma movimentação</p>
                   ) : userTxs.map(tx => (
-                    <div key={tx.id} className="p-4 flex items-center justify-between gap-3 hover:bg-slate-50 transition-colors">
+                    <div key={tx.id} className="p-4 flex items-center justify-between gap-3 hover:bg-[var(--bg-muted)] transition-colors">
                       <div className="min-w-0">
-                        <p className="font-black text-slate-900 text-xs uppercase tracking-tight truncate">{tx.type}</p>
+                        <p className="font-black text-[var(--text-main)] text-xs uppercase tracking-tight truncate">{tx.type}</p>
                         <p className="text-[9px] text-slate-400 font-bold mt-0.5">{tx.createdAt ? new Date(tx.createdAt).toLocaleString('pt-BR') : '—'}</p>
                       </div>
                       <div className="text-right shrink-0">
@@ -465,11 +465,11 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
           )}
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-200 bg-white shrink-0 flex items-center justify-between gap-3">
+        <div className="p-4 border-t border-[var(--border-color)] bg-[var(--bg-card)] shrink-0 flex items-center justify-between gap-3">
           <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-2">
             <Users size={14} /> Familiar cadastrado em {user.createdAt ? new Date(user.createdAt).toLocaleDateString('pt-BR') : '—'}
           </p>
-          <button onClick={onClose} className="px-8 py-3.5 bg-slate-100 text-slate-700 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 active:scale-95 transition-all">
+          <button onClick={onClose} className="px-8 py-3.5 bg-[var(--bg-muted)] text-[var(--text-main)] rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 active:scale-95 transition-all">
             Fechar
           </button>
         </div>
