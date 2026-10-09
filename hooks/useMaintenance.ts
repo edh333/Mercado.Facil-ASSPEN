@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { db } from '../firebase';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { User } from '../types';
+import { isMaster } from '../components/admin/adminUtils';
 
 export interface MaintenanceState {
   ativo: boolean;
@@ -13,12 +14,9 @@ export interface MaintenanceState {
 
 const ATIVO: MaintenanceState = { ativo: true };
 
-/** Identifica o master principal (mesma regra usada no AdminDashboard). */
+/** Identifica o master principal. Fonte ÚNICA: adminUtils.isMaster. */
 export function isMasterUser(user?: User | null): boolean {
-  if (!user) return false;
-  return user.id === 'master' || user.id === 'admin'
-    || (user as any).mainAdmin === true
-    || user.email === 'admin@mercado.com';
+  return isMaster(user);
 }
 
 /**

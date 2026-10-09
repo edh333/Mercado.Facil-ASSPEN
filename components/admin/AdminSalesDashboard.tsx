@@ -13,7 +13,7 @@ import { ChartMount } from '../ui/ChartMount';
 import { useRecharts, RechartsSkeleton } from '../../utils/rechartsLoader';
 import { db } from '../../firebase';
 import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
-import { formatBRL } from '../../utils/money';
+import { formatBRL, roundCents } from '../../utils/money';
 
 interface AdminSalesDashboardProps {
   orders: Order[];
@@ -165,7 +165,7 @@ export const AdminSalesDashboard: React.FC<AdminSalesDashboardProps> = ({ orders
       const e = map.get(key);
       if (e) { e.total += Number(o.total) || 0; e.count += 1; }
     });
-    return Array.from(map.entries()).map(([date, v]) => ({ date: date.slice(0, 5), total: Math.round(v.total * 100) / 100, count: v.count }));
+    return Array.from(map.entries()).map(([date, v]) => ({ date: date.slice(0, 5), total: roundCents(v.total), count: v.count }));
   }, [vendasPeriodo, range]);
 
   const porPagamento = useMemo(() => {
@@ -185,7 +185,7 @@ export const AdminSalesDashboard: React.FC<AdminSalesDashboardProps> = ({ orders
     return Array.from(map.entries())
       .filter(([, v]) => v > 0)
       .sort(([, a], [, b]) => b - a)
-      .map(([method, amount]) => ({ method, amount: Math.round(amount * 100) / 100, color: corMetodo(method) }));
+      .map(([method, amount]) => ({ method, amount: roundCents(amount), color: corMetodo(method) }));
   }, [vendasPeriodo]);
 
   const topProdutos = useMemo(() => {

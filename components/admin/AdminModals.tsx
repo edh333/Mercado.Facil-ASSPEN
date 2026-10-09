@@ -11,6 +11,7 @@ import { CupomEntrega } from '../CupomEntrega';
 import { ReciboA4 } from '../ReciboA4';
 import { gerarCupomEntregaRaw, baixarCupomTxt, abrirJanelaImpressao, imprimirComPrioridadeFiscal, imprimirHtmlSilencioso } from '../../utils/printUtils';
 import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
+import { isMaster } from './adminUtils';
 
 interface AdminModalsProps {
   showProductModal: boolean;
@@ -100,14 +101,8 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
   const [stockEditError, setStockEditError] = React.useState('');
   const [stockEditForm, setStockEditForm] = React.useState('');
 
-  // Check if current user is master admin
-  const isMasterAdmin = React.useMemo(() => {
-    if (!currentUser) return false;
-    return currentUser.mainAdmin === true ||
-           currentUser.id === 'master' ||
-           currentUser.id === 'admin' ||
-           currentUser.email === 'admin@mercado.com';
-  }, [currentUser]);
+  // Check if current user is master admin (fonte unica: adminUtils.isMaster)
+  const isMasterAdmin = React.useMemo(() => isMaster(currentUser), [currentUser]);
 
   const handleStockEditSubmit = async () => {
     if (!showStockEditModal) return;

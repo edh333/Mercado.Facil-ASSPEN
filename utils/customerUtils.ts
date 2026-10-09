@@ -17,6 +17,7 @@ import {
 } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { CustomerAccount } from "../types";
+import { roundCents } from "./money";
 
 // UNIFICADO (decisão do PDV): a "conta de fiado" NÃO é uma coleção paralela
 // customer_accounts. O cliente de fiado É o usuário cadastrado (users/), no mesmo
@@ -157,7 +158,7 @@ export type ResultadoRecebimentoFiado = {
 // Exige senha mestra (2º fator) no servidor — o chamador deve obter a senha
 // via modal de autenticação antes de chamar.
 export async function receiveCustomerPayment(customerId: string, amount: number, sessionId?: string, senhaMestra?: string): Promise<ResultadoRecebimentoFiado> {
-  const valor = Math.round(Number(amount) * 100) / 100;
+  const valor = roundCents(Number(amount));
   if (!(valor > 0)) throw new Error("Valor do pagamento deve ser maior que zero.");
 
   try {
@@ -198,11 +199,11 @@ export async function receiveCustomerPayment(customerId: string, amount: number,
     const customerSnap = await getDoc(customerRef);
     if (!customerSnap.exists()) throw new Error("Usuário de fiado não encontrado.");
     const conta = customerSnap.data() as any;
-    const dividaAtual = Math.round(Number(conta?.currentDebt || 0) * 100) / 100;
+    const dividaAtual = roundCents(Number(conta?.currentDebt || 0));
     if (dividaAtual <= 0) throw new Error("Este cliente não possui débito em aberto.");
     if (valor > dividaAtual) throw new Error(`O pagamento (R$ ${valor.toFixed(2)}) supera a dívida (R$ ${dividaAtual.toFixed(2)}). Abate no máximo o valor devido.`);
 
-    const novoDebito = Math.round((dividaAtual - valor) * 100) / 100;
+    const novoDebito = roundCents(dividaAtual - valor);
     const quitou = novoDebito <= 0;
 
     await updateDoc(customerRef, {

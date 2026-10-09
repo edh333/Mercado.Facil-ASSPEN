@@ -3,7 +3,7 @@ import { PlusCircle, Check, Wallet, ShieldCheck, AlertTriangle, Lock, KeyRound, 
 import { ModalShell } from '../ui/ModalShell';
 import { User } from '../../types';
 import { formatarMoeda, isAdminRole } from '../../utils';
-import { parseMoeda } from '../../utils/money';
+import { parseMoeda, roundCents } from '../../utils/money';
 
 interface ManualCreditModalProps {
   user: User | null;
@@ -41,7 +41,7 @@ export const ManualCreditModal: React.FC<ManualCreditModalProps> = ({ user, onCl
 
   const somarValor = (v: number) => {
     const atual = parseMoeda(amount) || 0;
-    setAmount(String(Math.round((atual + v) * 100) / 100).replace('.', ','));
+        setAmount(String(roundCents(atual + v)).replace('.', ','));
   };
 
   const handleConfirm = async () => {

@@ -1,6 +1,7 @@
 import { toDate } from './dateUtils';
 import { ehReceita, ehCancelado } from '../components/admin/adminUtils';
 import { celulaCsv } from './csv';
+import { roundCents } from './money';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // MÓDULO CONTÁBIL — MOTOR DE RELATÓRIOS FISCAIS (DRE / CSV / CURVA ABC)
@@ -635,7 +636,7 @@ export const buildDetalheVendas = (orders: any[], startDate: string, endDate: st
         nome: i.name || i.productName || 'Item',
         qtd: Number(i.quantity) || 0,
         preco: Number(i.priceAtPurchase || i.price) || 0,
-        sub: Math.round((Number(i.priceAtPurchase || i.price) || 0) * (Number(i.quantity) || 0) * 100) / 100,
+        sub: roundCents((Number(i.priceAtPurchase || i.price) || 0) * (Number(i.quantity) || 0)),
       })),
     });
     porDia.set(chave, dia);

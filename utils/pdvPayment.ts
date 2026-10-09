@@ -4,7 +4,7 @@
 // palavra final sobre preços, saldo, limite semanal, estoque e caixa.
 // Arredondamento para centavos SEMPRE (mesma regra do server: arredondar/2 casas).
 
-import { parseMoeda } from './money';
+import { parseMoeda, roundCents } from './money';
 
 export type MetodoPagamentoPDV = 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30';
 export type MetodoLancamento = 'PIX' | 'WALLET' | 'CASH';
@@ -56,9 +56,8 @@ export interface MontagemPagamentoBloqueio {
   message: string;
 }
 
-/** Arredonda para 2 casas decimais (moeda). Nunca lança. */
-export const arredondarCentavos = (v: number): number =>
-  Math.round((Number(v) || 0) * 100) / 100;
+/** Arredonda para 2 casas decimais (moeda). Nunca lança. Delega em roundCents. */
+export const arredondarCentavos = (v: number): number => roundCents(Number(v) || 0);
 
 /**
  * Rótulos de forma de pagamento em PT-BR. Fonte ÚNICA: o PDV (tela de
