@@ -51,12 +51,12 @@ export const RefundPasswordPanel: React.FC<RefundPasswordPanelProps> = ({
   };
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-5 space-y-4">
       {/* Alerta da ação */}
-      <div className={`flex items-start gap-3 rounded-2xl border p-4 ${
+      <div className={`flex items-start gap-3 rounded-2xl border p-3.5 ${
         acao === 'cancelar'
-          ? 'bg-rose-50 border-rose-200 text-rose-700'
-          : 'bg-amber-50 border-amber-200 text-amber-700'
+          ? 'bg-rose-500/10 border-rose-500/30 text-rose-600'
+          : 'bg-amber-500/10 border-amber-500/30 text-amber-600'
       }`}>
         <AlertTriangle size={18} className="shrink-0 mt-0.5" />
         <div>
@@ -67,29 +67,29 @@ export const RefundPasswordPanel: React.FC<RefundPasswordPanelProps> = ({
 
       {/* Resumo do pedido */}
       {order && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-2.5">
+        <div className="bg-white border border-[var(--border-color)] rounded-2xl p-4 space-y-2.5">
           <div className="flex justify-between items-center gap-3 flex-wrap">
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Cliente</span>
-            <span className="text-xs font-black text-slate-900 truncate">
+            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Cliente</span>
+            <span className="text-xs font-black text-[var(--text-main)] truncate">
               {order.userName || '—'} · {formatCPF(order.userCpf)}
             </span>
           </div>
           <div className="flex justify-between items-center gap-3 flex-wrap">
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Interno</span>
-            <span className="text-xs font-black text-slate-900 truncate">{order.inmateName || '—'}</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Interno</span>
+            <span className="text-xs font-black text-[var(--text-main)] truncate">{order.inmateName || '—'}</span>
           </div>
           <div className="flex justify-between items-center gap-3 flex-wrap">
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Pagamento</span>
-            <span className="text-xs font-black text-slate-900 uppercase">
+            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Pagamento</span>
+            <span className="text-xs font-black text-[var(--text-main)] uppercase">
               {order.paymentMethod === 'WALLET' ? 'Carteira' : order.paymentMethod === 'CASH' ? 'Dinheiro' : order.paymentMethod === 'FIADO' ? 'Fiado' : order.paymentMethod === 'CARD' ? 'Cartão' : order.paymentMethod === 'MIXED' ? 'Misto' : 'PIX'}
             </span>
           </div>
           <div className="flex justify-between items-center gap-3 flex-wrap">
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Itens</span>
-            <span className="text-xs font-black text-slate-900">{(order.items || []).length} produto(s)</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Itens</span>
+            <span className="text-xs font-black text-[var(--text-main)]">{(order.items || []).length} produto(s)</span>
           </div>
-          <div className="flex justify-between items-center gap-3 pt-2.5 border-t border-slate-100">
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Valor Total</span>
+          <div className="flex justify-between items-center gap-3 pt-2.5 border-t border-[var(--border-color)]">
+            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Valor Total</span>
             <span className="text-xl font-black text-[var(--text-main)] tracking-tighter">
               R$ {formatarMoeda(Number(order.total))}
             </span>
@@ -99,7 +99,7 @@ export const RefundPasswordPanel: React.FC<RefundPasswordPanelProps> = ({
 
       {/* Motivo */}
       <div>
-        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 flex items-center gap-2">
+        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] mb-2 flex items-center gap-2">
           Motivo <span className="text-red-500">*</span>
         </label>
         <textarea
@@ -110,15 +110,15 @@ export const RefundPasswordPanel: React.FC<RefundPasswordPanelProps> = ({
           maxLength={200}
           rows={3}
           placeholder="Descreva o motivo — será exibido ao familiar e gravado na auditoria"
-          className="w-full bg-slate-50 border-2 border-slate-200 focus:border-[var(--border-color)] p-4 rounded-2xl text-sm font-bold text-slate-900 outline-none resize-none disabled:opacity-60"
+          className="w-full bg-[var(--bg-main)] border-2 border-[var(--border-color)] focus:border-[var(--primary-color)] p-4 rounded-2xl text-sm font-bold text-[var(--text-main)] outline-none resize-none disabled:opacity-60"
         />
-        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 text-right">{motivo.length}/200</p>
+        <p className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest mt-1 text-right">{motivo.length}/200</p>
       </div>
 
       {/* Senha do admin */}
       {exigirSenha && (
         <div>
-          <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 flex items-center gap-2">
+          <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] mb-2 flex items-center gap-2">
             <Lock size={12} /> Senha do administrador <span className="text-red-500">*</span>
           </label>
           <div className="relative">
@@ -130,26 +130,26 @@ export const RefundPasswordPanel: React.FC<RefundPasswordPanelProps> = ({
               disabled={processando}
               autoComplete="current-password"
               placeholder="••••••••"
-              className="w-full bg-slate-50 border-2 border-slate-200 focus:border-[var(--border-color)] p-4 pr-12 rounded-2xl text-sm font-black text-slate-900 outline-none transition-colors disabled:opacity-60"
+              className="w-full bg-[var(--bg-main)] border-2 border-[var(--border-color)] focus:border-[var(--primary-color)] p-4 pr-12 rounded-2xl text-sm font-black text-[var(--text-main)] outline-none transition-colors disabled:opacity-60"
             />
             <button
               type="button"
               onClick={() => setMostrarSenha(v => !v)}
               disabled={processando}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-xl text-slate-400 hover:text-slate-600 transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-muted)] transition-colors"
               aria-label={mostrarSenha ? 'Ocultar senha' : 'Mostrar senha'}
             >
               {mostrarSenha ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
-          <p className="text-[10px] font-bold text-slate-400 mt-1.5 flex items-center gap-1.5">
+          <p className="text-[10px] font-bold text-[var(--text-muted)] mt-1.5 flex items-center gap-1.5">
             <ShieldCheck size={12} className="text-emerald-500" /> Requer a senha mestra para liberar a operação
           </p>
         </div>
       )}
 
       {erro && (
-        <div className="bg-rose-50 border border-rose-200 rounded-2xl p-3.5 text-rose-600 text-xs font-black uppercase tracking-wider">
+        <div className="bg-rose-500/10 border border-rose-500/30 rounded-2xl p-3.5 text-rose-600 text-xs font-black uppercase tracking-wider">
           {erro}
         </div>
       )}
@@ -160,7 +160,7 @@ export const RefundPasswordPanel: React.FC<RefundPasswordPanelProps> = ({
           type="button"
           onClick={onCancel}
           disabled={processando}
-          className="px-6 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-[10px] uppercase tracking-[0.2em] transition-all disabled:opacity-40"
+          className="px-6 py-3 rounded-xl bg-[var(--bg-muted)] hover:bg-[var(--bg-main)] text-[var(--text-muted)] font-black text-[10px] uppercase tracking-[0.2em] transition-all disabled:opacity-40"
         >
           Cancelar
         </button>
@@ -179,8 +179,8 @@ export const RefundPasswordPanel: React.FC<RefundPasswordPanelProps> = ({
         </button>
       </div>
 
-      <p className="text-[10px] font-bold text-slate-400 flex items-center gap-2 bg-slate-50 rounded-xl p-3">
-        <ShieldCheck size={14} className="text-slate-500 shrink-0" />
+      <p className="text-[10px] font-bold text-[var(--text-muted)] flex items-center gap-2 bg-[var(--bg-main)] rounded-xl p-3">
+        <ShieldCheck size={14} className="text-[var(--text-muted)] shrink-0" />
         Esta ação restaura estoque e devolve valores automaticamente, e fica registrada na auditoria de segurança.
       </p>
     </div>

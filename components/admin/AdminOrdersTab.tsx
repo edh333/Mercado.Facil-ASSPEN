@@ -180,7 +180,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
   return (
     <div className="space-y-6 animate-slideUp">
       {/* Upper Management Header */}
-      <div className="flex flex-col xl:flex-row xl:flex-wrap justify-between items-start xl:items-center gap-4 sm:gap-6 bg-[var(--bg-card)] p-5 sm:p-8 rounded-[3rem] border-2 border-[var(--border-color)] shadow-sm relative overflow-hidden">
+      <div className="flex flex-col xl:flex-row xl:flex-wrap justify-between items-start xl:items-center gap-3 sm:gap-4 bg-[var(--bg-card)] p-4 sm:p-5 rounded-3xl border-2 border-[var(--border-color)] shadow-sm relative overflow-hidden">
         <div className="absolute top-0 left-0 w-32 h-32 bg-emerald-500 rounded-full blur-[60px] -ml-16 -mt-16 opacity-10"></div>
 
         <div className="relative z-10">
@@ -193,20 +193,20 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
         <div className="flex flex-col md:flex-row md:flex-wrap items-center gap-3 w-full relative z-10">
             {/* Status Filter Toggle */}
             <div className="flex flex-wrap bg-[var(--bg-main)] rounded-2xl p-1.5 border border-[var(--border-color)] w-full md:w-auto gap-1.5">
-                <button onClick={() => setStatusFilter('ALL')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${statusFilter === 'ALL' ? 'bg-[var(--text-main)] text-[var(--bg-card)] shadow-lg' : 'text-[var(--text-muted)] hover:bg-slate-100'}`}>Tudo</button>
-                <button onClick={() => setStatusFilter('PENDING')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 flex items-center gap-2 ${statusFilter === 'PENDING' ? 'bg-amber-500 text-white shadow-lg ring-2 ring-amber-300' : 'text-amber-600 hover:bg-amber-100'}`}>Pendentes {contagens.pend > 0 && <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${statusFilter === 'PENDING' ? 'bg-white/20' : 'bg-amber-500/15'}`}>{contagens.pend}</span>}</button>
-                <button onClick={() => setStatusFilter('PAID')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 flex items-center gap-2 ${statusFilter === 'PAID' ? 'bg-emerald-600 text-white shadow-lg' : 'text-emerald-600 hover:bg-emerald-100'}`}>Concluídos {contagens.conc > 0 && <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${statusFilter === 'PAID' ? 'bg-white/20' : 'bg-emerald-500/15'}`}>{contagens.conc}</span>}</button>
-                <button onClick={() => setStatusFilter('CANCELLED')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 flex items-center gap-2 ${statusFilter === 'CANCELLED' ? 'bg-rose-600 text-white shadow-lg' : 'text-rose-600 hover:bg-rose-100'}`}>Cancelados {contagens.canc > 0 && <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${statusFilter === 'CANCELLED' ? 'bg-white/20' : 'bg-rose-500/15'}`}>{contagens.canc}</span>}</button>
-                <button onClick={() => setStatusFilter('REFUNDED')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 flex items-center gap-2 ${statusFilter === 'REFUNDED' ? 'bg-indigo-600 text-white shadow-lg' : 'text-indigo-600 hover:bg-indigo-100'}`}>Devolvidos {contagens.dev > 0 && <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${statusFilter === 'REFUNDED' ? 'bg-white/20' : 'bg-indigo-500/15'}`}>{contagens.dev}</span>}</button>
+                <button onClick={() => setStatusFilter('ALL')} className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${statusFilter === 'ALL' ? 'bg-[var(--text-main)] text-[var(--bg-card)] shadow-lg' : 'text-[var(--text-muted)] hover:bg-[var(--bg-muted)]'}`}>Tudo</button>
+                <button onClick={() => setStatusFilter('PENDING')} className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 flex items-center gap-2 ${statusFilter === 'PENDING' ? 'bg-amber-500 text-white shadow-lg ring-2 ring-amber-300' : 'text-amber-600 hover:bg-amber-100'}`}>Pendentes {contagens.pend > 0 && <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${statusFilter === 'PENDING' ? 'bg-white/20' : 'bg-amber-500/15'}`}>{contagens.pend}</span>}</button>
+                <button onClick={() => setStatusFilter('PAID')} className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 flex items-center gap-2 ${statusFilter === 'PAID' ? 'bg-emerald-600 text-white shadow-lg' : 'text-emerald-600 hover:bg-emerald-100'}`}>Concluídos {contagens.conc > 0 && <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${statusFilter === 'PAID' ? 'bg-white/20' : 'bg-emerald-500/15'}`}>{contagens.conc}</span>}</button>
+                <button onClick={() => setStatusFilter('CANCELLED')} className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 flex items-center gap-2 ${statusFilter === 'CANCELLED' ? 'bg-rose-600 text-white shadow-lg' : 'text-rose-600 hover:bg-rose-100'}`}>Cancelados {contagens.canc > 0 && <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${statusFilter === 'CANCELLED' ? 'bg-white/20' : 'bg-rose-500/15'}`}>{contagens.canc}</span>}</button>
+                <button onClick={() => setStatusFilter('REFUNDED')} className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 flex items-center gap-2 ${statusFilter === 'REFUNDED' ? 'bg-indigo-600 text-white shadow-lg' : 'text-indigo-600 hover:bg-indigo-100'}`}>Devolvidos {contagens.dev > 0 && <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${statusFilter === 'REFUNDED' ? 'bg-white/20' : 'bg-indigo-500/15'}`}>{contagens.dev}</span>}</button>
             </div>
 
             {/* Date Filter */}
             <div className="flex flex-wrap bg-[var(--bg-main)] rounded-xl p-1 border border-[var(--border-color)] w-full md:w-auto gap-1.5 items-center">
-                <button onClick={() => setDateFilter('ALL')} className={`px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all shrink-0 ${dateFilter === 'ALL' ? 'bg-[var(--text-main)] text-[var(--bg-card)]' : 'text-[var(--text-muted)] hover:bg-slate-100'}`}>Todas</button>
-                <button onClick={() => setDateFilter('TODAY')} className={`px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all shrink-0 ${dateFilter === 'TODAY' ? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-100'}`}>Hoje</button>
-                <button onClick={() => setDateFilter('YESTERDAY')} className={`px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all shrink-0 ${dateFilter === 'YESTERDAY' ? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-100'}`}>Ontem</button>
-                <button onClick={() => setDateFilter('WEEK')} className={`px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all shrink-0 ${dateFilter === 'WEEK' ? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-100'}`}>Semana</button>
-                <button onClick={() => setDateFilter('MONTH')} className={`px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all shrink-0 ${dateFilter === 'MONTH' ? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-100'}`}>Mês</button>
+                <button onClick={() => setDateFilter('ALL')} className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all shrink-0 ${dateFilter === 'ALL' ? 'bg-[var(--text-main)] text-[var(--bg-card)]' : 'text-[var(--text-muted)] hover:bg-[var(--bg-muted)]'}`}>Todas</button>
+                <button onClick={() => setDateFilter('TODAY')} className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all shrink-0 ${dateFilter === 'TODAY' ? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-100'}`}>Hoje</button>
+                <button onClick={() => setDateFilter('YESTERDAY')} className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all shrink-0 ${dateFilter === 'YESTERDAY' ? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-100'}`}>Ontem</button>
+                <button onClick={() => setDateFilter('WEEK')} className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all shrink-0 ${dateFilter === 'WEEK' ? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-100'}`}>Semana</button>
+                <button onClick={() => setDateFilter('MONTH')} className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all shrink-0 ${dateFilter === 'MONTH' ? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-100'}`}>Mês</button>
                 {/* Vendas de UM DIA ESPECÍFICO: escolhe a data e clica em "Dia" */}
                 <input
                     type="date"
@@ -215,28 +215,28 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                     title="Ver as vendas de um dia específico"
                     className="px-2 py-1.5 rounded-lg text-[10px] font-black bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-main)] outline-none focus:border-emerald-500 shrink-0 cursor-pointer"
                 />
-                <button onClick={() => setDateFilter('DAY')} className={`px-3 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all shrink-0 ${dateFilter === 'DAY' ? 'bg-emerald-600 text-white shadow-lg' : 'text-emerald-600 hover:bg-emerald-100'}`}>Dia</button>
+                <button onClick={() => setDateFilter('DAY')} className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all shrink-0 ${dateFilter === 'DAY' ? 'bg-emerald-600 text-white shadow-lg' : 'text-emerald-600 hover:bg-emerald-100'}`}>Dia</button>
             </div>
 
             {/* Sort Order */}
             <button
                 onClick={() => setSortOrder(sortOrder === 'newest' ? 'oldest' : 'newest')}
-                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${sortOrder === 'newest' ? 'bg-[var(--text-main)] text-[var(--bg-card)]' : 'bg-[var(--bg-main)] text-[var(--text-muted)] border border-[var(--border-color)]'}`}
+                className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${sortOrder === 'newest' ? 'bg-[var(--text-main)] text-[var(--bg-card)]' : 'bg-[var(--bg-main)] text-[var(--text-muted)] border border-[var(--border-color)]'}`}
             >
                 <Clock size={14}/> {sortOrder === 'newest' ? 'Mais Recentes' : 'Mais Antigas'}
             </button>
 
             {/* View Mode Toggle */}
             <div className="hidden sm:flex bg-[var(--bg-main)] rounded-xl p-1 border border-[var(--border-color)]">
-                <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg transition-all ${viewMode === 'grid' && !agruparPorDia ? 'bg-[var(--bg-card)] text-[var(--text-main)] shadow-sm border border-[var(--border-color)]' : 'text-[var(--text-muted)] hover:bg-slate-100'}`}><Grid size={20}/></button>
-                <button onClick={() => setViewMode('list')} className={`p-2 rounded-lg transition-all ${viewMode === 'list' && !agruparPorDia ? 'bg-[var(--bg-card)] text-[var(--text-main)] shadow-sm border border-[var(--border-color)]' : 'text-[var(--text-muted)] hover:bg-slate-100'}`}><List size={20}/></button>
+                <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg transition-all ${viewMode === 'grid' && !agruparPorDia ? 'bg-[var(--bg-card)] text-[var(--text-main)] shadow-sm border border-[var(--border-color)]' : 'text-[var(--text-muted)] hover:bg-[var(--bg-muted)]'}`}><Grid size={20}/></button>
+                <button onClick={() => setViewMode('list')} className={`p-2 rounded-lg transition-all ${viewMode === 'list' && !agruparPorDia ? 'bg-[var(--bg-card)] text-[var(--text-main)] shadow-sm border border-[var(--border-color)]' : 'text-[var(--text-muted)] hover:bg-[var(--bg-muted)]'}`}><List size={20}/></button>
             </div>
 
             {/* Agrupar por Dia */}
             <button
                 onClick={() => setAgruparPorDia(s => !s)}
                 title="Agrupar pedidos por dia (listagem compacta)"
-                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${agruparPorDia ? 'bg-blue-600 text-white shadow-lg' : 'bg-[var(--bg-main)] text-[var(--text-muted)] border border-[var(--border-color)] hover:bg-slate-100'}`}
+                className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${agruparPorDia ? 'bg-blue-600 text-white shadow-lg' : 'bg-[var(--bg-main)] text-[var(--text-muted)] border border-[var(--border-color)] hover:bg-[var(--bg-muted)]'}`}
             >
                 <CalendarDays size={14}/> Por Dia
             </button>
@@ -244,7 +244,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
             {/* Export Button */}
             <button
                 onClick={exportOrdersToCSV}
-                className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 bg-emerald-500 text-white hover:bg-emerald-600"
+                className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 bg-emerald-500 text-white hover:bg-emerald-600"
             >
                 <Download size={14}/> Exportar
             </button>
@@ -264,7 +264,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
           </span>
         )}
         {dateFilter === 'DAY' && specificDate && (
-          <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-xl">
+          <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 bg-blue-500/10 border border-blue-500/30 px-3 py-1.5 rounded-xl">
             Vendas do dia {new Date(specificDate + 'T12:00:00').toLocaleDateString('pt-BR')}
           </span>
         )}
@@ -272,11 +272,11 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
 
       {/* Search Input */}
       <div className="relative group">
-        <div className="absolute left-4 top-1/2 -translate-y-1/2 bg-[var(--bg-card)] p-2.5 rounded-2xl border-2 border-[var(--border-color)] group-focus-within:border-emerald-500 transition-all duration-300 z-10 shadow-sm">
-          <Search className="text-[var(--text-muted)] group-focus-within:text-emerald-600 transition-colors" size={20} />
+        <div className="absolute left-3 top-1/2 -translate-y-1/2 bg-[var(--bg-card)] p-2 rounded-xl border-2 border-[var(--border-color)] group-focus-within:border-emerald-500 transition-all duration-300 z-10 shadow-sm">
+          <Search className="text-[var(--text-muted)] group-focus-within:text-emerald-600 transition-colors" size={18} />
         </div>
         <input
-          className="w-full pl-20 pr-4 py-5 bg-[var(--bg-card)] border-2 border-[var(--border-color)] focus:border-emerald-500 rounded-[3rem] text-sm font-black text-[var(--text-main)] outline-none transition-all placeholder:text-[var(--text-muted)] placeholder:font-medium uppercase tracking-[0.2em] shadow-inner"
+          className="w-full pl-16 pr-4 py-3.5 bg-[var(--bg-card)] border-2 border-[var(--border-color)] focus:border-emerald-500 rounded-2xl text-sm font-black text-[var(--text-main)] outline-none transition-all placeholder:text-[var(--text-muted)] placeholder:font-medium uppercase tracking-[0.2em] shadow-inner"
           placeholder="PESQUISAR POR NOME, CPF OU CÓDIGO DO PEDIDO..."
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
@@ -292,7 +292,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
               <p className="font-black uppercase tracking-[0.4em]">Nenhum pedido encontrado</p>
             </div>
           ) : gruposPorDia.map(grupo => (
-            <div key={grupo.key} className="bg-[var(--bg-card)] rounded-[3rem] border-2 border-[var(--border-color)] shadow-sm overflow-hidden">
+            <div key={grupo.key} className="bg-[var(--bg-card)] rounded-3xl border-2 border-[var(--border-color)] shadow-sm overflow-hidden">
               <div className="px-4 sm:px-7 py-4 sm:py-5 flex flex-wrap items-center justify-between gap-3 bg-[var(--bg-main)] border-b-2 border-[var(--border-color)]">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 rounded-2xl bg-blue-600/10 text-blue-600 border border-blue-500/30">
@@ -320,7 +320,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                         </span>
                         <span className="text-[10px] font-black text-[var(--text-muted)] font-mono">#{String(order.id || 'sem-id').slice(-8).toUpperCase()}</span>
                         <span className="text-[11px] font-black text-[var(--text-main)] uppercase tracking-tight truncate">{order.userName || 'Não identificado'}</span>
-                        {order.inmateName && <span className="text-[10px] font-bold text-slate-500 uppercase truncate"><ShieldCheck size={11} className="inline mr-1"/>{order.inmateName}</span>}
+                        {order.inmateName && <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase truncate"><ShieldCheck size={11} className="inline mr-1"/>{order.inmateName}</span>}
                       </div>
                       <div className="flex items-center gap-3 mt-1.5">
                         <span className="text-[10px] font-bold text-[var(--text-muted)]">
@@ -331,7 +331,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                     </div>
                     <div className="flex flex-wrap items-center justify-end gap-2">
                       <p className="text-base font-black text-[var(--text-main)] tracking-tighter">R$ {(Number(order.total) || 0).toFixed(2).replace('.', ',')}</p>
-                      <button onClick={() => setViewingReceipt({ data: order, type: 'ORDER' })} className="flex items-center justify-center gap-1.5 bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold px-3 py-2.5 rounded-xl hover:bg-slate-100 transition-colors shrink-0 min-h-[40px]" title="Ver Comprovante de Pagamento"><Eye size={16}/> Comprovante</button>
+                      <button onClick={() => setViewingReceipt({ data: order, type: 'ORDER' })} className="flex items-center justify-center gap-1.5 bg-[var(--bg-main)] border border-[var(--border-color)] text-[var(--text-main)] text-xs font-bold px-3 py-2.5 rounded-xl hover:bg-[var(--bg-muted)] transition-colors shrink-0 min-h-[40px]" title="Ver Comprovante de Pagamento"><Eye size={16}/> Comprovante</button>
                       <button onClick={() => setSelectedOrderDetails(order)} className="px-4 py-2.5 min-h-[40px] bg-emerald-500 text-white font-black rounded-xl text-[10px] uppercase tracking-widest shadow hover:bg-emerald-600 active:scale-95 transition-all flex items-center gap-2 touch-target">
                         Detalhes <ArrowRight size={14}/>
                       </button>
@@ -343,23 +343,23 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
           ))}
         </div>
       ) : (
-      <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6' : 'bg-[var(--bg-card)] rounded-[3rem] border-2 border-[var(--border-color)] shadow-sm overflow-hidden'}>
+      <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6' : 'bg-[var(--bg-card)] rounded-3xl border-2 border-[var(--border-color)] shadow-sm overflow-hidden'}>
         {filteredOrders.length === 0 ? (
           <div className="col-span-full py-20 text-center opacity-70">
             <ShoppingCart size={80} className="mx-auto mb-4"/>
             <p className="font-black uppercase tracking-[0.4em]">Nenhum pedido encontrado</p>
           </div>
         ) : filteredOrders.map(order => (
-          <div key={order.id} className={`transition-all group relative overflow-hidden flex flex-col p-4 md:p-6 ${viewMode === 'grid' ? 'bg-[var(--bg-card)] rounded-[3rem] shadow-sm border-2 border-[var(--border-color)] hover:shadow-xl hover:-translate-y-2' : 'border-b border-[var(--border-color)] last:border-0 hover:bg-[var(--bg-main)]'}`}>
+          <div key={order.id} className={`transition-all group relative overflow-hidden flex flex-col p-4 md:p-6 ${viewMode === 'grid' ? 'bg-[var(--bg-card)] rounded-3xl shadow-sm border-2 border-[var(--border-color)] hover:shadow-xl hover:-translate-y-2' : 'border-b border-[var(--border-color)] last:border-0 hover:bg-[var(--bg-main)]'}`}>
 
             {/* Cabeçalho: código + status à esquerda, data/hora discreta à direita */}
-            <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 pb-3 mb-4">
-              <span className="font-mono font-bold text-slate-700 text-sm tracking-tight">#{String(order?.id || 'sem-id').slice(-8).toUpperCase()}</span>
+            <div className="flex flex-wrap items-center gap-2 border-b border-[var(--border-color)] pb-3 mb-4">
+              <span className="font-mono font-bold text-[var(--text-main)] text-sm tracking-tight">#{String(order?.id || 'sem-id').slice(-8).toUpperCase()}</span>
               <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${getStatusColor(order.status)}`}>
                 {translateStatus(order.status)}
               </span>
               {order.date && (
-                <span className="text-xs text-slate-400 ml-auto flex items-center gap-1.5">
+                <span className="text-xs text-[var(--text-muted)] ml-auto flex items-center gap-1.5">
                   <Clock size={14}/> {toDate(order.date)?.toLocaleDateString('pt-BR')} · {toDate(order.date)?.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}
                 </span>
               )}
@@ -380,16 +380,16 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
               </div>
 
               {/* Destino / Interno */}
-              <div className="bg-white p-4 rounded-2xl border border-slate-200 group-hover:border-emerald-500/50 transition-all">
-                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
+              <div className="bg-[var(--bg-main)] p-4 rounded-2xl border border-[var(--border-color)] group-hover:border-emerald-500/50 transition-all">
+                <p className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest mb-2 flex items-center gap-2">
                   <ShieldCheck size={14}/> Destino / Interno
                 </p>
-                <h5 className="text-[13px] font-black text-slate-900 uppercase truncate tracking-tight">{order.inmateName || 'GERAL / CDP'}</h5>
+                <h5 className="text-[13px] font-black text-[var(--text-main)] uppercase truncate tracking-tight">{order.inmateName || 'GERAL / CDP'}</h5>
                 {order.inmateLocation && (
                   <div className="mt-3 flex flex-wrap items-center gap-1.5">
                     {[order.inmateLocation.raio || order.inmateLocation.ray, order.inmateLocation.ala || order.inmateLocation.wing, order.inmateLocation.cela || order.inmateLocation.cell].some(v => v) && (
                       <>
-                        <span className="px-2 py-1 bg-slate-100 rounded-lg border border-slate-200 text-[10px] font-bold text-slate-700 uppercase tracking-tighter shadow-sm">
+                        <span className="px-2 py-1 bg-[var(--bg-muted)] rounded-lg border border-[var(--border-color)] text-[10px] font-bold text-[var(--text-main)] uppercase tracking-tighter shadow-sm">
                           {[order.inmateLocation.raio || order.inmateLocation.ray, order.inmateLocation.ala || order.inmateLocation.wing, order.inmateLocation.cela || order.inmateLocation.cell].filter(v => v).join(' - ')}
                         </span>
                       </>
@@ -400,7 +400,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
             </div>
 
             {/* Rodapé: valor à esquerda + ações padronizadas à direita */}
-            <div className="flex flex-col sm:flex-row items-center justify-between border-t border-slate-100 pt-4 mt-2 gap-3 w-full">
+            <div className="flex flex-col sm:flex-row items-center justify-between border-t border-[var(--border-color)] pt-4 mt-2 gap-3 w-full">
               <div className="w-full sm:w-auto flex items-center justify-between sm:flex-col sm:items-start gap-1">
                 <p className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest mb-1">Valor Total</p>
                 <h3 className="text-2xl font-black text-[var(--text-main)] tracking-tighter tabular-nums">
@@ -410,9 +410,9 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
               </div>
 
               <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2">
-                <button onClick={() => setPrintOrder(order)} className="p-2.5 min-h-[40px] min-w-[40px] bg-slate-50 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-100 transition-colors flex items-center justify-center shrink-0" title="Imprimir Cupom 80mm"><Printer size={18}/></button>
-                <button onClick={() => setViewingReceipt({ data: order, type: 'ORDER' })} className="flex items-center justify-center gap-1.5 px-3 py-2.5 min-h-[40px] bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-100 transition-colors shrink-0" title="Ver Comprovante de Pagamento"><Eye size={16}/> Comprovante</button>
-                <button onClick={() => setSelectedOrderDetails(order)} className="flex items-center justify-center gap-1.5 px-3 py-2.5 min-h-[40px] bg-sky-50 border border-sky-200 text-sky-700 text-xs font-bold rounded-xl hover:bg-sky-100 transition-colors shrink-0">
+                <button onClick={() => setPrintOrder(order)} className="p-2.5 min-h-[40px] min-w-[40px] bg-[var(--bg-main)] border border-[var(--border-color)] text-[var(--text-muted)] rounded-xl hover:bg-[var(--bg-muted)] transition-colors flex items-center justify-center shrink-0" title="Imprimir Cupom 80mm"><Printer size={18}/></button>
+                <button onClick={() => setViewingReceipt({ data: order, type: 'ORDER' })} className="flex items-center justify-center gap-1.5 px-3 py-2.5 min-h-[40px] bg-[var(--bg-main)] border border-[var(--border-color)] text-[var(--text-main)] text-xs font-bold rounded-xl hover:bg-[var(--bg-muted)] transition-colors shrink-0" title="Ver Comprovante de Pagamento"><Eye size={16}/> Comprovante</button>
+                <button onClick={() => setSelectedOrderDetails(order)} className="flex items-center justify-center gap-1.5 px-3 py-2.5 min-h-[40px] bg-sky-500/10 border border-sky-500/30 text-sky-600 text-xs font-bold rounded-xl hover:bg-sky-500/20 transition-colors shrink-0">
                   Detalhes <ArrowRight size={14}/>
                 </button>
                 {/* Aprovação/Rejeição para Pendentes — mesma altura e raio dos demais */}
