@@ -282,6 +282,19 @@ describe('montarEscPos (ESC/POS 80mm)', () => {
     expect(cupom).toMatch(/TOTAL PEDIDO:.*R\$ 45,00/);
   });
 
+  it('cupom cru imprime FIADO 30 DIAS (nao DINHEIRO) para venda fiada de 30 dias', () => {
+    // Regressão: FIADO_30 caía no else do ternário de pagamento e o cupom
+    // imprimia "DINHEIRO" — mentindo sobre a forma de pagamento da venda.
+    const cupom = gerarCupomEntregaRaw({
+      id: 'FIADO30',
+      items: [{ name: 'ARROZ', quantity: 1, priceAtPurchase: 30 }],
+      total: 30,
+      paymentMethod: 'FIADO_30',
+    }, { institutionName: 'MERCADO FACIL' });
+    expect(cupom).toMatch(/PAGAMENTO:.*FIADO 30 DIAS/);
+    expect(cupom).not.toMatch(/PAGAMENTO:.*DINHEIRO/);
+  });
+
   it('cupom completo de venda cabe em 24 linhas (regressão de papel)', () => {
     // Antes: 39 linhas + 16 linhas de feed duplicado num cupom simples;
     // depois 32, depois 26; agora 23 com cabeçalho minimalista (título de

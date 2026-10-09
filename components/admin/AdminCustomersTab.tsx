@@ -15,6 +15,7 @@ import {
   receiveCustomerPayment
 } from '../../utils/customerUtils';
 import { formatarMoeda, formatCPF, formatPhone } from '../../utils';
+import { parseMoeda } from '../../utils/money';
 import { getActiveSession } from '../../utils/cashSession';
 import { useApp } from '../../context/StoreContext';
 import { gerarRelatorioInadimplentes, imprimirCupom } from '../../utils/printUtils';
@@ -157,7 +158,7 @@ export function AdminCustomersTab({
   };
 
   const handleReceivePayment = async () => {
-    if (!payModal || !payAmount || parseFloat(payAmount) <= 0) return;
+    if (!payModal || !payAmount || parseMoeda(payAmount) <= 0) return;
     if (onRequestMasterPassword) {
       onRequestMasterPassword(async (senhaMestra: string) => {
         await executeReceivePayment(senhaMestra);
@@ -173,7 +174,7 @@ export function AdminCustomersTab({
       const session = await getActiveSession(currentUser?.id || '');
       const res = await receiveCustomerPayment(
         payModal!.customer.id,
-        parseFloat(payAmount),
+        parseMoeda(payAmount),
         session?.id,
         senhaMestra
       );
@@ -443,7 +444,7 @@ export function AdminCustomersTab({
               <input
                 type="number"
                 value={editData.creditLimit || 0}
-                onChange={e => setEditData({ ...editData, creditLimit: parseFloat(e.target.value) || 0 })}
+                onChange={e => setEditData({ ...editData, creditLimit: parseMoeda(e.target.value) })}
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-900 font-black outline-none focus:border-emerald-500 transition-all"
               />
             </div>
@@ -497,7 +498,7 @@ export function AdminCustomersTab({
             </button>
             <button
               onClick={handleReceivePayment}
-              disabled={paying || !payAmount || parseFloat(payAmount) <= 0}
+              disabled={paying || !payAmount || parseMoeda(payAmount) <= 0}
               className="flex-1 py-3 rounded-2xl bg-emerald-500 text-white font-bold text-sm shadow-md hover:bg-emerald-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {paying ? <RefreshCw className="animate-spin" size={16} /> : <CheckCircle size={16} />}
@@ -531,11 +532,11 @@ export function AdminCustomersTab({
                 autoFocus
               />
             </div>
-            {payAmount && parseFloat(payAmount) > 0 && (
+            {payAmount && parseMoeda(payAmount) > 0 && (
               <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-center">
                 <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Nova Dívida</p>
                 <p className="text-xl font-black text-emerald-700">
-                  R$ {formatarMoeda(Math.max(0, (payModal.customer.currentDebt || 0) - parseFloat(payAmount)))}
+                  R$ {formatarMoeda(Math.max(0, (payModal.customer.currentDebt || 0) - parseMoeda(payAmount)))}
                 </p>
               </div>
             )}

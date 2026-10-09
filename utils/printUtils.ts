@@ -717,7 +717,7 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
     // Sem título "FORMAS DE PAGAMENTO" e sem divisor: a `divisorDuplo` do
     // TOTAL PEDIDO já fecha o bloco anterior e o nome do método (DINHEIRO,
     // PIX, CARTEIRA...) identifica cada linha sozinho — 1 linha a menos/venda.
-    const nomesMetodo: any = { PIX: 'PIX', WALLET: 'CARTEIRA', CASH: 'DINHEIRO', CARD: 'CARTAO', FIADO: 'FIADO' };
+    const nomesMetodo: any = { PIX: 'PIX', WALLET: 'CARTEIRA', CASH: 'DINHEIRO', CARD: 'CARTAO', FIADO: 'FIADO', FIADO_30: 'FIADO 30 DIAS', MIXED: 'MISTO' };
     for (const p of payments) {
       const metodo = nomesMetodo[p.method] || String(p.method || '?').toUpperCase();
       cupom += formatarLinhaPontilhada(metodo, `R$ ${Number(p.amount || 0).toFixed(2).replace('.', ',')}`, 48) + "\n";
@@ -726,7 +726,7 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
       cupom += formatarLinhaPontilhada("TROCO", `R$ ${Number(data.change).toFixed(2).replace('.', ',')}`, 48) + "\n";
     }
   } else {
-    const pagamento = data.paymentMethod === 'WALLET' ? 'CARTEIRA' : data.paymentMethod === 'PIX' ? 'PIX' : data.paymentMethod === 'FIADO' ? 'FIADO' : data.paymentMethod === 'CARD' ? (data.cardBrand ? `CARTAO (${data.cardBrand})` : 'CARTAO') : 'DINHEIRO';
+    const pagamento = data.paymentMethod === 'WALLET' ? 'CARTEIRA' : data.paymentMethod === 'PIX' ? 'PIX' : data.paymentMethod === 'FIADO' ? 'FIADO' : data.paymentMethod === 'FIADO_30' ? 'FIADO 30 DIAS' : data.paymentMethod === 'CARD' ? (data.cardBrand ? `CARTAO (${data.cardBrand})` : 'CARTAO') : 'DINHEIRO';
     cupom += formatarLinhaDupla("PAGAMENTO:", pagamento, 48) + "\n";
     if (data.change !== undefined && data.change !== null && Number(data.change) > 0) {
       cupom += formatarLinhaPontilhada("TROCO", `R$ ${Number(data.change).toFixed(2).replace('.', ',')}`, 48) + "\n";

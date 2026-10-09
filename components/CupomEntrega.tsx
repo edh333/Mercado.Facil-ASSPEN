@@ -45,7 +45,7 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
   const cancelado = ['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'rejected', 'rejeitado'].includes(status);
   const payments = Array.isArray(data.payments) ? data.payments : [];
   const temPagamentosMistos = payments.length > 0;
-  const nomesMetodo: any = { PIX: 'PIX', WALLET: 'CARTEIRA', CASH: 'DINHEIRO', CARD: 'CARTÃO', FIADO: 'FIADO' };
+  const nomesMetodo: any = { PIX: 'PIX', WALLET: 'CARTEIRA', CASH: 'DINHEIRO', CARD: 'CARTÃO', FIADO: 'FIADO', FIADO_30: 'FIADO 30 DIAS', MIXED: 'MISTO' };
   const pixKey = Array.isArray(config?.pixKeys) && config.pixKeys[0] ? String(config.pixKeys[0]) : '';
   const ehPix = String(data.paymentMethod || '').toUpperCase() === 'PIX';
 
@@ -272,6 +272,7 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
                           {data.paymentMethod === 'WALLET' ? 'CARTEIRA'
                             : data.paymentMethod === 'PIX' ? 'PIX'
                             : data.paymentMethod === 'FIADO' ? 'FIADO'
+                            : data.paymentMethod === 'FIADO_30' ? 'FIADO 30 DIAS'
                             : data.paymentMethod === 'CARD' ? (data.cardBrand ? `CARTÃO (${data.cardBrand})` : 'CARTÃO')
                             : 'DINHEIRO'}
                         </span>

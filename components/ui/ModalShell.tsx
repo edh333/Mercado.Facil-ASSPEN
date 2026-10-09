@@ -29,28 +29,28 @@ const SIZE_CLASS: Record<NonNullable<ModalShellProps['size']>, string> = {
   xl: 'max-w-6xl',
 };
 
-// Identidade visual minimalista por tom semântico — fundo claro constate,
-// acento cirúrgico apenas em faixa fina no topo e ícone com tint suave.
+// Identidade visual minimalista por tom semântico — chip translúcido funciona
+// igual no tema claro e no escuro (era bg-*-50 fixo e quebrava no dark).
 const TONE_STYLES: Record<ModalTone, { accent: string; tile: string }> = {
   primary: {
     accent: 'from-emerald-500 to-emerald-600',
-    tile: 'bg-emerald-50 text-emerald-600',
+    tile: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
   },
   danger: {
     accent: 'from-red-500 to-red-600',
-    tile: 'bg-red-50 text-red-600',
+    tile: 'bg-red-500/10 text-red-600 dark:text-red-400',
   },
   warning: {
     accent: 'from-amber-500 to-amber-600',
-    tile: 'bg-amber-50 text-amber-600',
+    tile: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
   },
   info: {
     accent: 'from-sky-500 to-sky-600',
-    tile: 'bg-sky-50 text-sky-600',
+    tile: 'bg-sky-500/10 text-sky-600 dark:text-sky-400',
   },
   success: {
     accent: 'from-emerald-500 to-emerald-600',
-    tile: 'bg-emerald-50 text-emerald-600',
+    tile: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
   },
 };
 
@@ -137,10 +137,10 @@ export const ModalShell: React.FC<ModalShellProps> = ({
         aria-modal="true"
         aria-label={title}
         tabIndex={-1}
-        className={`modal-content modal-shell-fixed relative w-full ${SIZE_CLASS[size]} bg-white overflow-hidden flex flex-col max-h-[90vh] rounded-2xl shadow-2xl animate-scaleIn outline-none`}
+        className={`modal-content modal-shell-fixed relative w-full ${SIZE_CLASS[size]} bg-[var(--bg-card)] overflow-hidden flex flex-col max-h-[90vh] rounded-2xl shadow-2xl animate-scaleIn outline-none`}
       >
-        {/* HEADER CLARO — título sobre o fundo branco, sem barra pesada */}
-        <div className={`px-6 py-4 shrink-0 flex items-center justify-between gap-4 bg-white border-b border-slate-100 ${headerColor ?? ''}`}>
+        {/* HEADER — tema claro/escuro via variáveis (era bg-white fixo e ficava branco no dark) */}
+        <div className={`px-6 py-4 shrink-0 flex items-center justify-between gap-4 bg-[var(--bg-card)] border-b border-[var(--border-color)] ${headerColor ?? ''}`}>
           <div className="flex items-center gap-3 min-w-0">
             {icon && (
               <div className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center ${toneStyle.tile}`}>
@@ -148,8 +148,8 @@ export const ModalShell: React.FC<ModalShellProps> = ({
               </div>
             )}
             <div className="min-w-0">
-              <h3 className="text-slate-800 font-black uppercase tracking-wide text-base truncate">{title}</h3>
-              {subtitle && <p className="text-[10px] font-bold text-slate-400 truncate">{subtitle}</p>}
+              <h3 className="text-[var(--text-main)] font-black uppercase tracking-wide text-base truncate">{title}</h3>
+              {subtitle && <p className="text-[10px] font-bold text-[var(--text-muted)] truncate">{subtitle}</p>}
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -158,17 +158,17 @@ export const ModalShell: React.FC<ModalShellProps> = ({
               onClick={onClose}
               aria-label={'Fechar ' + title}
               title={'Fechar ' + title}
-              className="p-2.5 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all active:scale-90"
+              className="p-2.5 rounded-xl text-[var(--text-muted)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-main)] transition-all active:scale-90"
             >
               <X size={18} />
             </button>
           </div>
         </div>
-        <div className={`flex-1 overflow-y-auto custom-scrollbar overscroll-contain bg-slate-50/60 ${bodyClassName}`}>
+        <div className={`flex-1 overflow-y-auto custom-scrollbar overscroll-contain bg-[var(--bg-muted)] ${bodyClassName}`}>
           {children}
         </div>
         {footer && (
-          <div className="shrink-0 px-6 py-4 border-t border-slate-200 bg-white flex items-center justify-end gap-3 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
+          <div className="shrink-0 px-6 py-4 border-t border-[var(--border-color)] bg-[var(--bg-card)] flex items-center justify-end gap-3 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
             {footer}
           </div>
         )}
