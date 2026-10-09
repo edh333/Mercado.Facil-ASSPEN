@@ -1,11 +1,8 @@
-import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { db } from '../firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { THEME_COLORS } from '../constants';
 import { ThemeOption } from '../types';
-import {
-  resolverVisual, lerVisualLocal, salvarVisualLocal, VISUAL_AUTO, VISUAL_PRESETS,
-} from '../utils/visuais';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 
@@ -16,12 +13,6 @@ export interface ThemeContextData {
   colors: any;
   themeMode: ThemeMode;
   setThemeMode: (mode: ThemeMode) => void;
-  /** Visual efetivamente aplicado (id). */
-  visual: string;
-  /** 'auto' = seguindo o padrão do admin; senão, id do override local. */
-  visualLocal: string;
-  /** Troca o visual deste dispositivo ('auto' volta ao padrão do admin). */
-  setVisual: (id: string) => void;
 }
 
 const ThemeContext = createContext<ThemeContextData>({} as ThemeContextData);
@@ -71,14 +62,6 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try { localStorage.setItem(STORAGE_KEY, mode); } catch { /* noop */ }
   }, []);
 
-  // Visual por dispositivo (troca rápida). 'auto' segue o padrão do admin.
-  const [visualLocal, setVisualLocal] = useState<string>(lerVisualLocal);
-  const setVisual = useCallback((id: string) => {
-    const valor = id === VISUAL_AUTO || id in VISUAL_PRESETS ? id : VISUAL_AUTO;
-    setVisualLocal(valor);
-    salvarVisualLocal(valor);
-  }, []);
-
   // Listen for system preference changes when in 'system' mode
   useEffect(() => {
     if (themeMode !== 'system') return;
@@ -89,19 +72,15 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => mq.removeEventListener('change', handler);
   }, [themeMode]);
 
-  // Visual resolvido: override local > settings do admin > default de fábrica.
-  // Memoizado: o efeito de aplicação depende do objeto — sem useMemo ele seria
-  // novo a cada render e reaplicaria os estilos toda renderização (quebra o
-  // otimista de não re-renderizar o app a cada snapshot).
-  const resolvido = useMemo(() => resolverVisual({
-    overrideLocal: visualLocal,
-    themeFleet: config?.theme || null,
-    primaryFleet: config?.primaryColor || null,
-    isDark,
-  }), [visualLocal, config, isDark]);
-  const themeId = resolvido.id;
+  // Theme ID + colors
+  const themeId = config?.theme || ThemeOption.MODERN_GREEN;
   const themeData = THEME_COLORS[themeId] || THEME_COLORS[ThemeOption.MODERN_GREEN];
-  const primaryColor = resolvido.primary;
+
+  // Primary color
+  const DEFAULT_PRIMARY = '#10b981';
+  const rawPrimary = String(config?.primaryColor || '').trim().toLowerCase();
+  const isLegacyGreen = rawPrimary === '#0e7a4d';
+  const primaryColor = /^#[0-9a-fA-F]{6}$/.test(rawPrimary) && !isLegacyGreen ? rawPrimary : DEFAULT_PRIMARY;
 
   useEffect(() => {
     const root = document.documentElement;
@@ -113,20 +92,31 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       root.classList.remove('dark');
     }
 
-    // Acento do visual
+    // Primary color
     root.style.setProperty('--primary-color', primaryColor);
     root.style.setProperty('--secondary-color', primaryColor);
 
-    // Superfícies do visual (claro/escuro vêm prontas do preset)
-    const s = resolvido.superficie;
-    root.style.setProperty('--bg-main', s.bgMain);
-    root.style.setProperty('--bg-card', s.bgCard);
-    root.style.setProperty('--bg-input', s.bgInput);
-    root.style.setProperty('--bg-muted', s.bgMuted);
-    root.style.setProperty('--text-main', s.textMain);
-    root.style.setProperty('--text-muted', s.textMuted);
-    root.style.setProperty('--border-color', s.border);
-    root.style.setProperty('--glass-border', s.glassBorder);
+    if (isDark) {
+      // Dark mode premium (estética shadcn/zinc)
+      root.style.setProperty('--bg-main', '#09090b');              // zinc-950
+      root.style.setProperty('--bg-card', '#18181b');              // zinc-900
+      root.style.setProperty('--bg-input', 'rgba(255,255,255,0.06)');
+      root.style.setProperty('--bg-muted', 'rgba(255,255,255,0.08)');
+      root.style.setProperty('--text-main', '#fafafa');            // zinc-50
+      root.style.setProperty('--text-muted', '#a1a1aa');           // zinc-400
+      root.style.setProperty('--border-color', '#27272a');         // zinc-800
+      root.style.setProperty('--glass-border', 'rgba(255,255,255,0.08)');
+    } else {
+      // Light mode premium (estética asspen/shadcn — fundo quente, tinta escura)
+      root.style.setProperty('--bg-main', '#f8fafc');              // slate-50
+      root.style.setProperty('--bg-card', '#ffffff');              // white
+      root.style.setProperty('--bg-input', 'rgba(0,0,0,0.03)');
+      root.style.setProperty('--bg-muted', 'rgba(15,23,42,0.05)');
+      root.style.setProperty('--text-main', '#0f172a');            // slate-900
+      root.style.setProperty('--text-muted', '#64748b');           // slate-500
+      root.style.setProperty('--border-color', '#e2e8f0');         // slate-200
+      root.style.setProperty('--glass-border', 'rgba(15,23,42,0.08)');
+    }
 
     // Wallpaper Global
     if (config?.loginBgType === 'image' && config?.loginBgUrl) {
@@ -134,15 +124,10 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } else {
       root.style.setProperty('--wallpaper-url', 'none');
     }
-  }, [config, primaryColor, isDark, resolvido]);
+  }, [config, primaryColor, isDark]);
 
   return (
-    <ThemeContext.Provider
-      value={{
-        isDark, primaryColor, themeId, colors: themeData, themeMode, setThemeMode,
-        visual: resolvido.id, visualLocal, setVisual,
-      }}
-    >
+    <ThemeContext.Provider value={{ isDark, primaryColor, themeId, colors: themeData, themeMode, setThemeMode }}>
       {children}
     </ThemeContext.Provider>
   );

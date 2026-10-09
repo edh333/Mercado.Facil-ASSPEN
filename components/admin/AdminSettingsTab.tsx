@@ -7,8 +7,8 @@ import {
 } from 'lucide-react';
 import { ModalShell } from '../ui/ModalShell';
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import { ThemeOption } from '../../types';
 import { useTheme } from '../../context/ThemeContext';
-import { VISUAIS_NO_SELETOR, VISUAL_PRESETS } from '../../utils/visuais';
 import { useMaintenance } from '../../hooks/useMaintenance';
 import {
   PontoRestauracao, criarPontoRestauracao, listarPontosRestauracao, restaurarPontoRestauracao,
@@ -31,21 +31,21 @@ const MODULOS_PERMISSAO: { key: string; label: string }[] = [
 ];
 
 const PermToggles: React.FC<{ perms: string[]; onChange: (p: string[]) => void }> = ({ perms, onChange }) => (
-  <div className="p-4 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl space-y-2">
+  <div className="p-4 bg-white border border-slate-200 rounded-xl space-y-2">
     <div className="flex items-center justify-between">
-      <p className="text-[10px] font-black text-[var(--text-main)] uppercase tracking-widest">Permissões de acesso</p>
+      <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Permissões de acesso</p>
       <div className="flex gap-1">
         <button
           type="button"
           onClick={() => onChange(MODULOS_PERMISSAO.map(m => m.key))}
-          className="text-[9px] font-black uppercase px-2 py-1 rounded-lg bg-[var(--primary-color)]/10 text-[var(--primary-color)] hover:bg-[var(--primary-color)]/10"
+          className="text-[9px] font-black uppercase px-2 py-1 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
         >
           Todas
         </button>
         <button
           type="button"
           onClick={() => onChange([])}
-          className="text-[9px] font-black uppercase px-2 py-1 rounded-lg bg-[var(--bg-muted)] text-[var(--text-muted)] hover:bg-[var(--bg-muted)]"
+          className="text-[9px] font-black uppercase px-2 py-1 rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200"
         >
           Nenhuma
         </button>
@@ -59,9 +59,9 @@ const PermToggles: React.FC<{ perms: string[]; onChange: (p: string[]) => void }
             key={mod.key}
             type="button"
             onClick={() => onChange(ativo ? perms.filter(p => p !== mod.key) : [...perms, mod.key])}
-            className={`flex items-center gap-2 p-2 rounded-lg border text-left transition-all ${ativo ? 'bg-indigo-600 border-[var(--primary-color)] text-white' : 'bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-muted)] hover:border-indigo-300'}`}
+            className={`flex items-center gap-2 p-2 rounded-lg border text-left transition-all ${ativo ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-indigo-300'}`}
           >
-            <span className={`w-4 h-4 rounded border flex items-center justify-center flex-none ${ativo ? 'bg-[var(--bg-card)] border-white' : 'border-slate-300'}`}>
+            <span className={`w-4 h-4 rounded border flex items-center justify-center flex-none ${ativo ? 'bg-white border-white' : 'border-slate-300'}`}>
               {ativo && <Check size={10} className="text-indigo-600" strokeWidth={4} />}
             </span>
             <span className="text-[10px] font-black leading-tight">{mod.label}</span>
@@ -442,8 +442,8 @@ const handleBaixarBackup = async (nome: string) => {
       }}
       className={`flex items-center gap-2 px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap shrink-0 ${
         activeSubTab === id
-          ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-black/30'
-          : 'bg-[var(--bg-card)]/10 text-[var(--text-muted)] hover:bg-[var(--bg-card)]/20 border border-white/10'
+          ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/30'
+          : 'bg-white/10 text-slate-300 hover:bg-white/20 border border-white/10'
       }`}
     >
       <Icon size={16} className="shrink-0" /> {label}
@@ -456,12 +456,12 @@ const handleBaixarBackup = async (nome: string) => {
   if (isAuthenticated === false) {
     return (
       <div className="animate-fadeIn flex flex-col items-center justify-center py-8">
-        <div className="bg-[var(--bg-card)] p-8 rounded-[3rem] border border-[var(--border-color)] shadow-2xl text-center max-w-lg w-full">
-          <div className="w-24 h-24 bg-[var(--bg-muted)] rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-inner">
-            <Lock size={48} className="text-[var(--text-muted)]" />
+        <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-2xl text-center max-w-lg w-full">
+          <div className="w-24 h-24 bg-slate-100 rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-inner">
+            <Lock size={48} className="text-slate-400" />
           </div>
-          <h3 className="text-2xl font-bold text-[var(--text-main)] tracking-tight mb-3">Acesso Restrito</h3>
-          <p className="text-xs text-[var(--text-muted)] font-bold uppercase tracking-widest mb-6 leading-relaxed">
+          <h3 className="text-2xl font-bold text-slate-900 tracking-tight mb-3">Acesso Restrito</h3>
+          <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-6 leading-relaxed">
             Esta área contém configurações sensíveis do sistema.<br />
             Autentique-se como administrador para continuar.
           </p>
@@ -487,29 +487,29 @@ const handleBaixarBackup = async (nome: string) => {
 
       {/* Header */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0f172a] p-6 md:p-8 shadow-2xl">
-        <div className="absolute -top-24 -right-24 w-72 h-72 bg-[var(--primary-color)]/100/20 rounded-full blur-[100px]"></div>
+        <div className="absolute -top-24 -right-24 w-72 h-72 bg-emerald-500/20 rounded-full blur-[100px]"></div>
         <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-blue-500/20 rounded-full blur-[100px]"></div>
         <div className="relative flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6">
           <div className="max-w-full overflow-hidden">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-lg shadow-black/30 shrink-0">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-lg shadow-emerald-500/30 shrink-0">
                 <Settings size={28} />
               </div>
               <div>
                 <h2 className="text-xl md:text-2xl font-bold text-white flex items-center gap-3 tracking-tight">
                   Painel de Configurações
                 </h2>
-                <p className="text-[9px] md:text-[10px] text-[var(--text-muted)] font-black mt-1 uppercase tracking-widest">
+                <p className="text-[9px] md:text-[10px] text-slate-400 font-black mt-1 uppercase tracking-widest">
                   Gestão Profissional ASSPEN • v1.0.0 RC
                 </p>
               </div>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="px-3 py-1.5 rounded-lg bg-[var(--bg-card)]/10 text-emerald-300 font-black text-[9px] uppercase tracking-widest flex items-center gap-2 border border-white/10">
+            <span className="px-3 py-1.5 rounded-lg bg-white/10 text-emerald-300 font-black text-[9px] uppercase tracking-widest flex items-center gap-2 border border-white/10">
               <Shield size={12} /> {isMaster ? 'ACESSO MASTER' : 'ACESSO ADMIN'}
             </span>
-            <span className="px-3 py-1.5 rounded-lg bg-[var(--bg-card)]/10 text-white font-black text-[9px] uppercase tracking-widest flex items-center gap-2 border border-white/10">
+            <span className="px-3 py-1.5 rounded-lg bg-white/10 text-white font-black text-[9px] uppercase tracking-widest flex items-center gap-2 border border-white/10">
               <Check size={12} className="text-emerald-400" /> ALTERAÇÕES EM TEMPO REAL
             </span>
           </div>
@@ -531,33 +531,33 @@ const handleBaixarBackup = async (nome: string) => {
         {activeSubTab === 'general' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-slideUp">
             {/* Identidade Visual */}
-            <div className="bg-[var(--bg-card)] p-8 rounded-3xl border border-[var(--border-color)] shadow-2xl space-y-6">
-              <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-main)] flex items-center gap-2 mb-4">
+            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-2xl space-y-6">
+              <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2 mb-4">
                 <Info size={20} className="text-blue-500" /> Identidade Visual
               </h3>
               <div className="grid grid-cols-1 gap-4">
                 <div>
-                  <label className="text-[10px] font-black text-[var(--text-main)] uppercase mb-1 block">Nome do Sistema</label>
+                  <label className="text-[10px] font-black text-slate-900 uppercase mb-1 block">Nome do Sistema</label>
                   <input
-                    className="w-full p-4 bg-[var(--bg-muted)] border-2 border-[var(--border-color)] focus:border-blue-500 rounded-2xl font-black text-sm text-[var(--text-main)] outline-none"
+                    className="w-full p-4 bg-slate-50 border-2 border-slate-200 focus:border-blue-500 rounded-2xl font-black text-sm text-slate-900 outline-none"
                     value={localSettings?.appName || ''}
                     onChange={e => setLocalSettings({ ...localSettings, appName: e.target.value, systemName: e.target.value })}
                     placeholder="Ex: Mercado Fácil PDV"
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-black text-[var(--text-main)] uppercase mb-1 block">Slogan (Tela Inicial Landing)</label>
+                  <label className="text-[10px] font-black text-slate-900 uppercase mb-1 block">Slogan (Tela Inicial Landing)</label>
                   <input
-                    className="w-full p-4 bg-[var(--bg-muted)] border-2 border-[var(--border-color)] focus:border-blue-500 rounded-2xl font-black text-sm text-[var(--text-main)] outline-none"
+                    className="w-full p-4 bg-slate-50 border-2 border-slate-200 focus:border-blue-500 rounded-2xl font-black text-sm text-slate-900 outline-none"
                     value={localSettings?.landingPageTagline || ''}
                     onChange={e => setLocalSettings({ ...localSettings, landingPageTagline: e.target.value })}
                     placeholder="Ex: Aproxima você de quem você ama"
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-black text-[var(--text-main)] uppercase mb-1 block">Nome da Instituição</label>
+                  <label className="text-[10px] font-black text-slate-900 uppercase mb-1 block">Nome da Instituição</label>
                   <textarea
-                    className="w-full p-4 bg-[var(--bg-muted)] border-2 border-[var(--border-color)] focus:border-blue-500 rounded-2xl font-black text-sm text-[var(--text-main)] outline-none transition-all min-h-[5rem] resize-none"
+                    className="w-full p-4 bg-slate-50 border-2 border-slate-200 focus:border-blue-500 rounded-2xl font-black text-sm text-slate-900 outline-none transition-all min-h-[5rem] resize-none"
                     rows={2}
                     value={localSettings?.institutionName || ''}
                     onChange={e => setLocalSettings({ ...localSettings, institutionName: e.target.value })}
@@ -566,18 +566,18 @@ const handleBaixarBackup = async (nome: string) => {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-[10px] font-black text-[var(--text-main)] uppercase mb-1 block">CNPJ</label>
+                    <label className="text-[10px] font-black text-slate-900 uppercase mb-1 block">CNPJ</label>
                     <input
-                      className="w-full p-4 bg-[var(--bg-muted)] border-2 border-[var(--border-color)] focus:border-blue-500 rounded-2xl font-black text-sm text-[var(--text-main)] outline-none"
+                      className="w-full p-4 bg-slate-50 border-2 border-slate-200 focus:border-blue-500 rounded-2xl font-black text-sm text-slate-900 outline-none"
                       value={localSettings?.cnpj || ''}
                       onChange={e => setLocalSettings({ ...localSettings, cnpj: e.target.value })}
                       placeholder="00.000.000/0000-00"
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-[var(--text-main)] uppercase mb-1 block">Telefone</label>
+                    <label className="text-[10px] font-black text-slate-900 uppercase mb-1 block">Telefone</label>
                     <input
-                      className="w-full p-4 bg-[var(--bg-muted)] border-2 border-[var(--border-color)] focus:border-blue-500 rounded-2xl font-black text-sm text-[var(--text-main)] outline-none"
+                      className="w-full p-4 bg-slate-50 border-2 border-slate-200 focus:border-blue-500 rounded-2xl font-black text-sm text-slate-900 outline-none"
                       value={localSettings?.contactPhone || ''}
                       onChange={e => setLocalSettings({ ...localSettings, contactPhone: e.target.value })}
                       placeholder="(99) 99999-9999"
@@ -600,14 +600,14 @@ const handleBaixarBackup = async (nome: string) => {
 
             <div className="space-y-8">
               {isInstallable && !isStandalone && (
-                <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl px-4 py-3.5 flex items-center justify-between gap-3">
+                <div className="bg-white border border-slate-200 rounded-2xl px-4 py-3.5 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-10 h-10 shrink-0 bg-slate-900 rounded-xl flex items-center justify-center">
                       <Smartphone size={18} className="text-white" />
                     </div>
                     <div className="min-w-0">
-                      <h4 className="text-[var(--text-main)] font-black text-[11px] uppercase tracking-wider">Instalar Programa</h4>
-                      <p className="text-[var(--text-muted)] text-[9px] font-bold uppercase tracking-widest mt-0.5">Disponível para PC e Celular</p>
+                      <h4 className="text-slate-900 font-black text-[11px] uppercase tracking-wider">Instalar Programa</h4>
+                      <p className="text-slate-500 text-[9px] font-bold uppercase tracking-widest mt-0.5">Disponível para PC e Celular</p>
                     </div>
                   </div>
                   <button
@@ -620,9 +620,9 @@ const handleBaixarBackup = async (nome: string) => {
               )}
               {/* Gestão de Admins */}
               {isMaster && (
-                <div className="bg-[var(--bg-card)] p-8 rounded-3xl border border-[var(--border-color)] shadow-2xl">
+                <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-2xl">
                   <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-main)] flex items-center gap-2">
+                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
                       <Shield size={20} className="text-indigo-600" /> Equipe
                     </h3>
                     <button
@@ -633,53 +633,53 @@ const handleBaixarBackup = async (nome: string) => {
                     </button>
                   </div>
                   {showAddAdmin && (
-                    <div className="mb-6 p-6 bg-[var(--bg-muted)] rounded-2xl space-y-4">
+                    <div className="mb-6 p-6 bg-slate-50 rounded-2xl space-y-4">
                       <div>
-                        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] mb-1.5 block">Nome completo</label>
-                        <input className="w-full p-3 text-xs border bg-[var(--bg-card)] rounded-xl font-black text-[var(--text-main)] uppercase" placeholder="NOME" value={adminForm.name} onChange={e => { setAdminForm({ ...adminForm, name: e.target.value.toUpperCase() }); setAdminFormError(null); }} />
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Nome completo</label>
+                        <input className="w-full p-3 text-xs border bg-white rounded-xl font-black text-slate-900 uppercase" placeholder="NOME" value={adminForm.name} onChange={e => { setAdminForm({ ...adminForm, name: e.target.value.toUpperCase() }); setAdminFormError(null); }} />
                       </div>
                       <div>
-                        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] mb-1.5 block">E-mail de acesso</label>
-                        <input className="w-full p-3 text-xs border bg-[var(--bg-card)] rounded-xl font-black text-[var(--text-main)]" placeholder="EMAIL" type="email" value={adminForm.email} onChange={e => { setAdminForm({ ...adminForm, email: e.target.value }); setAdminFormError(null); }} />
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">E-mail de acesso</label>
+                        <input className="w-full p-3 text-xs border bg-white rounded-xl font-black text-slate-900" placeholder="EMAIL" type="email" value={adminForm.email} onChange={e => { setAdminForm({ ...adminForm, email: e.target.value }); setAdminFormError(null); }} />
                       </div>
                       <div>
-                        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] mb-1.5 block">Senha</label>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Senha</label>
                         <div className="relative">
-                          <input className="w-full pl-3 pr-10 p-3 text-xs border bg-[var(--bg-card)] rounded-xl font-black text-[var(--text-main)]" placeholder="SENHA" type={mostrarSenhaAdminForm ? 'text' : 'password'} autoComplete="new-password" value={adminForm.password} onChange={e => { setAdminForm({ ...adminForm, password: e.target.value }); setAdminFormError(null); }} />
-                          <button type="button" onClick={() => setMostrarSenhaAdminForm(v => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-muted)] transition-colors" aria-label={mostrarSenhaAdminForm ? 'Ocultar senha' : 'Mostrar senha'}>
+                          <input className="w-full pl-3 pr-10 p-3 text-xs border bg-white rounded-xl font-black text-slate-900" placeholder="SENHA" type={mostrarSenhaAdminForm ? 'text' : 'password'} autoComplete="new-password" value={adminForm.password} onChange={e => { setAdminForm({ ...adminForm, password: e.target.value }); setAdminFormError(null); }} />
+                          <button type="button" onClick={() => setMostrarSenhaAdminForm(v => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-slate-400 hover:text-slate-600 transition-colors" aria-label={mostrarSenhaAdminForm ? 'Ocultar senha' : 'Mostrar senha'}>
                             {mostrarSenhaAdminForm ? <EyeOff size={14}/> : <Eye size={14}/>}
                           </button>
                         </div>
                       </div>
                       <div>
-                        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] mb-1.5 block">CPF (opcional)</label>
-                        <input className="w-full p-3 text-xs border bg-[var(--bg-card)] rounded-xl font-black text-[var(--text-main)]" placeholder="CPF (opcional)" inputMode="numeric" value={adminForm.cpf} onChange={e => { setAdminForm({ ...adminForm, cpf: e.target.value.replace(/\D/g, '').slice(0, 11) }); setAdminFormError(null); }} />
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">CPF (opcional)</label>
+                        <input className="w-full p-3 text-xs border bg-white rounded-xl font-black text-slate-900" placeholder="CPF (opcional)" inputMode="numeric" value={adminForm.cpf} onChange={e => { setAdminForm({ ...adminForm, cpf: e.target.value.replace(/\D/g, '').slice(0, 11) }); setAdminFormError(null); }} />
                       </div>
                       <div>
-                        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] mb-1.5 block">Papel na equipe</label>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Papel na equipe</label>
                         <div className="grid grid-cols-2 gap-2">
                           <button
                             type="button"
                             onClick={() => setAdminForm({ ...adminForm, role: 'admin' })}
-                            className={`p-3 rounded-xl border text-left transition-all ${adminForm.role === 'admin' ? 'border-[var(--primary-color)] bg-[var(--primary-color)]/10' : 'border-[var(--border-color)] bg-[var(--bg-card)]'}`}
+                            className={`p-3 rounded-xl border text-left transition-all ${adminForm.role === 'admin' ? 'border-indigo-600 bg-indigo-50' : 'border-slate-200 bg-white'}`}
                           >
-                            <p className="text-[11px] font-black text-[var(--text-main)]">Administrador</p>
-                            <p className="text-[9px] font-bold text-[var(--text-muted)] mt-0.5 leading-snug">Acesso total ou por módulos (financeiro, usuários, relatórios...).</p>
+                            <p className="text-[11px] font-black text-slate-900">Administrador</p>
+                            <p className="text-[9px] font-bold text-slate-500 mt-0.5 leading-snug">Acesso total ou por módulos (financeiro, usuários, relatórios...).</p>
                           </button>
                           <button
                             type="button"
                             onClick={() => setAdminForm({ ...adminForm, role: 'vendedor' })}
-                            className={`p-3 rounded-xl border text-left transition-all ${adminForm.role === 'vendedor' ? 'border-[var(--primary-color)] bg-[var(--primary-color)]/10' : 'border-[var(--border-color)] bg-[var(--bg-card)]'}`}
+                            className={`p-3 rounded-xl border text-left transition-all ${adminForm.role === 'vendedor' ? 'border-emerald-600 bg-emerald-50' : 'border-slate-200 bg-white'}`}
                           >
-                            <p className="text-[11px] font-black text-[var(--text-main)]">Operador de Caixa (Vendedor)</p>
-                            <p className="text-[9px] font-bold text-[var(--text-muted)] mt-0.5 leading-snug">Somente PDV: vendas, caixa próprio, produtos e histórico de pedidos.</p>
+                            <p className="text-[11px] font-black text-slate-900">Operador de Caixa (Vendedor)</p>
+                            <p className="text-[9px] font-bold text-slate-500 mt-0.5 leading-snug">Somente PDV: vendas, caixa próprio, produtos e histórico de pedidos.</p>
                           </button>
                         </div>
                       </div>
                       {adminForm.role === 'admin' ? (
                         <PermToggles perms={adminForm.permissions} onChange={p => setAdminForm({ ...adminForm, permissions: p })} />
                       ) : (
-                        <p className="text-[10px] font-bold text-[var(--primary-color)] bg-[var(--primary-color)]/10 border border-[var(--primary-color)]/40 rounded-xl p-3">
+                        <p className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl p-3">
                           Perfil de vendedor: acesso automático a Vendas (PDV), Meu Caixa, Produtos e Pedidos. Sem acesso financeiro, usuários, relatórios ou configurações.
                         </p>
                       )}
@@ -698,20 +698,20 @@ const handleBaixarBackup = async (nome: string) => {
                   <div className="space-y-2">
                     {(users || []).filter(u => (isAdminRole(u.role) || isVendedorRole(u.role)) && u.id !== 'master').map(admin => (
                       <React.Fragment key={admin.id}>
-                        <div className="flex justify-between items-center p-3 bg-[var(--bg-muted)] rounded-xl">
+                        <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
                           <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <p className="font-black text-xs">{admin.name}</p>
-                              <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${isVendedorRole(admin.role) ? 'bg-[var(--primary-color)]/10 text-[var(--primary-color)]' : 'bg-slate-200 text-[var(--text-main)]'}`}>
+                              <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${isVendedorRole(admin.role) ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-700'}`}>
                                 {isVendedorRole(admin.role) ? 'Vendedor' : 'Admin'}
                               </span>
                             </div>
-                            <p className="text-[10px] text-[var(--text-muted)]">{admin.email}</p>
+                            <p className="text-[10px] text-slate-500">{admin.email}</p>
                             <div className="flex flex-wrap gap-1 mt-1">
                               {isVendedorRole(admin.role) ? (
-                                <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded bg-[var(--primary-color)]/10 text-[var(--primary-color)]">Acesso PDV</span>
+                                <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">Acesso PDV</span>
                               ) : (!admin.permissions || admin.permissions.length === 0 || admin.permissions.includes('all') ? (
-                                <span className={`text-[10px] font-black uppercase px-1.5 py-0.5 rounded ${admin.permissions?.includes('all') ? 'bg-[var(--primary-color)]/10 text-[var(--primary-color)]' : 'bg-amber-100 text-amber-700'}`}>
+                                <span className={`text-[10px] font-black uppercase px-1.5 py-0.5 rounded ${admin.permissions?.includes('all') ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
                                   {admin.permissions?.includes('all') ? 'Acesso total' : 'Sem permissões'}
                                 </span>
                               ) : (
@@ -735,7 +735,7 @@ const handleBaixarBackup = async (nome: string) => {
                                 setEditPermissionsFor(admin.id);
                               }}
                               title="Editar permissões"
-                              className="text-indigo-500 p-2 rounded-lg hover:bg-[var(--primary-color)]/10 transition-all"
+                              className="text-indigo-500 p-2 rounded-lg hover:bg-indigo-50 transition-all"
                             >
                               <Pencil size={15} />
                             </button>
@@ -746,7 +746,7 @@ const handleBaixarBackup = async (nome: string) => {
                           </div>
                         </div>
                         {editPermissionsFor === admin.id && (
-                          <div className="p-4 bg-[var(--bg-card)] rounded-xl border border-indigo-200 space-y-3">
+                          <div className="p-4 bg-white rounded-xl border border-indigo-200 space-y-3">
                             <PermToggles perms={editPermissions} onChange={setEditPermissions} />
                             <div className="flex gap-2">
                               <button
@@ -763,7 +763,7 @@ const handleBaixarBackup = async (nome: string) => {
                               </button>
                               <button
                                 onClick={() => setEditPermissionsFor(null)}
-                                className="px-4 bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] p-2.5 rounded-xl text-[10px] font-black uppercase hover:bg-[var(--bg-muted)] transition-all"
+                                className="px-4 bg-white border border-slate-200 text-slate-600 p-2.5 rounded-xl text-[10px] font-black uppercase hover:bg-slate-50 transition-all"
                               >
                                 Cancelar
                               </button>
@@ -773,42 +773,42 @@ const handleBaixarBackup = async (nome: string) => {
                       </React.Fragment>
                     ))}
                     {(users || []).filter(u => (isAdminRole(u.role) || isVendedorRole(u.role)) && u.id !== 'master').length === 0 && (
-                      <p className="text-[10px] text-[var(--text-muted)] font-black uppercase text-center py-4">Nenhum membro extra da equipe cadastrado</p>
+                      <p className="text-[10px] text-slate-400 font-black uppercase text-center py-4">Nenhum membro extra da equipe cadastrado</p>
                     )}
                   </div>
                 </div>
               )}
 
               {/* Credenciais Master */}
-              <div className="bg-[var(--bg-card)] p-8 rounded-3xl border border-[var(--border-color)] shadow-2xl">
-                <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-main)] mb-6 flex items-center gap-2">
+              <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-2xl">
+                <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 mb-6 flex items-center gap-2">
                   <KeyRound size={20} className="text-blue-500" /> Segurança Master
                 </h3>
                 <div className="grid grid-cols-1 gap-4 mb-4">
                   <div>
-                    <label className="text-[10px] font-black text-[var(--text-main)] uppercase mb-1 block">Nova Senha</label>
+                    <label className="text-[10px] font-black text-slate-700 uppercase mb-1 block">Nova Senha</label>
                     <div className="relative">
                       <input
-                        className="w-full pl-4 pr-14 p-4 bg-[var(--bg-card)] border-2 border-[var(--border-color)] focus:border-blue-500 rounded-2xl font-black text-sm text-[var(--text-main)] outline-none transition-all"
+                        className="w-full pl-4 pr-14 p-4 bg-white border-2 border-slate-200 focus:border-blue-500 rounded-2xl font-black text-sm text-slate-900 outline-none transition-all"
                         type={mostrarSenhaMasterNova ? 'text' : 'password'}
                         value={newAdminPassword}
                         onChange={e => setNewAdminPassword(e.target.value)}
                         placeholder="••••••••"
                         autoComplete="new-password"
                       />
-                      <button type="button" onClick={() => setMostrarSenhaMasterNova(v => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-2 rounded-xl text-[var(--text-muted)] hover:text-blue-600 transition-colors" aria-label={mostrarSenhaMasterNova ? 'Ocultar senha' : 'Mostrar senha'}>
+                      <button type="button" onClick={() => setMostrarSenhaMasterNova(v => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-2 rounded-xl text-slate-400 hover:text-blue-600 transition-colors" aria-label={mostrarSenhaMasterNova ? 'Ocultar senha' : 'Mostrar senha'}>
                         {mostrarSenhaMasterNova ? <EyeOff size={16}/> : <Eye size={16}/>}
                       </button>
                     </div>
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-[var(--text-main)] uppercase mb-1 block">Confirmar Nova Senha</label>
+                    <label className="text-[10px] font-black text-slate-700 uppercase mb-1 block">Confirmar Nova Senha</label>
                     <div className="relative">
                       <input
-                        className={`w-full pl-4 pr-14 p-4 bg-[var(--bg-card)] border-2 rounded-2xl font-black text-sm text-[var(--text-main)] outline-none transition-all ${
+                        className={`w-full pl-4 pr-14 p-4 bg-white border-2 rounded-2xl font-black text-sm text-slate-900 outline-none transition-all ${
                           confirmAdminPassword && confirmAdminPassword.trim() !== newAdminPassword.trim()
                             ? 'border-red-400 focus:border-red-500'
-                            : 'border-[var(--border-color)] focus:border-blue-500'
+                            : 'border-slate-200 focus:border-blue-500'
                         }`}
                         type={mostrarSenhaMasterConf ? 'text' : 'password'}
                         value={confirmAdminPassword}
@@ -816,7 +816,7 @@ const handleBaixarBackup = async (nome: string) => {
                         placeholder="••••••••"
                         autoComplete="new-password"
                       />
-                      <button type="button" onClick={() => setMostrarSenhaMasterConf(v => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-2 rounded-xl text-[var(--text-muted)] hover:text-blue-600 transition-colors" aria-label={mostrarSenhaMasterConf ? 'Ocultar senha' : 'Mostrar senha'}>
+                      <button type="button" onClick={() => setMostrarSenhaMasterConf(v => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-2 rounded-xl text-slate-400 hover:text-blue-600 transition-colors" aria-label={mostrarSenhaMasterConf ? 'Ocultar senha' : 'Mostrar senha'}>
                         {mostrarSenhaMasterConf ? <EyeOff size={16}/> : <Eye size={16}/>}
                       </button>
                     </div>
@@ -839,38 +839,38 @@ const handleBaixarBackup = async (nome: string) => {
               </div>
 
               {/* Senha Secundária (ações sensíveis) */}
-              <div className="bg-[var(--bg-card)] p-8 rounded-3xl border border-[var(--border-color)] shadow-2xl">
-                <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-main)] mb-1 flex items-center gap-2">
+              <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-2xl">
+                <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 mb-1 flex items-center gap-2">
                   <Lock size={20} className="text-amber-500" /> Senha Secundária
                 </h3>
-                <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wide mb-6">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-6">
                   Exigida em ações sensíveis (zerar financeiro, redefinir estoque, acessar manutenção). Se não definida, as ações ficam bloqueadas até configurar.
                 </p>
                 <div className="grid grid-cols-1 gap-4 mb-4">
                   <div>
-                    <label className="text-[10px] font-black text-[var(--text-main)] uppercase mb-1 block">Nova Senha Secundária</label>
+                    <label className="text-[10px] font-black text-slate-700 uppercase mb-1 block">Nova Senha Secundária</label>
                     <div className="relative">
                       <input
-                        className="w-full pl-4 pr-14 p-4 bg-[var(--bg-card)] border-2 border-[var(--border-color)] focus:border-amber-500 rounded-2xl font-black text-sm text-[var(--text-main)] outline-none transition-all"
+                        className="w-full pl-4 pr-14 p-4 bg-white border-2 border-slate-200 focus:border-amber-500 rounded-2xl font-black text-sm text-slate-900 outline-none transition-all"
                         type={mostrarSenhaSecNova ? 'text' : 'password'}
                         value={secondaryPassword}
                         onChange={e => setSecondaryPassword(e.target.value)}
                         placeholder="••••••••"
                         autoComplete="new-password"
                       />
-                      <button type="button" onClick={() => setMostrarSenhaSecNova(v => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-2 rounded-xl text-[var(--text-muted)] hover:text-amber-600 transition-colors" aria-label={mostrarSenhaSecNova ? 'Ocultar senha' : 'Mostrar senha'}>
+                      <button type="button" onClick={() => setMostrarSenhaSecNova(v => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-2 rounded-xl text-slate-400 hover:text-amber-600 transition-colors" aria-label={mostrarSenhaSecNova ? 'Ocultar senha' : 'Mostrar senha'}>
                         {mostrarSenhaSecNova ? <EyeOff size={16}/> : <Eye size={16}/>}
                       </button>
                     </div>
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-[var(--text-main)] uppercase mb-1 block">Confirmar Senha Secundária</label>
+                    <label className="text-[10px] font-black text-slate-700 uppercase mb-1 block">Confirmar Senha Secundária</label>
                     <div className="relative">
                       <input
-                        className={`w-full pl-4 pr-14 p-4 bg-[var(--bg-card)] border-2 rounded-2xl font-black text-sm text-[var(--text-main)] outline-none transition-all ${
+                        className={`w-full pl-4 pr-14 p-4 bg-white border-2 rounded-2xl font-black text-sm text-slate-900 outline-none transition-all ${
                           confirmSecondaryPassword && confirmSecondaryPassword.trim() !== secondaryPassword.trim()
                             ? 'border-red-400 focus:border-red-500'
-                            : 'border-[var(--border-color)] focus:border-amber-500'
+                            : 'border-slate-200 focus:border-amber-500'
                         }`}
                         type={mostrarSenhaSecConf ? 'text' : 'password'}
                         value={confirmSecondaryPassword}
@@ -878,7 +878,7 @@ const handleBaixarBackup = async (nome: string) => {
                         placeholder="••••••••"
                         autoComplete="new-password"
                       />
-                      <button type="button" onClick={() => setMostrarSenhaSecConf(v => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-2 rounded-xl text-[var(--text-muted)] hover:text-amber-600 transition-colors" aria-label={mostrarSenhaSecConf ? 'Ocultar senha' : 'Mostrar senha'}>
+                      <button type="button" onClick={() => setMostrarSenhaSecConf(v => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-2 rounded-xl text-slate-400 hover:text-amber-600 transition-colors" aria-label={mostrarSenhaSecConf ? 'Ocultar senha' : 'Mostrar senha'}>
                         {mostrarSenhaSecConf ? <EyeOff size={16}/> : <Eye size={16}/>}
                       </button>
                     </div>
@@ -906,16 +906,16 @@ const handleBaixarBackup = async (nome: string) => {
         {/* ── FINANCEIRO ── */}
         {activeSubTab === 'finance' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-slideUp">
-            <div className="bg-[var(--bg-card)] p-8 rounded-3xl border border-[var(--border-color)] shadow-2xl">
-              <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-main)] flex items-center gap-2 mb-4">
-                <DollarSign size={20} className="text-[var(--primary-color)]" /> PIX & Carteira
+            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-2xl">
+              <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2 mb-4">
+                <DollarSign size={20} className="text-emerald-500" /> PIX & Carteira
               </h3>
               <div className="space-y-4">
                 <div>
-                  <label className="text-[10px] font-black text-[var(--text-main)] uppercase mb-1 block">Chaves PIX</label>
+                  <label className="text-[10px] font-black text-slate-700 uppercase mb-1 block">Chaves PIX</label>
                   <div className="flex gap-2">
                     <input
-                      className="flex-1 p-3 bg-[var(--bg-muted)] border border-[var(--border-color)] rounded-xl font-bold text-sm text-[var(--text-main)]"
+                      className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm text-slate-900"
                       value={newPixKey}
                       onChange={e => setNewPixKey(e.target.value)}
                       placeholder="NOVA CHAVE"
@@ -929,14 +929,14 @@ const handleBaixarBackup = async (nome: string) => {
                         updateSettings({ ...settings, pixKeys: [...existentes, chave] });
                         setNewPixKey('');
                       }}
-                      className="bg-[var(--primary-color)] text-white px-4 rounded-xl font-black text-xs"
+                      className="bg-emerald-600 text-white px-4 rounded-xl font-black text-xs"
                     >
                       +
                     </button>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {(settings?.pixKeys || []).map((key: string, idx: number) => (
-                      <div key={idx} className="bg-[var(--primary-color)]/10 text-[var(--primary-color)] px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-2">
+                      <div key={idx} className="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-2">
                         {key}
                         <button onClick={() => updateSettings({ ...settings, pixKeys: settings.pixKeys.filter((_: any, i: any) => i !== idx) })} className="hover:text-red-500">
                           <Trash2 size={12} />
@@ -945,41 +945,41 @@ const handleBaixarBackup = async (nome: string) => {
                     ))}
                   </div>
                 </div>
-                <div className="flex items-center justify-between p-4 bg-[var(--bg-muted)] rounded-xl border border-[var(--border-color)]">
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
                   <div>
-                    <p className="text-xs font-black uppercase text-[var(--text-main)]">Carteira do Interno / Saldo</p>
-                    <p className="text-[10px] text-[var(--text-muted)]">Habilitar carteira e compras via saldo</p>
+                    <p className="text-xs font-black uppercase text-slate-900">Carteira do Interno / Saldo</p>
+                    <p className="text-[10px] text-slate-500">Habilitar carteira e compras via saldo</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" className="sr-only peer" aria-label="Carteira do Interno / Saldo" checked={settings?.allow_balance_purchases !== false} onChange={e => updateSettings({ ...settings, allow_balance_purchases: e.target.checked, enablePrisonerWallet: e.target.checked })} />
-                    <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-[var(--primary-color)] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[var(--bg-card)] after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
+                    <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
                   </label>
                 </div>
-                <div className="flex items-center justify-between p-4 bg-[var(--bg-muted)] rounded-xl border border-[var(--border-color)]">
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
                   <div>
-                    <p className="text-xs font-black uppercase text-[var(--text-main)]">Forçar PIX</p>
-                    <p className="text-[10px] text-[var(--text-muted)]">Exigir pagamento PIX para usuários</p>
+                    <p className="text-xs font-black uppercase text-slate-900">Forçar PIX</p>
+                    <p className="text-[10px] text-slate-500">Exigir pagamento PIX para usuários</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" className="sr-only peer" aria-label="Forçar PIX para todos os usuários" checked={!!settings?.forcePixOnlyUsers} onChange={e => updateSettings({ ...settings, forcePixOnlyUsers: e.target.checked })} />
-                    <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-[var(--primary-color)] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[var(--bg-card)] after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
+                    <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
                   </label>
                 </div>
-                <div className="flex items-center justify-between p-4 bg-[var(--bg-muted)] rounded-xl border border-[var(--border-color)]">
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
                   <div>
-                    <p className="text-xs font-black uppercase text-[var(--text-main)]">Liberar Compras</p>
-                    <p className="text-[10px] text-[var(--text-muted)]">Desligue para exibir a tela de suspensão do catálogo (depósitos PIX continuam liberados)</p>
+                    <p className="text-xs font-black uppercase text-slate-900">Liberar Compras</p>
+                    <p className="text-[10px] text-slate-500">Desligue para exibir a tela de suspensão do catálogo (depósitos PIX continuam liberados)</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" className="sr-only peer" aria-label="Permitir compras" checked={settings?.allow_user_purchases !== false} onChange={e => updateSettings({ ...settings, allow_user_purchases: e.target.checked })} />
-                    <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-[var(--primary-color)] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[var(--bg-card)] after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
+                    <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
                   </label>
                 </div>
-                <div className="p-4 bg-[var(--bg-muted)] rounded-xl border border-[var(--border-color)]">
-                  <p className="text-xs font-black uppercase text-[var(--text-main)] mb-2">Limite de Crédito Semanal (R$)</p>
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <p className="text-xs font-black uppercase text-slate-900 mb-2">Limite de Crédito Semanal (R$)</p>
                   <input
                     type="number"
-                    className="w-full p-3 bg-[var(--bg-card)] border-2 border-slate-400 rounded-xl font-black text-sm text-[var(--text-main)]"
+                    className="w-full p-3 bg-white border-2 border-slate-400 rounded-xl font-black text-sm text-slate-900"
                     value={draftValue('weeklyWalletLimit', settings?.weeklyWalletLimit, 300)}
                     onChange={e => setDraft('weeklyWalletLimit', e.target.value)}
                     onBlur={() => commitDraft('weeklyWalletLimit', { num: true, fallback: 300, min: 0 })}
@@ -989,26 +989,26 @@ const handleBaixarBackup = async (nome: string) => {
               </div>
             </div>
 
-            <div className="bg-[var(--bg-card)] p-8 rounded-3xl border border-[var(--border-color)] shadow-2xl">
-              <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-main)] flex items-center gap-2 mb-4">
+            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-2xl">
+              <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2 mb-4">
                 <Truck size={20} className="text-blue-500" /> Entregas
               </h3>
               <div className="space-y-4">
-                <div className="p-4 bg-[var(--bg-muted)] rounded-xl border border-[var(--border-color)]">
-                  <p className="text-xs font-black uppercase text-[var(--text-main)] mb-2">Prazo de Entrega (dias)</p>
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <p className="text-xs font-black uppercase text-slate-900 mb-2">Prazo de Entrega (dias)</p>
                   <input
                     type="number"
-                    className="w-full p-3 bg-[var(--bg-card)] border-2 border-slate-400 rounded-xl font-black text-sm text-[var(--text-main)]"
+                    className="w-full p-3 bg-white border-2 border-slate-400 rounded-xl font-black text-sm text-slate-900"
                     value={draftValue('deliveryDays', settings?.deliveryDays, 3)}
                     onChange={e => setDraft('deliveryDays', e.target.value)}
                     onBlur={() => commitDraft('deliveryDays', { int: true, fallback: 3, min: 0 })}
                     onKeyDown={commitOnEnter}
                   />
                 </div>
-                <div className="p-4 bg-[var(--bg-muted)] rounded-xl border border-[var(--border-color)]">
-                  <p className="text-xs font-black uppercase text-[var(--text-main)] mb-2">Mensagem Boas-vindas</p>
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <p className="text-xs font-black uppercase text-slate-900 mb-2">Mensagem Boas-vindas</p>
                   <textarea
-                    className="w-full p-3 bg-[var(--bg-card)] border-2 border-slate-400 rounded-xl font-bold text-sm text-[var(--text-main)] h-24"
+                    className="w-full p-3 bg-white border-2 border-slate-400 rounded-xl font-bold text-sm text-slate-900 h-24"
                     value={draftValue('welcomeMessage', settings?.welcomeMessage, '')}
                     onChange={e => setDraft('welcomeMessage', e.target.value)}
                     onBlur={() => commitDraft('welcomeMessage')}
@@ -1023,15 +1023,15 @@ const handleBaixarBackup = async (nome: string) => {
         {/* ── IMPRESSÃO ── */}
         {activeSubTab === 'receipts' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-slideUp">
-            <div className="bg-[var(--bg-card)] p-8 rounded-3xl border border-[var(--border-color)] shadow-2xl">
-              <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-main)] flex items-center gap-2 mb-4">
+            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-2xl">
+              <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2 mb-4">
                 <Printer size={20} className="text-purple-500" /> Personalização de Recibos
               </h3>
               <div className="space-y-4">
                 <div>
-                  <label className="text-[10px] font-black text-[var(--text-main)] uppercase mb-1 block">Nome do Documento</label>
+                  <label className="text-[10px] font-black text-slate-900 uppercase mb-1 block">Nome do Documento</label>
                   <input
-                    className="w-full text-[var(--text-main)] bg-[var(--bg-card)] border border-slate-300 px-4 py-3.5 rounded-xl font-medium focus:border-[var(--primary-color)] focus:ring-1 focus:ring-[var(--primary-color)] outline-none transition-all"
+                    className="w-full text-slate-800 bg-white border border-slate-300 px-4 py-3.5 rounded-xl font-medium focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 outline-none transition-all"
                     value={draftValue('customReceiptDocName', settings?.customReceiptDocName, 'RECIBO')}
                     onChange={e => setDraft('customReceiptDocName', e.target.value)}
                     onBlur={() => commitDraft('customReceiptDocName')}
@@ -1039,46 +1039,46 @@ const handleBaixarBackup = async (nome: string) => {
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-black text-[var(--text-main)] uppercase mb-1 block">Texto de Rodapé do Cupom</label>
+                  <label className="text-[10px] font-black text-slate-900 uppercase mb-1 block">Texto de Rodapé do Cupom</label>
                   <textarea
-                    className="w-full text-[var(--text-main)] bg-[var(--bg-card)] border border-slate-300 px-4 py-3.5 rounded-xl font-medium focus:border-[var(--primary-color)] focus:ring-1 focus:ring-[var(--primary-color)] outline-none transition-all h-24 resize-none"
+                    className="w-full text-slate-800 bg-white border border-slate-300 px-4 py-3.5 rounded-xl font-medium focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 outline-none transition-all h-24 resize-none"
                     value={draftValue('receiptFooter', settings?.receiptFooter, '')}
                     onChange={e => setDraft('receiptFooter', e.target.value)}
                     onBlur={() => commitDraft('receiptFooter')}
                     placeholder="Ex: Obrigado pela preferência!"
                   />
                 </div>
-                <div className="flex items-center justify-between p-4 bg-[var(--bg-muted)] rounded-xl border border-[var(--border-color)]">
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
                   <div>
-                    <p className="text-xs font-black uppercase text-[var(--text-main)]">Imprimir automaticamente</p>
-                    <p className="text-[10px] text-[var(--text-muted)]">Abre janela de impressão após venda</p>
+                    <p className="text-xs font-black uppercase text-slate-900">Imprimir automaticamente</p>
+                    <p className="text-[10px] text-slate-500">Abre janela de impressão após venda</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" className="sr-only peer" checked={!!settings?.autoPrint} onChange={e => updateSettings({ ...settings, autoPrint: e.target.checked })} />
-                    <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-[var(--primary-color)] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[var(--bg-card)] after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
+                    <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
                   </label>
                 </div>
-                <div className="p-4 bg-[var(--bg-muted)] rounded-xl border border-[var(--border-color)]">
-                  <p className="text-xs font-black uppercase text-[var(--text-main)] mb-2">Cópias do Cupom</p>
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <p className="text-xs font-black uppercase text-slate-900 mb-2">Cópias do Cupom</p>
                   <input
                     type="number"
                     min={1}
                     max={9}
-                    className="w-full p-3 bg-[var(--bg-card)] border-2 border-slate-400 rounded-xl font-black text-sm text-[var(--text-main)]"
+                    className="w-full p-3 bg-white border-2 border-slate-400 rounded-xl font-black text-sm text-slate-900"
                     value={draftValue('receiptCopies', settings?.receiptCopies, 1)}
                     onChange={e => setDraft('receiptCopies', e.target.value)}
                     onBlur={() => commitDraft('receiptCopies', { int: true, fallback: 1, min: 1, max: 9 })}
                     onKeyDown={commitOnEnter}
                   />
-                  <p className="text-[10px] text-[var(--text-muted)] mt-1">1 = normal · 2+ para via de conferência</p>
+                  <p className="text-[10px] text-slate-500 mt-1">1 = normal · 2+ para via de conferência</p>
                 </div>
-                <div className="p-4 bg-[var(--bg-muted)] rounded-xl border border-[var(--border-color)]">
-                  <p className="text-xs font-black uppercase text-[var(--text-main)] mb-2">Tamanho da Fonte do Cupom</p>
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <p className="text-xs font-black uppercase text-slate-900 mb-2">Tamanho da Fonte do Cupom</p>
                   <input
                     type="number"
                     min={8}
                     max={14}
-                    className="w-full p-3 bg-[var(--bg-card)] border-2 border-slate-400 rounded-xl font-black text-sm text-[var(--text-main)]"
+                    className="w-full p-3 bg-white border-2 border-slate-400 rounded-xl font-black text-sm text-slate-900"
                     value={draftValue('receiptFontSize', settings?.receiptFontSize, 10)}
                     onChange={e => setDraft('receiptFontSize', e.target.value)}
                     onBlur={() => commitDraft('receiptFontSize', { int: true, fallback: 10, min: 8, max: 14 })}
@@ -1088,35 +1088,35 @@ const handleBaixarBackup = async (nome: string) => {
               </div>
             </div>
 
-            <div className="bg-[var(--bg-card)] p-8 rounded-3xl border border-[var(--border-color)] shadow-2xl">
-              <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-main)] flex items-center gap-2 mb-4">
-                <Printer size={20} className="text-[var(--primary-color)]" /> Bobina Fiscal (QZ Tray / ESC/POS)
+            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-2xl">
+              <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2 mb-4">
+                <Printer size={20} className="text-emerald-500" /> Bobina Fiscal (QZ Tray / ESC/POS)
               </h3>
               <div className="space-y-3">
-                <div className="flex items-center justify-between p-4 bg-[var(--bg-muted)] rounded-xl border border-[var(--border-color)]">
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
                   <div>
-                    <p className="text-xs font-black uppercase text-[var(--text-main)]">Comandos ESC/POS</p>
-                    <p className="text-[10px] text-[var(--text-muted)]">Envia binário padrão de impressora térmica</p>
+                    <p className="text-xs font-black uppercase text-slate-900">Comandos ESC/POS</p>
+                    <p className="text-[10px] text-slate-500">Envia binário padrão de impressora térmica</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" className="sr-only peer" checked={settings?.escposEnabled !== false} onChange={e => updateSettings({ ...settings, escposEnabled: e.target.checked })} />
-                    <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-[var(--primary-color)] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[var(--bg-card)] after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
+                    <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
                   </label>
                 </div>
-                <div className="flex items-center justify-between p-4 bg-[var(--bg-muted)] rounded-xl border border-[var(--border-color)]">
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
                   <div>
-                    <p className="text-xs font-black uppercase text-[var(--text-main)]">Corte automático de papel</p>
-                    <p className="text-[10px] text-[var(--text-muted)]">Corta a bobina ao final do cupom</p>
+                    <p className="text-xs font-black uppercase text-slate-900">Corte automático de papel</p>
+                    <p className="text-[10px] text-slate-500">Corta a bobina ao final do cupom</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" className="sr-only peer" checked={settings?.autoCutPaper !== false} onChange={e => updateSettings({ ...settings, autoCutPaper: e.target.checked })} />
-                    <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-[var(--primary-color)] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[var(--bg-card)] after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
+                    <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
                   </label>
                 </div>
-                <div className="p-4 bg-[var(--bg-muted)] rounded-xl border border-[var(--border-color)]">
-                  <p className="text-xs font-black uppercase text-[var(--text-main)] mb-2">Tipo de Corte</p>
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <p className="text-xs font-black uppercase text-slate-900 mb-2">Tipo de Corte</p>
                   <select
-                    className="w-full p-3 bg-[var(--bg-card)] border-2 border-slate-400 rounded-xl font-black text-sm text-[var(--text-main)]"
+                    className="w-full p-3 bg-white border-2 border-slate-400 rounded-xl font-black text-sm text-slate-900"
                     value={settings?.cutMode === 'full' ? 'full' : 'partial'}
                     onChange={e => updateSettings({ ...settings, cutMode: e.target.value })}
                   >
@@ -1124,20 +1124,20 @@ const handleBaixarBackup = async (nome: string) => {
                     <option value="full">Total (corta de ponta a ponta)</option>
                   </select>
                 </div>
-                <div className="flex items-center justify-between p-4 bg-[var(--bg-muted)] rounded-xl border border-[var(--border-color)]">
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
                   <div>
-                    <p className="text-xs font-black uppercase text-[var(--text-main)]">Abrir gaveta de dinheiro</p>
-                    <p className="text-[10px] text-[var(--text-muted)]">Impulso na gaveta ao imprimir (se houver)</p>
+                    <p className="text-xs font-black uppercase text-slate-900">Abrir gaveta de dinheiro</p>
+                    <p className="text-[10px] text-slate-500">Impulso na gaveta ao imprimir (se houver)</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" className="sr-only peer" checked={!!settings?.drawerKick} onChange={e => updateSettings({ ...settings, drawerKick: e.target.checked })} />
-                    <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-[var(--primary-color)] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[var(--bg-card)] after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
+                    <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
                   </label>
                 </div>
-                <div className="p-4 bg-[var(--bg-muted)] rounded-xl border border-[var(--border-color)]">
-                  <p className="text-xs font-black uppercase text-[var(--text-main)] mb-2">Densidade de Impressão (QZ)</p>
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <p className="text-xs font-black uppercase text-slate-900 mb-2">Densidade de Impressão (QZ)</p>
                   <select
-                    className="w-full p-3 bg-[var(--bg-card)] border-2 border-slate-400 rounded-xl font-black text-sm text-[var(--text-main)]"
+                    className="w-full p-3 bg-white border-2 border-slate-400 rounded-xl font-black text-sm text-slate-900"
                     value={settings?.qzDotDensity || 6}
                     onChange={e => updateSettings({ ...settings, qzDotDensity: parseInt(e.target.value) })}
                   >
@@ -1146,10 +1146,10 @@ const handleBaixarBackup = async (nome: string) => {
                     <option value={8}>8 — Escura</option>
                   </select>
                 </div>
-                <div className="p-4 bg-[var(--bg-muted)] rounded-xl border border-[var(--border-color)]">
-                  <p className="text-xs font-black uppercase text-[var(--text-main)] mb-2">Codepage (Acentuação)</p>
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <p className="text-xs font-black uppercase text-slate-900 mb-2">Codepage (Acentuação)</p>
                   <select
-                    className="w-full p-3 bg-[var(--bg-card)] border-2 border-slate-400 rounded-xl font-black text-sm text-[var(--text-main)]"
+                    className="w-full p-3 bg-white border-2 border-slate-400 rounded-xl font-black text-sm text-slate-900"
                     value={settings?.codepage || '850'}
                     onChange={e => updateSettings({ ...settings, codepage: e.target.value })}
                   >
@@ -1157,7 +1157,7 @@ const handleBaixarBackup = async (nome: string) => {
                     <option value="860">PC860 — Português</option>
                     <option value="utf8">UTF-8 (impressoras modernas)</option>
                   </select>
-                  <p className="text-[10px] text-[var(--text-muted)] mt-1">Evita acentos corrompidos (ï¿½) na bobina</p>
+                  <p className="text-[10px] text-slate-500 mt-1">Evita acentos corrompidos (ï¿½) na bobina</p>
                 </div>
               </div>
             </div>
@@ -1177,14 +1177,14 @@ const handleBaixarBackup = async (nome: string) => {
                     checked={settings?.fiscalEmission === true}
                     onChange={e => updateSettings({ ...settings, fiscalEmission: e.target.checked })}
                   />
-                  <div className="w-11 h-6 bg-slate-600 rounded-full peer peer-checked:bg-amber-500 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[var(--bg-card)] after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
+                  <div className="w-11 h-6 bg-slate-600 rounded-full peer peer-checked:bg-amber-500 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
                 </label>
               </div>
               <div className={`space-y-4 ${settings?.fiscalEmission === true ? '' : 'opacity-40 pointer-events-none'}`}>
                 <div>
                   <label className="text-[10px] font-black uppercase text-white/60 mb-1 block">Modelo Fiscal</label>
                   <select
-                    className="w-full p-3 bg-[var(--bg-card)]/10 border border-white/20 rounded-xl font-black text-sm text-white"
+                    className="w-full p-3 bg-white/10 border border-white/20 rounded-xl font-black text-sm text-white"
                     value={settings?.fiscalModel || 'NF-E'}
                     onChange={e => updateSettings({ ...settings, fiscalModel: e.target.value })}
                   >
@@ -1199,7 +1199,7 @@ const handleBaixarBackup = async (nome: string) => {
                     <input
                       type="text"
                       inputMode="numeric"
-                      className="w-full p-3 bg-[var(--bg-card)]/10 border border-white/20 rounded-xl font-bold text-sm text-white"
+                      className="w-full p-3 bg-white/10 border border-white/20 rounded-xl font-bold text-sm text-white"
                       value={settings?.fiscalNumber || ''}
                       onChange={e => updateSettings({ ...settings, fiscalNumber: e.target.value.replace(/\D/g, '').slice(0, 9) })}
                       placeholder="000001"
@@ -1209,14 +1209,14 @@ const handleBaixarBackup = async (nome: string) => {
                     <label className="text-[10px] font-black uppercase text-white/60 mb-1 block">Série</label>
                     <input
                       type="text"
-                      className="w-full p-3 bg-[var(--bg-card)]/10 border border-white/20 rounded-xl font-bold text-sm text-white uppercase"
+                      className="w-full p-3 bg-white/10 border border-white/20 rounded-xl font-bold text-sm text-white uppercase"
                       value={settings?.fiscalSeries || ''}
                       onChange={e => updateSettings({ ...settings, fiscalSeries: e.target.value.toUpperCase().slice(0, 3) })}
                       placeholder="A1"
                     />
                   </div>
                 </div>
-                <div className="p-4 bg-[var(--bg-card)]/5 rounded-xl border border-white/10">
+                <div className="p-4 bg-white/5 rounded-xl border border-white/10">
                   <p className="text-[10px] font-black uppercase text-white/50 leading-relaxed">
                     Quando ativado, o cupom térmico passa a exibir o cabeçalho fiscal (modelo, número e série).
                     Este sistema não emite documentos fiscais oficiais — o valor fiscal é emitido pela
@@ -1231,10 +1231,10 @@ const handleBaixarBackup = async (nome: string) => {
         {/* ── APARÊNCIA ── */}
         {activeSubTab === 'appearance' && (
           <div className="animate-slideUp">
-            <div className="bg-[var(--bg-card)] p-8 rounded-3xl border border-[var(--border-color)] shadow-xl space-y-6">
+            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl space-y-6">
               {/* ── MODO ESCURO ── */}
               <div>
-                <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-main)] flex items-center gap-2 mb-4">
+                <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 flex items-center gap-2 mb-4">
                   <Moon size={20} className="text-indigo-600" /> Modo de Exibição
                 </h3>
                 <div className="grid grid-cols-3 gap-3">
@@ -1248,83 +1248,74 @@ const handleBaixarBackup = async (nome: string) => {
                       onClick={() => setThemeMode(m.id)}
                       className={`p-4 rounded-2xl border-4 transition-all flex flex-col items-center gap-1.5 ${
                         themeMode === m.id
-                          ? 'border-[var(--primary-color)] bg-[var(--primary-color)]/10'
-                          : 'border-transparent bg-[var(--bg-muted)] hover:border-slate-300'
+                          ? 'border-indigo-600 bg-indigo-50'
+                          : 'border-transparent bg-slate-50 hover:border-slate-300'
                       }`}
                     >
                       <span className="text-2xl">{m.icon}</span>
-                      <span className="text-[11px] font-black uppercase text-[var(--text-main)]">{m.label}</span>
-                      <span className="text-[9px] font-bold text-[var(--text-muted)]">{m.desc}</span>
+                      <span className="text-[11px] font-black uppercase text-slate-700">{m.label}</span>
+                      <span className="text-[9px] font-bold text-slate-400">{m.desc}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
-              <div className="border-t border-[var(--border-color)] pt-6">
-              <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-main)] flex items-center gap-2 mb-1">
-                <Palette size={20} className="text-pink-600" /> Visual do Sistema
+              <div className="border-t border-slate-200 pt-6">
+              <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 flex items-center gap-2 mb-4">
+                <Palette size={20} className="text-pink-600" /> Cor do Tema
               </h3>
-              <p className="text-xs text-[var(--text-muted)] mb-4">
-                Cada visual define cor de destaque e superfícies nos modos claro e escuro. Aplicado a todos os usuários.
-              </p>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {VISUAIS_NO_SELETOR.map((id) => {
-                  const t = VISUAL_PRESETS[id];
-                  const ativo = settings?.theme === t.id;
-                  return (
+                {[
+                  { id: ThemeOption.POLICE_MT, label: 'Polícia Penal', colors: 'bg-slate-900', hex: '#0f172a' },
+                  { id: ThemeOption.MODERN_GREEN, label: 'Modern Green', colors: 'bg-emerald-600', hex: '#064e3b' },
+                  { id: ThemeOption.PROFESSIONAL_BLUE, label: 'Prof. Blue', colors: 'bg-blue-600', hex: '#1d4ed8' },
+                  { id: ThemeOption.ELEGANT_PURPLE, label: 'Elegant Purple', colors: 'bg-purple-600', hex: '#7c3aed' },
+                  { id: ThemeOption.CYBER_DARK, label: 'Cyber Dark', colors: 'bg-black', hex: '#000000' },
+                  { id: ThemeOption.VIBRANT_ORANGE, label: 'Vibrant Orange', colors: 'bg-orange-600', hex: '#ea580c' }
+                ].map(t => (
                   <button
                     key={t.id}
-                    onClick={() => updateSettings({ ...settings, theme: t.id, primaryColor: t.primaryLight })}
-                    className={`p-3 rounded-2xl border-4 transition-all flex flex-col items-center gap-2 ${ativo ? 'bg-[var(--bg-muted)]' : 'border-transparent bg-[var(--bg-muted)] hover:border-slate-300'}`}
-                    style={ativo ? { borderColor: t.primaryLight } : undefined}
+                    onClick={() => updateSettings({ ...settings, theme: t.id, primaryColor: t.hex })}
+                    className={`p-5 rounded-2xl border-4 transition-all flex flex-col items-center gap-2 ${settings?.theme === t.id ? 'border-slate-800 bg-slate-100' : 'border-transparent bg-slate-50 hover:border-slate-300'}`}
                   >
-                    <div className="flex w-full h-11 rounded-lg overflow-hidden border border-[var(--border-color)]">
-                      <div className="flex-1 flex items-center justify-center" style={{ background: t.light.bgMain }}>
-                        <span className="size-3.5 rounded-full" style={{ background: t.primaryLight }} />
-                      </div>
-                      <div className="flex-1 flex items-center justify-center" style={{ background: t.dark.bgMain }}>
-                        <span className="size-3.5 rounded-full" style={{ background: t.primaryDark }} />
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-bold uppercase text-[var(--text-main)]">{t.label}</span>
-                    <span className="text-[9px] font-semibold text-[var(--text-muted)] text-center leading-tight">{t.desc}</span>
-                    {ativo && <Check size={16} className="text-[var(--text-main)]" />}
+                    <div className={`w-10 h-10 rounded-full ${t.colors}`} />
+                    <span className="text-[10px] font-bold uppercase text-slate-700">{t.label}</span>
+                    {settings?.theme === t.id && <Check size={16} className="text-slate-800" />}
                   </button>
-                  );
-                })}
+                ))}
               </div>
               </div>
 
-              <div className="pt-6 mt-6 border-t border-[var(--border-color)]">
-                <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-main)] flex items-center gap-2 mb-4">
+              <div className="pt-6 mt-6 border-t border-slate-200">
+                <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 flex items-center gap-2 mb-4">
                   <Smartphone size={20} className="text-indigo-600" /> Layout do PDV
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
                   <button
                     onClick={() => updateSettings({ ...settings, pdvLayout: 'IMAGE_1_DEFAULT' })}
-                    className={`p-6 rounded-2xl border-4 transition-all flex flex-col items-center gap-3 ${(!settings?.pdvLayout || settings?.pdvLayout === 'IMAGE_1_DEFAULT') ? 'border-slate-800 bg-[var(--bg-muted)]' : 'border-[var(--border-color)] bg-[var(--bg-muted)]'}`}
+                    className={`p-6 rounded-2xl border-4 transition-all flex flex-col items-center gap-3 ${(!settings?.pdvLayout || settings?.pdvLayout === 'IMAGE_1_DEFAULT') ? 'border-slate-800 bg-slate-100' : 'border-slate-200 bg-slate-50'}`}
                   >
-                    <div className="w-12 h-12 rounded-xl bg-[var(--primary-color)] flex items-center justify-center text-white">
+                    <div className="w-12 h-12 rounded-xl bg-emerald-600 flex items-center justify-center text-white">
                       <ShoppingBag size={24} />
                     </div>
-                    <span className="text-sm font-black text-[var(--text-main)]">Padrão Moderno</span>
-                    <p className="text-xs text-[var(--text-muted)]">Visual com imagens grandes</p>
+                    <span className="text-sm font-black text-slate-800">Padrão Moderno</span>
+                    <p className="text-xs text-slate-500">Visual com imagens grandes</p>
                   </button>
                   <button
                     onClick={() => updateSettings({ ...settings, pdvLayout: 'CLASSIC' })}
-                    className={`p-6 rounded-2xl border-4 transition-all flex flex-col items-center gap-3 ${settings?.pdvLayout === 'CLASSIC' ? 'border-slate-800 bg-[var(--bg-muted)]' : 'border-[var(--border-color)] bg-[var(--bg-muted)]'}`}
+                    className={`p-6 rounded-2xl border-4 transition-all flex flex-col items-center gap-3 ${settings?.pdvLayout === 'CLASSIC' ? 'border-slate-800 bg-slate-100' : 'border-slate-200 bg-slate-50'}`}
                   >
                     <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center text-white">
                       <Search size={24} />
                     </div>
-                    <span className="text-sm font-black text-[var(--text-main)]">Expandido/ERP</span>
-                    <p className="text-xs text-[var(--text-muted)]">Busca avançada de clientes</p>
+                    <span className="text-sm font-black text-slate-800">Expandido/ERP</span>
+                    <p className="text-xs text-slate-500">Busca avançada de clientes</p>
                   </button>
                 </div>
               </div>
 
-              <div className="pt-6 mt-6 border-t border-[var(--border-color)]">
-                <p className="text-xs font-bold text-[var(--text-main)] mb-3">Cor principal do PDV</p>
+              <div className="pt-6 mt-6 border-t border-slate-200">
+                <p className="text-xs font-bold text-slate-800 mb-3">Cor principal do PDV</p>
                 <div className="flex gap-2 flex-wrap">
                   {[
                     { hex: '#064e3b', name: 'Verde' }, { hex: '#0f172a', name: 'Azul' },
@@ -1355,20 +1346,20 @@ const handleBaixarBackup = async (nome: string) => {
         {/* ── ATUALIZAÇÃO ── */}
         {activeSubTab === 'updates' && (
           <div className="animate-slideUp">
-            <div className="bg-[var(--bg-card)] p-8 rounded-3xl border border-[var(--border-color)] shadow-2xl space-y-6">
-              <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-main)] flex items-center gap-2 mb-4">
+            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-2xl space-y-6">
+              <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2 mb-4">
                 <Zap size={20} className="text-yellow-500" /> Portabilidade & Atualização
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <button onClick={handleDownloadSource} className="p-6 border-2 border-[var(--border-color)] bg-[var(--bg-muted)] rounded-2xl flex flex-col items-center gap-3 hover:bg-[var(--bg-muted)] transition-all">
+                <button onClick={handleDownloadSource} className="p-6 border-2 border-slate-200 bg-slate-50 rounded-2xl flex flex-col items-center gap-3 hover:bg-slate-100 transition-all">
                   <div className="bg-slate-900 text-white p-3 rounded-xl"><Download size={24} /></div>
                   <span className="text-[10px] font-black uppercase">Download Fonte</span>
-                  <p className="text-[9px] text-[var(--text-muted)] text-center">Código para rodar offline</p>
+                  <p className="text-[9px] text-slate-400 text-center">Código para rodar offline</p>
                 </button>
-                <button onClick={handleBuildExe} className="p-6 border-2 border-indigo-100 bg-[var(--primary-color)]/10/50 rounded-2xl flex flex-col items-center gap-3 hover:bg-indigo-100 transition-all">
+                <button onClick={handleBuildExe} className="p-6 border-2 border-indigo-100 bg-indigo-50/50 rounded-2xl flex flex-col items-center gap-3 hover:bg-indigo-100 transition-all">
                   <div className="bg-indigo-600 text-white p-3 rounded-xl"><HardDrive size={24} /></div>
                   <span className="text-[10px] font-black uppercase">Build EXE</span>
-                  <p className="text-[9px] text-[var(--text-muted)] text-center">Gerar executável Windows</p>
+                  <p className="text-[9px] text-slate-400 text-center">Gerar executável Windows</p>
                 </button>
               </div>
               <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
@@ -1382,17 +1373,17 @@ const handleBaixarBackup = async (nome: string) => {
 
         {/* ── MANUTENÇÃO ── */}
         {activeSubTab === 'backup' && (
-          <div className="bg-[var(--bg-card)] p-8 rounded-3xl border border-[var(--border-color)] shadow-2xl space-y-6 animate-slideUp">
+          <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-2xl space-y-6 animate-slideUp">
             <div className="flex flex-wrap items-center justify-between gap-4">
-              <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-main)] flex items-center gap-2">
+              <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
                 <Database size={20} className="text-blue-600" /> Backup na Nuvem
               </h3>
-              <span className="text-[9px] font-black uppercase tracking-wider text-[var(--text-muted)] bg-[var(--bg-muted)] px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+              <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 bg-slate-100 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
                 <CloudUpload size={12} /> Diário automático às 03:15
               </span>
             </div>
 
-            <p className="text-[11px] font-semibold text-[var(--text-muted)] leading-relaxed">
+            <p className="text-[11px] font-semibold text-slate-500 leading-relaxed">
               Cópia completa do banco de dados (usuários, pedidos, carteira, estoque, fiado, caixa e auditoria)
               salva no Google Cloud Storage. O sistema faz isso sozinho todos os dias; aqui você pode
               disparar manualmente, baixar e restaurar.
@@ -1410,52 +1401,52 @@ const handleBaixarBackup = async (nome: string) => {
               <button
                 onClick={refreshBackupsNuvem}
                 disabled={backupsLoading}
-                className="inline-flex items-center gap-2 px-4 py-3.5 bg-[var(--bg-card)] border-2 border-[var(--border-color)] text-[var(--text-muted)] hover:border-slate-300 rounded-2xl font-black text-xs uppercase tracking-widest transition-all"
+                className="inline-flex items-center gap-2 px-4 py-3.5 bg-white border-2 border-slate-200 text-slate-600 hover:border-slate-300 rounded-2xl font-black text-xs uppercase tracking-widest transition-all"
               >
                 <RefreshCw size={14} className={backupsLoading ? 'animate-spin' : ''} /> Atualizar lista
               </button>
             </div>
 
             {/* Último backup */}
-            <div className="bg-[var(--bg-muted)] border border-[var(--border-color)] rounded-2xl p-4 flex flex-wrap items-center gap-x-6 gap-y-2">
-              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Último backup</span>
+            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-wrap items-center gap-x-6 gap-y-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Último backup</span>
               {backupsNuvem.length > 0 ? (
                 <>
-                  <span className="text-xs font-black text-[var(--text-main)]">{backupsNuvem[0].nome.replace('backups/', '')}</span>
-                  <span className="text-xs font-bold text-[var(--text-muted)]">
+                  <span className="text-xs font-black text-slate-800">{backupsNuvem[0].nome.replace('backups/', '')}</span>
+                  <span className="text-xs font-bold text-slate-500">
                     {backupsNuvem[0].atualizadoEm ? toDate(backupsNuvem[0].atualizadoEm)?.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) || '' : ''}
                   </span>
                   <span className="text-xs font-bold text-blue-600">{((backupsNuvem[0].tamanho || 0) / 1024 / 1024).toFixed(2)} MB</span>
                 </>
               ) : (
-                <span className="text-xs font-bold text-[var(--text-muted)]">Nenhum backup encontrado ainda (o primeiro diário será gerado às 03:15).</span>
+                <span className="text-xs font-bold text-slate-400">Nenhum backup encontrado ainda (o primeiro diário será gerado às 03:15).</span>
               )}
             </div>
 
             {/* Lista */}
             <div>
-              <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-main)] mb-3">
+              <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-900 mb-3">
                 Backups disponíveis ({backupsNuvem.length})
               </h4>
               {backupsLoading ? (
                 <div className="flex items-center justify-center py-8">
-                  <Loader2 size={22} className="animate-spin text-[var(--text-muted)]" />
+                  <Loader2 size={22} className="animate-spin text-slate-300" />
                 </div>
               ) : backupsNuvem.length === 0 ? (
-                <p className="text-xs font-semibold text-[var(--text-muted)] text-center py-6 bg-[var(--bg-muted)] rounded-2xl">
+                <p className="text-xs font-semibold text-slate-400 text-center py-6 bg-slate-50 rounded-2xl">
                   Nenhum backup disponível.
                 </p>
               ) : (
                 <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
                   {backupsNuvem.map((b) => (
-                    <div key={b.nome} className="flex items-center justify-between gap-3 bg-[var(--bg-muted)] border border-[var(--border-color)] rounded-2xl p-3.5 hover:border-blue-200 transition-all">
+                    <div key={b.nome} className="flex items-center justify-between gap-3 bg-slate-50 border border-slate-100 rounded-2xl p-3.5 hover:border-blue-200 transition-all">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
                           <FileJson size={16} className="text-blue-600" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[11px] font-black text-[var(--text-main)] truncate">{b.nome.replace('backups/', '')}</p>
-                          <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-wider">
+                          <p className="text-[11px] font-black text-slate-800 truncate">{b.nome.replace('backups/', '')}</p>
+                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
                             {b.atualizadoEm ? toDate(b.atualizadoEm)?.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) || '' : ''} • {((b.tamanho || 0) / 1024 / 1024).toFixed(2)} MB
                           </p>
                         </div>
@@ -1463,7 +1454,7 @@ const handleBaixarBackup = async (nome: string) => {
                       <div className="flex items-center gap-2 shrink-0">
                         <button
                           onClick={() => handleBaixarBackup(b.nome)}
-                          className="p-2.5 bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-blue-600 hover:border-blue-200 rounded-xl transition-all"
+                          className="p-2.5 bg-white border border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-200 rounded-xl transition-all"
                           title="Baixar backup"
                         >
                           <Download size={14} />
@@ -1489,13 +1480,13 @@ const handleBaixarBackup = async (nome: string) => {
         {activeSubTab === 'maintenance' && (
           <>
           {/* ── CONTROLE DO SISTEMA (modo manutenção) ── */}
-          <div className="bg-[var(--bg-card)] p-8 rounded-3xl border border-[var(--border-color)] shadow-2xl space-y-6 animate-slideUp">
+          <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-2xl space-y-6 animate-slideUp">
             <div className="flex flex-wrap items-center justify-between gap-4">
-              <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-main)] flex items-center gap-2">
-                <Power size={20} className={inativo ? 'text-red-500' : 'text-[var(--primary-color)]'} /> Controle do Sistema
+              <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
+                <Power size={20} className={inativo ? 'text-red-500' : 'text-emerald-600'} /> Controle do Sistema
               </h3>
               {maintenanceLoading ? (
-                <span className="text-[9px] font-black uppercase tracking-wider text-[var(--text-muted)] bg-[var(--bg-muted)] px-3 py-1.5 rounded-lg">
+                <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 bg-slate-100 px-3 py-1.5 rounded-lg">
                   Verificando...
                 </span>
               ) : inativo ? (
@@ -1503,7 +1494,7 @@ const handleBaixarBackup = async (nome: string) => {
                   <AlertTriangle size={12} /> SISTEMA DESATIVADO
                 </span>
               ) : (
-                <span className="text-[9px] font-black uppercase tracking-wider text-[var(--primary-color)] bg-[var(--primary-color)]/10 border border-[var(--primary-color)]/40 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                <span className="text-[9px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
                   <Check size={12} /> SISTEMA ATIVO
                 </span>
               )}
@@ -1517,11 +1508,11 @@ const handleBaixarBackup = async (nome: string) => {
                     ? ` em ${toDate(maintenanceState.desativadoEm)?.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) || ''}`
                     : ''}
                 </p>
-                <p className="text-xs font-bold text-[var(--text-muted)]">
+                <p className="text-xs font-bold text-slate-600">
                   Por: {maintenanceState?.desativadoPorNome || 'Administrador'}
                 </p>
                 {maintenanceState?.motivo && (
-                  <p className="text-xs text-[var(--text-muted)] leading-relaxed bg-[var(--bg-card)] border border-red-100 rounded-xl p-3">
+                  <p className="text-xs text-slate-500 leading-relaxed bg-white border border-red-100 rounded-xl p-3">
                     <span className="font-black text-red-700 uppercase text-[10px] block mb-1">Motivo</span>
                     {maintenanceState.motivo}
                   </p>
@@ -1529,9 +1520,9 @@ const handleBaixarBackup = async (nome: string) => {
               </div>
             )}
 
-            <p className="text-[11px] font-semibold text-[var(--text-muted)] leading-relaxed">
+            <p className="text-[11px] font-semibold text-slate-500 leading-relaxed">
               Desative o acesso do painel administrativo (ex.: feriado, manutenção).{' '}
-              <span className="font-black text-[var(--text-main)]">
+              <span className="font-black text-slate-700">
                 Somente você (ou o master) continua com acesso e pode reativar.
               </span>{' '}
               Clientes e vendas continuam funcionando normalmente.
@@ -1547,18 +1538,18 @@ const handleBaixarBackup = async (nome: string) => {
                     showNotification?.('Erro ao reativar o sistema.', 'error');
                   }
                 }, 'maintenance')}
-                className="inline-flex items-center gap-2 px-6 py-3.5 bg-[var(--primary-color)] hover:brightness-110 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-black/30 transition-all"
+                className="inline-flex items-center gap-2 px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-emerald-500/30 transition-all"
               >
                 <Power size={15} /> Reativar sistema
               </button>
             ) : (
               <div className="space-y-3">
                 <div>
-                  <label className="text-[10px] font-black text-[var(--text-main)] uppercase mb-1 block">
+                  <label className="text-[10px] font-black text-slate-900 uppercase mb-1 block">
                     Motivo (opcional)
                   </label>
                   <input
-                    className="w-full p-4 bg-[var(--bg-muted)] border-2 border-[var(--border-color)] focus:border-red-400 rounded-2xl font-bold text-sm text-[var(--text-main)] outline-none transition-all"
+                    className="w-full p-4 bg-slate-50 border-2 border-slate-200 focus:border-red-400 rounded-2xl font-bold text-sm text-slate-900 outline-none transition-all"
                     value={maintenanceMotivo}
                     onChange={e => setMaintenanceMotivo(e.target.value)}
                     placeholder="Ex: Sistema indisponível no feriado"
@@ -1594,7 +1585,7 @@ const handleBaixarBackup = async (nome: string) => {
                     </button>
                     <button
                       onClick={() => setMaintenanceConfirming(false)}
-                      className="px-5 py-2.5 bg-[var(--bg-card)] border-2 border-[var(--border-color)] hover:bg-[var(--bg-muted)] text-[var(--text-main)] rounded-xl font-black text-xs uppercase tracking-widest"
+                      className="px-5 py-2.5 bg-white border-2 border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl font-black text-xs uppercase tracking-widest"
                     >
                       Cancelar
                     </button>
@@ -1605,22 +1596,22 @@ const handleBaixarBackup = async (nome: string) => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-slideUp">
-            <div className="bg-[var(--bg-card)] p-8 rounded-3xl border border-[var(--border-color)] shadow-2xl col-span-1 lg:col-span-2 space-y-6">
-              <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-main)] flex items-center gap-2 mb-4">
+            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-2xl col-span-1 lg:col-span-2 space-y-6">
+              <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2 mb-4">
                 <Database size={20} className="text-indigo-600" /> Manutenção do Sistema
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* AVISO DE MANUTENÇÃO PREVENTIVA — verde em dia, âmbar quando passa de 30 dias */}
-              <div className={`mb-4 p-4 rounded-2xl border-2 flex flex-wrap items-center justify-between gap-3 ${manutencaoAtrasada ? 'bg-amber-50 border-amber-300' : 'bg-[var(--primary-color)]/10 border-[var(--primary-color)]/40'}`}>
+              <div className={`mb-4 p-4 rounded-2xl border-2 flex flex-wrap items-center justify-between gap-3 ${manutencaoAtrasada ? 'bg-amber-50 border-amber-300' : 'bg-emerald-50 border-emerald-200'}`}>
                 <div className="flex items-center gap-3">
-                  <div className={`p-2.5 rounded-xl text-white ${manutencaoAtrasada ? 'bg-amber-500' : 'bg-[var(--primary-color)]'}`}>
+                  <div className={`p-2.5 rounded-xl text-white ${manutencaoAtrasada ? 'bg-amber-500' : 'bg-emerald-600'}`}>
                     {manutencaoAtrasada ? <AlertTriangle size={20} /> : <Check size={20} />}
                   </div>
                   <div>
-                    <p className="text-xs font-black uppercase tracking-wide text-[var(--text-main)]">
+                    <p className="text-xs font-black uppercase tracking-wide text-slate-800">
                       {manutencaoAtrasada ? '⚠ Manutenção recomendada' : '✓ Sistema em dia'}
                     </p>
-                    <p className="text-[10px] font-bold text-[var(--text-muted)]">
+                    <p className="text-[10px] font-bold text-slate-500">
                       {diasDesdeManutencao === null
                         ? 'Nenhuma manutenção registrada. Rode "verificar-saude.bat" no computador.'
                         : `Última manutenção há ${diasDesdeManutencao} dia(s). Recomendado a cada 30 dias.`}
@@ -1637,29 +1628,29 @@ const handleBaixarBackup = async (nome: string) => {
                   Registrar manutenção feita
                 </button>
               </div>
-                <button onClick={backupSystem} className="p-6 border-2 border-indigo-50 bg-[var(--primary-color)]/10/50 rounded-2xl flex flex-col items-center gap-3 hover:bg-indigo-100 transition-all">
+                <button onClick={backupSystem} className="p-6 border-2 border-indigo-50 bg-indigo-50/50 rounded-2xl flex flex-col items-center gap-3 hover:bg-indigo-100 transition-all">
                   <div className="bg-indigo-600 text-white p-3 rounded-xl"><HardDrive size={24} /></div>
                   <span className="text-[10px] font-black uppercase">Backup JSON</span>
                 </button>
                 <button onClick={() => handleProtectedAction(clearOldData)} className="p-6 border-2 border-slate-900 bg-slate-900 text-white rounded-2xl flex flex-col items-center gap-3 hover:bg-black transition-all">
-                  <div className="bg-[var(--bg-card)] text-[var(--text-main)] p-3 rounded-xl"><Download size={24} /></div>
+                  <div className="bg-white text-slate-900 p-3 rounded-xl"><Download size={24} /></div>
                   <span className="text-[10px] font-black uppercase">Arquivar e Limpar</span>
                 </button>
                 {!renovarConfirming ? (
-                  <button onClick={() => setRenovarConfirming(true)} className="p-6 border-2 border-[var(--primary-color)]/30 bg-[var(--primary-color)]/10/50 rounded-2xl flex flex-col items-center gap-3 hover:bg-[var(--primary-color)]/10 transition-all">
-                    <div className="bg-[var(--primary-color)] text-white p-3 rounded-xl"><RefreshCw size={24} /></div>
+                  <button onClick={() => setRenovarConfirming(true)} className="p-6 border-2 border-emerald-50 bg-emerald-50/50 rounded-2xl flex flex-col items-center gap-3 hover:bg-emerald-100 transition-all">
+                    <div className="bg-emerald-600 text-white p-3 rounded-xl"><RefreshCw size={24} /></div>
                     <span className="text-[10px] font-black uppercase">Renovar Sistema</span>
                   </button>
                 ) : (
-                  <div className="p-4 border-2 border-[var(--primary-color)] rounded-2xl bg-[var(--primary-color)]/10/50 col-span-1 sm:col-span-2 flex flex-wrap items-center justify-between gap-3">
+                  <div className="p-4 border-2 border-emerald-300 rounded-2xl bg-emerald-50/50 col-span-1 sm:col-span-2 flex flex-wrap items-center justify-between gap-3">
                     <p className="text-xs font-black text-emerald-900 flex items-center gap-2 min-w-[200px]">
                       <RefreshCw size={16}/> Confirmar renovação? Nenhum dado é apagado — o app recarrega em seguida.
                     </p>
                     <div className="flex gap-2">
-                      <button onClick={handleRenovarSistema} className="px-4 py-2.5 bg-[var(--primary-color)] hover:brightness-110 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95">
+                      <button onClick={handleRenovarSistema} className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95">
                         Sim, renovar
                       </button>
-                      <button onClick={() => setRenovarConfirming(false)} className="px-4 py-2.5 bg-[var(--bg-card)] border-2 border-[var(--border-color)] hover:bg-[var(--bg-muted)] text-[var(--text-main)] rounded-xl font-black text-[10px] uppercase tracking-widest transition-all">
+                      <button onClick={() => setRenovarConfirming(false)} className="px-4 py-2.5 bg-white border-2 border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all">
                         Cancelar
                       </button>
                     </div>
@@ -1691,36 +1682,36 @@ const handleBaixarBackup = async (nome: string) => {
               <div className="bg-slate-900 p-8 rounded-3xl text-white">
                 <h4 className="text-lg font-bold mb-2">Portabilidade</h4>
                 <p className="text-xs text-white/50 mb-4">Baixe o código para rodar offline.</p>
-                <button onClick={handleDownloadSource} className="w-full bg-[var(--bg-card)] text-[var(--text-main)] p-3 rounded-xl font-black text-xs uppercase mb-2">Download Fonte</button>
-                <button onClick={handleBuildExe} className="w-full bg-[var(--bg-card)]/10 text-white p-3 rounded-xl font-black text-xs uppercase">Build EXE</button>
+                <button onClick={handleDownloadSource} className="w-full bg-white text-slate-900 p-3 rounded-xl font-black text-xs uppercase mb-2">Download Fonte</button>
+                <button onClick={handleBuildExe} className="w-full bg-white/10 text-white p-3 rounded-xl font-black text-xs uppercase">Build EXE</button>
               </div>
-              <div className="bg-[var(--bg-card)] p-8 rounded-3xl border border-[var(--border-color)] shadow-2xl">
-                <h4 className="text-sm font-black uppercase tracking-widest text-[var(--text-main)] flex items-center gap-2 mb-4">
-                  <Users size={20} className="text-[var(--primary-color)]" /> Equipe de Suporte
+              <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-2xl">
+                <h4 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2 mb-4">
+                  <Users size={20} className="text-emerald-600" /> Equipe de Suporte
                 </h4>
                 <div className="space-y-4">
                   <div>
-                    <label className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-1 block">NOME DO DESENVOLVEDOR</label>
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1 block">NOME DO DESENVOLVEDOR</label>
                     <input
-                      className="w-full p-3 bg-[var(--bg-muted)] border-2 border-[var(--border-color)] focus:border-[var(--primary-color)]/300 rounded-2xl font-bold text-sm text-[var(--text-main)] outline-none transition-all"
+                      className="w-full p-3 bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 rounded-2xl font-bold text-sm text-slate-900 outline-none transition-all"
                       value={localSettings?.dev_name || localSettings?.developerName || ''}
                       onChange={e => setLocalSettings({ ...localSettings, dev_name: e.target.value, developerName: e.target.value })}
                       placeholder="Ex: Edevaldo de Lima Almeida"
                     />
                   </div>
                   <div>
-                    <label className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-1 block">E-MAIL DE SUPORTE</label>
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1 block">E-MAIL DE SUPORTE</label>
                     <input
-                      className="w-full p-3 bg-[var(--bg-muted)] border-2 border-[var(--border-color)] focus:border-[var(--primary-color)]/300 rounded-2xl font-bold text-sm text-[var(--text-main)] outline-none transition-all"
+                      className="w-full p-3 bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 rounded-2xl font-bold text-sm text-slate-900 outline-none transition-all"
                       value={localSettings?.dev_email || localSettings?.developerEmail || ''}
                       onChange={e => setLocalSettings({ ...localSettings, dev_email: e.target.value, developerEmail: e.target.value })}
                       placeholder="Ex: edh333@hotmail.com"
                     />
                   </div>
                   <div>
-                    <label className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-1 block">CONTATO TELEFÔNICO / WHATSAPP</label>
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1 block">CONTATO TELEFÔNICO / WHATSAPP</label>
                     <input
-                      className="w-full p-3 bg-[var(--bg-muted)] border-2 border-[var(--border-color)] focus:border-[var(--primary-color)]/300 rounded-2xl font-bold text-sm text-[var(--text-main)] outline-none transition-all"
+                      className="w-full p-3 bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 rounded-2xl font-bold text-sm text-slate-900 outline-none transition-all"
                       value={localSettings?.dev_phone || localSettings?.developerPhone || ''}
                       onChange={e => setLocalSettings({ ...localSettings, dev_phone: e.target.value, developerPhone: e.target.value })}
                       placeholder="Ex: (66) 99999-9999"
@@ -1732,40 +1723,40 @@ const handleBaixarBackup = async (nome: string) => {
           </div>
 
           {/* ── PONTO DE RESTAURAÇÃO ── */}
-          <div className="bg-[var(--bg-card)] p-8 rounded-3xl border border-[var(--border-color)] shadow-2xl col-span-1 lg:col-span-3 space-y-6">
+          <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-2xl col-span-1 lg:col-span-3 space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-4 mb-2">
-              <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-main)] flex items-center gap-2">
-                <Archive size={20} className="text-[var(--primary-color)]" /> Ponto de Restauração
+              <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
+                <Archive size={20} className="text-emerald-600" /> Ponto de Restauração
               </h3>
-              <span className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-wider bg-[var(--bg-muted)] border border-[var(--border-color)] px-3 py-1.5 rounded-lg">
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider bg-slate-50 border border-slate-100 px-3 py-1.5 rounded-lg">
                 {pontosRestauracao.length} ponto(s) salvo(s)
               </span>
             </div>
-            <p className="text-[11px] font-semibold text-[var(--text-muted)] leading-relaxed -mt-2">
+            <p className="text-[11px] font-semibold text-slate-500 leading-relaxed -mt-2">
               Crie um ponto de restauração antes de mudanças importantes. Se algo der errado, volte o sistema para uma data anterior com um clique.
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <button
                 onClick={handleCriarPonto}
-                className="p-5 border-2 border-[var(--primary-color)]/40 bg-[var(--primary-color)]/10/50 rounded-2xl flex flex-col items-center gap-3 hover:bg-[var(--primary-color)]/10 transition-all"
+                className="p-5 border-2 border-emerald-100 bg-emerald-50/50 rounded-2xl flex flex-col items-center gap-3 hover:bg-emerald-100 transition-all"
               >
-                <div className="bg-[var(--primary-color)] text-white p-3 rounded-xl"><Save size={22} /></div>
-                <span className="text-[10px] font-black uppercase text-[var(--primary-color)]">Criar Ponto Agora</span>
+                <div className="bg-emerald-600 text-white p-3 rounded-xl"><Save size={22} /></div>
+                <span className="text-[10px] font-black uppercase text-emerald-800">Criar Ponto Agora</span>
               </button>
               <button
                 onClick={baixarBackupLocal}
-                className="p-5 border-2 border-indigo-50 bg-[var(--primary-color)]/10/50 rounded-2xl flex flex-col items-center gap-3 hover:bg-indigo-100 transition-all"
+                className="p-5 border-2 border-indigo-50 bg-indigo-50/50 rounded-2xl flex flex-col items-center gap-3 hover:bg-indigo-100 transition-all"
               >
                 <div className="bg-indigo-600 text-white p-3 rounded-xl"><Download size={22} /></div>
                 <span className="text-[10px] font-black uppercase text-indigo-800">Baixar Backup Completo</span>
               </button>
               <button
                 onClick={() => fileInputRestoreRef.current?.click()}
-                className="p-5 border-2 border-[var(--border-color)] bg-[var(--bg-muted)]/50 rounded-2xl flex flex-col items-center gap-3 hover:bg-[var(--bg-muted)] transition-all"
+                className="p-5 border-2 border-slate-100 bg-slate-50/50 rounded-2xl flex flex-col items-center gap-3 hover:bg-slate-100 transition-all"
               >
                 <div className="bg-slate-700 text-white p-3 rounded-xl"><Upload size={22} /></div>
-                <span className="text-[10px] font-black uppercase text-[var(--text-main)]">Importar Backup</span>
+                <span className="text-[10px] font-black uppercase text-slate-700">Importar Backup</span>
               </button>
               <input
                 type="file"
@@ -1781,44 +1772,44 @@ const handleBaixarBackup = async (nome: string) => {
             </div>
 
             <div className="pt-2">
-              <p className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-3">Histórico de pontos</p>
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-3">Histórico de pontos</p>
               {pontosRestauracao.length === 0 ? (
-                <div className="p-8 text-center bg-[var(--bg-muted)] rounded-2xl border border-dashed border-[var(--border-color)]">
-                  <History size={32} className="mx-auto mb-3 opacity-30 text-[var(--text-muted)]" />
-                  <p className="text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Nenhum ponto de restauração ainda</p>
-                  <p className="text-[10px] text-[var(--text-muted)] mt-1">Os backups automáticos diários aparecerão aqui.</p>
+                <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                  <History size={32} className="mx-auto mb-3 opacity-30 text-slate-400" />
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Nenhum ponto de restauração ainda</p>
+                  <p className="text-[10px] text-slate-400 mt-1">Os backups automáticos diários aparecerão aqui.</p>
                 </div>
               ) : (
                 <div className="space-y-3 max-h-72 overflow-y-auto custom-scrollbar pr-1">
                   {pontosRestauracao.map(p => (
-                    <div key={p.id} className="flex items-center gap-4 p-4 bg-[var(--bg-muted)] rounded-2xl border border-[var(--border-color)] hover:border-[var(--border-color)] transition-all">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${p.origin === 'auto' ? 'bg-[var(--primary-color)]/10 text-[var(--primary-color)]' : 'bg-indigo-100 text-indigo-600'}`}>
+                    <div key={p.id} className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-slate-200 transition-all">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${p.origin === 'auto' ? 'bg-emerald-100 text-emerald-600' : 'bg-indigo-100 text-indigo-600'}`}>
                         <History size={18} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-black text-[var(--text-main)] uppercase truncate">{p.label}</p>
-                        <p className="text-[10px] text-[var(--text-muted)]">
+                        <p className="text-xs font-black text-slate-900 uppercase truncate">{p.label}</p>
+                        <p className="text-[10px] text-slate-500">
                           {formatarDataPonto(p.createdAt)}
-                          <span className={`ml-2 font-black uppercase ${p.origin === 'auto' ? 'text-[var(--primary-color)]' : 'text-indigo-600'}`}>{p.origin === 'auto' ? 'Automático' : 'Manual'}</span>
+                          <span className={`ml-2 font-black uppercase ${p.origin === 'auto' ? 'text-emerald-600' : 'text-indigo-600'}`}>{p.origin === 'auto' ? 'Automático' : 'Manual'}</span>
                         </p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <button
                           onClick={() => setRestoreTarget(p)}
-                          className="px-4 py-2.5 bg-[var(--primary-color)]/100 hover:bg-[var(--primary-color)] text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2"
+                          className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2"
                         >
                           <RotateCcw size={14} /> Restaurar
                         </button>
                         <button
                           onClick={() => baixarPontoRestauracao(p.id)}
-                          className="p-2.5 bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-main)] rounded-xl transition-all"
+                          className="p-2.5 bg-white border border-slate-200 text-slate-500 hover:text-slate-900 rounded-xl transition-all"
                           title="Baixar ponto"
                         >
                           <Download size={14} />
                         </button>
                         <button
                           onClick={() => { excluirPontoRestauracao(p.id); refreshPontos(); }}
-                          className="p-2.5 bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-red-500 hover:border-red-200 rounded-xl transition-all"
+                          className="p-2.5 bg-white border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-200 rounded-xl transition-all"
                           title="Excluir ponto"
                         >
                           <Trash2 size={14} />
@@ -1849,7 +1840,7 @@ const handleBaixarBackup = async (nome: string) => {
             <div className="flex gap-3 w-full">
               <button
                 onClick={() => setRestoreTarget(null)}
-                className="flex-1 py-4 bg-[var(--bg-muted)] hover:bg-[var(--bg-muted)] text-[var(--text-main)] rounded-2xl font-black uppercase text-xs tracking-widest transition-all"
+                className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-black uppercase text-xs tracking-widest transition-all"
               >
                 Cancelar
               </button>
@@ -1868,10 +1859,10 @@ const handleBaixarBackup = async (nome: string) => {
             <div className="w-16 h-16 mx-auto mb-5 bg-amber-100 rounded-2xl flex items-center justify-center">
               <RotateCcw size={28} className="text-amber-600" />
             </div>
-            <p className="text-sm font-semibold text-[var(--text-muted)] leading-relaxed mb-2">
-              O sistema voltará para o ponto: <span className="text-[var(--text-main)] font-black uppercase">{restoreTarget.label}</span>
+            <p className="text-sm font-semibold text-slate-500 leading-relaxed mb-2">
+              O sistema voltará para o ponto: <span className="text-slate-900 font-black uppercase">{restoreTarget.label}</span>
             </p>
-            <p className="text-[11px] font-bold text-[var(--text-muted)] leading-relaxed mb-2">
+            <p className="text-[11px] font-bold text-slate-400 leading-relaxed mb-2">
               ({formatarDataPonto(restoreTarget.createdAt)}) — as configurações e dados locais serão revertidos para essa data.
               Recomenda-se baixar um backup antes. Os dados da nuvem não são alterados.
             </p>
@@ -1893,7 +1884,7 @@ const handleBaixarBackup = async (nome: string) => {
             <button
               onClick={() => setRestoreNuvemTarget(null)}
               disabled={restoreNuvemLoading}
-              className="flex-1 py-4 bg-[var(--bg-muted)] hover:bg-[var(--bg-muted)] text-[var(--text-main)] rounded-2xl font-black uppercase text-xs tracking-widest transition-all"
+              className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-black uppercase text-xs tracking-widest transition-all"
             >
               Cancelar
             </button>
@@ -1909,23 +1900,23 @@ const handleBaixarBackup = async (nome: string) => {
         }
       >
         <div className="p-6 space-y-4">
-          <p className="text-sm font-semibold text-[var(--text-muted)] leading-relaxed">
+          <p className="text-sm font-semibold text-slate-500 leading-relaxed">
             Antes de restaurar, o sistema salva um snapshot de segurança do estado atual.
             Esta ação substitui os dados atuais no banco. Requer senha mestra.
           </p>
 
-          <label className="text-[10px] font-black text-[var(--text-main)] uppercase mb-1 block text-left">Senha mestra</label>
+          <label className="text-[10px] font-black text-slate-900 uppercase mb-1 block text-left">Senha mestra</label>
           <div className="relative">
             <input
               type={mostrarSenhaRestore ? 'text' : 'password'}
-              className="w-full pl-4 pr-14 p-4 bg-[var(--bg-muted)] border-2 border-[var(--border-color)] focus:border-amber-400 rounded-2xl font-black text-sm text-[var(--text-main)] outline-none transition-all mb-2"
+              className="w-full pl-4 pr-14 p-4 bg-slate-50 border-2 border-slate-200 focus:border-amber-400 rounded-2xl font-black text-sm text-slate-900 outline-none transition-all mb-2"
               value={restoreNuvemPassword}
               onChange={e => setRestoreNuvemPassword(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && !restoreNuvemLoading && restoreNuvemConfirm) handleRestaurarBackup(); }}
               placeholder="••••••••"
               autoComplete="off"
             />
-            <button type="button" onClick={() => setMostrarSenhaRestore(v => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-2 rounded-xl text-[var(--text-muted)] hover:text-amber-600 transition-colors" aria-label={mostrarSenhaRestore ? 'Ocultar senha' : 'Mostrar senha'}>
+            <button type="button" onClick={() => setMostrarSenhaRestore(v => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-2 rounded-xl text-slate-400 hover:text-amber-600 transition-colors" aria-label={mostrarSenhaRestore ? 'Ocultar senha' : 'Mostrar senha'}>
               {mostrarSenhaRestore ? <EyeOff size={16}/> : <Eye size={16}/>}
             </button>
           </div>
@@ -1955,7 +1946,7 @@ const handleBaixarBackup = async (nome: string) => {
           <div className="flex gap-4 w-full justify-end">
             <button
               onClick={() => setShowScaleModal(false)}
-              className="px-6 py-3 bg-[var(--bg-muted)] text-[var(--text-main)] rounded-xl font-black uppercase hover:bg-[var(--bg-muted)]"
+              className="px-6 py-3 bg-slate-100 text-slate-700 rounded-xl font-black uppercase hover:bg-slate-200"
             >
               Entendi, Fechar
             </button>
@@ -1964,56 +1955,56 @@ const handleBaixarBackup = async (nome: string) => {
       >
       <div className="p-6 space-y-6">
         <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6">
-          <h3 className="font-black text-[var(--text-main)] mb-2 flex items-center gap-2">
+          <h3 className="font-black text-slate-900 mb-2 flex items-center gap-2">
             <Zap size={20} className="text-blue-600" /> Escala Atual (Plano Spark)
           </h3>
           <div className="grid grid-cols-2 gap-4 text-sm">
-            <div className="bg-[var(--bg-card)] p-3 rounded-xl">
-              <p className="text-[var(--text-muted)] font-bold">Leituras/dia</p>
-              <p className="font-black text-[var(--text-main)]">~3.600 / 50.000 (7%)</p>
+            <div className="bg-white p-3 rounded-xl">
+              <p className="text-slate-500 font-bold">Leituras/dia</p>
+              <p className="font-black text-slate-900">~3.600 / 50.000 (7%)</p>
             </div>
-            <div className="bg-[var(--bg-card)] p-3 rounded-xl">
-              <p className="text-[var(--text-muted)] font-bold">Escritas/dia</p>
-              <p className="font-black text-[var(--text-main)]">~500 / 20.000 (2.5%)</p>
+            <div className="bg-white p-3 rounded-xl">
+              <p className="text-slate-500 font-bold">Escritas/dia</p>
+              <p className="font-black text-slate-900">~500 / 20.000 (2.5%)</p>
             </div>
-            <div className="bg-[var(--bg-card)] p-3 rounded-xl">
-              <p className="text-[var(--text-muted)] font-bold">Functions/mês</p>
-              <p className="font-black text-[var(--text-main)]">~15.000 / 125.000 (12%)</p>
+            <div className="bg-white p-3 rounded-xl">
+              <p className="text-slate-500 font-bold">Functions/mês</p>
+              <p className="font-black text-slate-900">~15.000 / 125.000 (12%)</p>
             </div>
-            <div className="bg-[var(--bg-card)] p-3 rounded-xl">
-              <p className="text-[var(--text-muted)] font-bold">Storage (R2)</p>
-              <p className="font-black text-[var(--text-main)]">~2-3 GB / 10 GB (25%)</p>
+            <div className="bg-white p-3 rounded-xl">
+              <p className="text-slate-500 font-bold">Storage (R2)</p>
+              <p className="font-black text-slate-900">~2-3 GB / 10 GB (25%)</p>
             </div>
           </div>
         </div>
 
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6">
-          <h3 className="font-black text-[var(--text-main)] mb-4 flex items-center gap-2">
+          <h3 className="font-black text-slate-900 mb-4 flex items-center gap-2">
             <AlertTriangle size={20} className="text-amber-600" /> Próximos Passos para Escalar
           </h3>
           <div className="space-y-3 text-sm">
-            <div className="bg-[var(--bg-card)] p-4 rounded-xl border-l-4 border-blue-500">
-              <p className="font-black text-[var(--text-main)]">1. Atingir 80% da cota de leituras (40k/dia)</p>
-              <p className="text-[var(--text-muted)]">→ Ativar plano Blaze (pay-as-you-go) no Firebase Console</p>
+            <div className="bg-white p-4 rounded-xl border-l-4 border-blue-500">
+              <p className="font-black text-slate-900">1. Atingir 80% da cota de leituras (40k/dia)</p>
+              <p className="text-slate-600">→ Ativar plano Blaze (pay-as-you-go) no Firebase Console</p>
             </div>
-            <div className="bg-[var(--bg-card)] p-4 rounded-xl border-l-4 border-green-500">
-              <p className="font-black text-[var(--text-main)]">2. Storage R2 {'>'} 8 GB</p>
-              <p className="text-[var(--text-muted)]">→ Habilitar TTL 60 dias no Cloudflare Workers (grátis)</p>
+            <div className="bg-white p-4 rounded-xl border-l-4 border-green-500">
+              <p className="font-black text-slate-900">2. Storage R2 {'>'} 8 GB</p>
+              <p className="text-slate-600">→ Habilitar TTL 60 dias no Cloudflare Workers (grátis)</p>
             </div>
-            <div className="bg-[var(--bg-card)] p-4 rounded-xl border-l-4 border-purple-500">
-              <p className="font-black text-[var(--text-main)]">3. 5.000+ usuários</p>
-              <p className="text-[var(--text-muted)]">→ Implementar busca server-side + virtualização listas</p>
+            <div className="bg-white p-4 rounded-xl border-l-4 border-purple-500">
+              <p className="font-black text-slate-900">3. 5.000+ usuários</p>
+              <p className="text-slate-600">→ Implementar busca server-side + virtualização listas</p>
             </div>
-            <div className="bg-[var(--bg-card)] p-4 rounded-xl border-l-4 border-orange-500">
-              <p className="font-black text-[var(--text-main)]">4. 10.000+ usuários</p>
-              <p className="text-[var(--text-muted)]">→ Split StoreContext + sharding orders por mês</p>
+            <div className="bg-white p-4 rounded-xl border-l-4 border-orange-500">
+              <p className="font-black text-slate-900">4. 10.000+ usuários</p>
+              <p className="text-slate-600">→ Split StoreContext + sharding orders por mês</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-[var(--bg-muted)] border border-[var(--border-color)] rounded-2xl p-6">
-          <h3 className="font-black text-[var(--text-main)] mb-4">Migração para Blaze (Quando Necessário)</h3>
-          <ol className="space-y-2 text-sm text-[var(--text-muted)] list-decimal list-inside">
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6">
+          <h3 className="font-black text-slate-900 mb-4">Migração para Blaze (Quando Necessário)</h3>
+          <ol className="space-y-2 text-sm text-slate-600 list-decimal list-inside">
             <li>Acesse <a href="https://console.firebase.google.com" target="_blank" className="text-blue-600 underline">Firebase Console</a> → Projeto "mercado-facil-mt"</li>
             <li>Menu lateral → <b>Faturamento</b> → <b>Atualizar plano</b> → Selecione <b>Blaze</b></li>
             <li>Adicione cartão de crédito válido</li>

@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 import { CupomEntrega } from '../components/CupomEntrega';
 import { NotificationSystem } from '../components/NotificationSystem';
-import { lerUltimaAbaUsuario, salvarUltimaAbaUsuario } from '../utils/ultimaAba';
 
 import { generatePixPayload, formatarMoeda, compressImageFile, copiarTextoComFallback } from '../utils';
 import { MIN_PROOF_BYTES } from '../utils/fileHash';
@@ -37,11 +36,8 @@ export const UserDashboard: React.FC = () => {
     const isAdmin = (currentUser?.role === 'ADMIN' || currentUser?.role === 'MASTER') && !isStandalone;
 
     // States de Navegação e Visualização
-    const [activeTab, setActiveTab] = useState<'store' | 'orders'>(() => lerUltimaAbaUsuario() as 'store' | 'orders');
+    const [activeTab, setActiveTab] = useState<'store' | 'orders'>('store');
     const [mobileView, setMobileView] = useState<'catalog' | 'cart'>('catalog');
-
-    // Lembra a última aba (loja/pedidos) ao trocar de tela.
-    useEffect(() => { salvarUltimaAbaUsuario(activeTab); }, [activeTab]);
 
     // Modo "somente envia crédito": compras suspensas — catálogo, carrinho e
     // histórico de pedidos ficam ocultos; ficam só envio de crédito e extrato.
@@ -543,7 +539,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
         // "Saiu para entrega" ANTES de "entregue": 'out_for_delivery' contém
         // 'deliver' e estava caindo na cor verde de pedido entregue.
         if (s.includes('out_for_delivery') || s.includes('saiu') || s.includes('delivery')) return 'bg-sky-100 text-sky-700';
-        if (s.includes('deliver') || s.includes('entregue')) return 'bg-emerald-100 text-[var(--primary-color)]';
+        if (s.includes('deliver') || s.includes('entregue')) return 'bg-emerald-100 text-emerald-700';
         if (s === 'paid' || s.includes('pago')) return 'bg-green-100 text-green-700';
         if (s.includes('separa') || s.includes('prepar')) return 'bg-indigo-100 text-indigo-700';
         return 'bg-amber-100 text-amber-700';
@@ -783,7 +779,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                         <div className="flex-1 flex flex-col items-center justify-center relative">
                             <img
                                 src={lastProd?.imageUrl || 'https://placehold.co/600?text=PRODUTO'}
-                                className="w-full h-44 object-contain rounded-xl bg-[var(--bg-card)] p-2 border border-slate-700"
+                                className="w-full h-44 object-contain rounded-xl bg-white p-2 border border-slate-700"
                                 alt={lastProd?.name || lastItem?.name || ''}
                             />
                             {lastQty > 1 && (
@@ -794,10 +790,10 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                         </div>
                         <div className="mt-4">
                             <p className="font-black text-base uppercase tracking-tight leading-tight truncate">{lastProd?.name || lastItem?.name || ''}</p>
-                            {lastProd?.barcode && <p className="text-[10px] font-mono text-[var(--text-muted)] mt-1">Cód: {lastProd.barcode}</p>}
+                            {lastProd?.barcode && <p className="text-[10px] font-mono text-slate-500 mt-1">Cód: {lastProd.barcode}</p>}
                             <p className="text-sm font-bold text-emerald-400 mt-2">Preço Unit: R$ {formatarMoeda(lastProd?.price || lastItem?.price || 0)}</p>
                             <div className="mt-3 pt-3 border-t border-slate-800">
-                                <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Subtotal Item</p>
+                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Subtotal Item</p>
                                 <p className="font-black text-3xl text-white">R$ {formatarMoeda(lastSubtotal)}</p>
                             </div>
                         </div>
@@ -805,10 +801,10 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                 ) : (
                     <div className="flex-1 flex flex-col items-center justify-center text-center">
                         <div className="w-32 h-32 rounded-full bg-slate-800 flex items-center justify-center mb-6 border border-slate-700">
-                            <ShoppingCart size={48} className="text-[var(--text-muted)]" />
+                            <ShoppingCart size={48} className="text-slate-600" />
                         </div>
-                        <p className="font-black text-base text-[var(--text-muted)] uppercase tracking-wide">Mercado Facil</p>
-                        <p className="text-[11px] font-bold text-[var(--text-muted)] mt-2">Bipe ou busque um produto</p>
+                        <p className="font-black text-base text-slate-500 uppercase tracking-wide">Mercado Facil</p>
+                        <p className="text-[11px] font-bold text-slate-600 mt-2">Bipe ou busque um produto</p>
                     </div>
                 )}
             </div>
@@ -837,7 +833,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                     </div>
 
                     {/* TABELA ZEBRADA CUPOM FISCAL */}
-                    <div className="max-h-[calc(100dvh-320px)] overflow-x-auto overflow-y-auto border border-[var(--border-color)] rounded-xl bg-[var(--bg-card)]" style={{ flex: 1, minHeight: 0 }}>
+                    <div className="max-h-[calc(100dvh-320px)] overflow-x-auto overflow-y-auto border border-slate-200 rounded-xl bg-white" style={{ flex: 1, minHeight: 0 }}>
                         <table className="w-full text-[12px] font-mono">
                             <thead className="text-white font-black text-xs uppercase text-center tracking-wider sticky top-0 z-10 bg-[var(--primary-color)]">
                                 <tr>
@@ -854,17 +850,17 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                     const displayName = prod ? prod.name : (item.name || 'Item');
                                     const displayPrice = item.priceAtPurchase ?? (prod ? prod.price : (item.price || 0));
                                     return (
-                                        <tr key={item.productId} className={`${idx % 2 === 0 ? 'bg-[var(--bg-muted)]' : 'bg-[var(--bg-card)]'} border-b border-[var(--border-color)] hover:bg-[var(--primary-color)]/10/50 transition-colors`}>
-                                            <td className="text-[var(--text-main)] font-bold text-xs uppercase text-left pl-4 py-3">{displayName}</td>
+                                        <tr key={item.productId} className={`${idx % 2 === 0 ? 'bg-slate-50' : 'bg-white'} border-b border-slate-100 hover:bg-emerald-50/50 transition-colors`}>
+                                            <td className="text-slate-800 font-bold text-xs uppercase text-left pl-4 py-3">{displayName}</td>
                                             <td className="py-3 text-center">
                                                 <div className="inline-flex items-center gap-1 mx-auto">
-                                                    <button onClick={() => updateQty(item.productId, -1)} className="w-9 h-9 rounded-full border bg-[var(--bg-card)] shadow-sm flex items-center justify-center font-bold text-xs transition-all active:scale-95 text-[var(--text-main)] cursor-pointer hover:bg-red-50 hover:text-red-500 hover:border-red-300">−</button>
-                                                    <span className="font-black text-sm text-[var(--text-main)] min-w-[28px] text-center">{item.quantity}</span>
-                                                    <button onClick={() => updateQty(item.productId, 1)} className="w-9 h-9 rounded-full border bg-[var(--bg-card)] shadow-sm flex items-center justify-center font-bold text-xs transition-all active:scale-95 text-[var(--text-main)] cursor-pointer hover:bg-[var(--primary-color)]/10 hover:text-[var(--primary-color)] hover:border-emerald-300">+</button>
+                                                    <button onClick={() => updateQty(item.productId, -1)} className="w-9 h-9 rounded-full border bg-white shadow-sm flex items-center justify-center font-bold text-xs transition-all active:scale-95 text-slate-700 cursor-pointer hover:bg-red-50 hover:text-red-500 hover:border-red-300">−</button>
+                                                    <span className="font-black text-sm text-slate-900 min-w-[28px] text-center">{item.quantity}</span>
+                                                    <button onClick={() => updateQty(item.productId, 1)} className="w-9 h-9 rounded-full border bg-white shadow-sm flex items-center justify-center font-bold text-xs transition-all active:scale-95 text-slate-700 cursor-pointer hover:bg-emerald-50 hover:text-[var(--primary-color)] hover:border-emerald-300">+</button>
                                                 </div>
                                             </td>
-                                            <td className="text-[var(--text-muted)] font-medium text-xs font-mono text-center py-3">R$ {formatarMoeda(displayPrice)}</td>
-                                            <td className="font-black text-[var(--text-main)] text-base text-center font-mono py-3">R$ {formatarMoeda(displayPrice * item.quantity)}</td>
+                                            <td className="text-slate-600 font-medium text-xs font-mono text-center py-3">R$ {formatarMoeda(displayPrice)}</td>
+                                            <td className="font-black text-slate-900 text-base text-center font-mono py-3">R$ {formatarMoeda(displayPrice * item.quantity)}</td>
                                             <td className="py-3 text-center">
                                                 <button onClick={() => removeFromCart(item.productId)} className="text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-all active:scale-95 text-xs font-black flex items-center justify-center gap-1 mx-auto cursor-pointer">
                                                     <Trash2 size={12} className="inline-block mr-1" /> CANCELAR ITEM
@@ -874,7 +870,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                     );
                                 })}
                                 {cart.length === 0 && (
-                                    <tr><td colSpan={5} className="text-center py-12 text-[var(--text-muted)] font-bold text-xs uppercase">Nenhum item no cupom</td></tr>
+                                    <tr><td colSpan={5} className="text-center py-12 text-slate-400 font-bold text-xs uppercase">Nenhum item no cupom</td></tr>
                                 )}
                             </tbody>
                         </table>
@@ -892,10 +888,10 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                 {/* SIDEBAR DIREITA — CLIENTE / TOTAL / CHECKOUT */}
                 <div className="flex flex-col gap-3" style={{ flex: '1 1 220px', maxWidth: '100%' }}>
                     {/* CLIENTE NO TOPO */}
-                    <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-4">
-                        <p className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest mb-1">Cliente</p>
-                        <p className="font-black text-xs text-[var(--text-main)] uppercase truncate">{currentUser?.name || 'CONSUMIDOR'}</p>
-                        <p className="text-[10px] text-[var(--text-muted)] font-bold">Saldo: R$ {formatarMoeda(currentUser?.walletBalance || 0)}</p>
+                    <div className="bg-white border border-slate-200 rounded-xl p-4">
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Cliente</p>
+                        <p className="font-black text-xs text-slate-900 uppercase truncate">{currentUser?.name || 'CONSUMIDOR'}</p>
+                        <p className="text-[10px] text-slate-500 font-bold">Saldo: R$ {formatarMoeda(currentUser?.walletBalance || 0)}</p>
                     </div>
 
                     {/* TOTAL GERAL GIGANTE */}
@@ -925,9 +921,9 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                     <div className="mb-2 flex items-center gap-3 rounded-xl border border-[var(--primary-color)]/30 bg-[var(--primary-color)]/5 p-3">
                         {/* Saldo */}
                         <div className="flex-1 min-w-0 leading-tight">
-                            <p className="text-[9px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Saldo</p>
-                            <p className="text-lg font-bold tracking-tight text-[var(--text-main)]">
-                                <span className="text-[10px] font-semibold text-[var(--text-muted)] mr-0.5">R$</span>
+                            <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">Saldo</p>
+                            <p className="text-lg font-bold tracking-tight text-slate-900">
+                                <span className="text-[10px] font-semibold text-slate-500 mr-0.5">R$</span>
                                 {formatarMoeda(currentUser?.walletBalance || 0)}
                             </p>
                         </div>
@@ -937,7 +933,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                             onClick={() => setIsMsgOpen(!isMsgOpen)}
                             aria-label="Mensagens"
                             aria-expanded={isMsgOpen}
-                            className="relative size-10 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] flex items-center justify-center text-[var(--text-muted)] hover:border-[var(--primary-color)]/40 hover:text-[var(--primary-color)] active:scale-95 transition-all shrink-0"
+                            className="relative size-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:border-[var(--primary-color)]/40 hover:text-[var(--primary-color)] active:scale-95 transition-all shrink-0"
                         >
                             <MessageSquare size={17} />
                             {unreadMsg > 0 && (
@@ -964,20 +960,20 @@ unsubOrders = onSnapshot(q, (snapshot) => {
 
             <div className="flex flex-col sm:flex-row gap-3 items-center">
                 <div className="relative w-full">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
                         <Search size={20} />
                     </div>
                     <input 
                         id="searchInput"
                         ref={searchInputRef}
-                        className="w-full pl-14 pr-12 py-4 rounded-2xl border-2 border-slate-300 focus:border-[var(--primary-color)] outline-none bg-[var(--bg-muted)] text-sm font-bold shadow-sm" 
+                        className="w-full pl-14 pr-12 py-4 rounded-2xl border-2 border-slate-300 focus:border-[var(--primary-color)] outline-none bg-slate-50 text-sm font-bold shadow-sm" 
                         placeholder="Buscar produto..." 
                         value={searchTerm} 
                         onChange={handleSearchChange}
                         autoComplete="off" 
                     />
                     {searchTerm && (
-                        <button onClick={() => setSearchTerm('')} title="Limpar busca" aria-label="Limpar busca" className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-full text-[var(--text-muted)] hover:text-white hover:bg-slate-400 transition-all active:scale-90">
+                        <button onClick={() => setSearchTerm('')} title="Limpar busca" aria-label="Limpar busca" className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-slate-400 transition-all active:scale-90">
                             <X size={16} />
                         </button>
                     )}
@@ -994,7 +990,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                             <button
                                 key={cat.id}
                                 onClick={() => setCatFilter(cat.id)}
-                                className={`shrink-0 px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wide border transition-all active:scale-95 ${catFilter === cat.id ? 'bg-[var(--primary-color)] text-white border-[var(--primary-color)] shadow-sm' : 'bg-[var(--bg-card)] text-[var(--text-muted)] border-[var(--border-color)] hover:border-slate-300'}`}
+                                className={`shrink-0 px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wide border transition-all active:scale-95 ${catFilter === cat.id ? 'bg-[var(--primary-color)] text-white border-[var(--primary-color)] shadow-sm' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}
                             >
                                 {cat.label}
                             </button>
@@ -1003,13 +999,13 @@ unsubOrders = onSnapshot(q, (snapshot) => {
             )}
             {filteredProducts.length > 1 && (
                 <div className="flex items-center gap-1.5 shrink-0 ml-auto">
-                    <label htmlFor="sortSelect" className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-muted)] hidden sm:block">Ordenar</label>
+                    <label htmlFor="sortSelect" className="text-[10px] font-bold uppercase tracking-wide text-slate-400 hidden sm:block">Ordenar</label>
                     <select
                         id="sortSelect"
                         value={sortOpt}
                         onChange={(e) => setSortOpt(e.target.value as any)}
                         aria-label="Ordenar produtos"
-                        className="text-[11px] font-bold text-[var(--text-muted)] bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg px-2 py-1.5 outline-none focus:border-[var(--primary-color)] cursor-pointer"
+                        className="text-[11px] font-bold text-slate-600 bg-white border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-[var(--primary-color)] cursor-pointer"
                     >
                         <option value="relevance">Relevância</option>
                         <option value="price_asc">Menor preço</option>
@@ -1023,9 +1019,9 @@ unsubOrders = onSnapshot(q, (snapshot) => {
             {/* Vitrine Premium — Grid 2 colunas */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                 {filteredProducts.length === 0 ? (
-                    <div className="col-span-full text-center py-20 bg-[var(--bg-muted)] rounded-2xl border border-dashed border-[var(--border-color)]">
-                        <ShoppingBag size={40} className="mx-auto mb-4 opacity-25 text-[var(--text-muted)]" />
-                        <p className="font-black uppercase tracking-wider text-xs text-[var(--text-muted)]">Nenhum produto encontrado</p>
+                    <div className="col-span-full text-center py-20 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                        <ShoppingBag size={40} className="mx-auto mb-4 opacity-25 text-slate-400" />
+                        <p className="font-black uppercase tracking-wider text-xs text-slate-400">Nenhum produto encontrado</p>
                     </div>
                 ) : filteredProducts.map((p: any, idx: number) => {
                     const isOutOfStock = (p?.stock || 0) <= 0;
@@ -1033,26 +1029,26 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                     return (
                         <div
                             key={p?.id || `prod-${idx}`}
-                            className={`bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-200 p-3 flex flex-col justify-between h-full relative ${isOutOfStock ? 'opacity-60 grayscale' : 'cursor-pointer active:scale-[0.98]'}`}
+                            className={`bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-200 p-3 flex flex-col justify-between h-full relative ${isOutOfStock ? 'opacity-60 grayscale' : 'cursor-pointer active:scale-[0.98]'}`}
                             onClick={() => { if (!isOutOfStock) addToCart(p); }}
                         >
-                            <div className="w-full aspect-square rounded-lg overflow-hidden bg-[var(--bg-muted)] border border-[var(--border-color)] mb-2.5 relative">
+                            <div className="w-full aspect-square rounded-lg overflow-hidden bg-slate-50 border border-slate-100 mb-2.5 relative">
                                 <img src={p.imageUrl || 'https://placehold.co/200'} className="w-full h-full object-contain" alt={p.name} loading="lazy" />
                                 {emOferta && !isOutOfStock && (
                                     <span className="absolute top-1.5 left-1.5 bg-red-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider shadow">Oferta</span>
                                 )}
                                 {isOutOfStock && (
                                     <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                                        <span className="text-[10px] font-bold bg-[var(--bg-card)] text-[var(--text-main)] px-3 py-1 rounded-full">Esgotado</span>
+                                        <span className="text-[10px] font-bold bg-white text-slate-900 px-3 py-1 rounded-full">Esgotado</span>
                                     </div>
                                 )}
                             </div>
                             <div className="flex-1 flex flex-col justify-between">
-                                <h4 className="text-[var(--text-main)] font-medium text-[13px] leading-snug line-clamp-2 mb-2">{p.name}</h4>
+                                <h4 className="text-slate-800 font-medium text-[13px] leading-snug line-clamp-2 mb-2">{p.name}</h4>
                                 <div className="flex items-center justify-between gap-2">
                                     <div className="leading-none min-w-0">
                                         {emOferta && (
-                                            <span className="block text-[10px] font-semibold text-[var(--text-muted)] line-through mb-0.5">R$ {formatarMoeda(p.price)}</span>
+                                            <span className="block text-[10px] font-semibold text-slate-400 line-through mb-0.5">R$ {formatarMoeda(p.price)}</span>
                                         )}
                                         <span className={`font-bold text-sm ${emOferta ? 'text-red-600' : 'text-[var(--primary-color)]'}`}>R$ {formatarMoeda(precoEfetivo(p))}</span>
                                     </div>
@@ -1101,9 +1097,9 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                 center={
                     (settings?.enablePrisonerWallet ?? true) && !isAdmin && (
                         <>
-                            <div className="hidden sm:flex items-center gap-3 rounded-full border border-[var(--border-color)] bg-[var(--bg-muted)] px-4 py-2">
+                            <div className="hidden sm:flex items-center gap-3 rounded-full border border-slate-200 bg-slate-50 px-4 py-2">
                                 <div className="text-right leading-tight">
-                                    <p className="text-[9px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Saldo</p>
+                                    <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">Saldo</p>
                                     <p className="text-sm font-bold tracking-tight text-[var(--primary-color)]">R$ {formatarMoeda(currentUser?.walletBalance || 0)}</p>
                                 </div>
                                 <UiButton
@@ -1115,31 +1111,31 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                 </UiButton>
                             </div>
                             {soCredito ? (
-                                <div className="hidden md:flex items-center gap-1 rounded-lg border border-[var(--border-color)] bg-[var(--bg-muted)] p-1">
+                                <div className="hidden md:flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1">
                                     <button
                                         onClick={() => setActiveTab('store')}
-                                        className={`flex items-center gap-2 rounded-md px-4 py-2 text-xs font-semibold transition-colors ${activeTab === 'store' ? 'bg-[var(--primary-color)] text-white shadow-sm' : 'text-[var(--text-muted)] hover:bg-[var(--bg-card)] hover:text-[var(--text-main)]'}`}
+                                        className={`flex items-center gap-2 rounded-md px-4 py-2 text-xs font-semibold transition-colors ${activeTab === 'store' ? 'bg-[var(--primary-color)] text-white shadow-sm' : 'text-slate-500 hover:bg-white hover:text-slate-900'}`}
                                     >
                                         <CreditCard size={14} /> Crédito
                                     </button>
                                     <button
                                         onClick={() => { setActiveTab('orders'); setViewingWalletHistory(true); }}
-                                        className={`flex items-center gap-2 rounded-md px-4 py-2 text-xs font-semibold transition-colors ${activeTab === 'orders' ? 'bg-[var(--primary-color)] text-white shadow-sm' : 'text-[var(--text-muted)] hover:bg-[var(--bg-card)] hover:text-[var(--text-main)]'}`}
+                                        className={`flex items-center gap-2 rounded-md px-4 py-2 text-xs font-semibold transition-colors ${activeTab === 'orders' ? 'bg-[var(--primary-color)] text-white shadow-sm' : 'text-slate-500 hover:bg-white hover:text-slate-900'}`}
                                     >
                                         <Wallet size={14} /> Extrato
                                     </button>
                                 </div>
                             ) : (
-                                <div className="hidden md:flex items-center gap-1 rounded-lg border border-[var(--border-color)] bg-[var(--bg-muted)] p-1">
+                                <div className="hidden md:flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1">
                                     <button
                                         onClick={() => setActiveTab('store')}
-                                        className={`flex items-center gap-2 rounded-md px-4 py-2 text-xs font-semibold transition-colors ${activeTab === 'store' ? 'bg-[var(--primary-color)] text-white shadow-sm' : 'text-[var(--text-muted)] hover:bg-[var(--bg-card)] hover:text-[var(--text-main)]'}`}
+                                        className={`flex items-center gap-2 rounded-md px-4 py-2 text-xs font-semibold transition-colors ${activeTab === 'store' ? 'bg-[var(--primary-color)] text-white shadow-sm' : 'text-slate-500 hover:bg-white hover:text-slate-900'}`}
                                     >
                                         <ShoppingBag size={14} /> Loja
                                     </button>
                                     <button
                                         onClick={() => setActiveTab('orders')}
-                                        className={`flex items-center gap-2 rounded-md px-4 py-2 text-xs font-semibold transition-colors ${activeTab === 'orders' ? 'bg-[var(--primary-color)] text-white shadow-sm' : 'text-[var(--text-muted)] hover:bg-[var(--bg-card)] hover:text-[var(--text-main)]'}`}
+                                        className={`flex items-center gap-2 rounded-md px-4 py-2 text-xs font-semibold transition-colors ${activeTab === 'orders' ? 'bg-[var(--primary-color)] text-white shadow-sm' : 'text-slate-500 hover:bg-white hover:text-slate-900'}`}
                                     >
                                         <Clock size={14} /> Pedidos
                                     </button>
@@ -1164,7 +1160,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                 disabled={myOrders.length === 0}
                                 title="Reimprimir Último Cupom"
                                 aria-label="Reimprimir último cupom"
-                                className="flex shrink-0 size-10 border border-[var(--border-color)] bg-[var(--bg-card)] text-[var(--text-muted)] items-center justify-center shadow-sm hover:border-[var(--primary-color)]/40 hover:text-[var(--primary-color)] disabled:opacity-70 disabled:shadow-none"
+                                className="flex shrink-0 size-10 border border-slate-200 bg-white text-slate-500 items-center justify-center shadow-sm hover:border-[var(--primary-color)]/40 hover:text-[var(--primary-color)] disabled:opacity-70 disabled:shadow-none"
                             />
                         )}
                         <UiButton
@@ -1173,7 +1169,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                             onClick={() => setIsMsgOpen(!isMsgOpen)}
                             aria-label="Mensagens"
                             aria-expanded={isMsgOpen}
-                            className={`relative flex shrink-0 size-11 border border-[var(--border-color)] bg-[var(--bg-card)] text-[var(--text-muted)] items-center justify-center shadow-sm hover:border-[var(--primary-color)]/40 hover:text-[var(--primary-color)] ${isMsgOpen ? 'border-[var(--primary-color)] text-[var(--primary-color)] shadow-md' : ''}`}
+                            className={`relative flex shrink-0 size-11 border border-slate-200 bg-white text-slate-500 items-center justify-center shadow-sm hover:border-[var(--primary-color)]/40 hover:text-[var(--primary-color)] ${isMsgOpen ? 'border-[var(--primary-color)] text-[var(--primary-color)] shadow-md' : ''}`}
                         >
                             {unreadMsg > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center font-bold border-2 border-white">{unreadMsg}</span>}
                         </UiButton>
@@ -1186,7 +1182,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                             onClick={() => setShowUninstallModal(true)}
                             title="Desinstalar aplicativo"
                             aria-label="Desinstalar aplicativo"
-                            className="flex shrink-0 size-11 border border-[var(--border-color)] bg-[var(--bg-card)] text-[var(--text-muted)] items-center justify-center shadow-sm hover:bg-red-50 hover:text-red-500 hover:border-red-200"
+                            className="flex shrink-0 size-11 border border-slate-200 bg-white text-slate-500 items-center justify-center shadow-sm hover:bg-red-50 hover:text-red-500 hover:border-red-200"
                         />
                         <UiButton
                             size="sm"
@@ -1194,7 +1190,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                             onClick={handleLogout}
                             title={confirmarSair ? 'Toque de novo para confirmar' : 'Sair'}
                             aria-label={confirmarSair ? 'Confirmar saída: toque novamente' : 'Sair'}
-                            className={`shrink-0 size-11 border border-red-200 bg-[var(--bg-card)] text-red-500 flex items-center justify-center shadow-sm hover:bg-red-500 hover:text-white hover:border-red-500 ${confirmarSair ? 'ring-4 ring-red-200 animate-pulse bg-red-500 text-white border-red-500 shadow-lg' : ''}`}
+                            className={`shrink-0 size-11 border border-red-200 bg-white text-red-500 flex items-center justify-center shadow-sm hover:bg-red-500 hover:text-white hover:border-red-500 ${confirmarSair ? 'ring-4 ring-red-200 animate-pulse bg-red-500 text-white border-red-500 shadow-lg' : ''}`}
                         />
                     </div>
                 }
@@ -1210,9 +1206,9 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: -12, scale: 0.98 }}
                             transition={{ duration: 0.2 }}
-                            className="fixed top-20 right-3 sm:right-6 z-50 w-[calc(100vw-1.5rem)] max-w-md bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl shadow-2xl overflow-hidden"
+                            className="fixed top-20 right-3 sm:right-6 z-50 w-[calc(100vw-1.5rem)] max-w-md bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden"
                         >
-                            <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border-color)]/80 bg-[var(--bg-muted)]">
+                            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200/80 bg-slate-50">
                                 <div className="flex items-center gap-2">
                                     <MessageSquare size={16} className="text-[var(--primary-color)]" />
                                     <h3 className="font-bold text-sm tracking-tight text-[var(--text-main)]">Mensagens</h3>
@@ -1222,12 +1218,12 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                             <div className="max-h-[55vh] overflow-y-auto">
                                 {myMessages.length === 0 ? (
                                     <div className="py-12 text-center px-6">
-                                        <MessageSquare size={28} className="mx-auto mb-3 text-[var(--text-muted)]" />
+                                        <MessageSquare size={28} className="mx-auto mb-3 text-slate-300" />
                                         <p className="text-[11px] font-bold text-[var(--text-muted)]">Nenhuma mensagem recebida.</p>
                                     </div>
                                 ) : (
                                     myMessages.map(msg => (
-                                        <div key={msg.id} className={`px-5 py-4 border-b border-[var(--border-color)] last:border-0 ${msg.read ? 'opacity-60' : ''}`}>
+                                        <div key={msg.id} className={`px-5 py-4 border-b border-slate-100 last:border-0 ${msg.read ? 'opacity-60' : ''}`}>
                                             <div className="flex items-start justify-between gap-3">
                                                 <div className="flex-1 min-w-0">
                                                     <p className={`text-[11px] leading-relaxed text-[var(--text-main)] ${msg.read ? '' : 'font-bold'}`}>{msg.text || (msg as any).message}</p>
@@ -1271,30 +1267,30 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                 <div className="text-center">
                                     <span className="bg-amber-500/10 text-amber-500 border border-amber-500/20 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest animate-pulse">Compras Suspensas</span>
                                     <h3 className="text-lg font-black mt-3 uppercase tracking-tight text-white">COMPRAS POR SALDO SUSPENSAS</h3>
-                                    <p className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-wider mt-1">Você só pode enviar crédito/saldo via PIX neste momento.</p>
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Você só pode enviar crédito/saldo via PIX neste momento.</p>
                                 </div>
                                 <div className="border-t border-slate-800 pt-6">
                                     {depositStage === 'amount' ? (
                                         <div className="flex flex-col space-y-4">
                                             <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
-                                                <p className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest mb-2 text-center">Valor do Crédito (R$)</p>
+                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 text-center">Valor do Crédito (R$)</p>
                                                 <input type="text" inputMode="decimal" autoComplete="off" className="w-full bg-transparent font-black text-2xl text-center outline-none text-white placeholder-slate-600" value={depositAmountText} onChange={e => setDepositAmountText(sanitizeMoedaInput(e.target.value))} placeholder="0,00" />
                                             </div>
                                             {depositAmount > 0 && (
                                                 <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 flex flex-col items-center">
                                                     {pixPayload ? (
-                                                        <QRCodeSVG value={pixPayload} size={144} className="w-36 h-36 bg-[var(--bg-card)] p-2 rounded-lg" />
+                                                        <QRCodeSVG value={pixPayload} size={144} className="w-36 h-36 bg-white p-2 rounded-lg" />
                                                     ) : (
                                                         <div className="w-36 h-36 flex items-center justify-center text-center p-2 bg-slate-900 rounded-lg border border-red-500/40">
                                                             <p className="text-[10px] font-bold text-red-400 uppercase">PIX indisponível. Fale com a administração.</p>
                                                         </div>
                                                     )}
-                                                    <button onClick={() => { copiarTextoComFallback(pixPayload || ''); setPixCopied(true); setTimeout(() => setPixCopied(false), 2000); }} className={`w-full mt-3 py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${pixCopied ? 'bg-[var(--primary-color)] text-white' : 'bg-blue-500 text-white'}`}>
+                                                    <button onClick={() => { copiarTextoComFallback(pixPayload || ''); setPixCopied(true); setTimeout(() => setPixCopied(false), 2000); }} className={`w-full mt-3 py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${pixCopied ? 'bg-emerald-600 text-white' : 'bg-blue-500 text-white'}`}>
                                                         {pixCopied ? <><CheckCircle size={12} /> COPIADO!</> : <><RefreshCcw size={12} /> Copiar PIX</>}
                                                     </button>
                                                 </div>
                                             )}
-                                            <button onClick={() => { if (depositAmount <= 0) { showNotification('DIGITE O VALOR DO CRÉDITO.', 'error'); return; } if (depositAmount > 100000) { showNotification('VALOR ACIMA DO LIMITE POR DEPÓSITO (R$ 100.000,00).', 'error'); return; } setDepositStage('proof'); if (fileInputRef.current) fileInputRef.current.value = ''; }} disabled={depositAmount <= 0} className="w-full py-3.5 bg-[var(--primary-color)] hover:bg-[var(--primary-color)]/100 text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 transition-all cursor-pointer">
+                                            <button onClick={() => { if (depositAmount <= 0) { showNotification('DIGITE O VALOR DO CRÉDITO.', 'error'); return; } if (depositAmount > 100000) { showNotification('VALOR ACIMA DO LIMITE POR DEPÓSITO (R$ 100.000,00).', 'error'); return; } setDepositStage('proof'); if (fileInputRef.current) fileInputRef.current.value = ''; }} disabled={depositAmount <= 0} className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 transition-all cursor-pointer">
                                                 <Sparkles size={14} /> Já fiz o PIX do Crédito
                                             </button>
                                         </div>
@@ -1304,7 +1300,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                                 <p className="font-black text-xs text-blue-300 uppercase tracking-wider mb-1">Comprovante de Pagamento</p>
                                                 <p className="text-[10px] text-blue-400 font-bold">Anexe a foto do comprovante PIX para confirmar o crédito</p>
                                             </div>
-                                            <div onClick={() => fileInputRef.current?.click()} className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${proofFile ? 'border-[var(--primary-color)] bg-[var(--primary-color)]/100/10' : 'border-blue-700 bg-slate-800 hover:border-blue-500 hover:bg-slate-700'}`}>
+                                            <div onClick={() => fileInputRef.current?.click()} className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${proofFile ? 'border-emerald-500 bg-emerald-500/10' : 'border-blue-700 bg-slate-800 hover:border-blue-500 hover:bg-slate-700'}`}>
                                                 <input type="file" ref={fileInputRef} className="hidden" accept="image/*,.pdf" onChange={async e => {
                                                     const f = e.target.files?.[0]; if (!f) return;
                                                     if (f.size > 10 * 1024 * 1024) { showNotification('Arquivo muito grande. Máximo 10MB.', 'error'); e.target.value = ''; return; }
@@ -1340,7 +1336,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                             <button onClick={async () => { if (!proofFile) { showNotification('ANEXE O COMPROVANTE.', 'error'); return; } if (await depositToWalletAction()) setDepositStage('amount'); }} disabled={isSubmitting || !proofFile} className="w-full py-3.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 transition-all cursor-pointer">
                                                 {isSubmitting ? <><Loader2 size={14} className="animate-spin" /> Enviando...</> : <><Upload size={14} /> Enviar Comprovante</>}
                                             </button>
-                                            <button onClick={() => { setDepositStage('amount'); setProofFile(null); }} className="w-full py-2 bg-slate-800 text-[var(--text-muted)] rounded-xl font-black text-[10px] uppercase tracking-widest text-center hover:bg-slate-700 transition-all cursor-pointer">
+                                            <button onClick={() => { setDepositStage('amount'); setProofFile(null); }} className="w-full py-2 bg-slate-800 text-slate-400 rounded-xl font-black text-[10px] uppercase tracking-widest text-center hover:bg-slate-700 transition-all cursor-pointer">
                                                 Voltar
                                             </button>
                                         </div>
@@ -1357,41 +1353,41 @@ unsubOrders = onSnapshot(q, (snapshot) => {
 
                 {activeTab === 'orders' && (
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
-                        <div className="bg-[var(--bg-card)] p-5 rounded-xl border border-[var(--border-color)] shadow-sm flex justify-between items-center">
+                        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
                             <div>
-                                <h2 className="text-xl font-bold text-[var(--text-main)] tracking-tight flex items-center gap-2.5"><Clock size={22} className="text-[var(--primary-color)]"/> {soCredito ? 'Extrato' : 'Histórico'}</h2>
-                                <p className="text-xs text-[var(--text-muted)] mt-0.5">{soCredito ? 'Depósitos e saldo' : 'Acompanhamento em tempo real'}</p>
+                                <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5"><Clock size={22} className="text-[var(--primary-color)]"/> {soCredito ? 'Extrato' : 'Histórico'}</h2>
+                                <p className="text-xs text-slate-500 mt-0.5">{soCredito ? 'Depósitos e saldo' : 'Acompanhamento em tempo real'}</p>
                             </div>
                             {!soCredito && (settings?.enablePrisonerWallet ?? true) && (
-                                <button onClick={() => setViewingWalletHistory(!viewingWalletHistory)} className={`text-xs font-semibold px-4 py-2 rounded-lg transition-all border ${viewingWalletHistory ? 'bg-slate-900 border-slate-900 text-white' : 'border-[var(--border-color)] text-[var(--text-muted)] hover:bg-[var(--bg-muted)]'}`}>Extrato</button>
+                                <button onClick={() => setViewingWalletHistory(!viewingWalletHistory)} className={`text-xs font-semibold px-4 py-2 rounded-lg transition-all border ${viewingWalletHistory ? 'bg-slate-900 border-slate-900 text-white' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}>Extrato</button>
                             )}
                         </div>
 
                         {(viewingWalletHistory || soCredito) ? (
                             <div className="space-y-4">
                                 {walletTxs.length === 0 ? (
-                                    <div className="bg-[var(--bg-card)] p-10 rounded-3xl border border-[var(--border-color)] shadow-sm flex flex-col items-center gap-3 text-center">
-                                        <Wallet size={32} className="text-[var(--text-muted)]" />
-                                        <p className="font-black text-xs uppercase text-[var(--text-muted)]">Nenhuma movimentação</p>
-                                        <p className="text-[10px] text-[var(--text-muted)] font-bold">Seus depósitos e compras aparecerão aqui.</p>
+                                    <div className="bg-[var(--bg-card)] p-10 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center gap-3 text-center">
+                                        <Wallet size={32} className="text-slate-300" />
+                                        <p className="font-black text-xs uppercase text-slate-400">Nenhuma movimentação</p>
+                                        <p className="text-[10px] text-slate-400 font-bold">Seus depósitos e compras aparecerão aqui.</p>
                                     </div>
                                 ) : (
                                 walletTxs.map((tx: any) => {
                         const st = getWalletStatus(tx);
                         const tipoTx = tx.type === 'deposit' ? 'Depósito' : tx.type === 'withdrawal' ? 'Retirada' : 'Compra';
                         return (
-                            <div key={tx.id} className="bg-[var(--bg-card)] p-4 rounded-xl border border-[var(--border-color)] shadow-sm flex justify-between items-center gap-3 flex-wrap">
+                            <div key={tx.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center gap-3 flex-wrap">
                                 <div className="flex items-center gap-3">
                                     <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${tx.amount > 0 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
                                         {tx.amount > 0 ? <Plus size={18} /> : <ShoppingBag size={18} />}
                                     </div>
                                     <div>
-                                        <p className="font-semibold text-[13px] text-[var(--text-main)] flex items-center gap-2 flex-wrap">
+                                        <p className="font-semibold text-[13px] text-slate-900 flex items-center gap-2 flex-wrap">
                                             {tipoTx}
                                             <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${st.cls}`}>{st.label}</span>
                                         </p>
-                                        <p className="text-xs text-[var(--text-muted)]">{toDate(tx.createdAt)?.toLocaleString() || ''}</p>
-                                        {tx.description && <p className="text-[11px] text-[var(--text-muted)] mt-0.5">{tx.description}</p>}
+                                        <p className="text-xs text-slate-400">{toDate(tx.createdAt)?.toLocaleString() || ''}</p>
+                                        {tx.description && <p className="text-[11px] text-slate-500 mt-0.5">{tx.description}</p>}
                                         {tx.status === 'pending' && tx.type === 'deposit' && (tx.proofUrl === 'PENDENTE_UPLOAD_LOCAL_CACHE' || !tx.proofUrl) && (
                                             <button
                                                 onClick={() => { setResendTarget({ kind: 'wallet_transactions', docId: tx.id }); resendInputRef.current?.click(); }}
@@ -1411,9 +1407,9 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                         ) : (
                             <div className="space-y-4">
                                 {loadingOrders && (
-                                    <div className="bg-[var(--bg-card)] p-10 rounded-3xl border border-[var(--border-color)] shadow-sm flex flex-col items-center gap-3">
+                                    <div className="bg-[var(--bg-card)] p-10 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center gap-3">
                                         <Loader2 size={28} className="text-[var(--primary-color)] animate-spin" />
-                                        <p className="font-black text-xs uppercase text-[var(--text-muted)]">Carregando pedidos...</p>
+                                        <p className="font-black text-xs uppercase text-slate-400">Carregando pedidos...</p>
                                     </div>
                                 )}
                                 {!loadingOrders && ordersError && (
@@ -1427,22 +1423,22 @@ unsubOrders = onSnapshot(q, (snapshot) => {
    </div>
       )}
           {!loadingOrders && !ordersError && myOrders.length === 0 && (
-                                    <div className="bg-[var(--bg-card)] p-10 rounded-3xl border border-[var(--border-color)] shadow-sm flex flex-col items-center gap-3 text-center">
-                                        <Package size={32} className="text-[var(--text-muted)]" />
-                                        <p className="font-black text-xs uppercase text-[var(--text-muted)]">Nenhum pedido ainda</p>
-                                        <p className="text-[10px] text-[var(--text-muted)] font-bold">Seus pedidos aparecerão aqui assim que você fizer uma compra.</p>
+                                    <div className="bg-[var(--bg-card)] p-10 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center gap-3 text-center">
+                                        <Package size={32} className="text-slate-300" />
+                                        <p className="font-black text-xs uppercase text-slate-400">Nenhum pedido ainda</p>
+                                        <p className="text-[10px] text-slate-400 font-bold">Seus pedidos aparecerão aqui assim que você fizer uma compra.</p>
                                     </div>
                                 )}
                                 {!loadingOrders && myOrders.slice(0, pedidosVisiveis).map((order: any) => (
-                                    <div key={order.id} className="bg-[var(--bg-card)] p-5 rounded-xl border border-[var(--border-color)] shadow-sm">
-                                        <div className="flex justify-between items-center mb-4 pb-4 border-b border-[var(--border-color)]">
+                                    <div key={order.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                                        <div className="flex justify-between items-center mb-4 pb-4 border-b border-slate-100">
                                             <div>
-                                                <span className="text-xs font-semibold text-[var(--text-muted)]">Pedido #{order.id.slice(0, 8)}</span>
-                                                <p className="font-semibold text-[13px] text-[var(--text-main)] mt-0.5">{(() => { const d = toDate(order.createdAt || order.date); return d ? d.toLocaleString() : ''; })()}</p>
+                                                <span className="text-xs font-semibold text-slate-400">Pedido #{order.id.slice(0, 8)}</span>
+                                                <p className="font-semibold text-[13px] text-slate-900 mt-0.5">{(() => { const d = toDate(order.createdAt || order.date); return d ? d.toLocaleString() : ''; })()}</p>
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 {order.paymentMethod === 'WALLET' ? (
-                                                    <span className="px-3 py-1 bg-emerald-100 text-[var(--primary-color)] rounded-full text-[11px] font-semibold">Saldo</span>
+                                                    <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-[11px] font-semibold">Saldo</span>
                                                 ) : (
                                                     <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-[11px] font-semibold">PIX</span>
                                                 )}
@@ -1450,29 +1446,29 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                             </div>
                                         </div>
                                         <div className="flex justify-between items-center">
-                                            <p className="text-lg font-bold text-[var(--text-main)]">R$ {formatarMoeda(order.total)}</p>
+                                            <p className="text-lg font-bold text-slate-900">R$ {formatarMoeda(order.total)}</p>
                                             <div className="flex gap-2">
-                                                <button onClick={() => setViewingOrderCupom(order)} className="p-2.5 bg-[var(--bg-muted)] rounded-lg hover:bg-slate-200 transition-all text-[var(--text-muted)]"><Printer size={17}/></button>
-                                                <button onClick={() => toggleOrderDetails(order.id)} className="px-4 py-2.5 bg-[var(--bg-muted)] rounded-lg hover:bg-slate-200 transition-all text-[var(--text-muted)] font-semibold text-xs">VER {order?.items?.length || 0} ITENS</button>
+                                                <button onClick={() => setViewingOrderCupom(order)} className="p-2.5 bg-slate-100 rounded-lg hover:bg-slate-200 transition-all text-slate-600"><Printer size={17}/></button>
+                                                <button onClick={() => toggleOrderDetails(order.id)} className="px-4 py-2.5 bg-slate-100 rounded-lg hover:bg-slate-200 transition-all text-slate-600 font-semibold text-xs">VER {order?.items?.length || 0} ITENS</button>
                                             </div>
                                         </div>
                                         {expandedOrders.includes(order.id) && (
                                             <div className="mt-4 space-y-2">
                                                 {(order.items || []).map((it: any, i: number) => (
-                                                    <div key={i} className="flex justify-between text-[10px] font-bold text-[var(--text-muted)] uppercase">
+                                                    <div key={i} className="flex justify-between text-[10px] font-bold text-slate-500 uppercase">
                                                         <span>{it.name} x{it.quantity}</span>
                                                         <span>R$ {formatarMoeda((it.priceAtPurchase || 0) * (it.quantity || 0))}</span>
                                                     </div>
                                                 ))}
                                                 {order.paymentMethod !== 'WALLET' && order.paymentProofUrl && order.paymentProofUrl !== 'PENDENTE_UPLOAD_LOCAL_CACHE' && (
-                                                    <div className="mt-3 pt-3 border-t border-[var(--border-color)]">
-                                                        <a href={order.paymentProofUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-[var(--primary-color)] hover:text-[var(--primary-color)] text-[10px] font-black uppercase">
+                                                    <div className="mt-3 pt-3 border-t border-slate-100">
+                                                        <a href={order.paymentProofUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-[var(--primary-color)] hover:text-emerald-700 text-[10px] font-black uppercase">
                                                             <FileText size={14} /> Comprovante Anexado — Clique para Abrir
                                                         </a>
                                                     </div>
                                                 )}
                                                 {order.paymentMethod !== 'WALLET' && order.paymentProofUrl === 'PENDENTE_UPLOAD_LOCAL_CACHE' && (
-                                                    <div className="mt-3 pt-3 border-t border-[var(--border-color)] flex items-center justify-between gap-2 flex-wrap">
+                                                    <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between gap-2 flex-wrap">
                                                         <span className="flex items-center gap-2 text-amber-600 text-[10px] font-black uppercase">
                                                             <AlertCircle size={14} /> Comprovante Pendente de Upload
                                                         </span>
@@ -1487,7 +1483,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                                     </div>
                                                 )}
                                                 {order.paymentMethod === 'WALLET' && (
-                                                    <div className="mt-3 pt-3 border-t border-[var(--border-color)]">
+                                                    <div className="mt-3 pt-3 border-t border-slate-100">
                                                         <span className="flex items-center gap-2 text-[var(--primary-color)] text-[10px] font-black uppercase">
                                                             <CheckCircle size={14} /> Pagamento via Saldo Interno
                                                         </span>
@@ -1500,13 +1496,13 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                 {!loadingOrders && myOrders.length > pedidosVisiveis && (
                                     <button
                                         onClick={() => setPedidosVisiveis(v => v + 20)}
-                                        className="w-full py-3.5 rounded-xl bg-[var(--bg-muted)] hover:bg-slate-200 border border-[var(--border-color)] text-[var(--text-muted)] font-black text-[11px] uppercase tracking-widest transition-all cursor-pointer"
+                                        className="w-full py-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-600 font-black text-[11px] uppercase tracking-widest transition-all cursor-pointer"
                                     >
                                         Carregar mais ({myOrders.length - pedidosVisiveis} restantes)
                                     </button>
                                 )}
                                 {!loadingOrders && myOrders.length >= 100 && pedidosVisiveis >= myOrders.length && (
-                                    <p className="text-center text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">
+                                    <p className="text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                                         Mostrando os 100 pedidos mais recentes
                                     </p>
                                 )}
@@ -1530,7 +1526,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                         <button onClick={addServiceItem} disabled={!serviceName.trim() || !serviceValue} className="flex-[2] py-3.5 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-black rounded-xl text-xs uppercase tracking-wider transition-all active:scale-[0.98] flex items-center justify-center gap-2 shadow-sm cursor-pointer">
                             <Plus size={16} /> Adicionar ao Cupom
                         </button>
-                        <button onClick={() => setShowServicesModal(false)} className="flex-1 py-3.5 bg-[var(--bg-muted)] hover:bg-slate-200 text-[var(--text-muted)] font-black rounded-xl text-xs uppercase tracking-wider transition-all active:scale-[0.98] cursor-pointer">
+                        <button onClick={() => setShowServicesModal(false)} className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black rounded-xl text-xs uppercase tracking-wider transition-all active:scale-[0.98] cursor-pointer">
                             Cancelar
                         </button>
                     </div>
@@ -1538,9 +1534,9 @@ unsubOrders = onSnapshot(q, (snapshot) => {
             >
                 <div className="p-6 space-y-4">
                     <div>
-                        <label className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-1.5 block">Nome do Serviço</label>
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1.5 block">Nome do Serviço</label>
                         <input
-                            className="w-full px-4 py-3 rounded-xl border-2 border-[var(--border-color)] focus:border-amber-500 outline-none bg-[var(--bg-muted)] text-sm font-bold"
+                            className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-amber-500 outline-none bg-slate-50 text-sm font-bold"
                             placeholder="Ex: Taxa ASSPEN, Entrega"
                             value={serviceName}
                             onChange={e => setServiceName(e.target.value)}
@@ -1548,11 +1544,11 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                         />
                     </div>
                     <div>
-                        <label className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-1.5 block">Valor (R$)</label>
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1.5 block">Valor (R$)</label>
                         <input
                             type="number"
                             step="0.01"
-                            className="w-full px-4 py-3 rounded-xl border-2 border-[var(--border-color)] focus:border-amber-500 outline-none bg-[var(--bg-muted)] text-sm font-bold"
+                            className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-amber-500 outline-none bg-slate-50 text-sm font-bold"
                             placeholder="0,00"
                             value={serviceValue}
                             onChange={e => setServiceValue(e.target.value)}
@@ -1572,29 +1568,29 @@ unsubOrders = onSnapshot(q, (snapshot) => {
             >
                 <div className="p-6 flex flex-col h-full" style={{ maxHeight: 'calc(90vh - 90px)' }}>
                     <div className="relative mb-4 shrink-0">
-                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none"><Search size={18} /></div>
-                        <input className="w-full pl-12 pr-6 py-2.5 rounded-xl border border-[var(--border-color)] focus:border-[var(--primary-color)] outline-none bg-[var(--bg-muted)] text-sm font-bold shadow-inner" placeholder="Filtrar produtos..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"><Search size={18} /></div>
+                        <input className="w-full pl-12 pr-6 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-600 outline-none bg-slate-50 text-sm font-bold shadow-inner" placeholder="Filtrar produtos..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                     </div>
                     <div className="flex-1 overflow-y-auto pr-1">
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                             {filteredProducts.length === 0 ? (
-                                <div className="col-span-full text-center py-20 bg-[var(--bg-muted)] rounded-2xl border border-dashed border-[var(--border-color)]">
-                                    <ShoppingBag size={40} className="mx-auto mb-4 opacity-25 text-[var(--text-muted)]" />
-                                    <p className="font-black uppercase tracking-wider text-xs text-[var(--text-muted)]">Nenhum produto cadastrado</p>
+                                <div className="col-span-full text-center py-20 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                                    <ShoppingBag size={40} className="mx-auto mb-4 opacity-25 text-slate-400" />
+                                    <p className="font-black uppercase tracking-wider text-xs text-slate-400">Nenhum produto cadastrado</p>
                                 </div>
                             ) : filteredProducts.map((p: any, idx: number) => {
                                 const isOutOfStock = (p?.stock || 0) <= 0;
                                 return (
-                                    <div key={p?.id || `cat-${idx}`} className={`bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] shadow-sm hover:shadow-md transition-all duration-200 p-4 flex flex-col justify-between h-full relative ${isOutOfStock ? 'opacity-60 grayscale' : ''}`}>
-                                        <div className="w-full aspect-square rounded-xl overflow-hidden bg-[var(--bg-muted)] mb-3 relative">
+                                    <div key={p?.id || `cat-${idx}`} className={`bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 p-4 flex flex-col justify-between h-full relative ${isOutOfStock ? 'opacity-60 grayscale' : ''}`}>
+                                        <div className="w-full aspect-square rounded-xl overflow-hidden bg-slate-50 mb-3 relative">
                                             <img src={p.imageUrl || 'https://placehold.co/200'} className="w-full h-full object-contain" alt={p.name} loading="lazy" />
-                                            {isOutOfStock && <div className="absolute inset-0 bg-black/60 flex items-center justify-center"><span className="text-[10px] font-black bg-[var(--bg-card)] text-black px-3 py-1 rounded-lg uppercase">Esgotado</span></div>}
+                                            {isOutOfStock && <div className="absolute inset-0 bg-black/60 flex items-center justify-center"><span className="text-[10px] font-black bg-white text-black px-3 py-1 rounded-lg uppercase">Esgotado</span></div>}
                                         </div>
                                         <div className="flex-1 flex flex-col justify-between font-mono">
-                                            <h4 className="text-[var(--text-main)] font-bold text-xs tracking-wide line-clamp-2 uppercase mb-2">{p.name}</h4>
+                                            <h4 className="text-slate-800 font-bold text-xs tracking-wide line-clamp-2 uppercase mb-2">{p.name}</h4>
                                             <div className="flex items-center justify-between gap-2">
                                                 <span className="text-[var(--primary-color)] font-extrabold text-xs">R$ {formatarMoeda(p.price)}</span>
-                                                <button onClick={() => addToCart(p)} disabled={isOutOfStock} className="bg-[var(--primary-color)]/100 hover:bg-[var(--primary-color)] text-white rounded-lg p-2 transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"><Plus size={16} /></button>
+                                                <button onClick={() => addToCart(p)} disabled={isOutOfStock} className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg p-2 transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"><Plus size={16} /></button>
                                             </div>
                                         </div>
                                     </div>
@@ -1606,7 +1602,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
             </ModalShell>
 
             {/* MOBILE BOTTOM NAV */}
-            <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[var(--bg-card)] border-t border-[var(--border-color)] flex justify-around items-center h-16 z-50 shadow-lg modal-bottom-sheet" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+            <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 flex justify-around items-center h-16 z-50 shadow-lg modal-bottom-sheet" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
                 {soCredito ? (
                     <>
                         <button
@@ -1618,28 +1614,28 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                     setDepositAmountText('');
                                 }
                             }}
-                            className={`flex flex-col items-center justify-center h-full flex-1 transition-colors ${activeTab === 'store' ? 'text-[var(--primary-color)]' : 'text-[var(--text-muted)]'}`}
+                            className={`flex flex-col items-center justify-center h-full flex-1 transition-colors ${activeTab === 'store' ? 'text-[var(--primary-color)]' : 'text-slate-400'}`}
                         >
                             <CreditCard size={20} />
                             <span className="text-[10px] font-black uppercase mt-0.5">{comprasSuspensas ? 'ENVIAR CRÉDITO' : 'ENVIAR PIX'}</span>
                         </button>
-                        <button onClick={() => { setActiveTab('orders'); setViewingWalletHistory(true); }} className={`flex flex-col items-center justify-center h-full flex-1 transition-colors ${activeTab === 'orders' ? 'text-[var(--primary-color)]' : 'text-[var(--text-muted)]'}`}>
+                        <button onClick={() => { setActiveTab('orders'); setViewingWalletHistory(true); }} className={`flex flex-col items-center justify-center h-full flex-1 transition-colors ${activeTab === 'orders' ? 'text-[var(--primary-color)]' : 'text-slate-400'}`}>
                             <Wallet size={20} />
                             <span className="text-[10px] font-black uppercase mt-0.5">EXTRATO</span>
                         </button>
                     </>
                 ) : (
                     <>
-                        <button onClick={() => { setActiveTab('store'); setMobileView('catalog'); if (isCartReviewOpen) setIsCartReviewOpen(false); }} className={`flex flex-col items-center justify-center h-full flex-1 transition-colors ${activeTab === 'store' && mobileView === 'catalog' ? 'text-[var(--primary-color)]' : 'text-[var(--text-muted)]'}`}>
+                        <button onClick={() => { setActiveTab('store'); setMobileView('catalog'); if (isCartReviewOpen) setIsCartReviewOpen(false); }} className={`flex flex-col items-center justify-center h-full flex-1 transition-colors ${activeTab === 'store' && mobileView === 'catalog' ? 'text-[var(--primary-color)]' : 'text-slate-400'}`}>
                             <Package size={20} />
                             <span className="text-[10px] font-black uppercase mt-0.5">CATÁLOGO</span>
                         </button>
-                        <button onClick={() => { setMobileView('cart'); setIsCartReviewOpen(true); }} className={`flex flex-col items-center justify-center h-full flex-1 transition-colors relative ${mobileView === 'cart' ? 'text-[var(--primary-color)]' : 'text-[var(--text-muted)]'}`}>
+                        <button onClick={() => { setMobileView('cart'); setIsCartReviewOpen(true); }} className={`flex flex-col items-center justify-center h-full flex-1 transition-colors relative ${mobileView === 'cart' ? 'text-[var(--primary-color)]' : 'text-slate-400'}`}>
                             <ShoppingCart size={20} />
                             {totalItensNoCarrinho > 0 && <span className="absolute top-1 right-[calc(50%-24px)] bg-red-500 text-white text-[10px] w-auto min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center font-black border border-white">{totalItensNoCarrinho}</span>}
                             <span className="text-[10px] font-black uppercase mt-0.5">CUPOM</span>
                         </button>
-                        <button onClick={() => { setActiveTab('orders'); }} className={`flex flex-col items-center justify-center h-full flex-1 transition-colors ${activeTab === 'orders' ? 'text-[var(--primary-color)]' : 'text-[var(--text-muted)]'}`}>
+                        <button onClick={() => { setActiveTab('orders'); }} className={`flex flex-col items-center justify-center h-full flex-1 transition-colors ${activeTab === 'orders' ? 'text-[var(--primary-color)]' : 'text-slate-400'}`}>
                             <Clock size={20} />
                             <span className="text-[10px] font-black uppercase mt-0.5">HISTÓRICO</span>
                         </button>
@@ -1655,15 +1651,15 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                 subtitle="Confira os itens antes de pagar"
                 size="md"
                 icon={<ShoppingCart size={20} />}
-                bodyClassName="bg-[var(--bg-card)]"
+                bodyClassName="bg-white"
                 footer={
                     cart.length > 0 ? (
                         <div className="w-full space-y-3">
-                            <div className="flex justify-between items-center py-1 border-t border-[var(--border-color)]">
-                                <span className="text-xs font-black text-[var(--text-muted)] uppercase">Total Geral</span>
-                                <span className="text-xl font-black text-[var(--text-main)]">R$ {formatarMoeda(cartTotal)}</span>
+                            <div className="flex justify-between items-center py-1 border-t border-slate-100">
+                                <span className="text-xs font-black text-slate-400 uppercase">Total Geral</span>
+                                <span className="text-xl font-black text-slate-900">R$ {formatarMoeda(cartTotal)}</span>
                             </div>
-                            <button onClick={() => { setIsCartReviewOpen(false); setIsCheckoutModalOpen(true); }} className="w-full py-3 bg-[var(--primary-color)] text-white font-black rounded-2xl uppercase text-xs shadow-lg active:scale-95 flex items-center justify-center gap-2 shrink-0">
+                            <button onClick={() => { setIsCartReviewOpen(false); setIsCheckoutModalOpen(true); }} className="w-full py-3 bg-emerald-600 text-white font-black rounded-2xl uppercase text-xs shadow-lg active:scale-95 flex items-center justify-center gap-2 shrink-0">
                                 <Banknote size={14} className="inline-block mr-1.5 -mt-0.5" /> AVANÇAR PARA PAGAMENTO
                             </button>
                         </div>
@@ -1672,7 +1668,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
             >
                 <div className="p-5">
                     {cart.length === 0 ? (
-                        <p className="text-center text-[var(--text-muted)] font-bold text-xs uppercase py-8">Carrinho vazio</p>
+                        <p className="text-center text-slate-400 font-bold text-xs uppercase py-8">Carrinho vazio</p>
                     ) : (
                         <div className="flex flex-col space-y-3">
                             {(cart || []).map(item => {
@@ -1682,16 +1678,16 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                 if (!prod && !item.name) return null;
                                 const subtotal = displayPrice * item.quantity;
                                 return (
-                                    <div key={item.productId} className="flex items-center gap-3 bg-[var(--bg-muted)] rounded-xl p-3 border border-[var(--border-color)]">
-                                        {prod && <img src={prod.imageUrl || 'https://placehold.co/40x48'} loading="lazy" className="w-10 h-12 object-cover rounded-md border border-[var(--border-color)] shrink-0" alt={displayName} />}
+                                    <div key={item.productId} className="flex items-center gap-3 bg-slate-50 rounded-xl p-3 border border-slate-100">
+                                        {prod && <img src={prod.imageUrl || 'https://placehold.co/40x48'} loading="lazy" className="w-10 h-12 object-cover rounded-md border border-slate-200 shrink-0" alt={displayName} />}
                                         <div className="flex-1 min-w-0">
-                                            <p className="font-bold text-xs uppercase text-[var(--text-main)] truncate">{displayName}</p>
-                                            <p className="font-black text-sm text-[var(--text-main)]">R$ {formatarMoeda(subtotal)}</p>
+                                            <p className="font-bold text-xs uppercase text-slate-800 truncate">{displayName}</p>
+                                            <p className="font-black text-sm text-slate-900">R$ {formatarMoeda(subtotal)}</p>
                                         </div>
                                         <div className="flex items-center gap-1 shrink-0">
-                                            <button onClick={() => updateQty(item.productId, -1)} className="w-9 h-9 rounded-full border bg-[var(--bg-card)] flex items-center justify-center font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer hover:bg-red-50 hover:text-red-500 hover:border-red-300">−</button>
-                                            <span className="font-black text-xs text-[var(--text-main)] min-w-[22px] text-center">{item.quantity}</span>
-                                            <button onClick={() => updateQty(item.productId, 1)} className="w-9 h-9 rounded-full border bg-[var(--bg-card)] flex items-center justify-center font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer hover:bg-[var(--primary-color)]/10 hover:text-[var(--primary-color)] hover:border-emerald-300">+</button>
+                                            <button onClick={() => updateQty(item.productId, -1)} className="w-9 h-9 rounded-full border bg-white flex items-center justify-center font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer hover:bg-red-50 hover:text-red-500 hover:border-red-300">−</button>
+                                            <span className="font-black text-xs text-slate-900 min-w-[22px] text-center">{item.quantity}</span>
+                                            <button onClick={() => updateQty(item.productId, 1)} className="w-9 h-9 rounded-full border bg-white flex items-center justify-center font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer hover:bg-emerald-50 hover:text-[var(--primary-color)] hover:border-emerald-300">+</button>
                                         </div>
                                         <button onClick={() => removeFromCart(item.productId)} className="text-red-600 bg-red-50 hover:bg-red-100 px-3 min-h-[44px] py-2 rounded-lg text-[11px] font-black flex items-center gap-1 transition-all active:scale-95 shrink-0"><Trash2 size={12} /> RETIRAR</button>
                                     </div>
@@ -1704,7 +1700,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
 
             {/* CART FAB — desktop */}
             {totalItensNoCarrinho > 0 && !soCredito && (
-                <button onClick={() => setIsCartReviewOpen(true)} className="hidden md:flex fixed bottom-6 right-6 bg-[var(--primary-color)] hover:bg-[var(--primary-color)]/100 text-white font-bold py-3 px-5 rounded-full shadow-2xl flex items-center gap-2 z-50 transition-all active:scale-95 cursor-pointer">
+                <button onClick={() => setIsCartReviewOpen(true)} className="hidden md:flex fixed bottom-6 right-6 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-5 rounded-full shadow-2xl flex items-center gap-2 z-50 transition-all active:scale-95 cursor-pointer">
                     <span className="relative">
                         <ShoppingCart size={20} />
                         <span className="absolute -top-2 -right-2 w-auto min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center border border-white">{totalItensNoCarrinho}</span>
@@ -1726,16 +1722,16 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                 <div className="flex flex-col space-y-4">
                     {depositStage === 'amount' && (
                         <>
-                            <div className="bg-[var(--bg-muted)] p-4 rounded-xl border border-[var(--border-color)]">
-                                <p className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest mb-2">Valor do Crédito (R$)</p>
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Valor do Crédito (R$)</p>
                                 <input type="text" inputMode="decimal" autoComplete="off" className="w-full bg-transparent font-black text-2xl text-center outline-none text-[var(--text-main)]" value={depositAmountText} onChange={e => setDepositAmountText(sanitizeMoedaInput(e.target.value))} placeholder="0,00" />
                             </div>
                             {depositAmount > 0 && (
-                                <div className="bg-[var(--bg-muted)] p-4 rounded-xl border border-[var(--border-color)] flex flex-col items-center">
+                                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col items-center">
                                     {pixPayload ? (
-                                        <QRCodeSVG value={pixPayload} size={144} className="w-36 h-36 bg-[var(--bg-card)] p-2 rounded-lg" />
+                                        <QRCodeSVG value={pixPayload} size={144} className="w-36 h-36 bg-white p-2 rounded-lg" />
                                     ) : (
-                                        <div className="w-36 h-36 flex items-center justify-center text-center p-2 bg-[var(--bg-muted)] rounded-lg border border-red-500/40">
+                                        <div className="w-36 h-36 flex items-center justify-center text-center p-2 bg-slate-100 rounded-lg border border-red-500/40">
                                             <p className="text-[10px] font-bold text-red-500 uppercase">PIX indisponível. Fale com a administração.</p>
                                         </div>
                                     )}
@@ -1743,7 +1739,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                         size="sm"
                                         icon={pixCopied ? <CheckCircle size={12} /> : <RefreshCcw size={12} />}
                                         onClick={() => { copiarTextoComFallback(pixPayload || ''); setPixCopied(true); setTimeout(() => setPixCopied(false), 2000); }}
-                                        className={`w-full mt-3 ${pixCopied ? 'bg-[var(--primary-color)]' : 'bg-blue-500'}`}
+                                        className={`w-full mt-3 ${pixCopied ? 'bg-emerald-600' : 'bg-blue-500'}`}
                                     >
                                         {pixCopied ? 'COPIADO!' : 'Copiar PIX'}
                                     </UiButton>
@@ -1758,7 +1754,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                     setDepositStage('proof'); if (fileInputRef.current) fileInputRef.current.value = '';
                                 }}
                                 disabled={depositAmount <= 0}
-                                className="w-full bg-[var(--primary-color)] hover:brightness-110"
+                                className="w-full bg-emerald-600 hover:bg-emerald-700"
                             >
                                 Já fiz o PIX do Crédito
                             </UiButton>
@@ -1771,7 +1767,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                 <p className="font-black text-xs text-blue-700 uppercase tracking-wider mb-1">Comprovante de Pagamento</p>
                                 <p className="text-[10px] text-blue-500 font-bold">Anexe a foto do comprovante PIX para confirmar o crédito</p>
                             </div>
-                            <div onClick={() => fileInputRef.current?.click()} className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${proofFile ? 'border-[var(--primary-color)] bg-[var(--primary-color)]/100/10' : 'border-blue-300 bg-[var(--bg-muted)] hover:border-blue-500 hover:bg-[var(--bg-muted)]'}`}>
+                            <div onClick={() => fileInputRef.current?.click()} className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${proofFile ? 'border-emerald-500 bg-emerald-500/10' : 'border-blue-300 bg-slate-50 hover:border-blue-500 hover:bg-slate-100'}`}>
                                 <input type="file" ref={fileInputRef} className="hidden" accept="image/*,.pdf" onChange={async e => {
                                     const f = e.target.files?.[0]; if (!f) return;
                                     if (f.size > 10 * 1024 * 1024) { showNotification('Arquivo muito grande. Máximo 10MB.', 'error'); e.target.value = ''; return; }
@@ -1793,8 +1789,8 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                 {proofFile ? (
                                     <div>
                                         <Upload size={28} className="mx-auto text-emerald-500 mb-2" />
-                                        <p className="font-black text-[10px] text-[var(--primary-color)]">{proofFile.name}</p>
-                                        <p className="text-[9px] text-[var(--primary-color)] font-bold mt-1 uppercase">Arquivo anexado</p>
+                                        <p className="font-black text-[10px] text-emerald-700">{proofFile.name}</p>
+                                        <p className="text-[9px] text-emerald-600 font-bold mt-1 uppercase">Arquivo anexado</p>
                                     </div>
                                 ) : (
                                     <div>
@@ -1826,7 +1822,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                 subtitle="Confirme entrega e forma de pagamento"
                 size="md"
                 icon={<CreditCard size={20} />}
-                bodyClassName="bg-[var(--bg-card)]"
+                bodyClassName="bg-white"
                 footer={
                     <button onClick={handleFinish} disabled={isSubmitting || (cartPaymentMethod === 'PIX' && !proofFile)} className="w-full py-3 bg-slate-900 text-white font-black rounded-2xl uppercase text-xs shadow-xl active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shrink-0">
                         {isSubmitting ? <><Loader2 size={14} className="animate-spin" /> Processando...</> : (cartPaymentMethod === 'PIX' && !proofFile) ? <><Paperclip size={14} className="inline-block mr-1 -mt-0.5" /> Anexe o Comprovante para Confirmar</> : 'Confirmar Pedido'}
@@ -1835,50 +1831,50 @@ unsubOrders = onSnapshot(q, (snapshot) => {
             >
                 <div className="p-4 sm:p-5 flex flex-col space-y-3">
                             <div>
-                                <p className="text-[10px] font-black text-[var(--text-muted)] uppercase mb-1">Local de Entrega</p>
+                                <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Local de Entrega</p>
                                 <div className="flex gap-2 mb-2">
-                                    <button onClick={() => setDeliveryType('intern')} className={`flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-wide border-2 transition-all min-h-[44px] ${deliveryType === 'intern' ? 'border-[var(--primary-color)] bg-[var(--primary-color)]/10 text-[var(--primary-color)]' : 'border-[var(--border-color)] bg-[var(--bg-card)] text-[var(--text-muted)]'}`}>
+                                    <button onClick={() => setDeliveryType('intern')} className={`flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-wide border-2 transition-all min-h-[44px] ${deliveryType === 'intern' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-500'}`}>
                                         <Home size={12} className="inline-block mr-1 -mt-0.5" /> Cela
                                     </button>
-                                    <button onClick={() => setDeliveryType('worker')} className={`flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-wide border-2 transition-all min-h-[44px] ${deliveryType === 'worker' ? 'border-[var(--primary-color)] bg-[var(--primary-color)]/10 text-[var(--primary-color)]' : 'border-[var(--border-color)] bg-[var(--bg-card)] text-[var(--text-muted)]'}`}>
+                                    <button onClick={() => setDeliveryType('worker')} className={`flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-wide border-2 transition-all min-h-[44px] ${deliveryType === 'worker' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-500'}`}>
                                         <HardHat size={12} className="inline-block mr-1 -mt-0.5" /> Trabalhador
                                     </button>
                                 </div>
                                 {deliveryType === 'intern' ? (
                                     <div className="flex flex-col gap-1">
                                         <div className="grid grid-cols-2 gap-2">
-                                            <input className="min-w-0 bg-[var(--bg-muted)] py-2.5 px-3 rounded-xl border border-[var(--border-color)] font-bold text-sm min-h-[44px] truncate" placeholder="RAIO" value={location.ray} onChange={e => setLocation({...location, ray: e.target.value})} />
-                                            <input className="min-w-0 bg-[var(--bg-muted)] py-2.5 px-3 rounded-xl border border-[var(--border-color)] font-bold text-sm min-h-[44px] truncate" placeholder="ALA" value={location.wing} onChange={e => setLocation({...location, wing: e.target.value})} />
+                                            <input className="min-w-0 bg-slate-50 py-2.5 px-3 rounded-xl border border-slate-200 font-bold text-sm min-h-[44px] truncate" placeholder="RAIO" value={location.ray} onChange={e => setLocation({...location, ray: e.target.value})} />
+                                            <input className="min-w-0 bg-slate-50 py-2.5 px-3 rounded-xl border border-slate-200 font-bold text-sm min-h-[44px] truncate" placeholder="ALA" value={location.wing} onChange={e => setLocation({...location, wing: e.target.value})} />
                                         </div>
-                                        <input className="w-full bg-[var(--bg-muted)] py-2.5 px-3 rounded-xl border border-[var(--border-color)] font-bold text-sm min-h-[44px] truncate" placeholder="CELA" value={location.cell} onChange={e => setLocation({...location, cell: e.target.value})} />
+                                        <input className="w-full bg-slate-50 py-2.5 px-3 rounded-xl border border-slate-200 font-bold text-sm min-h-[44px] truncate" placeholder="CELA" value={location.cell} onChange={e => setLocation({...location, cell: e.target.value})} />
                                     </div>
                                 ) : (
                                     <div className="flex flex-col gap-1">
                                         <div className="grid grid-cols-2 gap-2">
                                             {['Cozinha', 'Lavanderia', 'Horta', 'Oficina', 'Almoxarifado'].map(loc => (
-                                                <button key={loc} onClick={() => setDeliveryFreeText(loc)} className={`min-h-[44px] py-2 rounded-xl font-black text-[10px] uppercase border-2 transition-all ${deliveryFreeText === loc ? 'border-[var(--primary-color)] bg-[var(--primary-color)]/10 text-[var(--primary-color)]' : 'border-[var(--border-color)] bg-[var(--bg-card)] text-[var(--text-muted)] hover:border-slate-300'}`}>
+                                                <button key={loc} onClick={() => setDeliveryFreeText(loc)} className={`min-h-[44px] py-2 rounded-xl font-black text-[10px] uppercase border-2 transition-all ${deliveryFreeText === loc ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'}`}>
                                                     {loc}
                                                 </button>
                                             ))}
                                         </div>
-                                        <input className="w-full bg-[var(--bg-muted)] py-2 px-3 rounded-xl border border-[var(--border-color)] font-bold text-sm" placeholder="Outro local de trabalho..." value={deliveryFreeText} onChange={e => setDeliveryFreeText(e.target.value)} />
+                                        <input className="w-full bg-slate-50 py-2 px-3 rounded-xl border border-slate-200 font-bold text-sm" placeholder="Outro local de trabalho..." value={deliveryFreeText} onChange={e => setDeliveryFreeText(e.target.value)} />
                                     </div>
                                 )}
                             </div>
 
                             <div>
-                                <p className="text-[10px] font-black text-[var(--text-muted)] uppercase mb-1">Forma de Pagamento</p>
+                                <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Forma de Pagamento</p>
                                 <div className="grid grid-cols-2 gap-2">
-                                    <button onClick={() => setCartPaymentMethod('WALLET')} disabled={!isAdmin} className={`min-h-[44px] py-3 rounded-xl font-black text-[11px] uppercase tracking-wide border-2 transition-all active:scale-95 ${cartPaymentMethod === 'WALLET' ? 'border-[var(--primary-color)] bg-[var(--primary-color)]/10 text-[var(--primary-color)]' : 'border-[var(--border-color)] bg-[var(--bg-card)] text-[var(--text-muted)] hover:border-slate-300'} ${!isAdmin ? 'opacity-40 cursor-not-allowed grayscale' : ''}`}>
+                                    <button onClick={() => setCartPaymentMethod('WALLET')} disabled={!isAdmin} className={`min-h-[44px] py-3 rounded-xl font-black text-[11px] uppercase tracking-wide border-2 transition-all active:scale-95 ${cartPaymentMethod === 'WALLET' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'} ${!isAdmin ? 'opacity-40 cursor-not-allowed grayscale' : ''}`}>
                                         <Wallet size={12} className="inline-block mr-1.5 -mt-0.5" /> Saldo
                                     </button>
-                                    <button onClick={() => setCartPaymentMethod('PIX')} className={`min-h-[44px] py-3 rounded-xl font-black text-[11px] uppercase tracking-wide border-2 transition-all active:scale-95 ${cartPaymentMethod === 'PIX' ? 'border-[var(--primary-color)] bg-[var(--primary-color)]/10 text-[var(--primary-color)]' : 'border-[var(--border-color)] bg-[var(--bg-card)] text-[var(--text-muted)] hover:border-slate-300'}`}>
+                                    <button onClick={() => setCartPaymentMethod('PIX')} className={`min-h-[44px] py-3 rounded-xl font-black text-[11px] uppercase tracking-wide border-2 transition-all active:scale-95 ${cartPaymentMethod === 'PIX' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'}`}>
                                         <Smartphone size={12} className="inline-block mr-1.5 -mt-0.5" /> PIX
                                     </button>
                                 </div>
 
                                 {cartPaymentMethod === 'PIX' && (
-                                    <div className="mt-3 p-3 bg-[var(--primary-color)]/100/5 border border-[var(--primary-color)]/20 rounded-xl text-center space-y-2">
+                                    <div className="mt-3 p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl text-center space-y-2">
                                         {pixPayload && (
                                             <>
                                                 <div>
@@ -1886,21 +1882,21 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                                         <CreditCard size={12} className="text-[var(--primary-color)]" />
                                                         <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--primary-color)]">Escaneie para Pagar</span>
                                                     </div>
-                                                    <div className="bg-[var(--bg-card)] rounded-xl p-2 inline-block shadow-lg">
+                                                    <div className="bg-white rounded-xl p-2 inline-block shadow-lg">
                                                         <QRCodeSVG value={pixPayload} size={130} level="H" bgColor="#ffffff" fgColor="#022c22" includeMargin={true} />
                                                     </div>
                                                 </div>
                                                 {settings?.pixKeys?.[0] && (
-                                                    <div className="bg-[var(--bg-card)] rounded-xl p-2 border border-[var(--border-color)]">
+                                                    <div className="bg-white rounded-xl p-2 border border-slate-200">
                                                         <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em] mb-1">Chave Copia e Cola</p>
-                                                        <input readOnly value={pixPayload} className="w-full text-[10px] font-mono text-[var(--text-muted)] bg-transparent outline-none text-center select-all mb-1 break-all" onClick={(e) => (e.target as HTMLInputElement).select()} />
+                                                        <input readOnly value={pixPayload} className="w-full text-[10px] font-mono text-slate-500 bg-transparent outline-none text-center select-all mb-1 break-all" onClick={(e) => (e.target as HTMLInputElement).select()} />
                                                         <button
                                                             onClick={() => {
                                                                     copiarTextoComFallback(pixPayload);
                                                                 setPixCopied(true);
                                                                 setTimeout(() => setPixCopied(false), 2000);
                                                             }}
-                                                            className="w-full py-1.5 bg-[var(--bg-muted)] hover:bg-slate-200 text-[var(--text-main)] font-bold rounded-lg text-xs transition-all active:scale-95 flex items-center justify-center gap-2"
+                                                            className="w-full py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-lg text-xs transition-all active:scale-95 flex items-center justify-center gap-2"
                                                         >
                                                             {pixCopied ? 'CÓDIGO COPIADO COM SUCESSO!' : 'COPIAR CHAVE PIX COPIA E COLA'}
                                                         </button>
@@ -1911,11 +1907,11 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                         {!pixPayload && (
                                             <p className="text-[10px] font-black text-amber-600 uppercase tracking-wider text-left"><AlertCircle size={12} className="inline-block mr-1 -mt-0.5" />Chave PIX ainda não cadastrada — o pagamento será confirmado com o comprovante anexado.</p>
                                         )}
-                                        <div className="bg-[var(--bg-muted)] rounded-xl border border-[var(--border-color)] p-3">
-                                            <p className="text-[10px] font-black text-[var(--text-muted)] uppercase mb-2 text-left">Comprovante de Pagamento</p>
-                                            <label className="flex items-center gap-2 bg-[var(--bg-card)] p-3 rounded-xl border-2 border-dashed border-slate-300 cursor-pointer hover:border-[var(--primary-color)] hover:bg-[var(--primary-color)]/10/30 transition-all active:scale-[0.98]">
+                                        <div className="bg-slate-50 rounded-xl border border-slate-200 p-3">
+                                            <p className="text-[10px] font-black text-slate-400 uppercase mb-2 text-left">Comprovante de Pagamento</p>
+                                            <label className="flex items-center gap-2 bg-white p-3 rounded-xl border-2 border-dashed border-slate-300 cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/30 transition-all active:scale-[0.98]">
                                                 <Upload size={16} className="text-emerald-500 shrink-0" />
-                                                <span className="text-[10px] font-bold text-[var(--text-main)] text-left leading-tight break-all">{proofFile ? proofFile.name : 'CLIQUE AQUI PARA ENVIAR O COMPROVANTE PIX'}</span>
+                                                <span className="text-[10px] font-bold text-slate-700 text-left leading-tight break-all">{proofFile ? proofFile.name : 'CLIQUE AQUI PARA ENVIAR O COMPROVANTE PIX'}</span>
                                                 <input type="file" accept="image/*,.pdf" className="hidden" onChange={async e => {
                                                 const f = e.target.files?.[0]; if (!f) return;
                                                 // Mesmas regras do depósito: valida ANTES (falha tardia no
@@ -1939,21 +1935,21 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                 )}
                             </div>
 
-                            <div className="flex justify-between items-center py-2 border-t border-[var(--border-color)]">
-                                <span className="text-xs font-black text-[var(--text-muted)] uppercase">Total</span>
-                                <span className="text-xl font-black text-[var(--text-main)]">R$ {formatarMoeda(cartTotal)}</span>
+                            <div className="flex justify-between items-center py-2 border-t border-slate-100">
+                                <span className="text-xs font-black text-slate-400 uppercase">Total</span>
+                                <span className="text-xl font-black text-slate-900">R$ {formatarMoeda(cartTotal)}</span>
                             </div>
                 </div>
             </ModalShell>
 
             {viewingOrderCupom && (
-                <div role="dialog" aria-modal="true" aria-label="Recibo do pedido" className="fixed inset-0 z-[5000] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 print:p-0 print:bg-[var(--bg-card)]" onClick={() => setViewingOrderCupom(null)}>
-                    <div className="bg-[var(--bg-card)] rounded-3xl w-full max-w-sm overflow-hidden print:shadow-none print:w-[76mm] print:mx-auto" onClick={e => e.stopPropagation()}>
-                        <div className="p-4 border-b border-[var(--border-color)] flex justify-between items-center print:hidden">
+                <div role="dialog" aria-modal="true" aria-label="Recibo do pedido" className="fixed inset-0 z-[5000] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 print:p-0 print:bg-white" onClick={() => setViewingOrderCupom(null)}>
+                    <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden print:shadow-none print:w-[76mm] print:mx-auto" onClick={e => e.stopPropagation()}>
+                        <div className="p-4 border-b border-slate-100 flex justify-between items-center print:hidden">
                             <span className="font-black text-xs uppercase">Recibo</span>
-                            <button onClick={() => setViewingOrderCupom(null)} className="text-[var(--text-muted)]"><X size={20}/></button>
+                            <button onClick={() => setViewingOrderCupom(null)} className="text-slate-400"><X size={20}/></button>
                         </div>
-                        <div className="p-6 bg-[var(--bg-muted)] flex justify-center">
+                        <div className="p-6 bg-slate-50 flex justify-center">
                             <CupomEntrega
                                 order={viewingOrderCupom}
                                 printerName="Térmica 80mm"
@@ -1964,9 +1960,9 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                 remainingBalance={viewingOrderCupom.walletBalanceAfter}
                             />
                         </div>
-                        <div className="p-4 bg-[var(--bg-card)] border-t border-[var(--border-color)] print:hidden space-y-2">
-                            <button onClick={() => imprimirComPrioridadeFiscal({ type: 'CUPOM', data: viewingOrderCupom }, settings).catch(console.error)} className="w-full bg-[var(--primary-color)] hover:brightness-110 text-white py-4 rounded-2xl font-black text-xs uppercase shadow-lg shadow-emerald-500/20 transition-all active:scale-95">Imprimir Comprovante</button>
-                            <button onClick={() => setViewingOrderCupom(null)} className="w-full bg-[var(--bg-muted)] hover:bg-slate-200 text-[var(--text-muted)] py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 cursor-pointer">
+                        <div className="p-4 bg-white border-t border-slate-100 print:hidden space-y-2">
+                            <button onClick={() => imprimirComPrioridadeFiscal({ type: 'CUPOM', data: viewingOrderCupom }, settings).catch(console.error)} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-black text-xs uppercase shadow-lg shadow-emerald-500/20 transition-all active:scale-95">Imprimir Comprovante</button>
+                            <button onClick={() => setViewingOrderCupom(null)} className="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 cursor-pointer">
                                 <X size={13} className="inline-block mr-1.5 -mt-0.5" /> Fechar
                             </button>
                         </div>

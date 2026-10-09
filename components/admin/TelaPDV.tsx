@@ -750,17 +750,17 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="min-h-screen w-full bg-[var(--bg-main)] text-[var(--text-main)] antialiased font-sans block relative z-[9999] opacity-100">
+    <div className="min-h-screen w-full bg-slate-50 text-slate-800 antialiased font-sans block relative z-[9999] opacity-100">
       {/* Barra superior discreta */}
       {/* flex-wrap + min-w-0 no título: entre 320 e 400px, título + "Cancelar
           Venda" + "Som: Ligado" + fechar ficavam numa linha só e os rótulos
           quebravam. Rótulos longos somem no celular (ícone continua, com
           aria-label). */}
-      <div className="w-full px-4 pt-4 pb-1 flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-color)] bg-[var(--bg-card)]">
-        <div className="flex items-center gap-2 text-sm font-bold text-[var(--text-main)] min-w-0 truncate">
-          <ShoppingCart size={18} className="text-[var(--primary-color)] shrink-0" />
+      <div className="w-full px-4 pt-4 pb-1 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 bg-white">
+        <div className="flex items-center gap-2 text-sm font-bold text-slate-700 min-w-0 truncate">
+          <ShoppingCart size={18} className="text-emerald-600 shrink-0" />
           <span className="truncate">PDV Balcão</span>
-          <span className="text-xs font-medium text-[var(--text-muted)] hidden sm:inline">· F2 para código de barras</span>
+          <span className="text-xs font-medium text-slate-400 hidden sm:inline">· F2 para código de barras</span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {podeCancelarVenda && (
@@ -775,13 +775,13 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
           <button
             onClick={() => setIsSoundEnabled(s => !s)}
             aria-label={isSoundEnabled ? 'Desativar som do PDV' : 'Ativar som do PDV'}
-            className="text-xs px-3 py-1.5 rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] text-[var(--text-muted)] font-medium hover:bg-[var(--bg-muted)] transition-colors"
+            className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 font-medium hover:bg-slate-50 transition-colors"
           >
             Som: {isSoundEnabled ? 'Ligado' : 'Desligado'}
           </button>
           <button
             onClick={onClose}
-            className="w-9 h-9 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] flex items-center justify-center hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors"
+            className="w-9 h-9 rounded-xl bg-white border border-slate-200 text-slate-500 flex items-center justify-center hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors"
             aria-label="Fechar PDV"
           >
             <X size={18} />
@@ -813,8 +813,8 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
         {/* 🛠️ BLOCO DA ESQUERDA (8 Colunas) */}
         <div className="lg:col-span-8 flex flex-col gap-6" data-testid="left-column">
           {/* Métodos de Pagamento — horizontal abaixo do header PDV Balcão */}
-          <div className="bg-[var(--bg-card)] p-4 rounded-2xl border border-[var(--border-color)] shadow-sm flex flex-wrap items-center gap-3 w-full mb-4 shrink-0">
-            <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] shrink-0">Pagamento</span>
+          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-wrap items-center gap-3 w-full mb-4 shrink-0">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 shrink-0">Pagamento</span>
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 flex-1 min-w-0 min-h-[44px]">
               {METODOS.map(m => {
                 const Icon = m.icon;
@@ -826,8 +826,8 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
                     onClick={() => { setFormaPagamento(m.key); setPixConfirmado(false); setSenhaSupervisor(''); setSenhaSupervisaoOk(false); setSenhaSupervisaoErro(''); }}
                     className={`flex items-center justify-center gap-1 rounded-xl border text-[10px] font-bold transition-all min-h-[44px] ${
                       ativo
-                        ? 'bg-[var(--primary-color)] border-[var(--primary-color)] text-white shadow-md shadow-black/20'
-                        : 'bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-muted)] hover:border-[var(--primary-color)] hover:text-[var(--primary-color)]'
+                        ? 'bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-600/20'
+                        : 'bg-white border-slate-200 text-slate-500 hover:border-emerald-300 hover:text-emerald-600'
                     }`}
                   >
                     <Icon size={14} />
@@ -839,24 +839,24 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
           </div>
 
           {/* Container Principal (Bento Style) */}
-          <div className="bg-[var(--bg-card)] p-4 sm:p-6 rounded-2xl border border-[var(--border-color)] shadow-sm flex flex-col gap-5">
+          <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col gap-5">
             {/* Header Interno Discreto */}
-            <div className="border-b border-[var(--border-color)] pb-3">
-              <span className="text-xs font-black uppercase tracking-wider text-[var(--primary-color)] bg-[var(--primary-color)]/10 px-2.5 py-1 rounded-md">
+            <div className="border-b border-slate-100 pb-3">
+              <span className="text-xs font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md">
                 Venda no Balcão — {clienteRotulo ? (clienteRotulo.interno || clienteRotulo.responsavel || 'Cliente') : 'Defina o Cliente'}
                 {clienteRotulo?.interno && clienteRotulo.responsavel && !clienteRotulo.semResponsavel && (
-                  <span className="font-bold normal-case tracking-normal text-[var(--text-muted)]"> · familiar: {clienteRotulo.responsavel}</span>
+                  <span className="font-bold normal-case tracking-normal text-slate-400"> · familiar: {clienteRotulo.responsavel}</span>
                 )}
               </span>
             </div>
 
             {/* Campo 1: Busca do Cliente */}
             <div ref={clienteSearchRef} className="flex flex-col gap-1.5 relative">
-              <label className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
                 Buscar Cliente (preso em destaque)
               </label>
               <div className="relative">
-                <Search className="absolute left-4 top-3.5 h-5 w-5 text-[var(--text-muted)]" />
+                <Search className="absolute left-4 top-3.5 h-5 w-5 text-slate-400" />
                 <input
                   ref={clienteInputRef}
                   type="text"
@@ -864,12 +864,12 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
                   onChange={(e) => { setBuscaCliente(e.target.value); setMostrarListaClientes(true); setClienteSelecionado(''); }}
                   onKeyDown={handleClienteKeyDown}
                   placeholder="Nome, CPF ou nome do interno..."
-                  className="w-full pl-12 pr-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] focus:bg-[var(--bg-card)] text-sm font-medium transition-all bg-[var(--bg-muted)] border border-[var(--border-color)]"
+                  className="w-full pl-12 pr-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white text-sm font-medium transition-all bg-slate-50 border border-slate-200"
                 />
                 {clienteSelecionado && cliente && (
                   <button
                     onClick={() => { setClienteSelecionado(''); setBuscaCliente(''); setMostrarListaClientes(true); clienteInputRef.current?.focus(); }}
-                    className="absolute right-3 top-2.5 h-7 w-7 rounded-lg text-[var(--text-muted)] hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition-colors"
+                    className="absolute right-3 top-2.5 h-7 w-7 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition-colors"
                     title="Trocar cliente"
                   >
                     <X size={16} />
@@ -879,13 +879,13 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
 
               {/* Lista suspensa corrigida: z-50 + sombra pesada + posicionamento fino */}
               {mostrarListaClientes && (
-                <div className="absolute top-[100%] left-0 w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl shadow-xl mt-1 p-1 text-xs text-[var(--text-muted)] z-50 max-h-56 overflow-y-auto">
+                <div className="absolute top-[100%] left-0 w-full bg-white border border-slate-200 rounded-xl shadow-xl mt-1 p-1 text-xs text-slate-500 z-50 max-h-56 overflow-y-auto">
                   {buscaCliente.trim() === '' ? (
-                    <div className="p-3 text-[var(--text-muted)]">
+                    <div className="p-3 text-slate-400">
                       Digite nome, CPF ou nome do interno para buscar...
                     </div>
                   ) : clientesFiltrados.length === 0 ? (
-                    <div className="p-3 text-[var(--text-muted)]">Nenhum cliente encontrado.</div>
+                    <div className="p-3 text-slate-400">Nenhum cliente encontrado.</div>
                   ) : (
                     clientesFiltrados.map(u => {
                       const cli = rotularCliente(u);
@@ -894,22 +894,22 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
                           key={u.id}
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => selecionarCliente(u)}
-                          className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg hover:bg-[var(--primary-color)]/10 hover:text-[var(--primary-color)] text-left transition-colors"
+                          className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg hover:bg-emerald-50 hover:text-emerald-700 text-left transition-colors"
                         >
                           {/* PRESO em destaque é quem recebe a mercadoria; o
                               familiar (pagador) fica como linha pequena de apoio. */}
                           <span className="flex flex-col gap-0.5 min-w-0">
-                            <span className="flex items-center gap-2 font-black text-[var(--primary-color)] min-w-0">
-                              <UserIcon size={14} className="text-[var(--primary-color)] shrink-0" />
+                            <span className="flex items-center gap-2 font-black text-emerald-700 min-w-0">
+                              <UserIcon size={14} className="text-emerald-600 shrink-0" />
                               <span className="truncate">{cli.interno || cli.responsavel || 'SEM NOME'}</span>
                             </span>
                             {cli.interno && cli.responsavel && !cli.semResponsavel && (
-                              <span className="text-[11px] text-[var(--text-muted)] truncate pl-[22px]">
+                              <span className="text-[11px] text-slate-400 truncate pl-[22px]">
                                 Familiar: {cli.responsavel}
                               </span>
                             )}
                           </span>
-                          <span className="text-[10px] text-[var(--text-muted)] shrink-0 tabular-nums">
+                          <span className="text-[10px] text-slate-400 shrink-0 tabular-nums">
                             {mascararCpf(cli.internoCpf || cli.responsavelCpf)}
                           </span>
                         </button>
@@ -922,12 +922,12 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
 
             {/* Campo 2: Código de Barras (margin-top garante que a lista acima não cubra) */}
             <div className="flex flex-col gap-1.5 mt-8">
-              <label htmlFor="pdv-busca-produto" className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
+              <label htmlFor="pdv-busca-produto" className="text-xs font-bold uppercase tracking-wider text-slate-500">
                 Código de Barras (F2) ou Nome do Produto
               </label>
               <form className="flex gap-2" onSubmit={adicionarProduto}>
                 <div className="relative flex-1">
-                  <Barcode className="absolute left-4 top-3.5 h-5 w-5 text-[var(--text-muted)]" />
+                  <Barcode className="absolute left-4 top-3.5 h-5 w-5 text-slate-400" />
                   <input
                     ref={produtoInputRef}
                     id="pdv-busca-produto"
@@ -936,13 +936,13 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
                     value={codigoProduto}
                     onChange={(e) => setCodigoProduto(e.target.value)}
                     placeholder="Bipe o código ou digite o nome..."
-                    className="w-full pl-12 pr-4 py-3 bg-[var(--bg-input)] border border-[var(--border-color)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] focus:bg-[var(--bg-card)] text-sm font-medium transition-all"
+                    className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white text-sm font-medium transition-all"
                   />
                 </div>
                 {/* Botão de Adicionar Estilizado */}
                 <button
                   type="submit"
-                  className="bg-[var(--primary-color)] hover:brightness-110 text-white px-4 rounded-xl flex items-center justify-center shadow-md shadow-black/10 transition-colors"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 rounded-xl flex items-center justify-center shadow-md shadow-emerald-600/10 transition-colors"
                   aria-label="Adicionar produto"
                 >
                   <Plus size={20} />
@@ -952,18 +952,18 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
           </div>
 
           {/* CATÁLOGO DE PRODUTOS (grade compacta ou lista) */}
-          <div className="bg-[var(--bg-card)] p-4 sm:p-6 rounded-2xl border border-[var(--border-color)] shadow-sm">
+          <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-sm">
             <div className="flex items-center justify-between mb-4 gap-3">
-              <span className="text-xs font-black uppercase tracking-wider text-[var(--text-muted)]">Catálogo</span>
+              <span className="text-xs font-black uppercase tracking-wider text-slate-500">Catálogo</span>
               <div className="flex items-center gap-3">
-                <span className="text-xs font-medium text-[var(--text-muted)]">{produtosFiltrados.length} produto(s)</span>
-                <div className="flex items-center bg-[var(--bg-muted)] rounded-lg p-0.5 border border-[var(--border-color)]">
+                <span className="text-xs font-medium text-slate-400">{produtosFiltrados.length} produto(s)</span>
+                <div className="flex items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200">
                   <button
                     onClick={() => setModoVisao('grade')}
                     className={`p-1.5 rounded-md transition-all flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider ${
                       modoVisao === 'grade'
-                        ? 'bg-[var(--primary-color)] text-white shadow-sm'
-                        : 'text-[var(--text-muted)] hover:text-[var(--primary-color)]'
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'text-slate-500 hover:text-emerald-600'
                     }`}
                     title="Visualizar em Grade"
                     aria-label="Visualizar em Grade"
@@ -975,8 +975,8 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
                     onClick={() => setModoVisao('lista')}
                     className={`p-1.5 rounded-md transition-all flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider ${
                       modoVisao === 'lista'
-                        ? 'bg-[var(--primary-color)] text-white shadow-sm'
-                        : 'text-[var(--text-muted)] hover:text-[var(--primary-color)]'
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'text-slate-500 hover:text-emerald-600'
                     }`}
                     title="Visualizar em Lista"
                     aria-label="Visualizar em Lista"
@@ -989,7 +989,7 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
             </div>
 
             {produtosFiltrados.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-[var(--text-muted)] gap-2">
+              <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-2">
                 <Package size={40} strokeWidth={1.2} />
                 <span className="text-sm">Nenhum produto encontrado.</span>
               </div>
@@ -1003,30 +1003,30 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
                     key={p.id}
                     disabled={semEstoque || preco <= 0}
                     onClick={() => adicionarAoCarrinho(p)}
-                    className={`relative group text-left rounded-xl border bg-[var(--bg-card)] transition-all duration-200 ${
+                    className={`relative group text-left rounded-xl border bg-white transition-all duration-200 ${
                       semEstoque
-                        ? 'border-[var(--border-color)] opacity-50 cursor-not-allowed'
-                        : 'border-[var(--border-color)] hover:border-[var(--primary-color)] hover:ring-4 hover:ring-[var(--primary-color)]/5 hover:shadow-md'
+                        ? 'border-slate-200/60 opacity-50 cursor-not-allowed'
+                        : 'border-slate-200/60 hover:border-emerald-500 hover:ring-4 hover:ring-emerald-500/5 hover:shadow-md'
                     }`}
                   >
-                    <div className="w-full h-20 sm:h-24 bg-[var(--bg-card)] rounded-t-xl flex items-center justify-center overflow-hidden border-b border-[var(--border-color)] p-2">
+                    <div className="w-full h-20 sm:h-24 bg-white rounded-t-xl flex items-center justify-center overflow-hidden border-b border-slate-100 p-2">
                       {p.imageUrl ? (
                         <img src={p.imageUrl} alt={p.name} className="max-w-full max-h-full object-contain block mx-auto" loading="lazy" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                       ) : (
-                        <Package className="text-[var(--text-muted)]" size={28} strokeWidth={1.2} />
+                        <Package className="text-slate-300" size={28} strokeWidth={1.2} />
                       )}
                     </div>
                     <div className="p-3 flex flex-col gap-1">
-                      <span className="text-[11px] font-semibold text-[var(--text-main)] leading-tight line-clamp-1 truncate" title={p.name}>{p.name}</span>
+                      <span className="text-[11px] font-semibold text-slate-700 leading-tight line-clamp-1 truncate" title={p.name}>{p.name}</span>
                       <div className="flex items-center justify-between gap-1">
-                        <span className="text-[13px] font-black text-[var(--primary-color)]">{formatarMoeda(preco)}</span>
-                        <span className={`text-[9px] font-semibold ${semEstoque ? 'text-red-400' : 'text-[var(--text-muted)]'}`}>
+                        <span className="text-[13px] font-black text-emerald-600">{formatarMoeda(preco)}</span>
+                        <span className={`text-[9px] font-semibold ${semEstoque ? 'text-red-400' : 'text-slate-400'}`}>
                           {semEstoque ? 'Sem estoque' : `${p.stock} un.`}
                         </span>
                       </div>
                     </div>
                     {!semEstoque && preco > 0 && (
-                      <div className="absolute top-2 right-2 w-7 h-7 rounded-full bg-[var(--primary-color)] text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md">
+                      <div className="absolute top-2 right-2 w-7 h-7 rounded-full bg-emerald-600 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md">
                         <Plus size={15} />
                       </div>
                     )}
@@ -1045,29 +1045,29 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
                     key={p.id}
                     disabled={semEstoque || preco <= 0}
                     onClick={() => adicionarAoCarrinho(p)}
-                    className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border bg-[var(--bg-card)] transition-all duration-200 ${
+                    className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border bg-white transition-all duration-200 ${
                       semEstoque
-                        ? 'border-[var(--border-color)] opacity-50 cursor-not-allowed'
-                        : 'border-[var(--border-color)] hover:border-[var(--primary-color)] hover:ring-4 hover:ring-[var(--primary-color)]/5 hover:shadow-md'
+                        ? 'border-slate-200/60 opacity-50 cursor-not-allowed'
+                        : 'border-slate-200/60 hover:border-emerald-500 hover:ring-4 hover:ring-emerald-500/5 hover:shadow-md'
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="w-10 h-10 rounded-lg bg-[var(--bg-card)] border border-[var(--border-color)] flex items-center justify-center overflow-hidden shrink-0">
+                      <div className="w-10 h-10 rounded-lg bg-white border border-slate-100 flex items-center justify-center overflow-hidden shrink-0">
                         {p.imageUrl ? (
                           <img src={p.imageUrl} alt={p.name} className="max-w-full max-h-full object-contain block mx-auto" loading="lazy" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                         ) : (
-                          <Package size={18} className="text-[var(--text-muted)]" strokeWidth={1.2} />
+                          <Package size={18} className="text-slate-300" strokeWidth={1.2} />
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[11px] font-semibold text-[var(--text-main)] leading-tight truncate">{p.name}</p>
-                        {ean && <p className="text-[9px] font-mono text-[var(--text-muted)] truncate mt-0.5">EAN: {ean}</p>}
+                        <p className="text-[11px] font-semibold text-slate-700 leading-tight truncate">{p.name}</p>
+                        {ean && <p className="text-[9px] font-mono text-slate-400 truncate mt-0.5">EAN: {ean}</p>}
                       </div>
                     </div>
-                    <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md shrink-0 ${semEstoque ? 'text-red-400 bg-red-50' : 'text-[var(--text-muted)] bg-[var(--bg-muted)]'}`}>
+                    <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md shrink-0 ${semEstoque ? 'text-red-400 bg-red-50' : 'text-slate-500 bg-slate-100'}`}>
                       {semEstoque ? 'Sem estoque' : `${p.stock} un.`}
                     </span>
-                    <span className="text-[13px] font-black text-[var(--primary-color)] shrink-0 w-20 text-right tabular-nums">{formatarMoeda(preco)}</span>
+                    <span className="text-[13px] font-black text-emerald-600 shrink-0 w-20 text-right tabular-nums">{formatarMoeda(preco)}</span>
                   </button>
                 );
               })}
@@ -1077,49 +1077,49 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
         </div>
 
         {/* 🛒 BARRA LATERAL DIREITA — Itens no topo, maximizados */}
-        <div className="lg:col-span-4 lg:h-[calc(100vh-120px)] lg:sticky lg:top-24 flex flex-col h-full bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] shadow-sm p-4 sm:p-6 w-full">
+        <div className="lg:col-span-4 lg:h-[calc(100vh-120px)] lg:sticky lg:top-24 flex flex-col h-full bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 sm:p-6 w-full">
           {/* ELEMENTO 1: ITENS DA VENDA — Topo absoluto, altura maximizada */}
-          <div className="flex-1 overflow-y-auto min-h-[250px] max-h-[calc(100vh-320px)] pr-1 flex flex-col gap-2 border-b border-[var(--border-color)] mb-4 lg:flex-1 lg:min-h-0 lg:max-h-[calc(100vh-320px)]">
-            <div className="flex items-center justify-between border-b border-[var(--border-color)] pb-3 mb-3 shrink-0">
-              <span className="text-xs font-black uppercase tracking-wider text-[var(--text-muted)] flex items-center gap-2">
-                <ShoppingCart size={14} className="text-[var(--primary-color)]" /> Itens da Venda
+          <div className="flex-1 overflow-y-auto min-h-[250px] max-h-[calc(100vh-320px)] pr-1 flex flex-col gap-2 border-b border-slate-100 mb-4 lg:flex-1 lg:min-h-0 lg:max-h-[calc(100vh-320px)]">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3 shrink-0">
+              <span className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-2">
+                <ShoppingCart size={14} className="text-emerald-600" /> Itens da Venda
               </span>
-              <span className="text-xs font-bold text-[var(--text-muted)]">{carrinho.length} item(ns)</span>
+              <span className="text-xs font-bold text-slate-400">{carrinho.length} item(ns)</span>
             </div>
 
             {/* Lista de itens com rolagem interna */}
             <div className="flex flex-col gap-2 overflow-y-auto">
               {carrinho.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-14 text-[var(--text-muted)] gap-2 shrink-0">
+                <div className="flex flex-col items-center justify-center py-14 text-slate-300 gap-2 shrink-0">
                   <ShoppingCart size={40} strokeWidth={1} className="opacity-40" />
-                  <span className="text-xs text-[var(--text-muted)] font-medium">Carrinho vazio — bipe ou toque em produtos</span>
+                  <span className="text-xs text-slate-400 font-medium">Carrinho vazio — bipe ou toque em produtos</span>
                 </div>
               )}
               {carrinho.map(item => (
-                <div key={String(item.productId)} className="flex items-center gap-2.5 bg-[var(--bg-card)] rounded-xl p-2 shrink-0 border border-[var(--border-color)]">
-                  <div className="w-11 h-11 rounded-lg bg-[var(--bg-card)] border border-[var(--border-color)] flex items-center justify-center overflow-hidden shrink-0">
+                <div key={String(item.productId)} className="flex items-center gap-2.5 bg-white rounded-xl p-2 shrink-0 border border-slate-100">
+                  <div className="w-11 h-11 rounded-lg bg-white border border-slate-100 flex items-center justify-center overflow-hidden shrink-0">
                     {item.imageUrl ? (
                       <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
                     ) : (
-                      <Package size={18} className="text-[var(--text-muted)]" />
+                      <Package size={18} className="text-slate-300" />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-[var(--text-main)] leading-tight truncate">{item.name}</p>
-                    <p className="text-[11px] font-black text-[var(--primary-color)] tabular-nums mt-0.5">{formatarMoeda(item.price * item.quantity)}</p>
+                    <p className="text-xs font-bold text-slate-700 leading-tight truncate">{item.name}</p>
+                    <p className="text-[11px] font-black text-emerald-600 tabular-nums mt-0.5">{formatarMoeda(item.price * item.quantity)}</p>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       onClick={() => atualizarQuantidade(item.productId, -1)}
-                      className="w-9 h-9 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-colors"
+                      className="w-9 h-9 rounded-xl bg-white border border-slate-200 text-slate-500 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-colors"
                       aria-label="Diminuir"
                     >
                       <Minus size={14} />
                     </button>
-                    <span className="w-8 text-center text-xs font-black text-[var(--text-main)] tabular-nums">{item.quantity}x</span>
+                    <span className="w-8 text-center text-xs font-black text-slate-700 tabular-nums">{item.quantity}x</span>
                     <button
                       onClick={() => atualizarQuantidade(item.productId, 1)}
-                      className="w-9 h-9 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] flex items-center justify-center hover:bg-[var(--primary-color)]/10 hover:text-[var(--primary-color)] transition-colors"
+                      className="w-9 h-9 rounded-xl bg-white border border-slate-200 text-slate-500 flex items-center justify-center hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
                       aria-label="Aumentar"
                     >
                       <Plus size={14} />
@@ -1129,7 +1129,7 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
                     onClick={() => removerDoCarrinho(item.productId)}
                     title="Remover item"
                     aria-label="Remover item"
-                    className="text-[var(--text-muted)] hover:text-rose-500 hover:bg-rose-50 p-2.5 rounded-xl transition-all cursor-pointer shrink-0"
+                    className="text-slate-400 hover:text-rose-500 hover:bg-rose-50 p-2.5 rounded-xl transition-all cursor-pointer shrink-0"
                   >
                     <Trash2 size={15} />
                   </button>
@@ -1140,23 +1140,23 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
 
           {/* ELEMENTO 2: CRÉDITOS (WALLET) — Exibe apenas saldo/limite, sem senha */}
           {formaPagamento === 'WALLET' && (
-            <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-4 flex flex-col gap-3 w-full mb-4 animate-in fade-in duration-200 shrink-0">
-              <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">Créditos do Cliente</span>
+            <div className="bg-white border border-slate-200/80 rounded-xl p-4 flex flex-col gap-3 w-full mb-4 animate-in fade-in duration-200 shrink-0">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Créditos do Cliente</span>
               {semClienteCredito ? (
-                <div className="text-xs font-semibold text-[var(--text-muted)] bg-[var(--bg-card)] rounded-xl p-3 border border-[var(--border-color)]">
+                <div className="text-xs font-semibold text-slate-500 bg-white rounded-xl p-3 border border-slate-100">
                   Selecione um cliente para usar créditos
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-3">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Saldo da Carteira</p>
-                    <p className={`text-lg font-black tracking-tight ${saldoCarteiraCliente >= totalFinal ? 'text-[var(--primary-color)]' : 'text-red-500'}`}>{formatarMoeda(saldoCarteiraCliente)}</p>
-                    <p className="text-[10px] font-semibold text-[var(--text-muted)] mt-0.5">Crédito na semana: {formatarMoeda(limiteSemanalDisponivel)}</p>
+                  <div className="bg-white border border-slate-200/80 rounded-xl p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Saldo da Carteira</p>
+                    <p className={`text-lg font-black tracking-tight ${saldoCarteiraCliente >= totalFinal ? 'text-emerald-600' : 'text-red-500'}`}>{formatarMoeda(saldoCarteiraCliente)}</p>
+                    <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Crédito na semana: {formatarMoeda(limiteSemanalDisponivel)}</p>
                   </div>
-                  <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-3">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Limite Fiado</p>
-                    <p className="text-lg font-black tracking-tight text-[var(--text-main)]">{formatarMoeda(Math.max(0, Number((cliente as any)?.creditLimit || 0) - Number((cliente as any)?.currentDebt || 0)))}</p>
-                    <p className="text-[10px] font-semibold text-[var(--text-muted)] mt-0.5">Dívida atual: {formatarMoeda(Number((cliente as any)?.currentDebt || 0))}</p>
+                  <div className="bg-white border border-slate-200/80 rounded-xl p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Limite Fiado</p>
+                    <p className="text-lg font-black tracking-tight text-slate-800">{formatarMoeda(Math.max(0, Number((cliente as any)?.creditLimit || 0) - Number((cliente as any)?.currentDebt || 0)))}</p>
+                    <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Dívida atual: {formatarMoeda(Number((cliente as any)?.currentDebt || 0))}</p>
                   </div>
                 </div>
               )}
@@ -1165,29 +1165,29 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
 
           {/* ELEMENTO 3: FIADO — Exige senha do supervisor */}
           {formaPagamento === 'FIADO' && (
-            <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-4 flex flex-col gap-3 w-full mb-4 animate-in fade-in duration-200 shrink-0">
-              <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">Venda a Fiado — Requer Autorização</span>
+            <div className="bg-white border border-slate-200/80 rounded-xl p-4 flex flex-col gap-3 w-full mb-4 animate-in fade-in duration-200 shrink-0">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Venda a Fiado — Requer Autorização</span>
               {semClienteCredito ? (
-                <div className="text-xs font-semibold text-[var(--text-muted)] bg-[var(--bg-card)] rounded-xl p-3 border border-[var(--border-color)]">
+                <div className="text-xs font-semibold text-slate-500 bg-white rounded-xl p-3 border border-slate-100">
                   Selecione um cliente para vender a fiado
                 </div>
               ) : (
                 <>
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-3">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Limite Fiado</p>
-                      <p className="text-lg font-black tracking-tight text-[var(--text-main)]">{formatarMoeda(Math.max(0, Number((cliente as any)?.creditLimit || 0) - Number((cliente as any)?.currentDebt || 0)))}</p>
-                      <p className="text-[10px] font-semibold text-[var(--text-muted)] mt-0.5">Dívida atual: {formatarMoeda(Number((cliente as any)?.currentDebt || 0))}</p>
+                    <div className="bg-white border border-slate-200/80 rounded-xl p-3">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Limite Fiado</p>
+                      <p className="text-lg font-black tracking-tight text-slate-800">{formatarMoeda(Math.max(0, Number((cliente as any)?.creditLimit || 0) - Number((cliente as any)?.currentDebt || 0)))}</p>
+                      <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Dívida atual: {formatarMoeda(Number((cliente as any)?.currentDebt || 0))}</p>
                     </div>
-                    <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-3">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Saldo da Carteira</p>
-                      <p className="text-lg font-black tracking-tight text-[var(--text-main)]">{formatarMoeda(saldoCarteiraCliente)}</p>
-                      <p className="text-[10px] font-semibold text-[var(--text-muted)] mt-0.5">Crédito na semana: {formatarMoeda(limiteSemanalDisponivel)}</p>
+                    <div className="bg-white border border-slate-200/80 rounded-xl p-3">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Saldo da Carteira</p>
+                      <p className="text-lg font-black tracking-tight text-slate-800">{formatarMoeda(saldoCarteiraCliente)}</p>
+                      <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Crédito na semana: {formatarMoeda(limiteSemanalDisponivel)}</p>
                     </div>
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">Senha do Interno/Supervisor</label>
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Senha do Interno/Supervisor</label>
                     <div className="flex items-center gap-2">
                       <input
                         type="password"
@@ -1195,15 +1195,15 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
                         onChange={(e) => { setSenhaSupervisor(e.target.value); setSenhaSupervisaoOk(false); setSenhaSupervisaoErro(''); }}
                         onKeyDown={(e) => e.key === 'Enter' && validarSenhaSupervisor()}
                         placeholder="Digite a senha de validação"
-                        className="w-full min-w-0 px-4 py-2.5 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] focus:bg-[var(--bg-card)] text-sm font-medium transition-all"
+                        className="w-full min-w-0 px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white text-sm font-medium transition-all"
                       />
                       <button
                         onClick={validarSenhaSupervisor}
                         disabled={validandoSenhaSupervisor || !senhaSupervisor.trim()}
                         className={`h-[42px] shrink-0 px-4 rounded-xl border text-xs font-bold transition-colors ${
                           senhaSupervisaoOk
-                            ? 'bg-[var(--primary-color)] border-[var(--primary-color)] text-white'
-                            : 'bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-muted)] hover:border-[var(--primary-color)] hover:text-[var(--primary-color)]'
+                            ? 'bg-emerald-600 border-emerald-600 text-white'
+                            : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-400 hover:text-emerald-700'
                         } ${validandoSenhaSupervisor ? 'opacity-50 cursor-wait' : ''} ${!senhaSupervisor.trim() ? 'opacity-40 cursor-not-allowed' : ''}`}
                       >
                         {validandoSenhaSupervisor ? 'Validando...' : senhaSupervisaoOk ? (
@@ -1212,7 +1212,7 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
                       </button>
                     </div>
                     {senhaSupervisaoErro && <p className="text-[11px] font-semibold text-red-500 px-1">{senhaSupervisaoErro}</p>}
-                    {senhaSupervisaoOk && <p className="text-[11px] font-semibold text-[var(--primary-color)] px-1">Autorização confirmada — fiado liberado.</p>}
+                    {senhaSupervisaoOk && <p className="text-[11px] font-semibold text-emerald-600 px-1">Autorização confirmada — fiado liberado.</p>}
                   </div>
                 </>
               )}
@@ -1220,30 +1220,30 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
           )}
 
           {/* ELEMENTO 4: TOTALIZADOR E BOTÃO FINALIZAR — Fixo na base do rodapé direito */}
-          <div className="mt-auto pt-2 w-full shrink-0 bg-[var(--bg-card)] border-t border-[var(--border-color)]">
+          <div className="mt-auto pt-2 w-full shrink-0 bg-white border-t border-slate-200/80">
             {/* Contexto PIX / CARD / CASH / MIXED — renderizado inline no rodapé quando não WALLET */}
             {formaPagamento === 'PIX' && (
               pixChave() ? (
-                <div className="flex flex-col items-center gap-3 bg-[var(--bg-card)] rounded-xl p-4 mb-3 border border-[var(--border-color)]">
+                <div className="flex flex-col items-center gap-3 bg-white rounded-xl p-4 mb-3 border border-slate-200/80">
                   {totalFinal > 0 ? (
                     <>
-                      <div className="bg-[var(--bg-card)] rounded-xl p-3 border border-[var(--border-color)]">
+                      <div className="bg-white rounded-xl p-3 border border-slate-200/80">
                         <QRCodeSVG value={pixPayloadCarrinho} size={140} level="M" />
                       </div>
-                      <span className="text-xs font-bold text-[var(--text-muted)]">Valor: {formatarMoeda(totalFinal)}</span>
+                      <span className="text-xs font-bold text-slate-500">Valor: {formatarMoeda(totalFinal)}</span>
                       <button
                         onClick={() => setPixConfirmado(c => !c)}
                         className={`w-full min-h-[42px] rounded-xl border text-sm font-bold transition-colors ${
                           pixConfirmado
-                            ? 'bg-[var(--primary-color)]/10 border-[var(--primary-color)] text-[var(--primary-color)]'
-                            : 'bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-muted)] hover:border-[var(--primary-color)] hover:text-[var(--primary-color)]'
+                            ? 'bg-emerald-50 border-emerald-500 text-emerald-700'
+                            : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-400 hover:text-emerald-700'
                         }`}
                       >
                         {pixConfirmado ? 'PIX Confirmado' : 'Confirmar Recebimento do PIX'}
                       </button>
                     </>
                   ) : (
-                    <span className="text-xs text-[var(--text-muted)]">Adicione itens para gerar o QR PIX.</span>
+                    <span className="text-xs text-slate-400">Adicione itens para gerar o QR PIX.</span>
                   )}
                 </div>
               ) : (
@@ -1254,19 +1254,19 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
             )}
             {formaPagamento === 'CARD' && (
               <div className="flex flex-col gap-2 mb-3">
-                <label className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">Bandeira do Cartão</label>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Bandeira do Cartão</label>
                 <input
                   type="text"
                   value={bandeiraCartao}
                   onChange={(e) => setBandeiraCartao(e.target.value)}
                   placeholder="Ex.: Mastercard, Elo..."
-                  className="w-full px-4 py-2.5 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] focus:bg-[var(--bg-card)] text-sm font-medium transition-all"
+                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white text-sm font-medium transition-all"
                 />
                 <button
                   onClick={() => setCartaoConfirmado(c => !c)}
-                  className={`w-full py-2.5 px-4 bg-[var(--bg-muted)] border border-[var(--border-color)] hover:bg-[var(--bg-input)] text-[var(--text-main)] font-bold text-xs rounded-xl transition-colors shadow-sm cursor-pointer text-center block mb-2 font-sans uppercase tracking-wider ${
+                  className={`w-full py-2.5 px-4 bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors shadow-sm cursor-pointer text-center block mb-2 font-sans uppercase tracking-wider ${
                     cartaoConfirmado
-                      ? 'bg-[var(--primary-color)]/10 border-[var(--primary-color)]/40 text-[var(--primary-color)] shadow-sm'
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-800 shadow-sm'
                       : ''
                   }`}
                 >
@@ -1276,7 +1276,7 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
             )}
             {formaPagamento === 'CASH' && (
               <div className="flex flex-col gap-1.5 mb-3">
-                <label htmlFor="pdv-valor-recebido" className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">Valor Recebido</label>
+                <label htmlFor="pdv-valor-recebido" className="text-xs font-bold uppercase tracking-wider text-slate-500">Valor Recebido</label>
                 <input
                   id="pdv-valor-recebido"
                   aria-label="Valor Recebido"
@@ -1284,12 +1284,12 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
                   value={valorRecebido}
                   onChange={(e) => setValorRecebido(e.target.value)}
                   placeholder="R$ 0,00"
-                  className="w-full px-4 py-2.5 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] focus:bg-[var(--bg-card)] text-sm font-medium transition-all"
+                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white text-sm font-medium transition-all"
                 />
                 {parseMoeda(valorRecebido) > 0 && (
-                  <div className="text-xs font-semibold text-[var(--text-muted)] flex justify-between px-1">
+                  <div className="text-xs font-semibold text-slate-500 flex justify-between px-1">
                     <span>Troco</span>
-                    <span className="text-[var(--primary-color)] font-black">{formatarMoeda(Math.max(0, parseMoeda(valorRecebido) - totalFinal))}</span>
+                    <span className="text-emerald-600 font-black">{formatarMoeda(Math.max(0, parseMoeda(valorRecebido) - totalFinal))}</span>
                   </div>
                 )}
               </div>
@@ -1299,13 +1299,13 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
                 <div className="grid grid-cols-3 gap-2 mb-2">
                   {(['PIX', 'WALLET', 'CASH'] as const).map(k => (
                     <div key={k} className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">{k === 'CASH' ? 'Dinheiro' : k === 'WALLET' ? 'Créditos' : 'PIX'}</label>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{k === 'CASH' ? 'Dinheiro' : k === 'WALLET' ? 'Créditos' : 'PIX'}</label>
                       <input
                         type="text"
                         value={valorMisto[k]}
                         onChange={(e) => setValorMisto(prev => ({ ...prev, [k]: e.target.value }))}
                         placeholder="R$ 0,00"
-                        className="w-full px-3 py-2.5 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] focus:bg-[var(--bg-card)] text-sm font-medium transition-all"
+                        className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white text-sm font-medium transition-all"
                       />
                     </div>
                   ))}
@@ -1316,7 +1316,7 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
                     disabled={pixMistoConfirmado}
                     className={`w-full py-2.5 px-4 bg-amber-50 border border-amber-200 hover:bg-amber-100 text-amber-800 font-bold text-xs rounded-xl transition-colors shadow-sm cursor-pointer text-center block mb-2 font-sans uppercase tracking-wider ${
                       pixMistoConfirmado
-                        ? 'bg-[var(--primary-color)]/10 border-[var(--primary-color)]/40 text-[var(--primary-color)] cursor-default'
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-800 cursor-default'
                         : ''
                     }`}
                   >
@@ -1329,17 +1329,17 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
 {/* Painel de Fechamento */}
             <div className="flex flex-col gap-3">
               {trocoPreview !== null && trocoPreview > 0 && (
-                <div className="bg-[var(--primary-color)]/10 text-[var(--primary-color)] rounded-xl p-3 flex justify-between items-center text-sm font-bold">
+                <div className="bg-emerald-50 text-emerald-700 rounded-xl p-3 flex justify-between items-center text-sm font-bold">
                   <span>Troco a devolver</span>
                   <span className="text-base font-black">{formatarMoeda(trocoPreview)}</span>
                 </div>
               )}
               {/* DESCONTO — faixa com subtotal + percentual aplicado (ou botão) */}
-              <div className={`rounded-xl border p-3 flex items-center justify-between gap-2 ${descontoPct > 0 ? 'bg-amber-50 border-amber-200' : 'bg-[var(--bg-muted)] border-[var(--border-color)]'}`}>
+              <div className={`rounded-xl border p-3 flex items-center justify-between gap-2 ${descontoPct > 0 ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200'}`}>
                 {descontoPct > 0 ? (
                   <>
                     <div className="flex flex-col min-w-0 gap-0.5">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Subtotal: {formatarMoeda(totalCarrinho)}</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Subtotal: {formatarMoeda(totalCarrinho)}</span>
                       <span className="text-xs font-black text-amber-700 flex items-center gap-1">
                         <Percent size={13} /> Desconto {String(descontoPct).replace('.', ',')}% · -{formatarMoeda(valorDesconto)}
                       </span>
@@ -1355,7 +1355,7 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
                         onClick={limparDesconto}
                         title="Remover desconto"
                         aria-label="Remover desconto"
-                        className="w-7 h-7 rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-red-500 hover:border-red-200 flex items-center justify-center transition-colors"
+                        className="w-7 h-7 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-red-500 hover:border-red-200 flex items-center justify-center transition-colors"
                       >
                         <X size={14} />
                       </button>
@@ -1363,21 +1363,21 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
                   </>
                 ) : (
                   <>
-                    <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] flex items-center gap-1.5">
-                      <Percent size={14} className="text-[var(--text-muted)]" /> Desconto (até 50%)
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                      <Percent size={14} className="text-slate-400" /> Desconto (até 50%)
                     </span>
                     <button
                       onClick={() => { setDescPctInput(''); setDescSenha1(''); setDescSenha2(''); setDescErro(''); setDescontoAberto(true); }}
-                      className="text-[11px] font-bold px-3 py-1.5 rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] text-[var(--text-muted)] hover:border-[var(--primary-color)] hover:text-[var(--primary-color)] transition-colors"
+                      className="text-[11px] font-bold px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-emerald-400 hover:text-emerald-700 transition-colors"
                     >
                       Aplicar
                     </button>
                   </>
                 )}
               </div>
-              <div className="bg-[var(--bg-muted)] p-4 rounded-xl flex justify-between items-center">
-                <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">Total a Receber</span>
-                <span className="text-2xl font-black text-[var(--text-main)]">{formatarMoeda(totalFinal)}</span>
+              <div className="bg-slate-50 p-4 rounded-xl flex justify-between items-center">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Total a Receber</span>
+                <span className="text-2xl font-black text-slate-900">{formatarMoeda(totalFinal)}</span>
               </div>
               {/* Mensagens de bloqueio específicas por método */}
               {bloqueioCash && (
@@ -1421,8 +1421,8 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
                 onClick={finalizarVenda}
                 className={`w-full py-4 px-6 rounded-xl transition-all flex items-center justify-center gap-2 text-base font-bold ${
                   podeFinalizar
-                    ? 'bg-[var(--primary-color)] hover:brightness-110 text-white shadow-lg cursor-pointer'
-                    : 'bg-[var(--bg-muted)] text-[var(--text-muted)] border border-[var(--border-color)] shadow-none cursor-not-allowed pointer-events-none'
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg cursor-pointer'
+                    : 'bg-slate-100 text-slate-400 border border-slate-200 shadow-none cursor-not-allowed pointer-events-none'
                 }`}
               >
                 <Check size={20} />
@@ -1437,12 +1437,12 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
       {/* Modal de preço dinâmico */}
       {produtoPrecoDinamico && (
         <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4" onMouseDown={() => setProdutoPrecoDinamico(null)}>
-          <div className="bg-[var(--bg-card)] rounded-2xl shadow-2xl border border-[var(--border-color)] p-6 w-full max-w-sm" onMouseDown={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 p-6 w-full max-w-sm" onMouseDown={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <span className="text-sm font-black text-[var(--text-main)]">Preço do item</span>
-              <button onClick={() => setProdutoPrecoDinamico(null)} className="text-[var(--text-muted)] hover:text-red-500"><X size={18} /></button>
+              <span className="text-sm font-black text-slate-700">Preço do item</span>
+              <button onClick={() => setProdutoPrecoDinamico(null)} className="text-slate-400 hover:text-red-500"><X size={18} /></button>
             </div>
-            <p className="text-xs font-semibold text-[var(--text-muted)] mb-3">{produtoPrecoDinamico.produto.name}</p>
+            <p className="text-xs font-semibold text-slate-500 mb-3">{produtoPrecoDinamico.produto.name}</p>
             <input
               autoFocus
               type="text"
@@ -1450,11 +1450,11 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
               onChange={(e) => setProdutoPrecoDinamico(prev => prev ? { ...prev, preco: e.target.value } : prev)}
               onKeyDown={(e) => e.key === 'Enter' && confirmarPrecoDinamico()}
               placeholder="R$ 0,00"
-              className="w-full px-4 py-3 bg-[var(--bg-input)] border border-[var(--border-color)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] focus:bg-[var(--bg-card)] text-sm font-medium transition-all mb-4"
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white text-sm font-medium transition-all mb-4"
             />
             <button
               onClick={confirmarPrecoDinamico}
-              className="w-full bg-[var(--primary-color)] hover:brightness-110 text-white font-bold py-3 rounded-xl shadow-md shadow-black/20 transition-colors flex items-center justify-center gap-2"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl shadow-md shadow-emerald-600/20 transition-colors flex items-center justify-center gap-2"
             >
               <Plus size={18} /> Adicionar ao Carrinho
             </button>
@@ -1465,7 +1465,7 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
       {/* Modal de desconto — senha validada por faixa (≤20% 1 senha · >20% dupla) */}
       {descontoAberto && (
         <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4" onMouseDown={() => setDescontoAberto(false)}>
-          <div className="bg-[var(--bg-card)] rounded-2xl shadow-2xl border border-[var(--border-color)] p-6 w-full max-w-sm" onMouseDown={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 p-6 w-full max-w-sm" onMouseDown={(e) => e.stopPropagation()}>
             {(() => {
               const v = parseFloat(String(descPctInput).replace(',', '.'));
               const pctDesc = Number.isFinite(v) && v > 0 ? Math.min(Math.round(v * 10) / 10, 50) : 0;
@@ -1477,22 +1477,22 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
               return (
                 <>
                   <div className="flex items-center justify-between mb-4">
-                    <span className="text-sm font-black text-[var(--text-main)] flex items-center gap-2"><Percent size={16} className="text-amber-500" /> Desconto na Venda</span>
-                    <button onClick={() => setDescontoAberto(false)} className="text-[var(--text-muted)] hover:text-red-500" aria-label="Fechar"><X size={18} /></button>
+                    <span className="text-sm font-black text-slate-700 flex items-center gap-2"><Percent size={16} className="text-amber-500" /> Desconto na Venda</span>
+                    <button onClick={() => setDescontoAberto(false)} className="text-slate-400 hover:text-red-500" aria-label="Fechar"><X size={18} /></button>
                   </div>
 
-                  <div className="bg-[var(--bg-muted)] border border-[var(--border-color)] rounded-xl p-3 flex flex-col gap-1 mb-4 text-xs">
-                    <div className="flex justify-between text-[var(--text-muted)] font-semibold"><span>Subtotal</span><span>{formatarMoeda(totalCarrinho)}</span></div>
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-col gap-1 mb-4 text-xs">
+                    <div className="flex justify-between text-slate-500 font-semibold"><span>Subtotal</span><span>{formatarMoeda(totalCarrinho)}</span></div>
                     <div className="flex justify-between text-amber-600 font-black">
                       <span>Desconto {pctDesc > 0 ? `${String(pctDesc).replace('.', ',')}%` : ''}</span>
                       <span>{valorDesc > 0 ? `-${formatarMoeda(valorDesc)}` : '-'}</span>
                     </div>
-                    <div className="flex justify-between text-[var(--text-main)] font-black text-sm border-t border-[var(--border-color)] pt-1.5">
+                    <div className="flex justify-between text-slate-900 font-black text-sm border-t border-slate-200 pt-1.5">
                       <span>Novo total</span><span>{formatarMoeda(totalDesc)}</span>
                     </div>
                   </div>
 
-                  <label className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">Percentual (%) — máximo 50%</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Percentual (%) — máximo 50%</label>
                   <input
                     autoFocus
                     type="text"
@@ -1501,35 +1501,35 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
                     onChange={(e) => { setDescPctInput(e.target.value); setDescErro(''); }}
                     onKeyDown={(e) => e.key === 'Enter' && podeConfirmar && !validandoDesconto && confirmarDesconto()}
                     placeholder="Ex.: 10 ou 25,5"
-                    className="w-full px-4 py-3 bg-[var(--bg-input)] border border-[var(--border-color)] rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-[var(--bg-card)] text-sm font-bold transition-all mb-3"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white text-sm font-bold transition-all mb-3"
                   />
                   {excede50 && <p className="text-[11px] font-semibold text-red-500 mb-2">Desconto máximo permitido é de 50%.</p>}
 
-                  <p className="text-[11px] font-semibold text-[var(--text-muted)] mb-3">
+                  <p className="text-[11px] font-semibold text-slate-400 mb-3">
                     {exigeDupla
                       ? 'Acima de 20%: informe a senha de entrada (login) + a senha mestra.'
                       : 'Até 20%: informe UMA senha — login do administrador ou senha mestra.'}
                   </p>
 
-                  <label className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">{exigeDupla ? 'Senha de entrada (login)' : 'Senha do administrador'}</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">{exigeDupla ? 'Senha de entrada (login)' : 'Senha do administrador'}</label>
                   <input
                     type="password"
                     value={descSenha1}
                     onChange={(e) => { setDescSenha1(e.target.value); setDescErro(''); }}
                     onKeyDown={(e) => e.key === 'Enter' && podeConfirmar && !validandoDesconto && confirmarDesconto()}
                     placeholder="Digite a senha"
-                    className="w-full px-4 py-3 bg-[var(--bg-input)] border border-[var(--border-color)] rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-[var(--bg-card)] text-sm font-medium transition-all mb-3"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white text-sm font-medium transition-all mb-3"
                   />
                   {exigeDupla && (
                     <>
-                      <label className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">Senha mestra</label>
+                      <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Senha mestra</label>
                       <input
                         type="password"
                         value={descSenha2}
                         onChange={(e) => { setDescSenha2(e.target.value); setDescErro(''); }}
                         onKeyDown={(e) => e.key === 'Enter' && podeConfirmar && !validandoDesconto && confirmarDesconto()}
                         placeholder="Digite a senha mestra"
-                        className="w-full px-4 py-3 bg-[var(--bg-input)] border border-[var(--border-color)] rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-[var(--bg-card)] text-sm font-medium transition-all mb-3"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white text-sm font-medium transition-all mb-3"
                       />
                     </>
                   )}
@@ -1539,7 +1539,7 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
                   <div className="flex gap-2">
                     <button
                       onClick={() => setDescontoAberto(false)}
-                      className="flex-1 py-3 rounded-xl border border-[var(--border-color)] text-[var(--text-muted)] text-sm font-bold hover:bg-[var(--bg-muted)] transition-colors"
+                      className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 text-sm font-bold hover:bg-slate-50 transition-colors"
                     >
                       Cancelar
                     </button>
@@ -1549,7 +1549,7 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
                       className={`flex-1 py-3 rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-2 ${
                         podeConfirmar && !validandoDesconto
                           ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/20'
-                          : 'bg-[var(--bg-muted)] text-[var(--text-muted)] cursor-not-allowed'
+                          : 'bg-slate-100 text-slate-400 cursor-not-allowed'
                       }`}
                     >
                       {validandoDesconto ? 'Validando...' : <><Check size={16} /> Autorizar</>}
