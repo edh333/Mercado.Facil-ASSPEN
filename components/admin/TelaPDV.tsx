@@ -269,6 +269,8 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
   );
   const clientesFiltrados = useMemo(() => filtrarClientesPdv(todosClientes, buscaCliente), [todosClientes, buscaCliente]);
   const cliente = useMemo(() => todosClientes.find(u => u.id === clienteSelecionado), [todosClientes, clienteSelecionado]);
+  // Nome em destaque (presa) + familiar (apoio) para exibição após a seleção.
+  const clienteRotulo = cliente ? rotularCliente(cliente) : null;
   const clienteEhConsumidor = clienteSelecionado === 'consumidor_geral' || !clienteSelecionado;
 
   const precoEfetivo = (p: any): number => {
@@ -469,7 +471,9 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
   // ── Seleção de cliente ──
   const selecionarCliente = (u: User) => {
     setClienteSelecionado(u.id);
-    setBuscaCliente(u.name);
+    // O nome exibido após a seleção é o do PRESO (destinatário); o familiar
+    // segue como apoio. Sem interno cadastrado, usa o nome do próprio usuário.
+    setBuscaCliente(u.inmateName || u.prisonerName || u.name);
     setMostrarListaClientes(false);
     setTimeout(() => produtoInputRef.current?.focus(), 50);
   };
@@ -839,14 +843,17 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
             {/* Header Interno Discreto */}
             <div className="border-b border-slate-100 pb-3">
               <span className="text-xs font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md">
-                Venda no Balcão — {cliente ? cliente.name : 'Defina o Cliente'}
+                Venda no Balcão — {clienteRotulo ? (clienteRotulo.interno || clienteRotulo.responsavel || 'Cliente') : 'Defina o Cliente'}
+                {clienteRotulo?.interno && clienteRotulo.responsavel && !clienteRotulo.semResponsavel && (
+                  <span className="font-bold normal-case tracking-normal text-slate-400"> · familiar: {clienteRotulo.responsavel}</span>
+                )}
               </span>
             </div>
 
             {/* Campo 1: Busca do Cliente */}
             <div ref={clienteSearchRef} className="flex flex-col gap-1.5 relative">
               <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Responsável / Cliente
+                Buscar Cliente (preso em destaque)
               </label>
               <div className="relative">
                 <Search className="absolute left-4 top-3.5 h-5 w-5 text-slate-400" />

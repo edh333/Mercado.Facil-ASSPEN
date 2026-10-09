@@ -123,8 +123,15 @@ describe('lista de clientes do PDV — preso é o destaque, familiar é apoio', 
     expect(screen.getByText(/SEM NOME/i)).toBeTruthy();
   });
 
-  it('ao selecionar, o campo recebe o nome do responsável (e não o do interno)', () => {
+  it('ao selecionar, o campo recebe o nome do preso (e não o do familiar)', () => {
     renderPDV([usuario({ inmateName: 'JOSE SOUZA' })]);
+    buscar('MARIA');
+    fireEvent.click(opcao('MARIA SOUZA'));
+    expect(valor(screen.getByPlaceholderText('Nome, CPF ou nome do interno...'))).toBe('JOSE SOUZA');
+  });
+
+  it('sem interno cadastrado, ao selecionar o campo recebe o nome do usuário', () => {
+    renderPDV([usuario({ name: 'MARIA SOUZA' })]);
     buscar('MARIA');
     fireEvent.click(opcao('MARIA SOUZA'));
     expect(valor(screen.getByPlaceholderText('Nome, CPF ou nome do interno...'))).toBe('MARIA SOUZA');
