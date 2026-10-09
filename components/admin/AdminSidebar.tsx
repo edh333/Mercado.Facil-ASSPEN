@@ -90,44 +90,70 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             </div>
         </div>
 
-        <nav className="flex-1 space-y-1 px-3">
+        <nav className="flex-1 px-3">
             {isSalesRestricted ? (
               <>
-                {renderHome()}
-                {renderOrders()}
-                {renderProducts()}
-                {renderStockAlerts()}
-                {userRole === 'operator' && checkAccess('cash') && <NavItem icon={Landmark} label="Meu Caixa" active={activeTab === 'cash'} onClick={() => go('cash')} />}
-                {renderSalesButton()}
+                <p className="px-3 pt-3 pb-1 text-[9px] font-black uppercase tracking-widest text-slate-500">Operação</p>
+                <div className="space-y-1">
+                  {renderHome()}
+                  {renderOrders()}
+                  {renderProducts()}
+                  {renderStockAlerts()}
+                  {userRole === 'operator' && checkAccess('cash') && <NavItem icon={Landmark} label="Meu Caixa" active={activeTab === 'cash'} onClick={() => go('cash')} />}
+                  {renderSalesButton()}
+                </div>
               </>
             ) : (
-              <>
-                {renderHome()}
-                {renderOrders()}
-                {renderProducts()}
-                {renderStockAlerts()}
-
-                {renderSalesButton()}
-
-                {hasPermission('cash') && <NavItem icon={Landmark} label="Caixa / Gaveta" active={activeTab === 'cash'} onClick={() => go('cash')} />}
-
-                <div className="my-2 border-t border-white/10 h-px mx-1"></div>
-
-                {hasPermission('inmates') && <NavItem icon={Shield} label="Gestão de Internos" active={activeTab === 'inmates'} onClick={() => go('inmates')} />}
-                {checkAccess('users') && <NavItem icon={Users} label="Gestão de Familiares" active={activeTab === 'users'} onClick={() => go('users')} badge={pendingUsersCount} />}
-                {checkAccess('messages') && <NavItem icon={MessageSquare} label="Comunicados" active={activeTab === 'messages'} onClick={() => go('messages')} />}
-                {checkAccess('finance') && <NavItem icon={DollarSign} label="Fluxo de Caixa" active={activeTab === 'finance'} onClick={() => go('finance')} />}
-                {checkAccess('wallet') && <NavItem icon={CreditCard} label="Carteira & Créditos" active={activeTab === 'wallet'} onClick={() => go('wallet')} badge={pendingDepositsCount} />}
-                {checkAccess('customers') && <NavItem icon={BookOpen} label="Contas a Pagar" active={activeTab === 'customers'} onClick={() => go('customers')} />}
-                {checkAccess('audit') && <NavItem icon={ShieldCheck} label="Auditoria" active={activeTab === 'audit'} onClick={() => go('audit')} />}
-
-                <div className="my-2 border-t border-white/10 h-px mx-1"></div>
-
-                {checkAccess('reports') && <NavItem icon={BarChart3} label="Relatórios" active={activeTab === 'reports'} onClick={() => go('reports')} />}
-                {checkAccess('bi') && (isMaster || userRole === 'admin') && <NavItem icon={Activity} label="Dashboard BI" active={activeTab === 'bi'} onClick={() => go('bi')} />}
-                {checkAccess('maintenance') && <NavItem icon={Wrench} label="Manutenção" active={activeTab === 'maintenance'} onClick={() => go('maintenance')} />}
-                {checkAccess('settings') && <NavItem icon={Settings} label="Configurações" active={activeTab === 'settings'} onClick={() => go('settings')} />}
-              </>
+              <div className="pb-2">
+                {[
+                  {
+                    titulo: 'Operação',
+                    itens: [
+                      renderHome(),
+                      renderOrders(),
+                      renderProducts(),
+                      renderStockAlerts(),
+                      hasPermission('cash') && <NavItem key="cash" icon={Landmark} label="Caixa / Gaveta" active={activeTab === 'cash'} onClick={() => go('cash')} />,
+                      renderSalesButton()
+                    ]
+                  },
+                  {
+                    titulo: 'Cadastros e Gestão',
+                    itens: [
+                      hasPermission('inmates') && <NavItem key="inmates" icon={Shield} label="Gestão de Internos" active={activeTab === 'inmates'} onClick={() => go('inmates')} />,
+                      checkAccess('users') && <NavItem key="users" icon={Users} label="Gestão de Familiares" active={activeTab === 'users'} onClick={() => go('users')} badge={pendingUsersCount} />,
+                      checkAccess('messages') && <NavItem key="messages" icon={MessageSquare} label="Comunicados" active={activeTab === 'messages'} onClick={() => go('messages')} />
+                    ]
+                  },
+                  {
+                    titulo: 'Financeiro',
+                    itens: [
+                      checkAccess('finance') && <NavItem key="finance" icon={DollarSign} label="Fluxo de Caixa" active={activeTab === 'finance'} onClick={() => go('finance')} />,
+                      checkAccess('wallet') && <NavItem key="wallet" icon={CreditCard} label="Carteira & Créditos" active={activeTab === 'wallet'} onClick={() => go('wallet')} badge={pendingDepositsCount} />,
+                      checkAccess('customers') && <NavItem key="customers" icon={BookOpen} label="Contas a Pagar" active={activeTab === 'customers'} onClick={() => go('customers')} />,
+                      checkAccess('audit') && <NavItem key="audit" icon={ShieldCheck} label="Auditoria" active={activeTab === 'audit'} onClick={() => go('audit')} />
+                    ]
+                  },
+                  {
+                    titulo: 'Análise e Sistema',
+                    itens: [
+                      checkAccess('reports') && <NavItem key="reports" icon={BarChart3} label="Relatórios" active={activeTab === 'reports'} onClick={() => go('reports')} />,
+                      checkAccess('bi') && (isMaster || userRole === 'admin') && <NavItem key="bi" icon={Activity} label="Dashboard BI" active={activeTab === 'bi'} onClick={() => go('bi')} />,
+                      checkAccess('maintenance') && <NavItem key="maintenance" icon={Wrench} label="Manutenção" active={activeTab === 'maintenance'} onClick={() => go('maintenance')} />,
+                      checkAccess('settings') && <NavItem key="settings" icon={Settings} label="Configurações" active={activeTab === 'settings'} onClick={() => go('settings')} />
+                    ]
+                  }
+                ].map(({ titulo, itens }) => {
+                  const visiveis = itens.filter(Boolean);
+                  if (!visiveis.length) return null;
+                  return (
+                    <div key={titulo} className="pt-3 first:pt-2">
+                      <p className="px-3 pb-1 text-[9px] font-black uppercase tracking-widest text-slate-500">{titulo}</p>
+                      <div className="space-y-1">{visiveis}</div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
         </nav>
 
