@@ -550,7 +550,7 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
   const endereco = limparLinha(config?.address || '', 44);
 
   const status = String(data.status || '').toLowerCase();
-  const cancelado = ['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'rejected', 'rejeitado'].includes(status);
+  const cancelado = ['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'reembolsado', 'rejected', 'rejeitado'].includes(status);
 
   let cupom = "";
   // Cabeçalho compacto — cada linha a menos é papel economizado em TODA venda:

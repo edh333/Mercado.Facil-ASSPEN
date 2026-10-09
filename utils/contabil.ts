@@ -1,5 +1,5 @@
 import { toDate } from './dateUtils';
-import { ehReceita } from '../components/admin/adminUtils';
+import { ehReceita, ehCancelado } from '../components/admin/adminUtils';
 import { celulaCsv } from './csv';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -46,7 +46,7 @@ export const buildMonthlyDre = (orders: any[], expenses: any[], products: any[],
   );
   const cancelledOrders = (orders || []).filter(o =>
     !o.deleted &&
-    String(o.status || '').toUpperCase() === 'CANCELLED' &&
+    ehCancelado(o.status) &&
     inRangeContabil(o.date || o.createdAt, startDate, endDate)
   );
 
@@ -386,8 +386,7 @@ export const buildExtratoIndividual = (user: any, orders: any[], transactions: a
     .filter(o => !o.deleted && String(o.userId) === String(user.id) && inRangeContabil(o.date || o.createdAt, startDate, endDate))
     .forEach(o => {
       const total = Math.abs(Number(o.total) || 0);
-      const status = String(o.status || '').toUpperCase();
-      const cancelado = ['CANCELLED', 'REFUNDED', 'DEVOLVIDO', 'REEMBOLSADO', 'ESTORNADO'].includes(status);
+      const cancelado = ehCancelado(o.status);
       movs.push({
         date: o.date || o.createdAt,
         type: cancelado ? 'ENTRY' : 'EXIT',

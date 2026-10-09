@@ -4,6 +4,7 @@ import { collection, query, where, getDocs, orderBy, limit, Timestamp } from 'fi
 import { Order } from '../../types';
 import { toDate } from '../../utils/dateUtils';
 import { ChartMount } from '../ui/ChartMount';
+import { ehReceita } from './adminUtils';
 import { useRecharts } from '../../utils/rechartsLoader';
 import { TrendingUp, CreditCard, DollarSign, AlertTriangle, BarChart3, PieChart as PieChartIcon, Loader2, RefreshCw } from 'lucide-react';
 import { AdminCapacityPanel } from './AdminCapacityPanel';
@@ -105,9 +106,6 @@ export const AdminDashboardCharts: React.FC = () => {
     fetchData();
   }, [forceRefresh]);
 
-  const cancelados = ['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'reembolsado'];
-  const ehCancelado = (o: any) => cancelados.includes(String(o.status || '').toLowerCase());
-
   const dailySales: DailySales[] = useMemo(() => {
     const map = new Map<string, { total: number; count: number }>();
     const today = new Date();
@@ -118,7 +116,7 @@ export const AdminDashboardCharts: React.FC = () => {
       map.set(key, { total: 0, count: 0 });
     }
     allOrders.forEach(o => {
-      if (ehCancelado(o)) return;
+      if (!ehReceita(o.status)) return;
       const raw = o.createdAt || o.date;
       if (!raw) return;
       const d = toDate(raw);
@@ -143,7 +141,7 @@ export const AdminDashboardCharts: React.FC = () => {
       MIXED: 'Misto',
     };
     allOrders.forEach(o => {
-      if (ehCancelado(o)) return;
+      if (!ehReceita(o.status)) return;
       const payments = (o as any).payments;
       if (Array.isArray(payments) && payments.length > 0) {
         payments.forEach((p: { method: string; amount: number }) => {
@@ -169,10 +167,9 @@ export const AdminDashboardCharts: React.FC = () => {
   }, [allOrders]);
 
   const totalRevenue = useMemo(() => {
-    const cancelados = ['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'reembolsado'];
-    return allOrders.filter(o => !cancelados.includes(String(o.status || '').toLowerCase())).reduce((a, o) => a + (Number(o.total) || 0), 0);
+    return allOrders.filter(o => ehReceita(o.status)).reduce((a, o) => a + (Number(o.total) || 0), 0);
   }, [allOrders]);
-  const totalOrders = allOrders.filter(o => !ehCancelado(o)).length;
+  const totalOrders = allOrders.filter(o => ehReceita(o.status)).length;
   const avgTicket = totalOrders > 0 ? totalRevenue / totalOrders : 0;
   const topPayment = paymentBreakdown.length > 0 ? paymentBreakdown[0] : null;
 

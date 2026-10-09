@@ -103,6 +103,18 @@ describe('buildMonthlyDre', () => {
     );
     expect(dre.qtdPedidosCancelados).toBe(1);
   });
+
+  it('conta cancelado em portugues (CANCELADO) tambem', () => {
+    const dre = buildMonthlyDre(
+      [pedido(), pedido({ id: 'c', status: 'CANCELADO' })],
+      [],
+      [],
+      RANGE.ini,
+      RANGE.fim
+    );
+    expect(dre.qtdPedidosCancelados).toBe(1);
+    expect(dre.qtdPedidos).toBe(1);
+  });
 });
 
 describe('buildSalesCsv', () => {
@@ -287,6 +299,19 @@ describe('buildExtratoIndividual', () => {
     const extrato = buildExtratoIndividual(
       user,
       [pedido({ status: 'REFUNDED' })],
+      [],
+      RANGE.ini,
+      RANGE.fim
+    );
+    expect(extrato?.movs[0].type).toBe('ENTRY');
+  });
+
+  it('CANCELADO (PT) tambem vira entrada, nao debito (regressao do extrato)', () => {
+    // A lista antiga do extrato só tinha 'CANCELLED' (EN): um pedido gravado
+    // como 'cancelado' caía em EXIT e aparecia como DÉBITO de compra cancelada.
+    const extrato = buildExtratoIndividual(
+      user,
+      [pedido({ status: 'cancelado' })],
       [],
       RANGE.ini,
       RANGE.fim

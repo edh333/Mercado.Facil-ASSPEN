@@ -8,7 +8,7 @@ import { Order } from '../../types';
 import { mascararCpf } from '../../utils';
 import { celulaCsv } from '../../utils/csv';
 import { toDate } from '../../utils/dateUtils';
-import { getLocalDateStr } from './adminUtils';
+import { getLocalDateStr, ehReceita } from './adminUtils';
 import { ChartMount } from '../ui/ChartMount';
 import { useRecharts, RechartsSkeleton } from '../../utils/rechartsLoader';
 import { db } from '../../firebase';
@@ -26,8 +26,6 @@ type Periodo = 'today' | 'yesterday' | '7d' | '30d' | 'month' | 'custom';
 const fmt = formatBRL;
 
 const fmtNum = (v: number) => v.toLocaleString('pt-BR');
-
-const CANCELADOS = ['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'rejeitado'];
 
 const LABELS_PAGAMENTO: Record<string, string> = {
   PIX: 'PIX', WALLET: 'Carteira', CASH: 'Dinheiro', CARD: 'Cartão', MIXED: 'Misto', FIADO: 'Fiado',
@@ -113,7 +111,7 @@ export const AdminSalesDashboard: React.FC<AdminSalesDashboardProps> = ({ orders
   }, [pedidosPeriodo, orders]);
 
   const vendasPeriodo = useMemo(() => (pedidosBase || []).filter(o => {
-    if (CANCELADOS.includes(String(o.status || '').toLowerCase())) return false;
+    if (!ehReceita(o.status)) return false;
     if (o.deleted) return false;
       const raw = o.createdAt || o.date;
       if (!raw) return false;
@@ -127,7 +125,7 @@ export const AdminSalesDashboard: React.FC<AdminSalesDashboardProps> = ({ orders
     const prevEnd = new Date(range.start); prevEnd.setDate(prevEnd.getDate() - 1); prevEnd.setHours(23, 59, 59, 999);
     const prevStart = new Date(range.start); prevStart.setDate(prevStart.getDate() - dias); prevStart.setHours(0, 0, 0, 0);
     return (pedidosBase || []).filter(o => {
-      if (CANCELADOS.includes(String(o.status || '').toLowerCase())) return false;
+      if (!ehReceita(o.status)) return false;
       if (o.deleted) return false;
       const raw = o.createdAt || o.date;
       if (!raw) return false;

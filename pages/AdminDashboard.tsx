@@ -672,7 +672,7 @@ const isMaster = isMasterAdmin(currentUser);
   const filteredOrdersForHome = useMemo(() => {
     const now = new Date(); now.setHours(0, 0, 0, 0);
     return (orders || []).filter(o => {
-      if (['cancelled', 'cancelado'].includes(normStatus(o.status))) return false;
+      if (!ehReceita(o.status)) return false;
       if (!o.date) return false;
       try {
         const d = toDate(o.date); if (!d) return false; d.setHours(0, 0, 0, 0);
@@ -714,7 +714,7 @@ const isMaster = isMasterAdmin(currentUser);
         if (!o.date) return false;
         try {
           const od = toDate(o.date); if (!od) return false;
-          return od.getDate() === d.getDate() && od.getMonth() === d.getMonth() && !['cancelled', 'cancelado'].includes(normStatus(o.status));
+          return od.getDate() === d.getDate() && od.getMonth() === d.getMonth() && ehReceita(o.status);
         } catch (e) { return false; }
       });
       const total = dayOrders.reduce((acc, o) => acc + (Number(o.total) || 0), 0);

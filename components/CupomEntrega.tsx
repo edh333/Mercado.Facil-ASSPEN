@@ -42,7 +42,7 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
   const saldoAnterior = saldoAnteriorExplicito ? data.walletBalanceBefore : undefined;
 
   const status = String(data.status || '').toLowerCase();
-  const cancelado = ['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'rejected', 'rejeitado'].includes(status);
+  const cancelado = ['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'reembolsado', 'rejected', 'rejeitado'].includes(status);
   const payments = Array.isArray(data.payments) ? data.payments : [];
   const temPagamentosMistos = payments.length > 0;
   const nomesMetodo: any = { PIX: 'PIX', WALLET: 'CARTEIRA', CASH: 'DINHEIRO', CARD: 'CARTÃO', FIADO: 'FIADO', FIADO_30: 'FIADO 30 DIAS', MIXED: 'MISTO' };

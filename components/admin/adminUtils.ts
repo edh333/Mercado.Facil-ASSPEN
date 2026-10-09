@@ -60,6 +60,19 @@ export const ehReceita = (status: string | undefined | null): boolean => {
     return ['paid', 'pago', 'preparing', 'separacao', 'separação', 'out_for_delivery', 'saiu', 'delivered', 'entregue'].some(k => s === k || s.includes(k));
 };
 
+/** Fonte ÚNICA de verdade para "este pedido foi cancelado/estornado/devolvido?".
+ *  Cobre os 10 aliases (PT/EN) que o servidor usa em STATUS_ESTORNADO.
+ *  Use esta função em vez de listas locais — havia 8 listas diferentes e cada
+ *  uma omitia ao menos um alias (ex.: o extrato não reconhecia 'cancelado' e
+ *  lançava a compra cancelada como DÉBITO). */
+export const ehCancelado = (status: string | undefined | null): boolean => {
+    const s = String(status || '').toLowerCase();
+    if (!s) return false;
+    return s.includes('cancel') || s.includes('refund') || s.includes('estornad')
+        || s.includes('devolvid') || s.includes('reembols') || s.includes('rejeitad')
+        || s.includes('rejected');
+};
+
 /** Prazo de CANCELAMENTO de venda (dias após a compra). Fonte ÚNICA: o modal de
  *  estorno filtra por ela, o painel de pedidos envia como `janelaDias` e o
  *  servidor revalida com o mesmo número. Estorno/devolução NÃO tem prazo. */

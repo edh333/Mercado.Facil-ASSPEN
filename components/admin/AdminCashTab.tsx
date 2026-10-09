@@ -18,6 +18,7 @@ import {
 import { gerarCupomFechamento, imprimirCupom, gerarBoletimDiario, baixarCupomTxt } from '../../utils/printUtils';
 import { formatBRL, parseMoeda } from '../../utils/money';
 import { ModalShell } from '../ui/ModalShell';
+import { ehReceita } from './adminUtils';
 
 // ──────────────────────────────────────────────
 // Helpers
@@ -244,10 +245,9 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
     const agora = new Date();
     const ini = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), 0, 0, 0, 0);
     const fim = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), 23, 59, 59, 999);
-    const cancelado = ['cancelled', 'cancelado', 'estornado', 'refunded', 'devolvido', 'rejeitado'];
     const vendasHoje = (orders || []).filter((o: any) => {
       const d = new Date(o?.createdAt || o?.date);
-      return !isNaN(d.getTime()) && d >= ini && d <= fim && !cancelado.includes(String(o?.status || '').toLowerCase());
+      return !isNaN(d.getTime()) && d >= ini && d <= fim && ehReceita(o?.status);
     });
     const mapa: Record<string, { quantidade: number; total: number }> = {};
     vendasHoje.forEach((o: any) => {

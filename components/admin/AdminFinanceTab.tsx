@@ -13,6 +13,7 @@ import { parseMoeda } from '../../utils/money';
 import { toDate } from '../../utils/dateUtils';
 import { abrirJanelaImpressao } from '../../utils/printUtils';
 import { celulaCsv } from '../../utils/csv';
+import { ehReceita } from './adminUtils';
 
 interface AdminFinanceTabProps {
   expenses: Expense[];
@@ -134,12 +135,8 @@ export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
 
   // Pedidos pendentes/cancelados/estornados/rejeitados NÃO são entrada de caixa:
   // dinheiro ainda não entrou (ou foi devolvido, ou o pedido foi recusado).
-  const statusValido = (s?: string) => {
-    const st = String(s || '').toLowerCase();
-    if (['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'reembolsado', 'pending', 'pending_payment', 'pendente', 'rejected', 'rejeitado'].includes(st)) return false;
-    // Unifica com cards do painel: 'saiu p/ entrega' também é receita.
-    return ['paid', 'pago', 'preparing', 'separacao', 'separação', 'out_for_delivery', 'saiu', 'delivered', 'entregue'].some(k => st === k || st.includes(k));
-  };
+  // Fonte ÚNICA: ehReceita — o mesmo conceito dos cards do painel e do DRE.
+  const statusValido = (s?: string) => ehReceita(s);
 
   const filteredData = useMemo(() => {
     const startStr = financeFilters?.start || hojeStr();
