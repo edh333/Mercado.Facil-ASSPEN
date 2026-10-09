@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatBRL, formatBRLSigned, formatBRLSignedAbs, parseMoeda, roundCents } from '../utils/money';
+import { formatBRL, formatBRLSigned, formatBRLSignedAbs, parseMoeda, roundCents, precoEfetivo } from '../utils/money';
 import { formatarMoeda } from '../utils';
 
 describe('formatBRL', () => {
@@ -97,6 +97,30 @@ describe('roundCents', () => {
   it('arredonda ponto flutuante para centavos', () => {
     expect(roundCents(0.1 + 0.2)).toBe(0.3);
     expect(roundCents(10.005)).toBe(10.01);
+  });
+});
+
+describe('precoEfetivo', () => {
+  it('usa o preço de tabela quando não há promoção', () => {
+    expect(precoEfetivo({ price: 10 })).toBe(10);
+    expect(precoEfetivo({ price: 10, promoPrice: 0 })).toBe(10);
+  });
+
+  it('aplica a promoção quando é um desconto real', () => {
+    expect(precoEfetivo({ price: 10, promoPrice: 7.5 })).toBe(7.5);
+  });
+
+  it('IGNORA promoção que não é desconto (nunca cobra mais que a tabela)', () => {
+    expect(precoEfetivo({ price: 10, promoPrice: 12 })).toBe(10);
+    expect(precoEfetivo({ price: 10, promoPrice: 10 })).toBe(10);
+  });
+
+  it('trata valores inválidos sem quebrar', () => {
+    expect(precoEfetivo(null)).toBe(0);
+    expect(precoEfetivo(undefined)).toBe(0);
+    expect(precoEfetivo({ price: 'abc' } as any)).toBe(0);
+    expect(precoEfetivo({ price: 10, promoPrice: NaN })).toBe(10);
+    expect(precoEfetivo({ price: 10, promoPrice: -3 })).toBe(10);
   });
 });
 

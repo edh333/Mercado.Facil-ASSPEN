@@ -1,5 +1,6 @@
 import React from 'react';
 import { formatarMoeda } from '../utils';
+import { precoEfetivo } from '../utils/money';
 import { Product } from '../types';
 
 interface CatalogoA4Props {
@@ -45,11 +46,6 @@ export const CatalogoA4: React.FC<CatalogoA4Props> = ({ products, config, showUn
   // Nº sequencial GLOBAL (o interno localiza o item na folha inteira,
   // não só dentro da categoria). Contador fluindo entre categorias.
   let numeroGlobal = 0;
-
-  const precoVenda = (p: Product): number => {
-    const temPromo = p.promoPrice !== undefined && Number(p.promoPrice) > 0 && Number(p.promoPrice) < Number(p.price);
-    return temPromo ? Number(p.promoPrice) : Number(p.price);
-  };
 
   return (
     <div className="documento-a4 bg-white p-8 max-w-[210mm] w-full mx-auto text-slate-900 font-sans shadow-xl mb-8 print:shadow-none print:m-0 print:p-6 print:max-w-none print:w-full">
@@ -151,7 +147,7 @@ export const CatalogoA4: React.FC<CatalogoA4Props> = ({ products, config, showUn
                       </div>
                       <div className="text-center tnum print-avoid-break">
                         <p className={`font-black text-xs ${temPromo ? 'text-emerald-600' : 'text-slate-900'}`}>
-                          R$ {formatarMoeda(precoVenda(p))}
+                          R$ {formatarMoeda(precoEfetivo(p))}
                         </p>
                         {temPromo && (
                           <p className="text-[8px] text-slate-500 line-through font-bold">R$ {formatarMoeda(Number(p.price))}</p>

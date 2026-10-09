@@ -54,6 +54,19 @@ export const parseMoeda = (valor: string | number | null | undefined): number =>
 export const roundCents = (valor: number): number => Math.round((valor + Number.EPSILON) * 100) / 100;
 
 /**
+ * Preço praticado de venda de um produto. A promoção só vale quando é um
+ * desconto REAL: `promoPrice > 0` E menor que o preço de tabela. É a regra
+ * ÚNICA usada pelo servidor e por todo o cliente (catálogo, catálogo A4, PDV,
+ * vitrine e carrinho) para que o preço exibido e o cobrado nunca divirjam.
+ * Nunca cobra mais do que o preço de tabela.
+ */
+export const precoEfetivo = (p: { price?: unknown; promoPrice?: unknown } | null | undefined): number => {
+  const preco = Number((p as any)?.price) || 0;
+  const promo = Number((p as any)?.promoPrice);
+  return Number.isFinite(promo) && promo > 0 && promo < preco ? promo : preco;
+};
+
+/**
  * Higieniza o que o usuário digita num campo de valor (moeda BR).
  *
  * Motivo: com `type="number"` + `Number(e.target.value)` o estado volta a

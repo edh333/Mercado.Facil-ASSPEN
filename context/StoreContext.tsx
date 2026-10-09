@@ -21,6 +21,7 @@ import {
     extensaoDe, mensagemFalhaPermanente,
 } from '../utils/proofUpload';
 import { toDate } from '../utils/dateUtils';
+import { precoEfetivo } from '../utils/money';
 import { ASSPEN_INFO, INITIAL_UNITS } from '../constants';
 import { db, auth, storage, FIREBASE_API_KEY } from '../firebase';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
@@ -220,7 +221,6 @@ interface StoreContextType {
     realizarSaque: (valor: number) => Promise<boolean>;
     verificarCredito: (valor: number) => boolean;
     refundOrder: (orderId: string, reason?: string, opts?: { janelaDias?: number; senhaMestra?: string }) => Promise<void>;
-    estornarPedido: (orderId: string, motivo: string, opts?: { janelaDias?: number; senhaMestra?: string }) => Promise<void>;
     resetCredits: (senhaMestra?: string) => Promise<void>;
     mergeDuplicateProducts: () => Promise<void>;
     adminDirectSale: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30', total: number, payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30'; amount: number }[], change?: number, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string, fiado30UserId?: string, senhaPrimaria?: string, senhaSecundaria?: string, sessaoCaixaId?: string, descontoPct?: number) => Promise<Order | null>;
@@ -1155,9 +1155,8 @@ return false;
                 );
             }
 
-            // Preço anunciado é o cobrado: promoPrice quando ativo, senão price.
-            const precoEfetivo = (Number(product.promoPrice) > 0) ? Number(product.promoPrice) : (Number(product.price) || 0);
-            return [...cartArray, { ...product, productId: product.id, quantity: novaQtd, priceAtPurchase: precoEfetivo } as CartItem];
+            // Preço praticado único (utils/money): promo só quando é desconto real.
+            return [...cartArray, { ...product, productId: product.id, quantity: novaQtd, priceAtPurchase: precoEfetivo(product) } as CartItem];
         });
     };
 
@@ -1249,9 +1248,10 @@ return false;
 
     const refundOrder = async (orderId: string, reason: string = 'Devolução administrativa', opts?: { janelaDias?: number; senhaMestra?: string }) => {
         if (!currentUser) return;
+        // Guarda só quando o pedido está na janela carregada. Pedidos vindos da
+        // busca server-side (fora do estado local) são validados no servidor.
         const order = orders.find(o => o.id === orderId);
-        if (!order) throw new Error("Pedido não encontrado.");
-        if (order.status === OrderStatus.CANCELLED) throw new Error("Este pedido já foi cancelado/devolvido.");
+        if (order?.status === OrderStatus.CANCELLED) throw new Error("Este pedido já foi cancelado/devolvido.");
 
         try {
             // Estorno processado NO SERVIDOR (restaura estoque + carteira + status).
@@ -1267,7 +1267,7 @@ return false;
             setOrders(prev => prev.map(o =>
                 o.id === orderId ? { ...o, status: OrderStatus.CANCELLED, refundReason: reason } : o
             ));
-            showNotification(`Pedido #${order.id.slice(0,6)} devolvido com sucesso!`, 'success');
+            showNotification(`Pedido #${orderId.slice(0,6)} devolvido com sucesso!`, 'success');
         } catch (e: any) {
             console.error(e);
             // 'internal'/unavailable é resposta genérica do runtime (ex.: functions
@@ -1278,20 +1278,6 @@ return false;
             }
             throw new Error("Erro ao processar devolução: " + msg);
         }
-    };
-
-    const estornarPedido = async (orderId: string, motivo: string = 'Devolução administrativa', opts?: { janelaDias?: number; senhaMestra?: string }) => {
-        // A senha mestra segue para o servidor: a prova de segundo fator é
-        // conferida lá dentro, não só na UI.
-        await fnEstornarVenda({
-            orderId, motivo,
-            ...(opts?.janelaDias ? { janelaDias: opts.janelaDias } : {}),
-            ...(opts?.senhaMestra ? { senhaMestra: opts.senhaMestra } : {}),
-        });
-        setOrders(prev => prev.map(o =>
-            o.id === orderId ? { ...o, status: OrderStatus.CANCELLED, refundReason: motivo } : o
-        ));
-        showNotification(`Pedido #${orderId.slice(0, 6)} devolvido com sucesso!`, 'success');
     };
 
     const buscarPedidosParaEstorno = async (opts?: { term?: string; startAfter?: string }) => {
@@ -3280,7 +3266,7 @@ useEffect(() => {
             processInvoiceImport, importXmlProduct, previewXmlImport, sanitizeCatalog, updateAppConfig, updateSettings: updateAppConfig,
             downloadBackup, backupSystem: downloadBackup, resetSystem, resetStock, resetFinance, resetCredits, devolucaoAlvara, checkPermission, sendSystemMessage, sendMessage, markMessageRead, showNotification, removeNotification,
             depositToWallet, approveWalletTransaction, rejectWalletTransaction, getWalletTransactions, withdrawWalletCredit, attachAdminProof, reenviarComprovante,
-            validateMasterPassword, validateDualMasterPassword, validateAnyMasterPassword, defineMasterPassword, masterPasswordStatus, addPreRegisteredInmate, updatePreRegisteredInmate, deletePreRegisteredInmate, preRegisteredInmates, refundOrder, estornarPedido, buscarPedidosParaEstorno, importInmatesCsv, updateAdminPassword,
+            validateMasterPassword, validateDualMasterPassword, validateAnyMasterPassword, defineMasterPassword, masterPasswordStatus, addPreRegisteredInmate, updatePreRegisteredInmate, deletePreRegisteredInmate, preRegisteredInmates, refundOrder, buscarPedidosParaEstorno, importInmatesCsv, updateAdminPassword,
             isInstallable: !!deferredPrompt, installApp,
             isLoggingOut,
             tryOfflineUnlock, isOfflineUnlocked: offlineUnlocked, logoutOffline,

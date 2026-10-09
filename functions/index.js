@@ -2197,9 +2197,12 @@ async function prepararItensServidor(t, itens) {
     if (!snap.exists) throw new Error(`Produto não encontrado: ${itens[idx].productId}`);
     const p = snap.data();
     if ((p.stock || 0) < itens[idx].quantity) throw new Error(`Estoque insuficiente: ${p.name || itens[idx].productId}`);
-    // Preço promocional (promoPrice) é a fonte da verdade quando ativo:
-    // o cliente vê e é cobrado pelo preço anunciado na vitrine.
-    const preco = Number(p.promoPrice) > 0 ? Number(p.promoPrice) : (Number(p.price) || 0);
+    // Preço promocional (promoPrice) só vale quando é um desconto REAL
+    // (menor que o preço de tabela). Mesma regra do cliente em utils/money.ts:
+    // nunca cobra mais do que o preço anunciado na vitrine.
+    const precoTabela = Number(p.price) || 0;
+    const promoNum = Number(p.promoPrice);
+    const preco = Number.isFinite(promoNum) && promoNum > 0 && promoNum < precoTabela ? promoNum : precoTabela;
     total = arredondar(total + preco * itens[idx].quantity);
     resultado.push({
       productId: itens[idx].productId,

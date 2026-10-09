@@ -4,7 +4,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Product, User, Order, AppConfig, UserRole } from '../../types';
 import { filtrarClientesPdv } from '../../utils/pdvSearch';
 import { formatarMoeda, generatePixPayload as generatePix, isAdminRole, mascararCpf } from '../../utils';
-import { parseMoeda } from '../../utils/money';
+import { parseMoeda, precoEfetivo } from '../../utils/money';
 import { rotularCliente } from '../../utils/clienteRotulos';
 import { montarPagamentoPdv, arredondarCentavos, MetodoPagamentoPDV, MetodoLancamento } from '../../utils/pdvPayment';
 import { imprimirSilenciosoFiscal, imprimirComPrioridadeFiscal } from '../../utils/printUtils';
@@ -272,11 +272,6 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
   // Nome em destaque (presa) + familiar (apoio) para exibição após a seleção.
   const clienteRotulo = cliente ? rotularCliente(cliente) : null;
   const clienteEhConsumidor = clienteSelecionado === 'consumidor_geral' || !clienteSelecionado;
-
-  const precoEfetivo = (p: any): number => {
-    const promo = Number((p as any)?.promoPrice || 0);
-    return promo > 0 ? promo : (Number(p?.price) || 0);
-  };
 
   const produtosFiltrados = useMemo(() => {
     const term = (codigoProduto || '').trim().toLowerCase();

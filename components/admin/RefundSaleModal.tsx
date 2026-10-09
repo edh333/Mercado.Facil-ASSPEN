@@ -60,7 +60,7 @@ export const RefundSaleModal: React.FC<RefundSaleModalProps> = ({
   onClose,
   onAfterSuccess,
 }) => {
-  const { estornarPedido, buscarPedidosParaEstorno, validateMasterPassword, masterPasswordStatus, currentUser } = useApp();
+  const { refundOrder, buscarPedidosParaEstorno, validateMasterPassword, masterPasswordStatus, currentUser } = useApp();
 
   const [selected, setSelected] = useState<Order | null>(null);
   const [search, setSearch] = useState('');
@@ -183,7 +183,7 @@ export const RefundSaleModal: React.FC<RefundSaleModalProps> = ({
     }
     setProcessando(true);
     try {
-      await estornarPedido(
+      await refundOrder(
         selected.id,
         motivo || 'Devolução administrativa',
         {

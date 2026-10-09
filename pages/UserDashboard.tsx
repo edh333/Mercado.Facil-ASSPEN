@@ -12,7 +12,7 @@ import { NotificationSystem } from '../components/NotificationSystem';
 
 import { generatePixPayload, formatarMoeda, compressImageFile, copiarTextoComFallback } from '../utils';
 import { MIN_PROOF_BYTES } from '../utils/fileHash';
-import { parseMoeda, roundCents, sanitizeMoedaInput } from '../utils/money';
+import { parseMoeda, roundCents, sanitizeMoedaInput, precoEfetivo } from '../utils/money';
 import { imprimirComPrioridadeFiscal } from '../utils/printUtils';
 import { toDate } from '../utils/dateUtils';
 import { collection, query, where, onSnapshot, orderBy, limit, getDocsFromServer, getDocsFromCache } from 'firebase/firestore';
@@ -368,12 +368,6 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                 showNotification(`Produto adicionado: ${matchedPrd.name}!`, 'success');
             }
         }
-    };
-
-    // Preço praticado: promoPrice ativo é a fonte da verdade (mesma regra do servidor).
-    const precoEfetivo = (p: any): number => {
-        const promo = Number(p?.promoPrice);
-        return Number.isFinite(promo) && promo > 0 ? promo : Number(p?.price || 0);
     };
 
     const searchInputRef = useRef<HTMLInputElement>(null);

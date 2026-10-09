@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { formatarMoeda, normalizeName } from '../../utils';
 import { toDate } from '../../utils/dateUtils';
+import { precoEfetivo } from '../../utils/money';
 import { Product, Supplier } from '../../types';
 import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
 
@@ -153,17 +154,14 @@ export const AdminProductsTab: React.FC<AdminProductsTabProps> = ({
     const cats = Object.keys(grouped).sort();
     const rows = cats.map(cat => {
       const prods = grouped[cat].map(p => {
-        const promo = Number(p.promoPrice) > 0 && Number(p.promoPrice) < Number(p.price);
-        const precoFinal = promo ? Number(p.promoPrice) : Number(p.price);
+        const precoFinal = precoEfetivo(p);
+        const promo = precoFinal !== (Number(p.price) || 0);
         const detalhe = [String(p.brand || '').trim(), String(p.weight || '').trim()].filter(Boolean).join(' · ');
         return `<tr><td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;font-weight:700;text-transform:uppercase;">${esc(p.name)}${detalhe ? `<span style="display:block;font-weight:600;font-size:10px;color:#64748b;text-transform:uppercase;">${esc(detalhe)}</span>` : ''}</td><td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;font-size:11px;color:#64748b;">${esc(p.category || '')}</td><td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;text-align:center;font-size:12px;">${(p.stock ?? 0)}</td><td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;text-align:right;font-size:12px;font-weight:700;color:${promo ? '#059669' : '#0f172a'};">${promo ? '<span style="text-decoration:line-through;color:#94a3b8;font-size:10px;margin-right:4px;">R$ ' + fmt(Number(p.price)) + '</span>' : ''}R$ ${fmt(precoFinal)}</td></tr>`;
       }).join('');
       return `<tr><td colspan="4" style="padding:10px 10px 4px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#64748b;background:#f8fafc;border-bottom:2px solid #0f172a;">${esc(cat)} (${grouped[cat].length})</td></tr>${prods}`;
     }).join('');
-    const totalValor = items.reduce((s, p) => {
-      const promo = Number(p.promoPrice) > 0 && Number(p.promoPrice) < Number(p.price);
-      return s + (promo ? Number(p.promoPrice) : Number(p.price)) * (p.stock ?? 0);
-    }, 0);
+    const totalValor = items.reduce((s, p) => s + precoEfetivo(p) * (p.stock ?? 0), 0);
     const html = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -226,11 +224,6 @@ export const AdminProductsTab: React.FC<AdminProductsTabProps> = ({
     });
     return map;
   }, [filteredProducts]);
-
-  const precoEfetivo = (p: Product) => {
-    const promo = Number((p as any).promoPrice);
-    return Number.isFinite(promo) && promo > 0 && promo < Number(p.price) ? promo : Number(p.price || 0);
-  };
 
   const printSimpleList = () => {
     const items = (filteredProducts || []).filter(p => p.available !== false);
@@ -690,8 +683,7 @@ horizontal para chegar em editar/estoque/excluir. */}
                           <p className="font-black text-xl text-[var(--text-main)] tracking-tighter">
                               <span className="text-xs opacity-70 mr-0.5">R$</span>
                               {(() => {
-                                  // Mesma regra do servidor: promoPrice ativo é o preço praticado.
-                                  const efetivo = Number((product as any).promoPrice) > 0 ? Number((product as any).promoPrice) : Number(product.price || 0);
+                                  const efetivo = precoEfetivo(product);
                                   return efetivo > 0 ? formatarMoeda(efetivo) : '—';
                               })()}
                           </p>
@@ -783,12 +775,11 @@ horizontal para chegar em editar/estoque/excluir. */}
                         <p className="font-black text-base text-[var(--text-main)] tracking-tighter">
                           <span className="text-xs opacity-70 mr-0.5">R$</span>
                           {(() => {
-                              // Mesma regra do servidor: promoPrice ativo é o preço praticado.
-                              const efetivo = Number((product as any).promoPrice) > 0 ? Number((product as any).promoPrice) : Number(product.price || 0);
+                              const efetivo = precoEfetivo(product);
                               return efetivo > 0 ? formatarMoeda(efetivo) : '—';
                           })()}
                         </p>
-                        {Number((product as any).promoPrice) > 0 && (
+                        {precoEfetivo(product) !== (Number(product.price) || 0) && (
                           <p className="text-[9px] font-bold text-slate-400 line-through">R$ {Number(product.price || 0).toFixed(2).replace('.', ',')}</p>
                         )}
                       </td>
