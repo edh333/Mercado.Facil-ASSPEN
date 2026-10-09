@@ -672,8 +672,15 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
   }
 
   const total = Math.abs(data.total || 0);
-  const subtotal = itens.reduce((s, i) => s + (Number(i?.priceAtPurchase || i?.price || 0) * (Number(i?.quantity) || 1)), 0);
-  const desconto = subtotal - total;
+  // Subtotal/desconto: prefere os campos GRAVADOS pelo servidor no pedido
+  // (subtotal/discountValue), que refletem a venda oficial mesmo que o preço
+  // unitário nos itens tenha sido alterado depois. Fallback: recalcula da
+  // soma dos itens (venda antiga/offline sem esses campos).
+  const subtotalSalvo = Number(data.subtotal);
+  const subtotalCalc = itens.reduce((s, i) => s + (Number(i?.priceAtPurchase || i?.price || 0) * (Number(i?.quantity) || 1)), 0);
+  const subtotal = subtotalSalvo > 0 ? subtotalSalvo : subtotalCalc;
+  const descSalvo = Number(data.discountValue);
+  const desconto = descSalvo > 0 ? descSalvo : (subtotal - total);
   if (Math.abs(desconto) > 0.005) {
     cupom += formatarLinhaDupla("SUBTOTAL:", `R$ ${subtotal.toFixed(2).replace('.', ',')}`, 48) + "\n";
     if (desconto > 0) {

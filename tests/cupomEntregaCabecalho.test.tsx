@@ -59,3 +59,49 @@ describe('CupomEntrega — cabeçalho com nome curto', () => {
     expect(screen.getByRole('heading', { level: 1 }).textContent?.trim()).toBe('MINHA LOJA');
   });
 });
+
+describe('CupomEntrega — desconto no cupom', () => {
+  it('mostra SUBTOTAL e DESCONTO (% valor) quando pedido tem desconto gravado', () => {
+    const pedido = {
+      id: 'V1',
+      total: 45,
+      subtotal: 50,
+      discountPct: 10,
+      discountValue: 5,
+      items: [{ name: 'ARROZ', quantity: 1, priceAtPurchase: 50 }],
+      paymentMethod: 'CASH',
+    };
+    render(<CupomEntrega order={pedido as any} config={cfgAsspen as any} />);
+    expect(screen.getByText('SUBTOTAL:')).toBeTruthy();
+    expect(screen.getByText('DESCONTO (10%):')).toBeTruthy();
+    expect(screen.getByText('-R$ 5,00')).toBeTruthy();
+    expect(screen.getByText('TOTAL PEDIDO:')).toBeTruthy();
+    expect(screen.getByText('R$ 45,00')).toBeTruthy();
+  });
+
+  it('não mostra SUBTOTAL/DESCONTO quando não há diferença', () => {
+    const pedido = {
+      id: 'V2',
+      total: 50,
+      items: [{ name: 'ARROZ', quantity: 1, priceAtPurchase: 50 }],
+      paymentMethod: 'CASH',
+    };
+    render(<CupomEntrega order={pedido as any} config={cfgAsspen as any} />);
+    expect(screen.queryByText('SUBTOTAL:')).toBeNull();
+    expect(screen.queryByText(/DESCONTO/)).toBeNull();
+    expect(screen.getAllByText('R$ 50,00').length).toBeGreaterThan(0);
+  });
+
+  it('calcula o desconto pela soma dos itens quando o pedido não gravou subtotal', () => {
+    const pedido = {
+      id: 'V3',
+      total: 45,
+      items: [{ name: 'ARROZ', quantity: 2, priceAtPurchase: 25 }],
+      paymentMethod: 'CASH',
+    };
+    render(<CupomEntrega order={pedido as any} config={cfgAsspen as any} />);
+    expect(screen.getByText('SUBTOTAL:')).toBeTruthy();
+    expect(screen.getByText('DESCONTO:')).toBeTruthy();
+    expect(screen.getByText('-R$ 5,00')).toBeTruthy();
+  });
+});

@@ -248,6 +248,40 @@ describe('montarEscPos (ESC/POS 80mm)', () => {
     expect(cupom.endsWith('\n\n\n')).toBe(true);
   });
 
+  it('cupom cru imprime SUBTOTAL e DESCONTO (com % e valor) da venda com desconto', () => {
+    const cupom = gerarCupomEntregaRaw({
+      id: 'DESC123456',
+      subtotal: 50,
+      discountPct: 10,
+      discountValue: 5,
+      total: 45,
+      items: [{ name: 'ARROZ', quantity: 1, priceAtPurchase: 50 }],
+      payments: [{ method: 'CASH', amount: 45 }],
+    }, { institutionName: 'MERCADO FACIL' });
+    expect(cupom).toContain('SUBTOTAL:');
+    expect(cupom).toContain('DESCONTO (10%):');
+    expect(cupom).toContain('-R$ 5,00');
+  });
+
+  it('cupom cru usa subtotal/desconto GRAVADOS mesmo se o preço do item divergir', () => {
+    // Cenário da regressão: o preço unitário gravado nos itens já saiu com o
+    // desconto de 10% (45,00) — antes a linha do desconto sumia do cupom porque
+    // subtotal-itens - total = 0. Agora o cupom prioriza o subtotal gravado (50)
+    // e exibe o desconto oficial.
+    const cupom = gerarCupomEntregaRaw({
+      id: 'DESC456',
+      subtotal: 50,
+      discountPct: 10,
+      discountValue: 5,
+      total: 45,
+      items: [{ name: 'ARROZ', quantity: 1, priceAtPurchase: 45 }],
+      payments: [{ method: 'CASH', amount: 45 }],
+    }, { institutionName: 'MERCADO FACIL' });
+    expect(cupom).toMatch(/SUBTOTAL:.*R\$ 50,00/);
+    expect(cupom).toMatch(/DESCONTO \(10%\):.*-R\$ 5,00/);
+    expect(cupom).toMatch(/TOTAL PEDIDO:.*R\$ 45,00/);
+  });
+
   it('cupom completo de venda cabe em 24 linhas (regressão de papel)', () => {
     // Antes: 39 linhas + 16 linhas de feed duplicado num cupom simples;
     // depois 32, depois 26; agora 23 com cabeçalho minimalista (título de

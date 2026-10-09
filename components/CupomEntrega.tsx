@@ -26,6 +26,15 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
 
   const itens = data.items || data.itens || [];
   const total = Math.abs(data.total || 0);
+  // Subtotal e desconto: prefere os campos GRAVADOS pelo servidor no pedido
+  // (subtotal/discountPct/discountValue), que refletem a venda oficial mesmo
+  // que o preço unitário nos itens tenha sido alterado depois. Fallback para
+  // venda antiga/offline: recalcula pela soma dos itens.
+  const subtotalSalvo = Number(data.subtotal);
+  const subtotalCalc = itens.reduce((s: number, i: any) => s + (Number(i?.priceAtPurchase || i?.price || 0) * (Number(i?.quantity) || 1)), 0);
+  const subtotal = subtotalSalvo > 0 ? subtotalSalvo : subtotalCalc;
+  const desconto = Number(data.discountValue) > 0 ? Number(data.discountValue) : (subtotal - total);
+  const descontoPctCupom = Number(data.discountPct);
   const dataCriacao = data.createdAt || data.date || data.data;
   const saldoExplicito = data.walletBalanceAfter !== undefined && data.walletBalanceAfter !== null;
   const creditoRestante = saldoExplicito ? data.walletBalanceAfter : (data.userName ? (data.userBalance || remainingBalance) : undefined);
@@ -214,6 +223,25 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
 
       {/* TOTAL */}
       <div className="border-t-2 border-black pt-1 mb-3">
+        {Math.abs(desconto) > 0.005 && (
+          <>
+            <div className="flex justify-between items-center mb-1">
+              <span className="font-bold">SUBTOTAL:</span>
+              <span className="font-bold">R$ {formatarMoeda(subtotal)}</span>
+            </div>
+            {desconto > 0 ? (
+              <div className="flex justify-between items-center mb-1">
+                <span className="font-black uppercase">{descontoPctCupom > 0 ? `DESCONTO (${String(descontoPctCupom).replace('.', ',')}%):` : 'DESCONTO:'}</span>
+                <span className="font-black">-R$ {formatarMoeda(desconto)}</span>
+              </div>
+            ) : (
+              <div className="flex justify-between items-center mb-1">
+                <span className="font-bold">ACRÉSCIMO:</span>
+                <span className="font-bold">R$ {formatarMoeda(Math.abs(desconto))}</span>
+              </div>
+            )}
+          </>
+        )}
         <div className="flex justify-between items-center mb-1">
           <span className="font-black">TOTAL PEDIDO:</span>
           <span className="font-black text-xl">R$ {formatarMoeda(total)}</span>
