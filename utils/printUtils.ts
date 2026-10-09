@@ -614,19 +614,23 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
 
   const cli = rotularCliente(data);
   if (cli.responsavel || cli.interno) {
-    // O responsável é o titular da compra e vem em DESTAQUE; o interno é o
-    // destinatário da mercadoria e vem abaixo. Sem responsável cadastrado, o
-    // nome do interno sobe para o destaque (rotulado como destinatário).
+    // O PRESO (destinatário da mercadoria) é o DESTAQUE do cupom e vem primeiro,
+    // em banda de realce; o familiar (titular da carteira) vem em texto de apoio.
     // `campo` alinha os rótulos em 15 colunas, igual às demais linhas do cupom.
     const campo = (rotulo: string, valor: string) =>
       `${(rotulo + ':').toUpperCase().padEnd(15, ' ')}${limparLinha(valor, 33)}`;
-    cupom += `${campo(cli.semResponsavel ? 'Destinatario' : 'Familiar', cli.responsavel)}\n`;
-    if (cli.responsavelCpf) {
-      cupom += `${campo(cli.semResponsavel ? 'CPF Interno' : 'CPF Familiar', mascararCpf(cli.responsavelCpf))}\n`;
+    const nomePreso = cli.interno || (cli.semResponsavel ? cli.responsavel : '');
+    if (nomePreso) {
+      cupom += `${centrarTexto(`* ${limparLinha(`DESTINATARIO: ${nomePreso}`, 44)} *`, 48)}\n`;
+      const cpfPreso = cli.internoCpf || (cli.semResponsavel ? cli.responsavelCpf : '');
+      if (cpfPreso) cupom += `${campo('CPF Interno', mascararCpf(cpfPreso))}\n`;
+    } else {
+      cupom += `${campo('Cliente', cli.responsavel)}\n`;
+      if (cli.responsavelCpf) cupom += `${campo('CPF Cliente', mascararCpf(cli.responsavelCpf))}\n`;
     }
-    if (cli.interno) {
-      cupom += `${campo('Destinatario', cli.interno)}\n`;
-      if (cli.internoCpf) cupom += `${campo('CPF Interno', mascararCpf(cli.internoCpf))}\n`;
+    if (cli.interno && cli.responsavel && !cli.semResponsavel) {
+      cupom += `${campo('Familiar', cli.responsavel)}\n`;
+      if (cli.responsavelCpf) cupom += `${campo('CPF Familiar', mascararCpf(cli.responsavelCpf))}\n`;
     }
     cupom += `${divisor}\n`;
   }

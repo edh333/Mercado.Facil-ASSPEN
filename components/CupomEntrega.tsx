@@ -128,28 +128,33 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
         {data.unitName && <div className="flex justify-between"><span>UNIDADE:</span> <span className="font-black uppercase">{data.unitName}</span></div>}
       </div>
 
-      {/* RECEPTOR — o responsável é o titular da compra e vem em destaque;
-          o interno (destinatário da mercadoria) vem como informação secundária. */}
+      {/* DESTINATÁRIO — o PRESO (quem recebe a mercadoria) é o destaque do
+          cupom; o familiar (que paga) vem como informação pequena de apoio. */}
       {(() => {
         const cli = rotularCliente(data);
         if (!cli.responsavel && !cli.interno) return null;
-        const titulo = cli.semResponsavel ? 'Destinatário / Interno' : 'Cliente / Responsável';
+        const temPreso = !!cli.interno;
+        const nomeDestaque = cli.interno || cli.responsavel || 'Não identificado';
+        const cpfDestaque = cli.internoCpf || cli.responsavelCpf;
         return (
-          <div className="mb-2 border-2 border-black p-2 rounded bg-gray-50">
-            <p className="font-black uppercase text-[9px] opacity-70 mb-0.5">{titulo}</p>
-            <p className="font-black uppercase leading-tight text-base">{cli.responsavel || 'Não identificado'}</p>
-            {cli.responsavelCpf && (
-              <p className="font-bold text-[10px] mt-0.5">
-                {cli.semResponsavel ? 'CPF INTERNO' : 'CPF CLIENTE'}: {mascararCpf(cli.responsavelCpf)}
-              </p>
-            )}
-            {cli.interno && (
-              <div className="mt-1.5 pt-1 border-t-2 border-gray-700">
-                <p className="bg-black text-white font-black uppercase text-[9px] px-1 py-0.5 inline-block tracking-widest">Destinatário Interno</p>
-                <p className="font-black uppercase leading-tight text-base mt-0.5">{cli.interno}</p>
-                {cli.internoCpf && <p className="font-bold text-[10px] opacity-80">CPF INTERNO: {mascararCpf(cli.internoCpf)}</p>}
-              </div>
-            )}
+          <div className="mb-2 border-2 border-black rounded overflow-hidden">
+            <div className="bg-black text-white text-center font-black uppercase text-[9px] py-0.5 tracking-widest">
+              {temPreso ? 'Destinatário Interno' : 'Cliente'}
+            </div>
+            <div className="px-2 py-1.5 bg-gray-50">
+              <p className="font-black uppercase leading-tight text-base">{nomeDestaque}</p>
+              {cpfDestaque && (
+                <p className="font-bold text-[10px] mt-0.5">
+                  CPF: {mascararCpf(cpfDestaque)}
+                </p>
+              )}
+              {temPreso && cli.responsavel && (
+                <p className="mt-1 pt-1 border-t-2 border-dashed border-gray-300 text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                  Familiar: {cli.responsavel}
+                  {cli.responsavelCpf && ` · ${mascararCpf(cli.responsavelCpf)}`}
+                </p>
+              )}
+            </div>
           </div>
         );
       })()}

@@ -1,11 +1,9 @@
 // @vitest-environment jsdom
 // Regressão da LISTA DE BUSCA DE CLIENTES do PDV (components/admin/TelaPDV.tsx).
 //
-// Bug: o nome do responsável (titular da carteira) aparecia na linha principal
-// sem rótulo e o nome do PRESO ia para a coluna cinza da direita, truncada em
-// 45%. Visualmente, o nome que maissaltava na lista era o do interno, e a
-// coluna direita era ilegível quando o nome era comprido. Agora: responsável em
-// destaque, interno rotulado logo abaixo e CPF mascarado à direita.
+// Regra (pedido do usuário): o PRESO (interno/destinatário) é o nome em
+// DESTAQUE da lista; o familiar (responsável/pagador) vem logo abaixo como
+// texto pequeno "Familiar: ..."; CPF mascarado à direita.
 
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
@@ -76,18 +74,20 @@ const opcao = (nome: string): HTMLElement => {
 
 afterEach(() => cleanup());
 
-describe('lista de clientes do PDV — destaque é o responsável', () => {
-  it('mostra o responsável em destaque e o interno rotulado abaixo', () => {
+describe('lista de clientes do PDV — preso é o destaque, familiar é apoio', () => {
+  it('mostra o preso em destaque e o familiar rotulado abaixo', () => {
     renderPDV([usuario({ inmateName: 'JOSE SOUZA', inmateCpf: '11144477735' })]);
     buscar('MARIA');
 
-    expect(texto(opcao('MARIA SOUZA'))).toMatch(/Interno: JOSE SOUZA/i);
+    const t = texto(opcao('MARIA SOUZA'));
+    expect(t).toMatch(/JOSE SOUZA/);
+    expect(t).toMatch(/Familiar: MARIA SOUZA/i);
   });
 
-  it('não deixa o nome do interno na coluna direita truncada', () => {
+  it('não deixa o nome do preso na coluna direita truncada', () => {
     renderPDV([usuario({ inmateName: 'JOSE SOUZA' })]);
     buscar('MARIA');
-    // o interno agora é linha própria; não deve aparecer como texto solto à direita
+    // o preso é a linha principal; aparece uma única vez (não em coluna solta à direita)
     expect(opcao('MARIA SOUZA').textContent?.match(/JOSE SOUZA/g)).toHaveLength(1);
   });
 
@@ -108,7 +108,7 @@ describe('lista de clientes do PDV — destaque é o responsável', () => {
     buscar('MARIA');
     const item = opcao('MARIA SOUZA');
     expect(item.textContent?.match(/MARIA SOUZA/g)).toHaveLength(1);
-    expect(item.textContent).not.toMatch(/Interno:/i);
+    expect(item.textContent).not.toMatch(/Familiar:/i);
   });
 
   it('sem responsável cadastrado, mostra o interno como nome principal', () => {
@@ -140,6 +140,8 @@ describe('lista de clientes do PDV — destaque é o responsável', () => {
   it('mantém a busca funcionando pelo nome do interno', () => {
     renderPDV([usuario({ inmateName: 'EDSON MENDES' })]);
     buscar('mendes');
-    expect(within(screen.getByText(/EDSON MENDES/).closest('button')!).getByText('MARIA SOUZA')).toBeTruthy();
+    const btn = within(screen.getByText(/EDSON MENDES/).closest('button')!);
+    expect(btn.getByText('EDSON MENDES')).toBeTruthy();
+    expect(btn.getByText(/Familiar: MARIA SOUZA/i)).toBeTruthy();
   });
 });

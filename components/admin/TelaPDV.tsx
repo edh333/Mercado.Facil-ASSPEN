@@ -889,19 +889,21 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
                           onClick={() => selecionarCliente(u)}
                           className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg hover:bg-emerald-50 hover:text-emerald-700 text-left transition-colors"
                         >
+                          {/* PRESO em destaque é quem recebe a mercadoria; o
+                              familiar (pagador) fica como linha pequena de apoio. */}
                           <span className="flex flex-col gap-0.5 min-w-0">
-                            <span className="flex items-center gap-2 font-semibold text-slate-700 min-w-0">
-                              <UserIcon size={14} className="text-slate-400 shrink-0" />
-                              <span className="truncate">{cli.responsavel || 'SEM NOME'}</span>
+                            <span className="flex items-center gap-2 font-black text-emerald-700 min-w-0">
+                              <UserIcon size={14} className="text-emerald-600 shrink-0" />
+                              <span className="truncate">{cli.interno || cli.responsavel || 'SEM NOME'}</span>
                             </span>
-                            {cli.interno && (
-                              <span className="text-[11px] font-black uppercase tracking-wide text-emerald-700 truncate pl-[22px]">
-                                Interno: {cli.interno}
+                            {cli.interno && cli.responsavel && !cli.semResponsavel && (
+                              <span className="text-[11px] text-slate-400 truncate pl-[22px]">
+                                Familiar: {cli.responsavel}
                               </span>
                             )}
                           </span>
                           <span className="text-[10px] text-slate-400 shrink-0 tabular-nums">
-                            {mascararCpf(cli.responsavelCpf || cli.internoCpf)}
+                            {mascararCpf(cli.internoCpf || cli.responsavelCpf)}
                           </span>
                         </button>
                       );

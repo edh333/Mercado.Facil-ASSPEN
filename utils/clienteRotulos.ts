@@ -1,3 +1,9 @@
+// ATUALIZACAO DE REGRA (pedido do usuario):
+// O PRESO (interno / destinatario) e o NOME EM DESTAQUE na busca do PDV e nos
+// cupons. O FAMILIAR (responsavel / titular, quem paga) e a informacao de
+// apoio pequena. As telas decidem o destaque; esta funcao apenas resolve o
+// par (responsavel, interno) com fallbacks (sem familiar, nome duplicado).
+//
 // Fonte ÚNICA de verdade de QUAL nome é o destaque quando o sistema mostra
 // "quem" numa venda. Regra do negócio:
 //
