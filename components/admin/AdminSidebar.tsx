@@ -3,9 +3,10 @@ import { NavItem } from './AdminCommon';
 import {
   Users, Package, ShoppingCart, DollarSign, LogOut, Settings,
   BarChart3, Home, Shield, CreditCard, Landmark, Activity, AlertTriangle,
-  BookOpen, MessageSquare, Sun, Moon, Monitor, Wrench, Loader2, ShieldCheck
+  BookOpen, MessageSquare, Sun, Moon, Monitor, Wrench, Loader2, ShieldCheck, Palette, RotateCcw
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
+import { VISUAIS_NO_SELETOR, VISUAL_PRESETS, VISUAL_AUTO } from '../../utils/visuais';
 import { SystemRole } from '../PWAInstallProvider';
 // AppDownloadButton moved to Settings (strategic: install is config, not navigation)
 
@@ -34,7 +35,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   userRole = 'admin',
   canAccessTab
 }) => {
-  const { themeMode, setThemeMode } = useTheme();
+  const { themeMode, setThemeMode, visual, visualLocal, setVisual } = useTheme();
   const hasPermission = (perm: string) => isMaster || permissions.includes('all') || permissions.includes(perm);
   // Usa canAccessTab do Dashboard se disponível, senão fallback para hasPermission local
   const checkAccess = canAccessTab ?? ((tab: string) => {
@@ -153,6 +154,47 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                 </button>
               ))}
             </div>
+
+            {/* Troca rápida de visual (preset de cores: superfícies + acento) */}
+            <div className="px-2 py-2 rounded-xl bg-white/5 border border-white/5">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-slate-400">
+                  <Palette size={11} /> Visual
+                </span>
+                <span className="text-[9px] font-bold text-slate-500">
+                  {VISUAL_PRESETS[visual]?.label ?? '—'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-1.5">
+                {VISUAIS_NO_SELETOR.map((id) => {
+                  const p = VISUAL_PRESETS[id];
+                  const ativo = visual === id;
+                  return (
+                    <button
+                      key={id}
+                      title={`${p.label} — ${p.desc}${ativo ? ' (clique volta ao padrão do admin)' : ''}`}
+                      onClick={() => setVisual(visualLocal === id ? VISUAL_AUTO : id)}
+                      className={`size-6 rounded-full ring-2 transition-all hover:scale-110 ${
+                        ativo
+                          ? visualLocal === id ? 'ring-white' : 'ring-white/50'
+                          : 'ring-white/10 hover:ring-white/40'
+                      }`}
+                      style={{ background: `linear-gradient(135deg, ${p.primaryLight} 50%, ${p.dark.bgMain} 50%)` }}
+                    />
+                  );
+                })}
+              </div>
+              {visualLocal !== VISUAL_AUTO && (
+                <button
+                  onClick={() => setVisual(VISUAL_AUTO)}
+                  title="Voltar ao padrão do administrador"
+                  className="mt-1.5 w-full flex items-center justify-center gap-1 text-[9px] font-bold text-slate-400 hover:text-white py-1 rounded-lg hover:bg-white/5 transition-colors"
+                >
+                  <RotateCcw size={10} /> Padrão do admin
+                </button>
+              )}
+            </div>
+
             <div className="flex items-center gap-2.5 px-1 py-2 rounded-xl bg-white/5 border border-white/5">
                 <div className="flex size-9 items-center justify-center rounded-lg font-bold text-white text-sm bg-gradient-to-br from-emerald-500 to-emerald-600 ring-2 ring-emerald-500/25">
                   {userName[0]}
