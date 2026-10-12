@@ -1006,6 +1006,7 @@ return (
                   setFinanceFilters={setFinanceFilters}
                   loadingWallet={loadingWallet}
                   onSelectTransaction={setSelectedWalletTx}
+                  onRequestMasterPassword={handleProtectedAction}
                 />
               )}
 

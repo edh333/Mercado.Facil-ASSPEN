@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { X, Search, Barcode, ShoppingCart, Check, Lock, User as UserIcon, Plus, Minus, Package, Wallet, CreditCard, DollarSign, Trash2, LayoutGrid, List, Percent, XCircle, MapPin, Home, HardHat } from 'lucide-react';
+import { X, Search, Barcode, ShoppingCart, Check, Lock, User as UserIcon, Plus, Minus, Package, Wallet, CreditCard, DollarSign, Trash2, LayoutGrid, List, Percent, XCircle } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Product, User, Order, AppConfig, UserRole, InmateLocation } from '../../types';
 import { filtrarClientesPdv } from '../../utils/pdvSearch';
@@ -51,11 +51,6 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
 
   // ── Estado do carrinho / venda ──
   const [carrinho, setCarrinho] = useState<any[]>([]);
-  // Local de entrega na venda — "Cela" informa raio/ala/cela do preso;
-  // "Trabalhador" registra o local de trabalho (ala dos trabalhadores).
-  const [entregaTipo, setEntregaTipo] = useState<'cela' | 'trabalhador'>('cela');
-  const [localizacao, setLocalizacao] = useState({ raio: '', ala: '', cela: '' });
-  const [localTrabalho, setLocalTrabalho] = useState('');
   const [clienteSelecionado, setClienteSelecionado] = useState('');
   const [buscaCliente, setBuscaCliente] = useState('');
   const [mostrarListaClientes, setMostrarListaClientes] = useState(false);
@@ -193,9 +188,6 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
     setClienteSelecionado('');
     setBuscaCliente('');
     setCodigoProduto('');
-    setEntregaTipo('cela');
-    setLocalizacao({ raio: '', ala: '', cela: '' });
-    setLocalTrabalho('');
     setMostrarListaClientes(true);
     setUltimoPedido(null);
     setValorMisto({ PIX: '', WALLET: '', CASH: '' });
@@ -591,22 +583,6 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
     && !bloqueioPix;
   const habilitadoVisual = podeFinalizar ? 'enabled' : 'disabled';
 
-  // Local de entrega da venda (raio/ala/cela do preso OU ala dos trabalhadores).
-  // Sempre enviado ao servidor quando o operador informou algo; para "Trabalhador"
-  // usamos o local livre (ex.: Cozinha) na ala/wing — comportamento "como era antes".
-  const localEntrega: { raio: string; ala: string; cela: string; ray?: string; wing?: string; cell?: string; isWorker: boolean; deliveryType: 'cela' | 'trabalhador'; deliveryFreeText?: string } | null = useMemo(() => {
-    if (entregaTipo === 'trabalhador') {
-      const local = localTrabalho.trim();
-      if (!local) return null;
-      return { raio: '', ala: local, cela: '', ray: '', wing: local, cell: '', isWorker: true, deliveryType: 'trabalhador', deliveryFreeText: local };
-    }
-    const raio = localizacao.raio.trim();
-    const ala = localizacao.ala.trim();
-    const cela = localizacao.cela.trim();
-    if (!raio && !ala && !cela) return null;
-    return { raio, ala, cela, ray: raio, wing: ala, cell: cela, isWorker: false, deliveryType: 'cela' };
-  }, [entregaTipo, localizacao, localTrabalho]);
-
   const finalizarVenda = async () => {
     if (processando) return;
     if (carrinho.length === 0) return;
@@ -675,7 +651,7 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
 
     setProcessando(true);
     try {
-      const pedido = await onConfirm(targetId, carrinho, formaPagamento, totalFinal, paymentsArray, changeValue, customerAccountId, saleToken, undefined, bandeiraCartao || undefined, undefined, senhaPrimariaFinal, senhaSecundariaFinal, sessaoCaixaId, descontoPct > 0 ? descontoPct : undefined, localEntrega || undefined);
+      const pedido = await onConfirm(targetId, carrinho, formaPagamento, totalFinal, paymentsArray, changeValue, customerAccountId, saleToken, undefined, bandeiraCartao || undefined, undefined, senhaPrimariaFinal, senhaSecundariaFinal, sessaoCaixaId, descontoPct > 0 ? descontoPct : undefined);
       if (pedido) {
         setUltimoPedido(pedido);
         setProcessando(false);
@@ -683,9 +659,6 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
         setClienteSelecionado('');
         setBuscaCliente('');
         setCodigoProduto('');
-        setEntregaTipo('cela');
-        setLocalizacao({ raio: '', ala: '', cela: '' });
-        setLocalTrabalho('');
         setValorMisto({ PIX: '', WALLET: '', CASH: '' });
         setValorRecebido('');
         setPixConfirmado(false);
@@ -711,16 +684,13 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
       }
       if (!navigator.onLine && onConfirmOffline && descontoPct === 0) {
         try {
-          const pedidoOffline = await onConfirmOffline(targetId, carrinho, formaPagamento, totalFinal, paymentsArray, changeValue, customerAccountId, saleToken, bandeiraCartao || undefined, sessaoCaixaId || undefined, localEntrega || undefined);
+          const pedidoOffline = await onConfirmOffline(targetId, carrinho, formaPagamento, totalFinal, paymentsArray, changeValue, customerAccountId, saleToken, bandeiraCartao || undefined, sessaoCaixaId || undefined);
 if (pedidoOffline) {
             setUltimoPedido(pedidoOffline);
             setCarrinho([]);
             setClienteSelecionado('');
             setBuscaCliente('');
             setCodigoProduto('');
-            setEntregaTipo('cela');
-            setLocalizacao({ raio: '', ala: '', cela: '' });
-            setLocalTrabalho('');
             setValorMisto({ PIX: '', WALLET: '', CASH: '' });
             setValorRecebido('');
             setPixConfirmado(false);
@@ -1245,92 +1215,6 @@ if (pedidoOffline) {
               )}
             </div>
           )}
-
-          {/* ELEMENTO 3.5: LOCAL DE ENTREGA — raio/ala/cela do preso ou ala dos trabalhadores */}
-          <div className="bg-white border-2 border-slate-200 rounded-2xl p-4 flex flex-col gap-3 w-full mb-4 animate-in fade-in duration-200 shrink-0 shadow-sm">
-            <span className="text-xs font-black uppercase tracking-widest text-slate-700 flex items-center gap-2">
-              <MapPin size={16} className="text-emerald-700" /> Local de Entrega
-            </span>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setEntregaTipo('cela')}
-                aria-pressed={entregaTipo === 'cela'}
-                className={`flex items-center justify-center gap-1.5 min-h-[48px] py-2.5 rounded-xl font-black text-[11px] uppercase tracking-widest border-2 transition-all ${
-                  entregaTipo === 'cela'
-                    ? 'border-emerald-700 bg-emerald-50 text-emerald-800 shadow-md'
-                    : 'border-slate-400 bg-white text-slate-700 hover:border-slate-600'
-                }`}
-              >
-                <Home size={13} /> Cela
-              </button>
-              <button
-                type="button"
-                onClick={() => setEntregaTipo('trabalhador')}
-                aria-pressed={entregaTipo === 'trabalhador'}
-                className={`flex items-center justify-center gap-1.5 min-h-[48px] py-2.5 rounded-xl font-black text-[11px] uppercase tracking-widest border-2 transition-all ${
-                  entregaTipo === 'trabalhador'
-                    ? 'border-emerald-700 bg-emerald-50 text-emerald-800 shadow-md'
-                    : 'border-slate-400 bg-white text-slate-700 hover:border-slate-600'
-                }`}
-              >
-                <HardHat size={13} /> Trabalhador
-              </button>
-            </div>
-            {entregaTipo === 'cela' ? (
-              <div className="flex flex-col gap-1.5">
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    type="text"
-                    value={localizacao.raio}
-                    onChange={(e) => setLocalizacao(prev => ({ ...prev, raio: e.target.value }))}
-                    placeholder="RAIO"
-                    className="w-full min-w-0 px-3 py-2.5 bg-white border-2 border-slate-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-700 text-sm font-black uppercase text-slate-900 transition-all"
-                  />
-                  <input
-                    type="text"
-                    value={localizacao.ala}
-                    onChange={(e) => setLocalizacao(prev => ({ ...prev, ala: e.target.value }))}
-                    placeholder="ALA"
-                    className="w-full min-w-0 px-3 py-2.5 bg-white border-2 border-slate-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-700 text-sm font-black uppercase text-slate-900 transition-all"
-                  />
-                </div>
-                <input
-                  type="text"
-                  value={localizacao.cela}
-                  onChange={(e) => setLocalizacao(prev => ({ ...prev, cela: e.target.value }))}
-                  placeholder="CELA"
-                  className="w-full min-w-0 px-3 py-2.5 bg-white border-2 border-slate-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-700 text-sm font-black uppercase text-slate-900 transition-all"
-                />
-              </div>
-            ) : (
-              <div className="flex flex-col gap-1.5">
-                <div className="grid grid-cols-2 gap-2">
-                  {['Cozinha', 'Lavanderia', 'Horta', 'Oficina', 'Almoxarifado'].map(loc => (
-                    <button
-                      key={loc}
-                      type="button"
-                      onClick={() => setLocalTrabalho(loc)}
-                      className={`min-h-[44px] py-2 rounded-xl font-black text-[10px] uppercase border-2 transition-all ${
-                        localTrabalho === loc
-                          ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-                          : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
-                      }`}
-                    >
-                      {loc}
-                    </button>
-                  ))}
-                </div>
-                <input
-                  type="text"
-                  value={localTrabalho}
-                  onChange={(e) => setLocalTrabalho(e.target.value)}
-                  placeholder="Outro local de trabalho..."
-                  className="w-full min-w-0 px-3 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm font-bold transition-all"
-                />
-              </div>
-            )}
-          </div>
 
           {/* ELEMENTO 4: TOTALIZADOR E BOTÃO FINALIZAR — Fixo na base do rodapé direito */}
           <div className="mt-auto pt-2 w-full shrink-0 bg-white border-t border-slate-200/80">

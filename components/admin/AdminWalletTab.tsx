@@ -1,8 +1,11 @@
 import React from 'react';
-import { CreditCard, Search, CheckCircle, XCircle, Clock, Download, ChevronRight, Users, Wallet, TrendingDown, Printer } from 'lucide-react';
+import { CreditCard, Search, CheckCircle, XCircle, Clock, Download, ChevronRight, Users, Wallet, TrendingDown, Printer, RotateCcw } from 'lucide-react';
 import { formatarMoeda } from '../../utils';
 import { celulaCsv } from '../../utils/csv';
 import { getCustomerAccounts } from '../../utils/customerUtils';
+import { useApp } from '../../context/StoreContext';
+import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
+import { gerarComprovanteDevolucaoAlvara } from '../../utils/printUtils';
 
 // Data LOCAL (fuso do dispositivo) — sem o bug de toISOString (UTC) que
 // deslocava depósitos feitos entre 00:00 e 03:00 para o dia anterior.
@@ -22,17 +25,21 @@ interface AdminWalletTabProps {
   loadingWallet: boolean;
   onSelectTransaction?: (tx: any) => void;
   users?: any[];
+  onRequestMasterPassword?: (callback: (senhaMestra: string) => void) => void;
 }
 
 export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
   walletTx, userSearch, setUserSearch, financeFilters, setFinanceFilters, loadingWallet,
-  onSelectTransaction, users = []
+  onSelectTransaction, users = [], onRequestMasterPassword
 }) => {
+  const { devolucaoAlvara } = useApp();
   const [activeSubTab, setActiveSubTab] = React.useState<'ALL' | 'DEPOSITS' | 'WITHDRAWALS' | 'SALDOS'>('ALL');
   const [quickDateFilter, setQuickDateFilter] = React.useState<'ALL' | 'TODAY' | 'WEEK' | 'MONTH'>('ALL');
   const [fiadoAccounts, setFiadoAccounts] = React.useState<any[]>([]);
   const [fiadoLoading, setFiadoLoading] = React.useState(false);
   const [saldosAtualizadoEm, setSaldosAtualizadoEm] = React.useState<Date | null>(null);
+  const [userParaAlvara, setUserParaAlvara] = React.useState<any>(null);
+  const [isLoadingAlvara, setIsLoadingAlvara] = React.useState(false);
 
   React.useEffect(() => {
     if (activeSubTab !== 'SALDOS' || fiadoAccounts.length > 0) return;
@@ -55,6 +62,55 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
       setFinanceFilters({ ...defaultFilters, ...financeFilters, start: monthAgo, end: today });
     }
     setQuickDateFilter(filter);
+  };
+
+  // Devolução de saldo por alvará (soltura/liberdade): o interno saiu e ainda
+  // havia crédito na carteira do familiar. Exige senha mestra (2º fator) e
+  // imprime o comprovante de devolução para assinatura — mesmo fluxo da aba
+  // de Internos, mas acionado direto na Carteira e Créditos.
+  const confirmAlvaraReturn = async (senhaMestra: string) => {
+    const alvo = userParaAlvara;
+    if (!alvo) return;
+    if (Number(alvo.walletBalance || 0) <= 0) { setUserParaAlvara(null); return; }
+    setIsLoadingAlvara(true);
+    try {
+      const data = await devolucaoAlvara(
+        alvo.id,
+        `Devolução por alvará — familiar ${alvo.name || alvo.cpf || '—'}`,
+        senhaMestra
+      );
+      const comprovante = data?.comprovante;
+      if (comprovante) {
+        const texto = gerarComprovanteDevolucaoAlvara({
+          tipo: comprovante.tipo,
+          usuarioId: comprovante.usuarioId,
+          usuarioNome: comprovante.usuarioNome,
+          cpf: comprovante.cpf,
+          saldoAnterior: comprovante.saldoAnterior,
+          valorDevolvido: comprovante.valorDevolvido,
+          novoSaldo: comprovante.novoSaldo,
+          motivo: comprovante.motivo,
+          operador: comprovante.operador,
+          data: comprovante.data,
+        });
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          const corpo = texto.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Comprovante Alvará</title><style>
+            body { font-family: 'Courier New', monospace; color:#0f172a; padding:32px; background:#fff; white-space: pre-wrap; }
+          </style></head><body>${corpo}</body></html>`;
+          printWindow.document.write(html);
+          printWindow.document.close();
+          printWindow.focus();
+          setTimeout(() => { try { printWindow.print(); } catch { /* janela fechou */ } }, 350);
+        }
+      }
+    } catch {
+      // o contexto já exibiu a notificação de erro desta chamada
+    } finally {
+      setIsLoadingAlvara(false);
+      setUserParaAlvara(null);
+    }
   };
 
   const stats = React.useMemo(() => {
@@ -371,11 +427,20 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                           CPF: <span className="font-mono">{u.cpf || 'N/A'}</span>
                         </p>
                       </div>
-                      <div className="text-right shrink-0">
-                        <p className="font-black text-emerald-600">R$ {formatarMoeda(Number(u.walletBalance) || 0)}</p>
-                        <span className={`inline-block mt-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${u.status === 'active' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-500 border-red-200'}`}>
-                          {u.status === 'active' ? 'Ativo' : u.status || '—'}
-                        </span>
+                      <div className="flex flex-col items-end gap-2 shrink-0">
+                        <div className="text-right">
+                          <p className="font-black text-emerald-600">R$ {formatarMoeda(Number(u.walletBalance) || 0)}</p>
+                          <span className={`inline-block mt-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${u.status === 'active' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-500 border-red-200'}`}>
+                            {u.status === 'active' ? 'Ativo' : u.status || '—'}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => setUserParaAlvara(u)}
+                          title="Devolver o saldo deste familiar por alvará (soltura/liberdade)"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 hover:scale-105 active:scale-95 transition-all"
+                        >
+                          <RotateCcw size={13} /> Alvará
+                        </button>
                       </div>
                     </div>
                   ));
@@ -610,6 +675,22 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
           ))}
         </div>
       </div>
+      <ConfirmacaoDestrutiva
+        isOpen={userParaAlvara !== null}
+        titulo="Devolução por Alvará"
+        descricao={`Devolver R$ ${formatarMoeda(Number(userParaAlvara?.walletBalance || 0))} de ${userParaAlvara?.name || userParaAlvara?.cpf || 'este familiar'} por alvará (soltura/liberdade)? A senha mestra será exigida e o comprovante será impresso para assinatura.`}
+        semDigitar
+        processando={isLoadingAlvara}
+        onConfirm={() => {
+          if (!userParaAlvara) return;
+          if (onRequestMasterPassword) {
+            onRequestMasterPassword((senha) => confirmAlvaraReturn(senha));
+          } else {
+            confirmAlvaraReturn('');
+          }
+        }}
+        onClose={() => { if (!isLoadingAlvara) setUserParaAlvara(null); }}
+      />
     </div>
   );
 };
