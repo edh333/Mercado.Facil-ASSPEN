@@ -1,6 +1,5 @@
 import React from 'react';
 import { CreditCard, Search, CheckCircle, XCircle, Clock, Download, ChevronRight, Users, Wallet, TrendingDown, Printer } from 'lucide-react';
-import { AdminButton } from '../ui/AdminButton';
 import { formatarMoeda } from '../../utils';
 import { celulaCsv } from '../../utils/csv';
 import { getCustomerAccounts } from '../../utils/customerUtils';
