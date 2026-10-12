@@ -1,5 +1,6 @@
 import React from 'react';
 import { CreditCard, Search, CheckCircle, XCircle, Clock, Download, ChevronRight, Users, Wallet, TrendingDown, Printer } from 'lucide-react';
+import { AdminButton } from '../ui/AdminButton';
 import { formatarMoeda } from '../../utils';
 import { celulaCsv } from '../../utils/csv';
 import { getCustomerAccounts } from '../../utils/customerUtils';
@@ -238,21 +239,21 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
 
       {/* ─── Summary Cards ─── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm border-l-4 border-l-amber-500 relative overflow-hidden group">
-          <div className="absolute inset-0 bg-gradient-to-br from-amber-50 to-transparent pointer-events-none" />
+        <div className="bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm border-l-4 border-l-amber-500 relative overflow-hidden group">
+          <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-transparent pointer-events-none" />
           <p className="text-slate-500 font-black text-[10px] uppercase tracking-[0.2em] mb-1 relative z-10">Aportes Pendentes</p>
           <div className="flex items-end justify-between relative z-10">
             <h3 className="text-3xl font-black text-amber-500 tracking-tighter group-hover:scale-105 transition-transform origin-left">R$ {formatarMoeda(stats.pendingAmount)}</h3>
             <span className="text-[10px] font-black bg-amber-100 text-amber-600 px-3 py-1.5 rounded-xl border border-amber-200">{stats.pendingCount} Itens</span>
           </div>
         </div>
-        <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm border-l-4 border-l-emerald-500 relative overflow-hidden group">
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 to-transparent pointer-events-none" />
+        <div className="bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm border-l-4 border-l-emerald-500 relative overflow-hidden group">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-transparent pointer-events-none" />
           <p className="text-slate-500 font-black text-[10px] uppercase tracking-[0.2em] mb-1 relative z-10">Aprovados Hoje</p>
           <h3 className="text-3xl font-black text-emerald-600 tracking-tighter group-hover:scale-105 transition-transform origin-left relative z-10">R$ {formatarMoeda(stats.totalApprovedToday)}</h3>
         </div>
-        <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm border-l-4 border-l-blue-500 relative overflow-hidden group">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-transparent pointer-events-none" />
+        <div className="bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm border-l-4 border-l-blue-500 relative overflow-hidden group">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent pointer-events-none" />
           <div className="relative z-10">
             <p className="text-slate-500 font-black text-[10px] uppercase tracking-[0.2em] mb-1">Sistema de Créditos</p>
             <h3 className="text-xl font-bold text-slate-900 tracking-tight leading-none">Fluxo de Carteira</h3>
@@ -262,7 +263,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
       </div>
 
       {/* ─── Header & Sub-Tabs ─── */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm">
         <h2 className="text-xl font-bold text-slate-900 flex items-center gap-3 tracking-tight">
           <div className="p-2 bg-emerald-100 rounded-xl">
             <CreditCard size={20} className="text-emerald-600" />
@@ -281,7 +282,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
       </div>
 
       {/* ─── Search & Date Filters ─── */}
-      <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
+      <div className="bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-[2] relative group">
             <div className="absolute left-5 top-1/2 -translate-y-1/2 transition-colors z-10 text-slate-400 group-focus-within:text-emerald-500">
@@ -295,11 +296,11 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
             />
           </div>
           <div className="flex-1 flex flex-wrap gap-3">
-            <div className="flex bg-slate-100 rounded-2xl p-1.5 border border-slate-200 flex-1 overflow-hidden">
-              <button onClick={() => applyQuickDate('ALL')} className={`flex-1 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'ALL' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>Todas</button>
-              <button onClick={() => applyQuickDate('TODAY')} className={`flex-1 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'TODAY' ? 'bg-emerald-100 text-emerald-700' : 'text-emerald-600/70 hover:text-emerald-600'}`}>Hoje</button>
-              <button onClick={() => applyQuickDate('WEEK')} className={`flex-1 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'WEEK' ? 'bg-blue-100 text-blue-700' : 'text-blue-600/70 hover:text-blue-600'}`}>Semana</button>
-              <button onClick={() => applyQuickDate('MONTH')} className={`flex-1 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'MONTH' ? 'bg-indigo-100 text-indigo-700' : 'text-indigo-600/70 hover:text-indigo-600'}`}>30 Dias</button>
+            <div className="flex bg-slate-100 rounded-2xl p-1.5 border border-slate-200 flex-1 overflow-x-auto">
+              <button onClick={() => applyQuickDate('ALL')} className={`flex-1 whitespace-nowrap px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'ALL' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>Todas</button>
+              <button onClick={() => applyQuickDate('TODAY')} className={`flex-1 whitespace-nowrap px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'TODAY' ? 'bg-emerald-100 text-emerald-700' : 'text-emerald-600/70 hover:text-emerald-600'}`}>Hoje</button>
+              <button onClick={() => applyQuickDate('WEEK')} className={`flex-1 whitespace-nowrap px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'WEEK' ? 'bg-blue-100 text-blue-700' : 'text-blue-600/70 hover:text-blue-600'}`}>Semana</button>
+              <button onClick={() => applyQuickDate('MONTH')} className={`flex-1 whitespace-nowrap px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${quickDateFilter === 'MONTH' ? 'bg-indigo-100 text-indigo-700' : 'text-indigo-600/70 hover:text-indigo-600'}`}>30 Dias</button>
             </div>
             <input type="date" className="w-36 flex-1 min-w-[120px] px-4 py-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-2xl text-[11px] font-black uppercase text-slate-900 outline-none" value={financeFilters?.start || ''} onChange={e => { setFinanceFilters({...financeFilters, start: e.target.value}); setQuickDateFilter('ALL'); }} />
             <input type="date" className="w-36 flex-1 min-w-[120px] px-4 py-3 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-2xl text-[11px] font-black uppercase text-slate-900 outline-none" value={financeFilters?.end || ''} onChange={e => { setFinanceFilters({...financeFilters, end: e.target.value}); setQuickDateFilter('ALL'); }} />
@@ -310,7 +311,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
       {/* ─── SALDOS: quem tem crédito na carteira + dívidas de fiado ─── */}
       {activeSubTab === 'SALDOS' && (
         <div className="space-y-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-indigo-100 rounded-xl">
                 <Wallet size={20} className="text-indigo-600" />
@@ -351,7 +352,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                   </p>
                 </div>
               </div>
-              <div className="max-h-[480px] overflow-y-auto divide-y divide-slate-100">
+              <div className="overflow-y-auto divide-y divide-slate-100">
                 {(() => {
                   const termo = (userSearch || '').toLowerCase();
                   const lista = (users || [])
@@ -400,7 +401,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                   </p>
                 </div>
               </div>
-              <div className="max-h-[480px] overflow-y-auto divide-y divide-slate-100">
+              <div className="overflow-y-auto divide-y divide-slate-100">
                 {(() => {
                   const termo = (userSearch || '').toLowerCase();
                   const lista = fiadoAccounts

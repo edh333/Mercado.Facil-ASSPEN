@@ -389,9 +389,10 @@ const isMaster = isMasterAdmin(currentUser);
     senhaPrimaria?: string,
     senhaSecundaria?: string,
     sessaoCaixaId?: string,
-    descontoPct?: number
+    descontoPct?: number,
+    inmateLocation?: any
   ) => {
-    const res = await adminDirectSale(targetUserId, items, paymentMethod, total, payments, change, customerAccountId, clientToken, jointWallet, cardBrand, fiado30UserId, senhaPrimaria, senhaSecundaria, sessaoCaixaId, descontoPct);
+    const res = await adminDirectSale(targetUserId, items, paymentMethod, total, payments, change, customerAccountId, clientToken, jointWallet, cardBrand, fiado30UserId, senhaPrimaria, senhaSecundaria, sessaoCaixaId, descontoPct, inmateLocation);
     if (!res) {
       throw new Error('A venda não foi confirmada pelo servidor. Verifique sua internet e tente novamente.');
     }
@@ -411,9 +412,10 @@ const isMaster = isMasterAdmin(currentUser);
     customerAccountId?: string,
     clientToken?: string,
     cardBrand?: string,
-    sessaoCaixaId?: string
+    sessaoCaixaId?: string,
+    inmateLocation?: any
   ) => {
-    const res = await registrarVendaOffline(targetUserId, items, paymentMethod, total, payments, change, customerAccountId, cardBrand, sessaoCaixaId, clientToken);
+    const res = await registrarVendaOffline(targetUserId, items, paymentMethod, total, payments, change, customerAccountId, cardBrand, sessaoCaixaId, clientToken, inmateLocation);
     if (!res) {
       throw new Error('Não foi possível registrar a venda offline.');
     }

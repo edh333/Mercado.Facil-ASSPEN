@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { AdminButton } from '../ui/AdminButton';
 import {
   DollarSign, Landmark, Printer, Search, Plus, X, Check, ArrowRightCircle,
   TrendingUp, TrendingDown, Download, Trash2, Loader2, Wallet, AlertTriangle,
@@ -354,8 +355,10 @@ const cashTotais = useMemo(() => {
   return (
     <div className="space-y-6 animate-slideUp">
       {/* Upper Dashboard */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-32 h-32 bg-emerald-600 rounded-full blur-[60px] -ml-16 -mt-16 opacity-10"></div>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm relative">
+        <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none">
+          <div className="absolute top-0 left-0 w-32 h-32 bg-emerald-600 rounded-full blur-[60px] -ml-16 -mt-16 opacity-10"></div>
+        </div>
         <h2 className="text-xl font-bold text-[var(--text-main)] flex items-center gap-2 tracking-tight relative z-10">
             <DollarSign size={24} className="text-emerald-600"/> Painel Financeiro
         </h2>

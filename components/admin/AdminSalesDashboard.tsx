@@ -260,7 +260,7 @@ export const AdminSalesDashboard: React.FC<AdminSalesDashboardProps> = ({ orders
   return (
     <div className="space-y-6 animate-slideUp pb-2">
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm">
         <div className="flex items-center gap-3">
           <div className="p-3 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl text-white shadow-lg shadow-emerald-500/30">
             <Sparkles size={22} />

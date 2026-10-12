@@ -2413,6 +2413,34 @@ exports.processarVendaAdmin = onCall({
   const change = changeRaw === undefined || changeRaw === null ? undefined : arredondar(Number(changeRaw));
   const customerAccountId = request.data?.customerAccountId ? String(request.data.customerAccountId) : null;
   const sessaoCaixaId = request.data?.sessaoCaixaId ? String(request.data.sessaoCaixaId) : null;
+  // Local de entrega (raio/ala/cela do preso ou ala dos trabalhadores). Campos
+  // normalizados e LIMITADOS em tamanho — o backend nunca confia no front.
+  const inmateLocationRaw = request.data?.inmateLocation || request.data?.deliveryLocation || null;
+  let inmateLocation = null;
+  let deliveryLocation = null;
+  if (inmateLocationRaw && typeof inmateLocationRaw === "object") {
+    const str = (v) => (v === undefined || v === null ? "" : String(v).trim().toUpperCase().slice(0, 40));
+    const raio = str(inmateLocationRaw.raio || inmateLocationRaw.ray);
+    const ala = str(inmateLocationRaw.ala || inmateLocationRaw.wing);
+    const cela = str(inmateLocationRaw.cela || inmateLocationRaw.cell);
+    const deliveryFreeText = str(inmateLocationRaw.deliveryFreeText);
+    const deliveryType = inmateLocationRaw.deliveryType === "trabalhador" ? "trabalhador" : "cela";
+    if (raio || ala || cela || deliveryFreeText) {
+      const base = {
+        raio: deliveryType === "trabalhador" ? "" : raio,
+        ray: deliveryType === "trabalhador" ? "" : raio,
+        ala: deliveryType === "trabalhador" ? (deliveryFreeText || ala) : ala,
+        wing: deliveryType === "trabalhador" ? (deliveryFreeText || ala) : ala,
+        cela: deliveryType === "trabalhador" ? "" : cela,
+        cell: deliveryType === "trabalhador" ? "" : cela,
+        isWorker: deliveryType === "trabalhador",
+        deliveryType,
+        ...(deliveryFreeText ? { deliveryFreeText } : {}),
+      };
+      inmateLocation = base;
+      deliveryLocation = base;
+    }
+  }
 
   const isConsumer = targetUserId === "consumidor_geral" || targetUserId === "balcao_anonimo";
   const metodosValidos = ["PIX", "WALLET", "CASH", "CARD", "FIADO", "FIADO_30", "MIXED"];
@@ -2877,6 +2905,8 @@ exports.processarVendaAdmin = onCall({
       ...(walletBalanceAfter !== undefined ? { walletBalanceAfter } : {}),
       ...(jointWalletSnapshot ? { jointWallet: jointWalletSnapshot } : {}),
       ...((paymentMethod === "FIADO" || paymentMethod === "FIADO_30") && customerAccountId ? { customerAccountId } : {}),
+      ...(inmateLocation ? { inmateLocation } : {}),
+      ...(deliveryLocation ? { deliveryLocation } : {}),
     };
 
     t.set(db.collection("orders").doc(orderId), novoPedido);
@@ -5097,6 +5127,223 @@ exports.limparComprovantesExpirados = onSchedule({
 
   return { ok: true, apagados, docsLimpos };
 });
+
+// ============================================================
+// MANUTENÇÃO DE STORAGE: monitoramento de ocupação + limpeza
+// conservadora de arquivos órfãos.
+//
+// Política "conservadora" (configurável em settings/maintenance):
+//   • NUNCA apaga apps/* (instaladores) nem backups/* (retenção própria).
+//   • Só apaga arquivo NÃO referenciado por documento algum e mais antigo
+//     que storageRetentionDays (padrão 30 dias) — margem p/ upload em curso.
+//   • Se a varredura de referências de uma pasta falhar ou estourar o teto
+//     de segurança, a pasta é PULADA: nunca apaga sem certeza de que nada
+//     a referencia (o custo de um falso órfão é perda de comprovante).
+//   • O gatilho por ocupação (>= storageCleanupThresholdPct) dispara a MESMA
+//     limpeza de órfãos — não apaga por idade arbitrária.
+// ============================================================
+
+// Pasta privada → coleção/campo que guarda a URL do arquivo correspondente.
+const STORAGE_FOLDERS = [
+  { pasta: "comprovantes_pix", colecao: "orders", campo: "paymentProofUrl" },
+  { pasta: "wallet_proofs", colecao: "wallet_transactions", campo: "proofUrl" },
+  { pasta: "docs", colecao: "users", campo: "documentUrl" },
+];
+// Teto de documentos lidos por coleção. Ao atingi-lo, assume varredura
+// parcial e a pasta correspondente não é tocada.
+const STORAGE_SCAN_LIMITE = 60000;
+
+async function lerConfigStorage() {
+  const padrao = {
+    limitBytes: 5 * 1024 * 1024 * 1024, // 5 GiB
+    thresholdPct: 80,
+    autoCleanup: true,
+    retentionDays: 30,
+    maxDeletePerRun: 5000,
+  };
+  try {
+    const snap = await db.collection("settings").doc("maintenance").get();
+    const d = (snap.exists && snap.data()) || {};
+    const num = (v, def) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : def);
+    return {
+      limitBytes: num(d.storageLimitBytes, padrao.limitBytes),
+      thresholdPct: Math.min(100, num(d.storageCleanupThresholdPct, padrao.thresholdPct)),
+      autoCleanup: d.storageAutoCleanupEnabled !== false,
+      retentionDays: num(d.storageRetentionDays, padrao.retentionDays),
+      maxDeletePerRun: Math.max(1, Math.floor(num(d.storageMaxDeletePerRun, padrao.maxDeletePerRun))),
+    };
+  } catch (e) {
+    logger.warn("[storage] falha ao ler config, usando padrão:", e.message);
+    return padrao;
+  }
+}
+
+// Soma bytes/arquivos do bucket inteiro (varredura completa).
+async function medirBucket(bucket) {
+  const [files] = await bucket.getFiles();
+  let totalBytes = 0;
+  const porPasta = {};
+  for (const f of files) {
+    const size = Number((f.metadata && f.metadata.size) || 0) || 0;
+    totalBytes += size;
+    const pasta = String(f.name).split("/")[0] || "(raiz)";
+    if (!porPasta[pasta]) porPasta[pasta] = { arquivos: 0, bytes: 0 };
+    porPasta[pasta].arquivos++;
+    porPasta[pasta].bytes += size;
+  }
+  return { totalFiles: files.length, totalBytes, porPasta };
+}
+
+// Conjunto de caminhos do NOSSO bucket referenciados por coleção.campo.
+// Devolve null quando não é possível varrer tudo (teto/falha) — sinal para
+// NÃO apagar nada da pasta.
+async function coletarReferencias(colecao, campo) {
+  try {
+    // Só docs com URL preenchida (campos esvaziados pelo TTL não referenciam
+    // mais arquivo algum e não precisam entrar no conjunto).
+    const snap = await db.collection(colecao)
+      .where(campo, ">", "")
+      .select(campo)
+      .limit(STORAGE_SCAN_LIMITE + 1)
+      .get();
+    if (snap.size > STORAGE_SCAN_LIMITE) return null; // varredura parcial → aborta
+    const refs = new Set();
+    for (const d of snap.docs) {
+      const v = d.get(campo);
+      if (typeof v === "string" && v) {
+        const caminho = caminhoStorageDeUrl(v, FUNC_BUCKET);
+        if (caminho) refs.add(caminho);
+      }
+    }
+    return refs;
+  } catch (e) {
+    logger.warn(`[storage] falha ao varrer ${colecao}.${campo}:`, e.message);
+    return null;
+  }
+}
+
+// Limpeza conservadora de órfãos. Devolve estatísticas do que foi feito.
+async function limparOrfaosStorage(bucket, cfg) {
+  const corteMs = Date.now() - cfg.retentionDays * 24 * 60 * 60 * 1000;
+  const r = { avaliados: 0, apagados: 0, bytesLiberados: 0, porPasta: {}, puladas: [] };
+
+  for (const alvo of STORAGE_FOLDERS) {
+    if (r.apagados >= cfg.maxDeletePerRun) break;
+    const refs = await coletarReferencias(alvo.colecao, alvo.campo);
+    if (refs === null) {
+      r.puladas.push(alvo.pasta);
+      continue;
+    }
+    let apagadosPasta = 0;
+    let bytesPasta = 0;
+    const [files] = await bucket.getFiles({ prefix: `${alvo.pasta}/` });
+    for (const f of files) {
+      r.avaliados++;
+      if (refs.has(f.name)) continue; // referenciado → preserva
+      const md = f.metadata || {};
+      const t = Date.parse(md.timeCreated || md.updated || "");
+      if (!Number.isFinite(t) || t > corteMs) continue; // recente/inválido → preserva
+      const size = Number(md.size || 0) || 0;
+      try {
+        await f.delete();
+        apagadosPasta++;
+        bytesPasta += size;
+        r.apagados++;
+        if (r.apagados >= cfg.maxDeletePerRun) break;
+      } catch (e) {
+        logger.warn(`[storage] falha ao apagar ${f.name}:`, e.message);
+      }
+    }
+    r.bytesLiberados += bytesPasta;
+    r.porPasta[alvo.pasta] = { apagados: apagadosPasta, bytes: bytesPasta };
+  }
+  return r;
+}
+
+/**
+ * Agendado — limpeza conservadora de arquivos órfãos do Storage (04:10 BRT).
+ * Independente da ocupação: hipótese "conservadora" em janela de baixo uso.
+ */
+exports.limparStorageOrfaos = onSchedule({
+  schedule: "10 4 * * *",
+  timeZone: "America/Sao_Paulo",
+  timeoutSeconds: 540,
+  memory: "1GiB",
+}, async () => {
+  const inicio = Date.now();
+  const cfg = await lerConfigStorage();
+  const bucket = admin.storage().bucket(FUNC_BUCKET);
+  try {
+    const r = await limparOrfaosStorage(bucket, cfg);
+    await db.collection("settings").doc("maintenance").set({
+      lastStorageCleanup: new Date().toISOString(),
+      lastStorageCleanupResult: r,
+      lastStorageCleanupDurationMs: Date.now() - inicio,
+      lastStorageCleanupStatus: "ok",
+    }, { merge: true });
+    await registrarAudit("sistema", "LIMPAR_STORAGE_ORFAOS", null, { ...r, retencaoDias: cfg.retentionDays });
+    logger.info("[limparStorageOrfaos] concluída", r);
+    return { ok: true, ...r };
+  } catch (e) {
+    logger.error("[limparStorageOrfaos] falhou", e);
+    await db.collection("settings").doc("maintenance").set({
+      lastStorageCleanup: new Date().toISOString(),
+      lastStorageCleanupStatus: "error",
+      lastStorageCleanupError: String((e && e.message) || e).slice(0, 500),
+    }, { merge: true }).catch(() => {});
+    return { ok: false, erro: String((e && e.message) || e) };
+  }
+});
+
+/**
+ * Agendado — mede a ocupação do Storage a cada 6h e, ao cruzar
+ * storageCleanupThresholdPct (padrão 80%), dispara a limpeza de órfãos.
+ */
+exports.monitorarUsoStorage = onSchedule({
+  schedule: "0 */6 * * *",
+  timeZone: "America/Sao_Paulo",
+  timeoutSeconds: 540,
+  memory: "1GiB",
+}, async () => {
+  const inicio = Date.now();
+  const cfg = await lerConfigStorage();
+  const bucket = admin.storage().bucket(FUNC_BUCKET);
+  try {
+    const med = await medirBucket(bucket);
+    const pct = cfg.limitBytes > 0 ? (med.totalBytes / cfg.limitBytes) * 100 : 0;
+    const pctArred = Math.round(pct * 100) / 100;
+    let limpeza = null;
+    if (cfg.autoCleanup && pct >= cfg.thresholdPct) {
+      logger.warn(`[monitorarUsoStorage] ${pctArred}% >= ${cfg.thresholdPct}% — disparando limpeza`);
+      try {
+        limpeza = await limparOrfaosStorage(bucket, cfg);
+      } catch (e) {
+        limpeza = { erro: String((e && e.message) || e) };
+      }
+    }
+    await db.collection("settings").doc("maintenance").set({
+      lastStorageCheck: new Date().toISOString(),
+      storageBytes: med.totalBytes,
+      storageFiles: med.totalFiles,
+      storageLimitBytes: cfg.limitBytes,
+      storagePct: pctArred,
+      storageThresholdPct: cfg.thresholdPct,
+      storageAutoCleanupEnabled: cfg.autoCleanup,
+      storagePorPasta: med.porPasta,
+      lastStorageCheckDurationMs: Date.now() - inicio,
+      ...(limpeza ? { lastStorageThresholdCleanup: limpeza } : {}),
+    }, { merge: true });
+    if (limpeza) {
+      await registrarAudit("sistema", "MONITOR_STORAGE_AUTO_LIMPEZA", null, { pct: pctArred, limpeza });
+    }
+    logger.info("[monitorarUsoStorage] concluída", { pct: pctArred, bytes: med.totalBytes, limpeza });
+    return { ok: true, pct: pctArred, ...med, limpeza };
+  } catch (e) {
+    logger.error("[monitorarUsoStorage] falhou", e);
+    return { ok: false, erro: String((e && e.message) || e) };
+  }
+});
+
 exports.backupSemanalAutomatico = onSchedule({
   schedule: "30 3 * * 3",
   timeZone: "America/Cuiaba",
@@ -5958,6 +6205,8 @@ exports.importXmlProduct = onCall({
   // 999.999 vira 1 — o que o operador confere é exatamente o que persiste.
   const PRECO_PLAUSIVEL = 100000;
   let loadedCount = 0, updatedCount = 0, newCount = 0;
+  const productIdsUpdated = [];
+  const productIdsCreated = [];
   for (const item of data.items) {
     const custoRaw = Number(item.costPrice) || 0;
     const custo = custoRaw > PRECO_PLAUSIVEL ? 0 : custoRaw;
@@ -5971,6 +6220,7 @@ exports.importXmlProduct = onCall({
     }
     if (match) {
       const novoStock = (match.stock || 0) + stockRaw;
+      productIdsUpdated.push(match.id);
       ops.push({ ref: db.collection("products").doc(match.id), data: { stock: novoStock, price: priceRaw, costPrice: custo, ean: eanRaw || match.ean } });
       // Espelho local em dia: o MESMO produto 2x no mesmo XML soma as duas
       // ocorrências (antes a segunda era ignorada e o estoque ficava errado).
@@ -5978,9 +6228,11 @@ exports.importXmlProduct = onCall({
       match.price = priceRaw;
       match.costPrice = custo;
       if (eanRaw) match.ean = eanRaw;
+      match.lastImportedAt = new Date().toISOString();
       updatedCount++;
     } else {
       const newId = crypto.randomUUID();
+      productIdsCreated.push(newId);
       ops.push({ ref: db.collection("products").doc(newId), data: {
         id: newId,
         name: item.name,
@@ -5992,7 +6244,8 @@ exports.importXmlProduct = onCall({
         supplierId,
         category: item.category || "",
         minStock: 5,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        lastImportedAt: new Date().toISOString()
       } });
       localProducts.push({ id: newId, name: item.name, stock: stockRaw, price: priceRaw, costPrice: custo, ean: eanRaw, barcode: eanRaw });
       newCount++;
@@ -6008,7 +6261,13 @@ exports.importXmlProduct = onCall({
     escritas += lote.length;
   }
   await registrarAudit(caller.id, "IMPORT_XML_PRODUCT", null, { loaded: loadedCount, updated: updatedCount, created: newCount, escritas, margemPct: profitMargin });
-  return { loaded: loadedCount, updated: updatedCount, created: newCount, totalInXml: data.items.length };
+  return { 
+    loaded: loadedCount, 
+    updated: updatedCount, 
+    created: newCount, 
+    totalInXml: data.items.length,
+    productIds: [...productIdsUpdated, ...productIdsCreated]
+  };
 });
 
 

@@ -86,7 +86,7 @@ export const ConfirmacaoDestrutiva: React.FC<ConfirmacaoDestrutivaProps> = ({
                     onChange={e => setTexto(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter' && valido && !processando) onConfirm(); }}
                     placeholder="••••••"
-                    className="w-full bg-slate-50 border-2 border-slate-200 focus:border-red-500 p-4 rounded-2xl font-black text-center text-lg uppercase tracking-[0.3em] outline-none transition-colors disabled:opacity-50"
+                    className="w-full bg-slate-50 border-2 border-slate-200 focus:border-red-500 p-4 rounded-2xl font-black text-center text-lg uppercase tracking-[0.3em] text-slate-900 outline-none transition-colors disabled:opacity-50"
                 />
                 )}
             </div>

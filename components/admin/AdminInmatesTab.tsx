@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatarMoeda } from '../../utils';
+import { formatarMoeda, normalizeSearch, apenasDigitos } from '../../utils';
 import { Shield, Plus, Trash2, Search, UserCheck, FileUp, LayoutGrid, Smartphone, Loader2, Printer, Pencil, MapPin, RotateCcw } from 'lucide-react';
 import { useApp } from '../../context/StoreContext';
 import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
@@ -9,7 +9,7 @@ import { gerarComprovanteDevolucaoAlvara } from '../../utils/printUtils';
 interface AdminInmatesTabProps {
   preRegisteredInmates: PreRegisteredInmate[];
   users: any[];
-  newInmate: { name: string; cpf: string; unit?: string };
+  newInmate: { name: string; cpf: string; unit?: string; raio?: string; ala?: string; cela?: string };
   setNewInmate: (data: any) => void;
   handleAddInmate: () => void;
   deletePreRegisteredInmate: (id: string) => void;
@@ -132,16 +132,16 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
   // updatePreRegisteredInmate já existia no contexto, mas não tinha UI.
   const [editando, setEditando] = React.useState<PreRegisteredInmate | null>(null);
 
-  const iniciarEdicao = (inmate: PreRegisteredInmate) => {
+const iniciarEdicao = (inmate: PreRegisteredInmate) => {
     setEditando(inmate);
-    setNewInmate({ name: inmate.name || '', cpf: inmate.cpf || '', unit: inmate.unit || '' });
+    setNewInmate({ name: inmate.name || '', cpf: inmate.cpf || '', unit: inmate.unit || '', raio: inmate.raio || '', ala: inmate.ala || '', cela: inmate.cela || '' });
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+};
 
-  const cancelarEdicao = () => {
+const cancelarEdicao = () => {
     setEditando(null);
-    setNewInmate({ name: '', cpf: '', unit: '' });
-  };
+    setNewInmate({ name: '', cpf: '', unit: '', raio: '', ala: '', cela: '' });
+};
 
   const handleSalvar = async () => {
     if (!editando) { handleAddInmate(); return; }
@@ -156,7 +156,7 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
     const nome = String(newInmate?.name || '').trim();
     const cpf = String(newInmate?.cpf || '').trim();
     if (!nome || !cpf) { notifCtx('Nome e CPF são obrigatórios.', 'error'); return; }
-    const ok = await updatePreRegisteredInmate(editando.id, { name: nome, cpf, unit: String(newInmate?.unit || '').trim() });
+    const ok = await updatePreRegisteredInmate(editando.id, { name: nome, cpf, unit: String(newInmate?.unit || '').trim(), raio: String(newInmate?.raio || '').trim(), ala: String(newInmate?.ala || '').trim(), cela: String(newInmate?.cela || '').trim() });
     // Sai da edição só em sucesso — falha (CPF inválido/duplicado/rede) mantém o formulário preenchido.
     if (ok) cancelarEdicao();
   };
@@ -174,10 +174,14 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
     });
   }, [preRegisteredInmates, users]);
 
-  const filteredInmates = consolidatedData.filter(i =>
-    (i.name || '').toLowerCase().includes((searchTerm || '').toLowerCase()) ||
-    (i.cpf || '').includes(searchTerm || '')
-  ).sort((a,b) => b.totalBalance - a.totalBalance);
+  const termoBusca = normalizeSearch(searchTerm);
+  const termoDigitos = apenasDigitos(searchTerm);
+  const filteredInmates = consolidatedData.filter(i => {
+    if (!termoBusca) return true;
+    if (normalizeSearch(i.name).includes(termoBusca)) return true;
+    if (termoDigitos && apenasDigitos(i.cpf).includes(termoDigitos)) return true;
+    return false;
+  }).sort((a,b) => b.totalBalance - a.totalBalance);
 
   const totalInmates = consolidatedData.length;
   const withFamily = consolidatedData.filter(i => i.linkedUsers.length > 0).length;
@@ -331,6 +335,24 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
                           placeholder="EX: ALA B - CELA 12"
                           value={newInmate?.unit || ''}
                           onChange={e => setNewInmate({...newInmate, unit: e.target.value.toUpperCase()})}
+                      />
+                      <input
+                          className="w-full p-4 bg-[var(--bg-card)] border-2 border-[var(--border-color)] focus:border-emerald-500 rounded-2xl font-bold text-sm text-[var(--text-main)] outline-none transition-all placeholder:text-[var(--text-muted)] uppercase tracking-widest"
+                          placeholder="EX: RAIO 3"
+                          value={newInmate?.raio || ''}
+                          onChange={e => setNewInmate({...newInmate, raio: e.target.value.toUpperCase()})}
+                      />
+                      <input
+                          className="w-full p-4 bg-[var(--bg-card)] border-2 border-[var(--border-color)] focus:border-emerald-500 rounded-2xl font-bold text-sm text-[var(--text-main)] outline-none transition-all placeholder:text-[var(--text-muted)] uppercase tracking-widest"
+                          placeholder="EX: ALA 2"
+                          value={newInmate?.ala || ''}
+                          onChange={e => setNewInmate({...newInmate, ala: e.target.value.toUpperCase()})}
+                      />
+                      <input
+                          className="w-full p-4 bg-[var(--bg-card)] border-2 border-[var(--border-color)] focus:border-emerald-500 rounded-2xl font-bold text-sm text-[var(--text-main)] outline-none transition-all placeholder:text-[var(--text-muted)] uppercase tracking-widest"
+                          placeholder="EX: CELA 5"
+                          value={newInmate?.cela || ''}
+                          onChange={e => setNewInmate({...newInmate, cela: e.target.value.toUpperCase()})}
                       />
                   </div>
                   <button

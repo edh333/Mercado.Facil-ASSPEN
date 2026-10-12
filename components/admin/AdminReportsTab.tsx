@@ -206,8 +206,10 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
 
             <div className="lg:col-span-5 space-y-6">
                 <p className="text-[var(--text-main)] font-black text-[10px] uppercase tracking-widest ml-2">2. Parametrização e Filtros</p>
-                <div className="bg-[var(--bg-card)] p-8 rounded-[2.5rem] border border-[var(--border-color)] shadow-2xl space-y-6 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-600 rounded-full -mr-16 -mt-16 opacity-5"/>
+                <div className="bg-[var(--bg-card)] p-8 rounded-[2.5rem] border border-[var(--border-color)] shadow-2xl space-y-6 relative">
+                    <div className="absolute inset-0 rounded-[2.5rem] overflow-hidden pointer-events-none">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-600 rounded-full -mr-16 -mt-16 opacity-5"/>
+                    </div>
 
                     <div className="relative z-10 space-y-6">
                         {reportConfig.type === 'INDIVIDUAL' && (

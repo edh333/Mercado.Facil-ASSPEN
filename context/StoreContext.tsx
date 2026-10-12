@@ -214,7 +214,7 @@ interface StoreContextType {
 
     preRegisteredInmates: { id: string, name: string, cpf: string, unit?: string, gallery?: string, cell?: string, observations?: string, status?: 'ATIVO' | 'INATIVO' }[];
     addPreRegisteredInmate: (inmate: { name: string, cpf: string, unit?: string, gallery?: string, cell?: string, observations?: string }) => Promise<boolean>;
-    updatePreRegisteredInmate: (id: string, data: { name?: string, cpf?: string, unit?: string, gallery?: string, cell?: string, observations?: string, status?: 'ATIVO' | 'INATIVO' }) => Promise<boolean>;
+    updatePreRegisteredInmate: (id: string, data: { name?: string, cpf?: string, unit?: string, gallery?: string, cell?: string, observations?: string, status?: 'ATIVO' | 'INATIVO', raio?: string, ala?: string, cela?: string }) => Promise<boolean>;
     deletePreRegisteredInmate: (id: string) => Promise<void>;
 
     creditoCliente: number;
@@ -223,7 +223,7 @@ interface StoreContextType {
     refundOrder: (orderId: string, reason?: string, opts?: { janelaDias?: number; senhaMestra?: string }) => Promise<void>;
     resetCredits: (senhaMestra?: string) => Promise<void>;
     mergeDuplicateProducts: () => Promise<void>;
-    adminDirectSale: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30', total: number, payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30'; amount: number }[], change?: number, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string, fiado30UserId?: string, senhaPrimaria?: string, senhaSecundaria?: string, sessaoCaixaId?: string, descontoPct?: number) => Promise<Order | null>;
+    adminDirectSale: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30', total: number, payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30'; amount: number }[], change?: number, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string, fiado30UserId?: string, senhaPrimaria?: string, senhaSecundaria?: string, sessaoCaixaId?: string, descontoPct?: number, inmateLocation?: InmateLocation) => Promise<Order | null>;
     loadMoreOrders: () => void;
     loadMoreExpenses: () => void;
     ordersLimit: number;
@@ -241,7 +241,7 @@ interface StoreContextType {
     expandUsersLimit: (limite: number) => void;
     importInmatesCsv: (file: File) => Promise<void>;
     addWalletCreditDirectly: (userId: string, amount: number, reason: string, senhaMestra?: string) => Promise<void>;
-    registrarVendaOffline: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30', total: number, payments?: { method: string; amount: number }[], change?: number, customerAccountId?: string, cardBrand?: string, sessaoCaixaId?: string, clientToken?: string) => Promise<Order | null>;
+    registrarVendaOffline: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30', total: number, payments?: { method: string; amount: number }[], change?: number, customerAccountId?: string, cardBrand?: string, sessaoCaixaId?: string, clientToken?: string, inmateLocation?: InmateLocation) => Promise<Order | null>;
     sincronizarVendasOffline: (incluirErros?: boolean) => Promise<{ ok: boolean; sincronizadas: number; comErro: number; total: number; offline?: boolean }>;
     vendasOfflinePendentes: number;
     vendasOffline: VendaOffline[];
@@ -1654,6 +1654,17 @@ return false;
             const loaded = data?.loaded || 0;
             const updated = data?.updated || 0;
             const created = data?.created || 0;
+            // Atualiza lastImportedAt nos produtos importados/atualizados
+            // (resposta do servidor contém IDs dos produtos modificados)
+            if (data?.productIds && data.productIds.length > 0) {
+                const agora = new Date().toISOString();
+                setProducts(prev => prev.map(p => {
+                    if (data.productIds.includes(p.id)) {
+                        return { ...p, lastImportedAt: agora };
+                    }
+                    return p;
+                }));
+            }
             showNotification(`${loaded} itens processados: ${created} novos, ${updated} atualizados.`, 'success');
         } catch (e: any) {
             // Erro rico: revela POR QUE o XML não pôde ser interpretado.
@@ -2833,6 +2844,7 @@ return false;
         cardBrand?: string,
         sessaoCaixaId?: string,
         clientToken?: string,
+        inmateLocation?: InmateLocation,
     ): Promise<Order | null> => {
         if (!currentUser || currentUser.role !== UserRole.ADMIN) {
             throw new Error('Acesso restrito a administradores.');
@@ -2862,6 +2874,7 @@ return false;
             total: Number(total) || 0,
             status: 'pending',
             tryCount: 0,
+            ...(inmateLocation ? { inmateLocation } : {}),
         };
         // A1: a gravação pode FALHAR (fila no teto ou cota do localStorage).
         // Quando falha, a venda NÃO foi salva em lugar nenhum — devolver o
@@ -2897,6 +2910,7 @@ return false;
             ...(venda.cardBrand ? { cardBrand: venda.cardBrand } : {}),
             payments: venda.payments,
             change: venda.change,
+            ...(venda.inmateLocation ? { inmateLocation: venda.inmateLocation } : {}),
             offlinePending: true,
         } as unknown as Order;
     }, [currentUser, users]);
@@ -2948,6 +2962,7 @@ return false;
                         customerAccountId: v.customerAccountId || undefined,
                         cardBrand: v.paymentMethod === 'CARD' ? (v.cardBrand || undefined) : undefined,
                         sessaoCaixaId: v.sessaoCaixaId || undefined,
+                        inmateLocation: v.inmateLocation || undefined,
                         origemOffline: true,
                     });
                     const pedido = (res.data as any)?.order;
@@ -3283,7 +3298,7 @@ useEffect(() => {
                     
                 }
             },
-            adminDirectSale: async (targetUserId, items, paymentMethod, total, payments: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30'; amount: number }[] | undefined, change, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string, fiado30UserId?: string, senhaPrimaria?: string, senhaSecundaria?: string, sessaoCaixaId?: string, descontoPct?: number) => {
+            adminDirectSale: async (targetUserId, items, paymentMethod, total, payments: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30'; amount: number }[] | undefined, change, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string, fiado30UserId?: string, senhaPrimaria?: string, senhaSecundaria?: string, sessaoCaixaId?: string, descontoPct?: number, inmateLocation?: InmateLocation) => {
                 if (!currentUser || (currentUser.role !== UserRole.ADMIN && currentUser.role !== UserRole.VENDEDOR)) {
                     throw new Error("Acesso restrito à equipe autorizada.");
                 }
@@ -3330,6 +3345,7 @@ useEffect(() => {
                         senhaSecundaria: senhaSecundaria || undefined,
                         sessaoCaixaId: sessaoCaixaId || undefined,
                         descontoPct: Number(descontoPct) > 0 ? Number(descontoPct) : undefined,
+                        inmateLocation: inmateLocation || undefined,
                         apiKey: (paymentMethod === 'FIADO' || paymentMethod === 'FIADO_30' || Number(descontoPct) > 0) ? (FIREBASE_API_KEY || undefined) : undefined
                     });
                     const data = res.data as any;

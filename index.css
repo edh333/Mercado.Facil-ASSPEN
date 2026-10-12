@@ -1056,7 +1056,7 @@ input:-webkit-autofill:focus {
     max-width: 76mm !important;
     height: auto !important;
     max-height: none !important;
-    padding: 2mm 1mm !important;
+    padding: 1.5mm 0.8mm !important;
     font-family: 'Courier New', Courier, monospace !important;
     box-sizing: border-box !important;
     page-break-inside: avoid !important;
@@ -1109,12 +1109,16 @@ input:-webkit-autofill:focus {
    DARK MODE OVERRIDES
    ═══════════════════════════════════════════════════════════ */
 
-.modal-content:not(.bg-white), [role="dialog"]:not(.bg-white) {
+/* Escopo .dark: sem isso, modais baseados em var(--bg-card) (ModalShell)
+   eram forçados a slate escuro MESMO no tema claro — apareciam "pretos"
+   fora do padrão do sistema. Fora do .dark, o próprio componente decide. */
+.dark .modal-content:not(.bg-white),
+.dark [role="dialog"]:not(.bg-white) {
   background-color: #1e293b !important;
   color: #f1f5f9 !important;
 }
 
-.modal-content:not(.bg-white) button:has(svg):hover {
+.dark .modal-content:not(.bg-white) button:has(svg):hover {
   background-color: #ef4444 !important;
   color: #ffffff !important;
 }
@@ -1695,6 +1699,29 @@ select option {
 .dark .text-slate-600,
 .dark .text-slate-500,
 .dark .text-slate-400 {
+  color: var(--text-muted) !important;
+}
+
+/* ── Fundos e bordas fixos (bg-slate-*, border-slate-*) remapeados no dark ──
+   Padroniza TODAS as janelas/telas legadas sem editar cada JSX: chips e
+   bordas escritos com utilitário fixo passam a acompanhar o tema escuro
+   (antes ficavam gris-claros sobre cartão escuro, fora do padrão). */
+.dark .bg-slate-50,
+.dark .bg-slate-100,
+.dark .bg-slate-200 {
+  background-color: var(--bg-muted) !important;
+}
+.dark .border-slate-100,
+.dark .border-slate-200,
+.dark .border-slate-300 {
+  border-color: var(--border-color) !important;
+}
+.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+.dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--border-color) !important;
+}
+.dark .text-slate-300,
+.dark .text-slate-200 {
   color: var(--text-muted) !important;
 }
 

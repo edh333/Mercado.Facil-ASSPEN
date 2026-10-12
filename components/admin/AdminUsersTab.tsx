@@ -2,13 +2,14 @@ import React from 'react';
 import {
   Users, Search, Eye, EyeOff, FileText, MinusCircle, CheckCircle, Ban, Trash2, RefreshCw,
   PlusCircle, ShieldCheck, CheckSquare, Square, Link2, BarChart2, Download, Lock, Unlock,
-  MoreVertical, Upload, X, Loader2
+  MoreVertical, Upload, Loader2
 } from 'lucide-react';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { formatarMoeda, isAdminRole } from '../../utils';
+import { formatarMoeda, isAdminRole, normalizeSearch, apenasDigitos } from '../../utils';
 import { getLocalDateStr } from './adminUtils';
 import { User, Order } from '../../types';
 import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
+import { ModalShell } from '../ui/ModalShell';
 
 interface AdminUsersTabProps {
   users: User[];
@@ -135,12 +136,14 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
   };
 
   const filteredUsers = React.useMemo(() => {
-    const termo = (userSearch || '').toLowerCase();
+    const termo = normalizeSearch(userSearch);
+    const termoDigitos = apenasDigitos(userSearch);
     return (users || []).filter(u => {
       const notAdmin = !isAdminRole(u.role);
-      const matchSearch = (u.name || '').toLowerCase().includes(termo) ||
-                         (u.cpf || '').includes(userSearch || '') ||
-                         (u.inmateName || '').toLowerCase().includes(termo);
+      const matchSearch = !termo ||
+        normalizeSearch(u.name).includes(termo) ||
+        normalizeSearch(u.inmateName).includes(termo) ||
+        (termoDigitos && apenasDigitos(u.cpf).includes(termoDigitos));
       const matchStatus = statusFilter === 'ALL' ||
                          (statusFilter === 'PENDING' && u.status === 'pending') ||
                          (statusFilter === 'ACTIVE' && u.status === 'active') ||
@@ -291,7 +294,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
     <div className="animate-slideUp space-y-6">
 
       {/* ─── Main Tab Toggle ─── */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm">
         <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2 tracking-tight">
           <Users size={24} className="text-emerald-500" /> Gestão de Usuários
         </h2>
@@ -586,8 +589,8 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                       </button>
                       {openDropdown === u.id && (
                         <>
-                          <div className="fixed inset-0 z-40" onClick={() => setOpenDropdown(null)} />
-                          <div className="absolute right-0 top-full mt-1 z-50 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 min-w-[200px] animate-scaleIn origin-top-right">
+                          <div className="fixed inset-0 z-[80]" onClick={() => setOpenDropdown(null)} />
+                          <div className="absolute right-0 top-full mt-1 z-[90] bg-white rounded-2xl shadow-xl border border-slate-200 py-2 min-w-[200px] animate-scaleIn origin-top-right">
                             {canManageCredits && (
                               <button onClick={() => { onAddCredit(u); setOpenDropdown(null); }} className="w-full flex items-center gap-3 px-5 py-3 text-slate-700 hover:bg-emerald-50 hover:text-emerald-600 text-xs font-black uppercase tracking-widest transition-all"><PlusCircle size={16}/> Aporte Manual</button>
                             )}
@@ -627,21 +630,31 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
           </div>
         </>
       )}
-      {showImportModal && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={() => { if (!importando) setShowImportModal(false); }}>
-          <div className="bg-white w-full max-w-2xl rounded-[2rem] shadow-2xl border border-slate-200 p-6 space-y-4 animate-scaleIn max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h3 className="font-black text-slate-900 flex items-center gap-2 text-[11px] uppercase tracking-widest">
-                <Upload size={18} className="text-emerald-500"/> Importar Usuários em Lote
-              </h3>
-              <button onClick={() => setShowImportModal(false)} className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 transition-all"><X size={18}/></button>
-            </div>
-
-            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 text-[11px] text-slate-600 leading-relaxed space-y-2">
-              <p className="font-black text-slate-900 uppercase tracking-widest text-[10px]">Formato (uma pessoa por linha — separador ; vírgula ou TAB)</p>
-              <code className="block bg-white rounded-xl p-3 border border-slate-200 font-mono text-[10px] text-slate-700">nome;cpf;email;role;cpfDoInterno;telefone</code>
-              <p className="text-slate-500">role: <b>FAMILY</b> (exige o CPF do interno) ou <b>user</b>. Máx. 500 por importação. Linhas inválidas ou duplicadas são <b>puladas</b> — o motivo aparece abaixo.</p>
-              <p className="text-slate-500">Sem senha na linha, vale a "senha padrão" abaixo; senão o próprio CPF.</p>
+      <ModalShell
+        open={showImportModal}
+        onClose={() => { if (!importando) setShowImportModal(false); }}
+        closeOnBackdrop={!importando}
+        title="Importar Usuários em Lote"
+        subtitle="Uma pessoa por linha — separador ; vírgula ou TAB"
+        icon={<Upload size={20} className="text-emerald-600" />}
+        size="md"
+        footer={
+          <>
+            <button onClick={() => setShowImportModal(false)} disabled={importando} className="px-6 py-3 rounded-2xl border border-[var(--border-color)] text-[var(--text-muted)] hover:bg-[var(--bg-muted)] text-[10px] font-black uppercase tracking-widest transition-all">
+              Fechar
+            </button>
+            <button onClick={executarImportacao} disabled={importando || linhasInferidas.length === 0} className="px-6 py-3 rounded-2xl bg-emerald-600 text-white hover:brightness-110 disabled:opacity-40 text-[10px] font-black uppercase tracking-widest shadow-md flex items-center gap-2 transition-all active:scale-95">
+              <Upload size={16}/> Importar {linhasInferidas.length > 0 ? `${Math.min(linhasInferidas.length, 500)}` : ''}
+            </button>
+          </>
+        }
+      >
+        <div className="p-6 space-y-4">
+            <div className="bg-[var(--bg-muted)] rounded-2xl p-4 border border-[var(--border-color)] text-[11px] text-[var(--text-muted)] leading-relaxed space-y-2">
+              <p className="font-black text-[var(--text-main)] uppercase tracking-widest text-[10px]">Formato (uma pessoa por linha — separador ; vírgula ou TAB)</p>
+              <code className="block bg-[var(--bg-card)] rounded-xl p-3 border border-[var(--border-color)] font-mono text-[10px] text-[var(--text-main)]">nome;cpf;email;role;cpfDoInterno;telefone</code>
+              <p>role: <b>FAMILY</b> (exige o CPF do interno) ou <b>user</b>. Máx. 500 por importação. Linhas inválidas ou duplicadas são <b>puladas</b> — o motivo aparece abaixo.</p>
+              <p>Sem senha na linha, vale a "senha padrão" abaixo; senão o próprio CPF.</p>
             </div>
 
             <textarea
@@ -649,34 +662,34 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
               onChange={(e) => { setImportRows(e.target.value); setImportResultado(null); }}
               placeholder={'JOÃO DA SILVA;111.222.333-44;;FAMILY;000.000.000-00;11999999999\nMARIA OLIVEIRA;555.666.777-88;maria@email.com;user;;'}
               spellCheck={false}
-              className="w-full h-44 rounded-2xl border-2 border-slate-200 focus:border-emerald-500 outline-none p-3 font-mono text-[11px] text-slate-800 bg-white resize-y"
+              className="w-full h-44 rounded-2xl border-2 border-[var(--border-color)] focus:border-emerald-500 outline-none p-3 font-mono text-[11px] text-[var(--text-main)] bg-[var(--bg-card)] resize-y"
             />
 
             <div className="grid md:grid-cols-2 gap-3 items-end">
               <label className="block">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Senha padrão (opcional)</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Senha padrão (opcional)</span>
                 <input
                   type="text"
                   value={senhaPadraoImport}
                   onChange={(e) => setSenhaPadraoImport(e.target.value)}
                   placeholder="ex.: 123456 (mínimo 6)"
-                  className="w-full mt-1 px-4 py-2.5 rounded-xl border-2 border-slate-200 focus:border-emerald-500 outline-none text-xs text-slate-800"
+                  className="w-full mt-1 px-4 py-2.5 rounded-xl border-2 border-[var(--border-color)] focus:border-emerald-500 outline-none text-xs text-[var(--text-main)] bg-[var(--bg-card)]"
                 />
               </label>
               <label className="flex items-center gap-2 pb-1 cursor-pointer select-none">
                 <input type="checkbox" checked={aprovarAuto} onChange={(e) => setAprovarAuto(e.target.checked)} className="h-5 w-5 accent-emerald-600"/>
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">Aprovar automaticamente</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Aprovar automaticamente</span>
               </label>
             </div>
 
             {importando && (
-              <div className="flex items-center gap-3 text-xs font-black text-emerald-700 uppercase tracking-widest">
+              <div className="flex items-center gap-3 text-xs font-black text-emerald-600 uppercase tracking-widest">
                 <Loader2 size={18} className="animate-spin"/> Importando {linhasInferidas.length}... (pode levar alguns minutos)
               </div>
             )}
 
             {importResultado && (
-              <div className={`rounded-2xl border p-4 text-xs space-y-2 ${importResultado.erro ? 'border-red-200 bg-red-50 text-red-700' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
+              <div className={`rounded-2xl border p-4 text-xs space-y-2 ${importResultado.erro ? 'border-red-500/30 bg-red-500/10 text-red-600' : 'border-[var(--border-color)] bg-[var(--bg-muted)] text-[var(--text-main)]'}`}>
                 <p className="font-black uppercase tracking-widest text-[10px]">
                   {importResultado.erro ? 'Falha na importação' : `Importação concluída: ${importResultado.totalCriados} criado(s), ${importResultado.totalPulados} pulado(s)`}
                 </p>
@@ -689,18 +702,8 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                 )}
               </div>
             )}
-
-            <div className="flex justify-end gap-3 pt-2">
-              <button onClick={() => setShowImportModal(false)} disabled={importando} className="px-6 py-3 rounded-2xl border-2 border-slate-200 text-slate-600 hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest transition-all">
-                Fechar
-              </button>
-              <button onClick={executarImportacao} disabled={importando || linhasInferidas.length === 0} className="px-6 py-3 rounded-2xl bg-emerald-600 text-white hover:brightness-110 disabled:opacity-40 text-[10px] font-black uppercase tracking-widest shadow-md flex items-center gap-2 transition-all active:scale-95">
-                <Upload size={16}/> Importar {linhasInferidas.length > 0 ? `${Math.min(linhasInferidas.length, 500)}` : ''}
-              </button>
-            </div>
-          </div>
         </div>
-      )}
+      </ModalShell>
       <ConfirmacaoDestrutiva
         isOpen={confirmAction !== null}
         titulo={confirmAction?.tipo === 'excluir' ? 'Excluir Usuário' : 'Bloquear Acesso'}

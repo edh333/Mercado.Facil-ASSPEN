@@ -74,7 +74,7 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
     <div
       id="print-root"
       className="cupom-gerencial-print bg-white p-3 pt-5 font-mono text-black w-full max-w-[80mm] mx-auto print:m-0 print:p-0 print:w-[76mm] selection:bg-slate-200 overflow-hidden"
-      style={{ fontSize: `${fontSize}px`, lineHeight: '1.4', color: 'black' }}
+      style={{ fontSize: `${fontSize}px`, lineHeight: '1.25', color: 'black' }}
     >
 
       {/* TOOLBAR (no-print) */}
@@ -192,9 +192,9 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
       })()}
 
       {/* ITEMS TABLE */}
-      <div className="mb-3">
+      <div className="mb-2">
         <table className="w-full">
-            <thead className="border-b border-black">
+            <thead className="border-b border-black/80">
                 <tr>
                     <th className="text-left pb-0.5">ITEM</th>
                     <th className="text-center pb-0.5">QTD X UN</th>
@@ -204,9 +204,9 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
             <tbody className="divide-y divide-gray-200">
                 {itens.map((item: any, idx: number) => (
                     <tr key={idx}>
-                        <td className="py-1.5 pr-1">
-                            <p className="font-black uppercase leading-tight">{item?.name || item?.nome || 'Item'}</p>
-                            {item.brand && <p className="font-bold opacity-60">{item.brand}</p>}
+                        <td className="py-0.5 pr-1">
+                            <p className="font-black uppercase leading-tight text-[9.5px]">{item?.name || item?.nome || 'Item'}</p>
+                            {item.brand && <p className="font-bold opacity-60 text-[9px]">{item.brand}</p>}
                         </td>
                         <td className="text-center font-black whitespace-nowrap">{item.quantity || 1} X {formatarMoeda(item.priceAtPurchase || item.price || 0)}</td>
                         <td className="text-right font-black">R$ {formatarMoeda((item.priceAtPurchase || item.price || 0) * (item.quantity || 1))}</td>
@@ -222,7 +222,7 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
       </div>
 
       {/* TOTAL */}
-      <div className="border-t-2 border-black pt-1 mb-3">
+      <div className="border-t-2 border-black pt-0.5 mb-2">
         {Math.abs(desconto) > 0.005 && (
           <>
             <div className="flex justify-between items-center mb-1">

@@ -50,6 +50,10 @@ const numeroNfe = (el: Document | Element, nome: string): number => {
   return isNaN(n) ? NaN : n;
 };
 const ehGtin = (v: string): boolean => /^\d{8,14}$/.test(v);
+const ehEanValido = (v: string): boolean => {
+  const clean = String(v).replace(/^0+/, "").trim();
+  return clean.length >= 8 && clean.length <= 14 && /^\d+$/.test(clean);
+};
 
 export const parseInvoiceXML = (xml: string): InvoiceData | null => {
   try {
@@ -81,7 +85,7 @@ export const parseInvoiceXML = (xml: string): InvoiceData | null => {
       if (!name) continue;
 
       const ean = textoDe(prodElement, 'cEAN') || textoDe(prodElement, 'cEANTrib') || '';
-      const eanValido = ehGtin(ean);
+      const eanValido = ehGtin(ean) || ehEanValido(ean);
       const code = textoDe(prodElement, 'cProd') || '';
       const ncm = textoDe(prodElement, 'NCM');
       const unidade = textoDe(prodElement, 'uCom') || textoDe(prodElement, 'uTrib') || 'UN';

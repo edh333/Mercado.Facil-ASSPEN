@@ -217,7 +217,7 @@ export function AdminCustomersTab({
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm">
         <h2 className="text-xl font-bold text-slate-900 flex items-center gap-3 tracking-tight">
           <CreditCard size={24} className="text-emerald-500" /> Contas a Pagar
         </h2>

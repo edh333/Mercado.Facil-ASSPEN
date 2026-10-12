@@ -75,6 +75,7 @@ export interface Product {
   lastSoldAt?: string;
   supplier?: string;
   salesChannel?: SalesChannel;
+  lastImportedAt?: string;
 }
 
 export interface CartItem extends Product {
@@ -135,6 +136,10 @@ export interface InmateLocation {
   cela: string; // Alias cell
   cell?: string;
   isWorker?: boolean;
+  /** 'cela' = raio/ala/cela do preso; 'trabalhador' = ala dos trabalhadores. */
+  deliveryType?: 'cela' | 'trabalhador';
+  /** Local de trabalho livre (ex.: Cozinha) quando deliveryType === 'trabalhador'. */
+  deliveryFreeText?: string;
 }
 
 /** Interno pré-cadastrado (aba "Cadastro de Internos" do admin).
@@ -149,6 +154,10 @@ export interface PreRegisteredInmate {
   cell?: string;
   observations?: string;
   status?: 'ATIVO' | 'INATIVO';
+  // Localização dentro da unidade
+  raio?: string; // Alias ray
+  ala?: string; // Alias wing
+  cela?: string; // Alias cell
 }
 
 export interface Order {

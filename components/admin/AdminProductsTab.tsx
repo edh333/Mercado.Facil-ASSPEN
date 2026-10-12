@@ -454,7 +454,7 @@ horizontal para chegar em editar/estoque/excluir. */}
                     {' · '}Margem {margemPct}% → <span className="font-black text-emerald-600">preço de venda abaixo</span>
                   </p>
                 </div>
-                <div className="overflow-x-auto max-h-56 overflow-y-auto custom-scrollbar">
+                <div className="overflow-x-auto overflow-y-auto custom-scrollbar">
                   <table className="w-full text-xs">
                     <thead className="sticky top-0 bg-[var(--bg-main)]">
                       <tr className="text-left text-[9px] font-black uppercase tracking-widest text-slate-400 border-b border-[var(--border-color)]">
@@ -592,7 +592,7 @@ horizontal para chegar em editar/estoque/excluir. */}
               <p className="font-black uppercase tracking-[0.3em]">Nenhum produto em catálogo</p>
             </div>
           ) : (
-            <div className="max-h-[70vh] overflow-y-auto custom-scrollbar">
+            <div className="overflow-y-auto custom-scrollbar">
               {Object.keys(agrupadosSimples).sort().map(cat => (
                 <div key={cat}>
                   <p className="px-6 py-2.5 bg-[var(--bg-main)] border-b border-[var(--border-color)] text-[10px] font-black uppercase tracking-widest text-emerald-700 flex items-center justify-between">

@@ -24,10 +24,19 @@ import {
   ShieldCheck,
   CalendarClock,
   Settings2,
+  HardDrive,
   X,
 } from 'lucide-react';
 
 const fnExecutarBackupAgora = httpsCallable(getFunctions(), 'executarBackupAgora');
+
+const fmtBytes = (b?: number) => {
+  const n = Number(b) || 0;
+  if (n < 1024) return n + ' B';
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+  if (n < 1024 * 1024 * 1024) return (n / (1024 * 1024)).toFixed(1) + ' MB';
+  return (n / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+};
 
 const STYLES_NIVEL: Record<string, { chip: string; texto: string; borda: string }> = {
   critical: {
@@ -282,6 +291,14 @@ export const MaintenanceCenter: React.FC<Props> = ({
   const categorias: Array<ChecagemChecklist['item']['categoria']> = ['Diaria', 'Semanal', 'Mensal', 'Trimestral', 'Semestral'];
   const totalAtencao = criticos + avisos + pendenciasChecklist;
 
+  const storageBytes = Number(maintenance?.storageBytes) || 0;
+  const storageLimit = Number(maintenance?.storageLimitBytes) || 0;
+  const storagePct = Number(maintenance?.storagePct) || 0;
+  const storageThreshold = Number(maintenance?.storageThresholdPct) || 80;
+  const storageBar = storageLimit > 0 ? Math.min(100, storagePct) : 0;
+  const storageAlerta = storageLimit > 0 && storagePct >= storageThreshold;
+  const storageCor = storagePct >= 100 ? 'bg-red-500' : storageAlerta ? 'bg-amber-500' : 'bg-emerald-500';
+
   return (
     <div className="bg-[var(--bg-card)] rounded-[2.5rem] border border-[var(--border-color)] shadow-sm overflow-hidden mb-6">
       <div className="flex items-center justify-between gap-3 px-6 py-5 border-b border-[var(--border-color)]">
@@ -395,6 +412,46 @@ export const MaintenanceCenter: React.FC<Props> = ({
           </div>
         </section>
       </div>
+
+      {/* Ocupacao do Storage — medida a cada 6h; limpeza automatica de orfaos ao cruzar o limite. */}
+      <section className="px-6 pb-6">
+        <h4 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-main)] mb-3 flex items-center gap-2 opacity-70">
+          <HardDrive size={14} /> Armazenamento (Storage)
+        </h4>
+        {!maintenance?.lastStorageCheck ? (
+          <div className="flex items-center gap-3 bg-[var(--bg-main)] border border-[var(--border-color)] rounded-2xl px-4 py-3.5">
+            <Loader2 size={16} className="text-[var(--text-muted)] shrink-0" />
+            <p className="text-[10px] font-black uppercase tracking-wider text-[var(--text-muted)] leading-relaxed">
+              Aguardando a primeira medicao (roda a cada 6 horas). A limpeza automatica de arquivos orfaos age ao atingir {storageThreshold}%.
+            </p>
+          </div>
+        ) : (
+          <div className={'rounded-2xl border p-4 ' + (storageAlerta ? 'border-amber-500/30 bg-amber-500/5' : 'border-[var(--border-color)] bg-[var(--bg-main)]')}>
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <p className="text-[11px] font-black uppercase tracking-wider text-[var(--text-main)]">
+                {fmtBytes(storageBytes)} usados{storageLimit > 0 ? ' de ' + fmtBytes(storageLimit) : ''}
+              </p>
+              <span className={'px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ' + (storageAlerta ? 'text-amber-500 bg-amber-500/10' : 'text-emerald-500 bg-emerald-500/10')}>
+                {storagePct.toFixed(1)}%
+              </span>
+            </div>
+            <div className="w-full h-2.5 rounded-full bg-[var(--border-color)] overflow-hidden">
+              <div className={'h-full rounded-full transition-all ' + storageCor} style={{ width: storageBar + '%' }} />
+            </div>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-wider">
+              {maintenance.storageFiles !== undefined && <span>{maintenance.storageFiles} arquivo(s)</span>}
+              <span>Limpeza automatica: {maintenance.storageAutoCleanupEnabled === false ? 'Desligada' : 'Ligada (' + storageThreshold + '%)'}</span>
+              {maintenance.lastStorageCheck && <span>Ultima medicao: {new Date(maintenance.lastStorageCheck).toLocaleString('pt-BR')}</span>}
+            </div>
+            {maintenance.lastStorageCleanupResult && (
+              <p className="mt-2 text-[9px] font-black uppercase tracking-wider text-[var(--text-muted)]">
+                Ultima limpeza: {maintenance.lastStorageCleanupResult.apagados ?? 0} orfao(s) removido(s), {fmtBytes(maintenance.lastStorageCleanupResult.bytesLiberados)} liberados
+                {(maintenance.lastStorageCleanupResult.puladas?.length || 0) > 0 && ' — pastas preservadas: ' + maintenance.lastStorageCleanupResult!.puladas!.join(', ')}
+              </p>
+            )}
+          </div>
+        )}
+      </section>
     </div>
   );
 };

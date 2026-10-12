@@ -109,8 +109,26 @@ export const cleanProductName = (name: string) => {
 };
 
 export const normalizeName = (name: string) => {
-    return cleanProductName(name).toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Z0-9]/g, "");
+    if (!name) return '';
+    const cleaned = cleanProductName(name);
+    return cleaned.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Z0-9]/g, "");
 };
+
+// Normalização para BUSCA: minúsculas, sem acentos, espaços preservados.
+// Sem isso, buscar "jose" não encontra "JOSÉ" e "maria" não acha "MARÍA".
+// Mantém o texto (não remove espaços/pontuação) para permitir buscas parciais.
+export const normalizeSearch = (value: unknown): string =>
+  String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+
+// Converte qualquer entrada em apenas dígitos (para busca por CPF/documento,
+// funcionando com ou sem máscara: "123.456.789-00" ↔ "12345678900").
+export const apenasDigitos = (value: unknown): string =>
+  String(value ?? '').replace(/\D/g, '');
+
 
 export const stringSimilarity = (a: string, b: string): number => {
   const longer = a.length >= b.length ? a : b;

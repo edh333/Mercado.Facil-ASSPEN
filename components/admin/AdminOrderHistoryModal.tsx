@@ -2,6 +2,7 @@ import React from 'react';
 import { UserRound, ShoppingBag } from 'lucide-react';
 import { Order } from '../../types';
 import { formatarMoeda, formatCPF } from '../../utils';
+import { idResumo } from '../../utils/idResumo';
 import { toDate } from '../../utils/dateUtils';
 import { ModalShell } from '../ui/ModalShell';
 

@@ -27,6 +27,22 @@ export interface DocManutencao {
     titulo?: string;
     criadoEm?: string;
   } | null;
+  // Ocupação do Storage — gravada por monitorarUsoStorage / limparStorageOrfaos.
+  storageBytes?: number;
+  storageFiles?: number;
+  storageLimitBytes?: number;
+  storagePct?: number;
+  storageThresholdPct?: number;
+  storageAutoCleanupEnabled?: boolean;
+  lastStorageCheck?: string | null;
+  lastStorageCleanup?: string | null;
+  lastStorageCleanupStatus?: string;
+  lastStorageCleanupResult?: {
+    avaliados?: number;
+    apagados?: number;
+    bytesLiberados?: number;
+    puladas?: string[];
+  } | null;
 }
 
 export interface PropsComputeAlerts {

@@ -100,7 +100,7 @@ export const AdminMessagesTab: React.FC<AdminMessagesTabProps> = ({ users, messa
 
       <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6 items-start">
         {/* LISTA DE FAMILIARES */}
-        <div className="bg-[var(--bg-card)] rounded-[2.5rem] border border-[var(--border-color)] shadow-sm overflow-hidden lg:sticky lg:top-24">
+        <div className="bg-[var(--bg-card)] rounded-[2.5rem] border border-[var(--border-color)] shadow-sm lg:sticky lg:top-24">
           <div className="p-5 border-b border-[var(--border-color)]">
             <div className="flex items-center gap-3 bg-[var(--bg-main)] border-2 border-[var(--border-color)] focus-within:border-emerald-500 rounded-2xl px-4 py-2.5 transition-all">
               <Search size={16} className="text-[var(--text-muted)] shrink-0" />
@@ -113,7 +113,7 @@ export const AdminMessagesTab: React.FC<AdminMessagesTabProps> = ({ users, messa
             </div>
           </div>
 
-          <div className="max-h-[55vh] lg:max-h-[65vh] overflow-y-auto custom-scrollbar p-3 space-y-1">
+          <div className="max-h-[55vh] lg:max-h-[65vh] overflow-y-auto custom-scrollbar p-3 space-y-1 rounded-b-[2.5rem]">
             {/* Comunicado Geral */}
             <button
               onClick={() => setSelected(ALL_USERS)}

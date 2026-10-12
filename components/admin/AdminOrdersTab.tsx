@@ -1,4 +1,5 @@
 import React from 'react';
+import { AdminButton } from '../ui/AdminButton';
 import {
   ShoppingCart, Search, Grid, List, Clock, Printer, DollarSign, ArrowRight, UserCheck, ShieldCheck, Download, XCircle, CheckCircle, CalendarDays, Eye
 } from 'lucide-react';
@@ -180,8 +181,8 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
   return (
     <div className="space-y-6 animate-slideUp">
       {/* Upper Management Header */}
-      <div className="flex flex-col xl:flex-row xl:flex-wrap justify-between items-start xl:items-center gap-3 sm:gap-4 bg-[var(--bg-card)] p-4 sm:p-5 rounded-3xl border-2 border-[var(--border-color)] shadow-sm relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-32 h-32 bg-emerald-500 rounded-full blur-[60px] -ml-16 -mt-16 opacity-10"></div>
+      <div className="flex flex-col xl:flex-row xl:flex-wrap justify-between items-start xl:items-center gap-3 sm:gap-4 bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm relative">
+        <div className="absolute top-0 left-0 w-32 h-32 bg-emerald-500 rounded-full blur-[60px] -ml-16 -mt-16 opacity-10 pointer-events-none overflow-hidden"></div>
 
         <div className="relative z-10">
           <h2 className="text-2xl font-bold text-[var(--text-main)] flex items-center gap-3 tracking-tight">

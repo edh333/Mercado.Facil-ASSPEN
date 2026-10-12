@@ -16,6 +16,15 @@ export interface VendaOffline {
   customerAccountId?: string;
   sessaoCaixaId?: string;
   total: number;
+  /** Local de entrega (raio/ala/cela ou ala dos trabalhadores) informado no PDV. */
+  inmateLocation?: {
+    raio: string; ray?: string;
+    ala: string; wing?: string;
+    cela: string; cell?: string;
+    isWorker?: boolean;
+    deliveryType?: 'cela' | 'trabalhador';
+    deliveryFreeText?: string;
+  };
   // 'ajustada' = venda sincronizada com valor DIFERENTE do registrado offline
   // (preço mudou no servidor). Já foi contabilizada lá — fica apenas para
   // conferência, NUNCA deve ser reenviada (status terminal de sync).

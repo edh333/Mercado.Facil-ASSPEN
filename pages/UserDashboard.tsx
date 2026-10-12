@@ -580,7 +580,8 @@ unsubOrders = onSnapshot(q, (snapshot) => {
             const formattedLocation = {
                 raio: location.ray, ala: location.wing, cela: location.cell,
                 ray: location.ray, wing: location.wing, cell: location.cell,
-                deliveryType,
+                isWorker: deliveryType === 'worker',
+                deliveryType: deliveryType === 'worker' ? 'trabalhador' as const : 'cela' as const,
                 deliveryFreeText: deliveryType === 'worker' ? deliveryFreeText : ''
             };
 
@@ -1827,31 +1828,31 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                             <div>
                                 <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Local de Entrega</p>
                                 <div className="flex gap-2 mb-2">
-                                    <button onClick={() => setDeliveryType('intern')} className={`flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-wide border-2 transition-all min-h-[44px] ${deliveryType === 'intern' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-500'}`}>
-                                        <Home size={12} className="inline-block mr-1 -mt-0.5" /> Cela
+                                    <button onClick={() => setDeliveryType('intern')} className={`flex-1 py-2.5 rounded-xl font-black text-[11px] uppercase tracking-widest border-2 transition-all min-h-[48px] ${deliveryType === 'intern' ? 'border-emerald-700 bg-emerald-50 text-emerald-800 shadow-md' : 'border-slate-300 bg-white text-slate-700 hover:border-slate-500'}`}>
+                                        <Home size={14} className="inline-block mr-1.5 -mt-0.5" /> Cela
                                     </button>
-                                    <button onClick={() => setDeliveryType('worker')} className={`flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-wide border-2 transition-all min-h-[44px] ${deliveryType === 'worker' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-500'}`}>
-                                        <HardHat size={12} className="inline-block mr-1 -mt-0.5" /> Trabalhador
+                                    <button onClick={() => setDeliveryType('worker')} className={`flex-1 py-2.5 rounded-xl font-black text-[11px] uppercase tracking-widest border-2 transition-all min-h-[48px] ${deliveryType === 'worker' ? 'border-emerald-700 bg-emerald-50 text-emerald-800 shadow-md' : 'border-slate-300 bg-white text-slate-700 hover:border-slate-500'}`}>
+                                        <HardHat size={14} className="inline-block mr-1.5 -mt-0.5" /> Trabalhador
                                     </button>
                                 </div>
                                 {deliveryType === 'intern' ? (
                                     <div className="flex flex-col gap-1">
                                         <div className="grid grid-cols-2 gap-2">
-                                            <input className="min-w-0 bg-slate-50 py-2.5 px-3 rounded-xl border border-slate-200 font-bold text-sm min-h-[44px] truncate" placeholder="RAIO" value={location.ray} onChange={e => setLocation({...location, ray: e.target.value})} />
-                                            <input className="min-w-0 bg-slate-50 py-2.5 px-3 rounded-xl border border-slate-200 font-bold text-sm min-h-[44px] truncate" placeholder="ALA" value={location.wing} onChange={e => setLocation({...location, wing: e.target.value})} />
+                                            <input className="min-w-0 bg-white py-2.5 px-3 rounded-xl border-2 border-slate-300 font-black text-sm text-slate-900 uppercase tracking-wide min-h-[48px] truncate focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-700" placeholder="RAIO" value={location.ray} onChange={e => setLocation({...location, ray: e.target.value})} />
+                                            <input className="min-w-0 bg-white py-2.5 px-3 rounded-xl border-2 border-slate-300 font-black text-sm text-slate-900 uppercase tracking-wide min-h-[48px] truncate focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-700" placeholder="ALA" value={location.wing} onChange={e => setLocation({...location, wing: e.target.value})} />
                                         </div>
-                                        <input className="w-full bg-slate-50 py-2.5 px-3 rounded-xl border border-slate-200 font-bold text-sm min-h-[44px] truncate" placeholder="CELA" value={location.cell} onChange={e => setLocation({...location, cell: e.target.value})} />
+                                        <input className="w-full bg-white py-2.5 px-3 rounded-xl border-2 border-slate-300 font-black text-sm text-slate-900 uppercase tracking-wide min-h-[48px] truncate focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-700" placeholder="CELA" value={location.cell} onChange={e => setLocation({...location, cell: e.target.value})} />
                                     </div>
                                 ) : (
                                     <div className="flex flex-col gap-1">
                                         <div className="grid grid-cols-2 gap-2">
                                             {['Cozinha', 'Lavanderia', 'Horta', 'Oficina', 'Almoxarifado'].map(loc => (
-                                                <button key={loc} onClick={() => setDeliveryFreeText(loc)} className={`min-h-[44px] py-2 rounded-xl font-black text-[10px] uppercase border-2 transition-all ${deliveryFreeText === loc ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'}`}>
+                                                <button key={loc} onClick={() => setDeliveryFreeText(loc)} className={`min-h-[48px] py-2 rounded-xl font-black text-[10px] uppercase tracking-widest border-2 transition-all ${deliveryFreeText === loc ? 'border-emerald-700 bg-emerald-50 text-emerald-800 shadow-md' : 'border-slate-300 bg-white text-slate-700 hover:border-slate-500'}`}>
                                                     {loc}
                                                 </button>
                                             ))}
                                         </div>
-                                        <input className="w-full bg-slate-50 py-2 px-3 rounded-xl border border-slate-200 font-bold text-sm" placeholder="Outro local de trabalho..." value={deliveryFreeText} onChange={e => setDeliveryFreeText(e.target.value)} />
+                                        <input className="w-full bg-white py-2.5 px-3 rounded-xl border-2 border-slate-300 font-black text-sm text-slate-900 tracking-wide min-h-[48px] focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-700" placeholder="Outro local de trabalho..." value={deliveryFreeText} onChange={e => setDeliveryFreeText(e.target.value)} />
                                     </div>
                                 )}
                             </div>
