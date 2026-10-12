@@ -154,7 +154,7 @@ export const PWAInstallProvider: React.FC<{ children: ReactNode }> = ({ children
     <PWAInstallContext.Provider value={{ isInstallable: !!deferredPrompt || isIOS, isInstalled, install }}>
       {children}
       {novaVersao && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[9999] bg-slate-900 text-white pl-5 pr-3 py-3 rounded-2xl shadow-2xl flex items-center gap-3 text-xs font-bold border border-slate-700 animate-fadeIn">
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[10090] bg-slate-900 text-white pl-5 pr-3 py-3 rounded-2xl shadow-2xl flex items-center gap-3 text-xs font-bold border border-slate-700 animate-fadeIn">
           <span>🔄 Nova versão do sistema disponível</span>
           <button
             onClick={() => window.location.reload()}

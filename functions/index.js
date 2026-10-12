@@ -1,6 +1,7 @@
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
 const { onDocumentWritten } = require("firebase-functions/v2/firestore");
+const { setGlobalOptions } = require("firebase-functions/v2");
 const { logger } = require("firebase-functions");
 const admin = require("firebase-admin");
 const bcrypt = require("bcryptjs");
@@ -37,6 +38,11 @@ if (!admin.apps.length) {
 }
 
 const db = admin.firestore();
+
+// Teto de instâncias por função: protege contra picos de custo (runaway scaling)
+// sem afetar a operação normal — o volume real é baixo (unidades/hora), então o
+// sistema roda em 1 instância e só escala sob demanda até este limite.
+setGlobalOptions({ maxInstances: 20 });
 
 // ──────────────────────────────────────────────
 // APP CHECK — prepared, NOT enabled (see docs)

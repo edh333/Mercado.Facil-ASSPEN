@@ -11,7 +11,7 @@ export const NotificationSystem: React.FC = () => {
     }, [removeNotification]);
 
     return (
-        <div className="fixed top-20 right-4 z-[9999] flex flex-col gap-3 pointer-events-none max-w-sm w-full">
+        <div className="fixed top-20 right-4 z-[10090] flex flex-col gap-3 pointer-events-none max-w-sm w-full">
             <AnimatePresence mode="popLayout">
                 {notifications.map((notification) => (
                     <NotificationItem

@@ -41,7 +41,7 @@ export const TelaPosVenda: React.FC<TelaPosVendaProps> = ({
   const resumo = useMemo(() => resumoPosVenda(pedido), [pedido]);
 
   return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-slideUp">
+    <div className="fixed inset-0 z-[10040] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-slideUp">
       <div
         role="dialog"
         aria-modal="true"

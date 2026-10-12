@@ -58,7 +58,7 @@ export const OnlineStatusIndicator: React.FC = () => {
                     initial={{ opacity: 0, y: -50 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -50 }}
-                    className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999]"
+                    className="fixed top-4 left-1/2 -translate-x-1/2 z-[10095]"
                 >
                     {emEmergencia ? (
                         <div className="flex items-center gap-3 px-6 py-3 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.3)] backdrop-blur-xl border border-red-500/40 bg-red-950/90">

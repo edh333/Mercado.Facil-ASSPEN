@@ -119,7 +119,7 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ src, alt, onClose
 
   return (
     <div
-      className={`fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4 md:p-8 animate-fadeIn ${isFullscreen ? 'p-0' : ''}`}
+      className={`fixed inset-0 z-[10050] bg-black/90 flex items-center justify-center p-4 md:p-8 animate-fadeIn ${isFullscreen ? 'p-0' : ''}`}
       onClick={onClose}
     >
       <div
