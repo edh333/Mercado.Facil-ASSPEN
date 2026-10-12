@@ -628,7 +628,7 @@ async function limiteFamiliaresPorInterno() {
   return LIMITE_FAMILIARES_POR_INTERNO_PADRAO;
 }
 
-exports.registrarUsuario = onCall({ minInstances: 1 }, async (request) => {
+exports.registrarUsuario = onCall({}, async (request) => {
   const ip = ipDoRequest(request);
   verificarRateLimit("registrarUsuario:" + ip, 5);
   const dados = request.data?.dados || {};
@@ -814,7 +814,7 @@ exports.registrarUsuario = onCall({ minInstances: 1 }, async (request) => {
  *              relationship?, senha? }. A senha do item prevalece sobre
  * senhaPadrao, que prevalece sobre o próprio CPF.
  */
-exports.importarUsuariosEmLote = onCall({ minInstances: 1 }, async (request) => {
+exports.importarUsuariosEmLote = onCall({}, async (request) => {
   const operador = await exigirAdminPermissao(request, "users");
   verificarRateLimit("importarUsuariosEmLote:" + operador.id, 5);
 
@@ -1269,7 +1269,6 @@ exports.redefinirSenhaAdmin = onCall(async (request) => {
  */
 exports.redefinirSenhaPublica = onCall({
   ...OPCOES_APP_CHECK,
-  minInstances: 1,
   memory: "512MiB",
   timeoutSeconds: 60,
 }, async (request) => {
@@ -1522,7 +1521,7 @@ exports.aprovarDeposito = onCall({ minInstances: 1 }, async (request) => {
 });
 
 /** Admin — recusa depósito PIX. */
-exports.rejeitarDeposito = onCall({ minInstances: 1 }, async (request) => {
+exports.rejeitarDeposito = onCall({}, async (request) => {
   const caller = await exigirAdmin(request);
   const tid = String(request.data?.transacaoId || "");
   if (!tid) throw new HttpsError("invalid-argument", "Transação inválida.");
@@ -1559,7 +1558,6 @@ exports.rejeitarDeposito = onCall({ minInstances: 1 }, async (request) => {
 
 /** Admin principal — crédito direto de saldo (aporte manual). */
 exports.creditarSaldo = onCall({
-  minInstances: 1,
   memory: "512MiB",
   timeoutSeconds: 60,
 }, async (request) => {
@@ -1692,7 +1690,6 @@ exports.zerarCarteiras = onCall(async (request) => {
  * gerando um comprovante de devolução. Exige admin principal + senha mestra.
  */
 exports.devolucaoAlvara = onCall({
-  minInstances: 1,
   memory: "512MiB",
   timeoutSeconds: 60,
 }, async (request) => {
@@ -1797,7 +1794,6 @@ exports.devolucaoAlvara = onCall({
  *  O dinheiro SAI da gaveta: exige senha mestra (bcrypt + rate limit),
  *  mesmo nível de segurança do aporte de crédito (creditarSaldo). */
 exports.sacarSaldoAdmin = onCall({
-  minInstances: 1,
   memory: "512MiB",
   timeoutSeconds: 60,
 }, async (request) => {
@@ -1921,7 +1917,6 @@ function dataParaMs(v) {
  *  audit_logs, não num "pending" sem tela para aprovar.
  */
 exports.sacarSaldoProprio = onCall({
-  minInstances: 1,
   memory: "512MiB",
   timeoutSeconds: 60,
 }, async (request) => {
@@ -3446,7 +3441,6 @@ exports.buscarPedidosParaEstorno = onCall(async (request) => {
 
 /** Admin — estorno/devolução de pedido com carteira. */
 exports.estornarVenda = onCall({
-  minInstances: 1,
   memory: "512MiB",
   timeoutSeconds: 120,
 }, async (request) => {
@@ -3688,7 +3682,6 @@ return { ok: true };
 //  - credita o valor na sessão de caixa do operador (quando aberta);
 //  - autorização: qualquer operador admin (como antes, direto do cliente).
 exports.registrarPagamentoConta = onCall({
-  minInstances: 1,
   memory: "512MiB",
   timeoutSeconds: 60,
 }, async (request) => {
@@ -3911,7 +3904,6 @@ exports.registrarDespesa = onCall({ timeoutSeconds: 60 }, async (request) => {
  * marcos de vencimento quando a dívida zera.
  */
 exports.abaterDividaFiado = onCall({
-  minInstances: 1,
   memory: "512MiB",
   timeoutSeconds: 60,
 }, async (request) => {
@@ -3975,7 +3967,6 @@ exports.abaterDividaFiado = onCall({
  * false permanece nas rules como proteção contra criação arbitrária do cliente).
  */
 exports.criarClienteFiado = onCall({
-  minInstances: 1,
   memory: "512MiB",
   timeoutSeconds: 60,
 }, async (request) => {
@@ -4701,7 +4692,6 @@ async function urlPreferencialDownload(chave) {
 
 /** Autenticado ─ gera links de download do app conforme o papel do chamador. */
 exports.obterLinkDownloadApp = onCall({
-  minInstances: 1,
   memory: "256MiB",
   timeoutSeconds: 60,
 }, async (request) => {
@@ -4768,7 +4758,6 @@ const BASE_URL_FUNCOES = () =>
  * o instalador ADMIN. Um token novo a cada clique do cliente; TTL de 15 min.
  */
 exports.gerarLinkDownloadAdmin = onCall({
-  minInstances: 1,
   memory: "256MiB",
   timeoutSeconds: 30,
 }, async (request) => {
@@ -4812,7 +4801,6 @@ exports.gerarLinkDownloadAdmin = onCall({
  * o limite de resposta da plataforma).
  */
 exports.baixarAppAdmin = onRequest({
-  minInstances: 1,
   memory: "256MiB",
   timeoutSeconds: 60,
 }, async (req, res) => {
@@ -4872,7 +4860,6 @@ exports.baixarAppAdmin = onRequest({
  * forma. Ativar quando o cliente enviar token (ver OPCOES_APP_CHECK).
  */
 exports.obterDownloadAppUsuario = onRequest({
-  minInstances: 1,
   memory: "256MiB",
   timeoutSeconds: 30,
   ...OPCOES_APP_CHECK,
@@ -5589,7 +5576,6 @@ async function carregarSessaoCaixa(sessaoId) {
 }
 
 exports.gerenciarSessaoCaixa = onCall({
-  minInstances: 1,
   memory: "512MiB",
   timeoutSeconds: 60,
 }, async (request) => {
@@ -5919,7 +5905,6 @@ exports.auditoriaDiaria = onSchedule({
 
 /** Admin (finance) — atualiza creditLimit de um usuário via servidor. */
 exports.atualizarLimiteCredito = onCall({
-  minInstances: 1,
   memory: "512MiB",
   timeoutSeconds: 60,
 }, async (request) => {
@@ -5952,7 +5937,6 @@ exports.listarAuditorias = onCall(async (request) => {
 
 /** Admin (products) — zera preço/custo > R$ 100.000/un (sanitização catálogo). */
 exports.sanitizeCatalog = onCall({
-  minInstances: 1,
   memory: "512MiB",
   timeoutSeconds: 300,
 }, async (request) => {
@@ -5993,7 +5977,6 @@ exports.sanitizeCatalog = onCall({
 
 /** Admin (products) — merge de produtos duplicados por EAN ou nome normalizado. */
 exports.mergeDuplicateProducts = onCall({
-  minInstances: 1,
   memory: "512MiB",
   timeoutSeconds: 300,
 }, async (request) => {
@@ -6044,7 +6027,6 @@ exports.mergeDuplicateProducts = onCall({
 
 /** Admin (inmates) — importação CSV de pré-cadastro de internos. */
 exports.importInmatesCsv = onCall({
-  minInstances: 1,
   memory: "512MiB",
   timeoutSeconds: 120,
 }, async (request) => {
@@ -6082,7 +6064,6 @@ exports.importInmatesCsv = onCall({
 
 /** Admin (products) — zera estoque de todos os produtos ativos. */
 exports.resetStock = onCall({
-  minInstances: 1,
   memory: "512MiB",
   timeoutSeconds: 120,
 }, async (request) => {
@@ -6103,7 +6084,6 @@ exports.resetStock = onCall({
 
 /** Admin (finance) — zera financeiro (despesas + cashier legado). Bloqueia se houver caixa aberto. */
 exports.resetFinance = onCall({
-  minInstances: 1,
   memory: "512MiB",
   timeoutSeconds: 120,
 }, async (request) => {
@@ -6131,7 +6111,6 @@ exports.resetFinance = onCall({
 
 /** Admin (products) — importa produtos via XML de NFe (server-side parsing + processInvoiceImport). */
 exports.importXmlProduct = onCall({
-  minInstances: 1,
   memory: "512MiB",
   timeoutSeconds: 300,
 }, async (request) => {
