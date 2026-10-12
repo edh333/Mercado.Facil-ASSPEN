@@ -86,7 +86,7 @@ interface AdminSettingsTabProps {
   confirmAdminPassword: string;
   setConfirmAdminPassword: (val: string) => void;
   handleChangeAdminPassword: () => void;
-  handleProtectedAction: (action: () => void, type?: string) => void;
+  handleProtectedAction: (action: (senhaMestra?: string) => void, type?: string) => void;
   clearOldData: () => void;
   backupSystem: () => void;
   resetStock: () => void;
@@ -103,6 +103,7 @@ interface AdminSettingsTabProps {
   deleteUser: (uid: string) => void;
   createAdminUser: (data: any) => void;
   updateAdminPermissions: (userId: string, permissions: string[]) => void;
+  resetAdminPassword: (userId: string, novaSenha: string, senhaMestra?: string) => Promise<void>;
   // Optional legacy props forwarded by AdminDashboard
   activateSystem?: (key: string) => Promise<{ success: boolean; message: string }>;
   generateActivationKey?: (days: number) => Promise<string>;
@@ -119,7 +120,7 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
   isMaster, isAuthenticated, onAuthenticate,
   newAdminPassword, setNewAdminPassword, confirmAdminPassword, setConfirmAdminPassword, handleChangeAdminPassword,
   handleProtectedAction, clearOldData, backupSystem, resetStock, resetFinance, updateSettings, settings, resetSystem,
-  users, deleteUser, createAdminUser, updateAdminPermissions, handleDownloadSource, handleBuildExe, showNotification,
+  users, deleteUser, createAdminUser, updateAdminPermissions, resetAdminPassword, handleDownloadSource, handleBuildExe, showNotification,
   isInstallable, installApp, defineMasterPassword, currentUserId, currentUserName
 }) => {
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
@@ -131,6 +132,13 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
   const [renovarConfirming, setRenovarConfirming] = React.useState(false);
   const [editPermissionsFor, setEditPermissionsFor] = React.useState<string | null>(null);
   const [editPermissions, setEditPermissions] = React.useState<string[]>([]);
+  // Redefinir senha de um membro da equipe (admin principal). Exige senha mestra.
+  const [resetPasswordFor, setResetPasswordFor] = React.useState<string | null>(null);
+  const [resetPasswordValue, setResetPasswordValue] = React.useState('');
+  const [resetPasswordConfirm, setResetPasswordConfirm] = React.useState('');
+  const [resetPasswordError, setResetPasswordError] = React.useState<string | null>(null);
+  const [mostrarSenhaReset, setMostrarSenhaReset] = React.useState(false);
+  const [resettingPassword, setResettingPassword] = React.useState(false);
   const [adminForm, setAdminForm] = React.useState({
     name: '', email: '', password: '', cpf: '',
     role: 'admin' as 'admin' | 'vendedor',
@@ -429,6 +437,31 @@ const handleBaixarBackup = async (nome: string) => {
     } finally {
       setCreatingAdmin(false);
     }
+  };
+
+  // Admin principal redefine a senha de outro membro. A senha atual não é
+  // exibível (hash), então definimos uma nova; o servidor revoga as sessões.
+  const handleResetAdminPassword = (admin: any) => {
+    const novaSenha = resetPasswordValue.trim();
+    const confirma = resetPasswordConfirm.trim();
+    if (novaSenha.length < 6) { setResetPasswordError('A senha deve ter pelo menos 6 caracteres.'); return; }
+    if (novaSenha !== confirma) { setResetPasswordError('As senhas não coincidem.'); return; }
+    setResetPasswordError(null);
+    // 2º fator: a senha mestra é validada antes de redefinir no servidor.
+    handleProtectedAction(async (senhaMestra?: string) => {
+      setResettingPassword(true);
+      try {
+        await resetAdminPassword(admin.id, novaSenha, senhaMestra);
+        setResetPasswordFor(null);
+        setResetPasswordValue('');
+        setResetPasswordConfirm('');
+        setMostrarSenhaReset(false);
+      } catch (err: any) {
+        setResetPasswordError(err?.message || 'Erro ao redefinir a senha.');
+      } finally {
+        setResettingPassword(false);
+      }
+    });
   };
 
   const SubTabButton = ({ id, label, icon: Icon }: { id: string; label: string; icon: React.ElementType }) => (
@@ -740,6 +773,19 @@ const handleBaixarBackup = async (nome: string) => {
                               <Pencil size={15} />
                             </button>
                             )}
+                            <button
+                              onClick={() => {
+                                setResetPasswordValue('');
+                                setResetPasswordConfirm('');
+                                setResetPasswordError(null);
+                                setMostrarSenhaReset(false);
+                                setResetPasswordFor(resetPasswordFor === admin.id ? null : admin.id);
+                              }}
+                              title="Redefinir senha deste membro"
+                              className="text-amber-500 p-2 rounded-lg hover:bg-amber-50 transition-all"
+                            >
+                              <KeyRound size={15} />
+                            </button>
                             <button onClick={() => setConfirmDeleteAdmin(admin.id)} className="text-red-500 p-2" title="Remover membro da equipe">
                               <Trash2 size={16} />
                             </button>
@@ -763,6 +809,55 @@ const handleBaixarBackup = async (nome: string) => {
                               </button>
                               <button
                                 onClick={() => setEditPermissionsFor(null)}
+                                className="px-4 bg-white border border-slate-200 text-slate-600 p-2.5 rounded-xl text-[10px] font-black uppercase hover:bg-slate-50 transition-all"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        {resetPasswordFor === admin.id && (
+                          <div className="p-4 bg-white rounded-xl border border-amber-200 space-y-3">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 flex items-center gap-1.5">
+                              <KeyRound size={13} /> Redefinir senha de {admin.name}
+                            </p>
+                            <p className="text-[10px] text-slate-500 font-bold leading-snug">
+                              A senha atual não pode ser exibida — o sistema guarda apenas o hash (nunca o texto). Defina uma nova: o acesso deste membro passa a ser essa senha e as sessões dele são encerradas. Exige a senha mestra.
+                            </p>
+                            <div className="relative">
+                              <input
+                                className="w-full pl-3 pr-10 p-3 text-xs border bg-white rounded-xl font-black text-slate-900"
+                                placeholder="NOVA SENHA"
+                                type={mostrarSenhaReset ? 'text' : 'password'}
+                                autoComplete="new-password"
+                                value={resetPasswordValue}
+                                onChange={e => { setResetPasswordValue(e.target.value); setResetPasswordError(null); }}
+                              />
+                              <button type="button" onClick={() => setMostrarSenhaReset(v => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-slate-400 hover:text-slate-600 transition-colors" aria-label={mostrarSenhaReset ? 'Ocultar senha' : 'Mostrar senha'}>
+                                {mostrarSenhaReset ? <EyeOff size={14}/> : <Eye size={14}/>}
+                              </button>
+                            </div>
+                            <input
+                              className="w-full p-3 text-xs border bg-white rounded-xl font-black text-slate-900"
+                              placeholder="CONFIRMAR NOVA SENHA"
+                              type={mostrarSenhaReset ? 'text' : 'password'}
+                              autoComplete="new-password"
+                              value={resetPasswordConfirm}
+                              onChange={e => { setResetPasswordConfirm(e.target.value); setResetPasswordError(null); }}
+                            />
+                            {resetPasswordError && (
+                              <p className="text-[10px] font-black text-red-600 uppercase tracking-wide" role="alert">{resetPasswordError}</p>
+                            )}
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleResetAdminPassword(admin)}
+                                disabled={resettingPassword}
+                                className="flex-1 bg-amber-600 text-white p-2.5 rounded-xl text-[10px] font-black uppercase hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all"
+                              >
+                                {resettingPassword ? <><Loader2 size={13} className="animate-spin" /> Salvando...</> : 'Redefinir senha'}
+                              </button>
+                              <button
+                                onClick={() => setResetPasswordFor(null)}
                                 className="px-4 bg-white border border-slate-200 text-slate-600 p-2.5 rounded-xl text-[10px] font-black uppercase hover:bg-slate-50 transition-all"
                               >
                                 Cancelar

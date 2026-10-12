@@ -97,6 +97,7 @@ export function AdminDashboard() {
     showNotification,
     createAdminUser,
     updateAdminPermissions,
+    resetAdminPassword,
     resetStock,
     resetFinance,
     resetSystem,
@@ -1111,6 +1112,7 @@ return (
                   deleteUser={deleteUser}
                   createAdminUser={createAdminUser}
                   updateAdminPermissions={updateAdminPermissions}
+                  resetAdminPassword={resetAdminPassword}
                   handleDownloadSource={handleDownloadSource}
                   handleBuildExe={handleBuildExe}
                   updateSettings={updateSettings}

@@ -178,6 +178,7 @@ interface StoreContextType {
 
     createAdminUser: (userData: Partial<User>) => Promise<void>;
     updateAdminPermissions: (userId: string, permissions: string[]) => Promise<void>;
+    resetAdminPassword: (userId: string, novaSenha: string, senhaMestra?: string) => Promise<void>;
 
     sendSystemMessage: (msg: Partial<SystemMessage>) => Promise<void>;
     sendMessage: (msg: Message) => Promise<void>;
@@ -2038,6 +2039,18 @@ return false;
             showNotification('Erro ao atualizar permissões: ' + e.message, 'error');
         }
     };
+    // Admin principal: redefine a senha de outro membro da equipe (o servidor
+    // exige senha mestra e revoga as sessões do alvo). A senha atual NÃO pode
+    // ser exibida — só existe como hash (bcrypt/Firebase Auth).
+    const resetAdminPassword = async (userId: string, novaSenha: string, senhaMestra?: string) => {
+        try {
+            await fnRedefinirSenhaAdmin({ userId, novaSenha, senhaMestra });
+            showNotification('Senha do administrador redefinida com sucesso.', 'success');
+        } catch (e: any) {
+            showNotification('Erro ao redefinir senha: ' + (e?.message || 'erro'), 'error');
+            throw e;
+        }
+    };
     const validateRecovery = async (userCpf: string, prisonerCpf: string, nomeCompleto: string): Promise<User> => {
         
         try {
@@ -3266,7 +3279,7 @@ useEffect(() => {
         <StoreContext.Provider value={{
             currentUser, users, products, productsCache, orders, units: INITIAL_UNITS, cart, appConfig, suppliers, expenses, logs, authLoading: !authReady, systemMessages, messages, notifications, settings: appConfig, storageUsage,
             creditoCliente, realizarSaque, verificarCredito, finalizarVendaComCredito,
-            login, loginAdmin, loginFamiliar, logout, registerUser, recoverPassword, validateRecovery, createAdminUser, updateAdminPermissions, resetUserPassword,
+            login, loginAdmin, loginFamiliar, logout, registerUser, recoverPassword, validateRecovery, createAdminUser, updateAdminPermissions, resetAdminPassword, resetUserPassword,
             addToCart, removeFromCart, clearCart, createOrder, searchOrders,
             clearOldData: performAutoCleanup,
             archiveOldData: archiveData,

@@ -17,8 +17,8 @@ const IGNORAR = new Set(['node_modules', 'build', 'dist', 'functions', 'tests', 
 
 // Callables OBRIGATÓRIAS que NÃO são chamadas do front (ex.: usadas via Admin SDK/CLI).
 // Adicionar aqui evita falso positivo no check de 2º fator.
+// (vazio: redefinirSenhaAdmin passou a ser chamada pelo front/Configurações)
 const EXCECAO_FRONT = new Set([
-  'redefinirSenhaAdmin', // chamada via Admin SDK/CLI, não pelo front web
 ]);
 
 function walk(dir, acc = []) {
