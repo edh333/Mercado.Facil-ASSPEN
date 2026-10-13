@@ -4748,8 +4748,8 @@ exports.obterLinkDownloadApp = onCall({
 // plataforma ("Response size was too large" → 500).
 // ──────────────────────────────────────────────
 
-// Base URL destas funções: nenhuma função do projeto usa setGlobalOptions,
-// portanto rodam na região padrão us-central1.
+// Base URL destas funções: setGlobalOptions (topo do arquivo) não altera a
+// região, portanto rodam na região padrão us-central1.
 const BASE_URL_FUNCOES = () =>
   `https://us-central1-${process.env.GCLOUD_PROJECT || "mercado-facil-mt"}.cloudfunctions.net`;
 
