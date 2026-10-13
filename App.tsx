@@ -11,19 +11,21 @@ import { iniciarManutencaoAutomatica, lerUltimoRelatorio } from './utils/mainten
 import { useMaintenance } from './hooks/useMaintenance';
 import { MaintenanceScreen, MaintenanceBanner } from './components/MaintenanceScreen';
 
-// IMPORTANTE (definitivo — v3): TODAS as telas são carregadas de forma
-// EAGER (síncrona), sem lazy() nem Suspense. O erro "Minified React #310"
-// (Rendered more hooks...) é um bug do React 19.2.x que dispara EM
-// PRODUÇÃO quando um render é interrompido/retentado por ferramentas do
-// ecossistema: lazy + Suspense + ErrorBoundary + transições (facebook/react
-// #33580). Com zero lazy/Suspense o APP NÃO TEM A CONDIÇÃO para esse bug:
-// a árvore inicial nunca é pausada pelo React, e nenhum PC, navegador ou
-// filtro de rede consegue mais forçá-la.
-import { AdminDashboard } from './pages/AdminDashboard';
+// IMPORTANTE (definitivo — v3): ZERO React.lazy e ZERO Suspense. O erro
+// "Minified React #310" (Rendered more hooks...) é um bug do React 19.2.x que
+// dispara EM PRODUÇÃO quando um render é interrompido/retentado por lazy +
+// Suspense + ErrorBoundary + transições (facebook/react #33580). Sem lazy e sem
+// Suspense o app NÃO TEM A CONDIÇÃO para esse bug: a árvore de render nunca é
+// pausada pelo React.
+//
+// Os painéis Admin/Usuário são carregados por import() dinâmico via
+// utils/viewLoader (o MESMO padrão do rechartsLoader): NÃO é lazy/Suspense — é
+// um hook + setState, então a árvore nunca é suspensa. Isso tira o subtree de
+// cada papel do bundle inicial do outro.
 import { PrintPage } from './components/PrintPage';
-import { UserDashboard } from './pages/UserDashboard';
 import { Landing } from './components/Landing';
 import { WrongAppScreen } from './components/WrongAppScreen';
+import { useView, type AlvoView } from './utils/viewLoader';
 
 const FullScreenLoader: React.FC = () => (
   <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#f8fafc' }}>
@@ -111,6 +113,26 @@ const MainApp: React.FC = () => {
   // abria na página pública e parecia "app quebrado/tela não condizente".
   const modoAdmin = urlParams.get('mode') === 'admin';
 
+  // CÓDIGO-SPLIT SEM lazy/Suspense (ver utils/viewLoader) — só a tela do papel
+  // logado é baixada. Para familiares o painel admin inteiro (~metade do app)
+  // nunca vai para a rede; para a equipe, o painel do usuário não vai. Os hooks
+  // rodam SEMPRE aqui no topo (regra dos hooks) e devolvem null enquanto o
+  // chunk não chega — a árvore nunca é suspensa (imune ao bug React #310).
+  const ehAdmin = currentUser?.role === UserRole.ADMIN;
+  const ehVendedor = currentUser?.role === UserRole.VENDEDOR;
+  const ehEquipe = ehAdmin || ehVendedor;
+  const pendente = currentUser?.status === 'pending' || currentUser?.approved === false;
+  const alvo: AlvoView = React.useMemo(() => {
+    if (!currentUser || isPrint) return null;
+    if (ehEquipe) {
+      if (modoUsuario) return null;              // WrongAppScreen (equipe no app do usuário)
+      return { chave: 'admin', exportName: 'AdminDashboard', loader: () => import('./pages/AdminDashboard') };
+    }
+    if (modoAdmin || pendente) return null;       // WrongAppScreen / PendingScreen
+    return { chave: 'user', exportName: 'UserDashboard', loader: () => import('./pages/UserDashboard') };
+  }, [currentUser, isPrint, ehEquipe, modoUsuario, modoAdmin, pendente]);
+  const View = useView(alvo);
+
   if (isPrint) {
     return (
       <div className="print-mode-root bg-white min-h-screen">
@@ -145,9 +167,6 @@ const MainApp: React.FC = () => {
   // (ou vice-versa) vê a tela de restrição em vez de outro painel. O toUserRole
   // normaliza 'admin'/'master' → UserRole.ADMIN e 'vendedor'/'operator' →
   // UserRole.VENDEDOR, então o teste abaixo cobre todos os casos.
-  const ehAdmin = currentUser.role === UserRole.ADMIN;
-  const ehVendedor = currentUser.role === UserRole.VENDEDOR;
-  const ehEquipe = ehAdmin || ehVendedor;
   if (modoUsuario && ehEquipe) {
     return <WrongAppScreen appAberto="usuario" />;
   }
@@ -156,10 +175,9 @@ const MainApp: React.FC = () => {
   }
 
   if (!ehEquipe) {
-    const pendente = currentUser.status === 'pending' || currentUser.approved === false;
     return (
       <ErrorBoundary onError={(err, info) => rastrearErroCliente({ mensagem: (err as any)?.message, stack: (err as any)?.stack, componente: info?.componentStack, origem: 'boundary' })}>
-        {pendente ? <PendingScreen onLogout={logout} /> : <UserDashboard />}
+        {pendente ? <PendingScreen onLogout={logout} /> : View ? <View /> : <FullScreenLoader />}
       </ErrorBoundary>
     );
   }
@@ -180,7 +198,7 @@ const MainApp: React.FC = () => {
       <NotificationSystem />
       <ErrorBoundary onError={(err, info) => rastrearErroCliente({ mensagem: (err as any)?.message, stack: (err as any)?.stack, componente: info?.componentStack, origem: 'boundary' })}>
         {inativo && podeOperar && <MaintenanceBanner maintenance={maintenance} onReativar={reativar} />}
-        <AdminDashboard />
+        {View ? <View /> : <FullScreenLoader />}
       </ErrorBoundary>
     </>
   );
