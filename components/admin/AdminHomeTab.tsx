@@ -219,58 +219,6 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
         </div>
       )}
 
-      {/* Mini Trend Chart - Visualização Rápida de Performance */}
-      {isMaster && chartData && chartData.length > 0 && !RC && (
-        <div className="bg-[var(--bg-card)] p-6 rounded-[2.5rem] border border-[var(--border-color)] shadow-sm animate-fadeIn">
-          <RechartsSkeleton minHeight={120} label="Carregando gráfico..." />
-        </div>
-      )}
-      {isMaster && chartData && chartData.length > 0 && RC && (
-        <div className="bg-[var(--bg-card)] p-6 rounded-[2.5rem] border border-[var(--border-color)] shadow-sm animate-fadeIn">
-          <div className="flex items-center justify-between mb-4 px-2">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="text-[var(--primary-color)]" size={18} />
-              <p className="text-[10px] font-black text-[var(--text-main)] uppercase tracking-[0.2em]">Tendência de Vendas (Últimos 7 Dias)</p>
-            </div>
-            <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase italic">Visualização de Pico de Movimentação</p>
-          </div>
-          <ChartMount className="h-24 w-full" minHeight={96}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
-                <defs>
-                  <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--primary-color)" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="var(--primary-color)" stopOpacity={0.1}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" opacity={0.3} />
-                <XAxis
-                  dataKey="name"
-                  hide={true}
-                />
-                <RechartsTooltip
-                  cursor={{fill: 'var(--bg-main)', opacity: 0.4}}
-                  contentStyle={{
-                    borderRadius: '12px',
-                    border: 'none',
-                    backgroundColor: 'var(--bg-card)',
-                    fontSize: '10px',
-                    fontWeight: '900',
-                    boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'
-                  }}
-                />
-                <Bar
-                  dataKey="vendas"
-                  fill="url(#colorSales)"
-                  radius={[4, 4, 0, 0]}
-                  barSize={60}
-                />
-              </BarChart>
-              </ResponsiveContainer>
-            </ChartMount>
-          </div>
-        )}
-
       {/* Critical Stock Alert - Compact Card */}
       {(criticalStock.length > 0 || zeroStock > 0) && (
         <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl p-5 flex items-center gap-4 shadow-sm">
@@ -360,8 +308,10 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
         </div>
 
         {/* Top 5 Products */}
+        {/* Sem o gráfico ao lado, o card ocupa a linha inteira — evita 2/3 de
+            área morta quando não há vendas nos últimos 7 dias (chartData vazio). */}
         {isMaster && topProducts.length > 0 && (
-          <div className="lg:col-span-1 bg-[var(--bg-card)] p-6 md:p-8 rounded-3xl shadow-sm border border-[var(--border-color)]">
+          <div className={`${(chartData && chartData.length > 0) ? 'lg:col-span-1' : 'lg:col-span-3'} bg-[var(--bg-card)] p-6 md:p-8 rounded-3xl shadow-sm border border-[var(--border-color)]`}>
             <h3 className="text-base font-black text-[var(--text-main)] mb-6 flex items-center gap-2 uppercase tracking-tight">
               <Award className="text-amber-500" size={20}/> Top 5 Mais Vendidos
             </h3>
@@ -415,7 +365,9 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
         )}
 
         {/* Recent Activity */}
-        <div className={`${isMaster ? '' : 'lg:col-span-3'} bg-[var(--bg-card)] p-6 md:p-8 rounded-3xl shadow-sm border border-[var(--border-color)] flex flex-col`}>
+        {/* Largura total: antes ficava em 1/3 quando isMaster, deixando 2/3
+            da última linha vazios. */}
+        <div className="lg:col-span-3 bg-[var(--bg-card)] p-6 md:p-8 rounded-3xl shadow-sm border border-[var(--border-color)] flex flex-col">
           <h3 className="text-lg font-bold text-[var(--text-main)] mb-6 flex items-center gap-2 tracking-tight">
             <Zap size={20} className="text-yellow-500"/> Atividade Recente
           </h3>
