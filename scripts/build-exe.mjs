@@ -49,9 +49,9 @@ console.log('[build-exe] Gerando bundle Electron em dist/ (caminhos RELATIVOS �
 // garante base './' sem depender do ordem em que as pastas são geradas.
 rodar(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'build:electron']);
 
-// Guarda contra regressão: o "criar-portatil.bat" (e qualquer robocopy de
-// build/ -> dist/) sobrescreve dist/ com o bundle ABSOLUTO da web e o EXE
-// volta a abrir em branco. Verifica aqui e para o build se isso acontecer.
+// Guarda contra regressão: qualquer cópia de build/ -> dist/ (ou robocopy
+// manual) sobrescreve dist/ com o bundle ABSOLUTO da web e o EXE volta a abrir
+// em branco. Verifica aqui e para o build se isso acontecer.
 {
   const indexPath = path.join(root, 'dist', 'index.html');
   if (!fs.existsSync(indexPath)) {

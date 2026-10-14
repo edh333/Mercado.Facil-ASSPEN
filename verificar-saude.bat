@@ -54,7 +54,7 @@ echo [5/5] Testando build de producao...
 if exist "build\index.html" (
     echo    [OK] Build atual existe em pasta build\
 ) else (
-    echo    [!] Sem build local. Rode start-offline.bat apos um "npm run build"
+    echo    [!] Sem build local. Rode "npm run build" e depois "npm run build:exe"
     set /a PROBLEMAS+=1
 )
 echo.
