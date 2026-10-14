@@ -30,6 +30,7 @@
     "node_modules",
     "functions",
     "build",
-    "dist"
+    "dist",
+    "scripts/load-test"
   ]
 }
