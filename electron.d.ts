@@ -8,5 +8,8 @@ interface Window {
     selectFolder: () => Promise<string | undefined>;
     createShortcut: () => Promise<string>;
     getAppMode: () => Promise<'admin' | 'user'>;
+    getAppVersion: () => Promise<string>;
+    checkUpdate: () => Promise<{ current: string; latest: string; updateAvailable: boolean; webUrl: string; releasedAt: string }>;
+    openUpdate: (url?: string) => Promise<boolean>;
   };
 }

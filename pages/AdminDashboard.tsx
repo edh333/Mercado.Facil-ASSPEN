@@ -45,6 +45,7 @@ import { AdminCashTab } from '../components/admin/AdminCashTab';
 import { AdminDashboardCharts } from '../components/admin/AdminDashboardCharts';
 import { AdminStockAlertsTab } from '../components/admin/AdminStockAlertsTab';
 import { MaintenanceCenter } from '../components/admin/MaintenanceCenter';
+import { UpdateBanner } from '../components/admin/UpdateBanner';
 import { AdminMessagesTab } from '../components/admin/AdminMessagesTab';
 import { AdminCustomersTab } from '../components/admin/AdminCustomersTab';
 import { AdminModals } from '../components/admin/AdminModals';
@@ -767,6 +768,9 @@ return (
           currentUser={currentUser}
           onNavigate={goToTab}
         />
+
+        {/* Atualização do app desktop: faixa persistente quando há versão nova (só Electron) */}
+        <UpdateBanner />
 
         {/* Dynamic Header */}
         <PageHeader

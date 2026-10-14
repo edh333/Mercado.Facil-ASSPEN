@@ -114,6 +114,7 @@ interface AdminSettingsTabProps {
 
 import { SystemHealthCard } from './SystemHealthCard';
 import { AppDownloadButton } from '../AppDownloadModal';
+import { AdminUpdatePanel } from './AdminUpdatePanel';
 import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
 
 export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
@@ -533,7 +534,7 @@ const handleBaixarBackup = async (nome: string) => {
                   Painel de Configurações
                 </h2>
                 <p className="text-[9px] md:text-[10px] text-slate-400 font-black mt-1 uppercase tracking-widest">
-                  Gestão Profissional ASSPEN • v1.0.0 RC
+                  Gestão Profissional ASSPEN
                 </p>
               </div>
             </div>
@@ -1440,10 +1441,13 @@ const handleBaixarBackup = async (nome: string) => {
 
         {/* ── ATUALIZAÇÃO ── */}
         {activeSubTab === 'updates' && (
-          <div className="animate-slideUp">
+          <div className="animate-slideUp space-y-6">
+            {/* Atualização real: versão instalada (executável) x versão publicada. */}
+            <AdminUpdatePanel />
+
             <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-2xl space-y-6">
               <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2 mb-4">
-                <Zap size={20} className="text-yellow-500" /> Portabilidade & Atualização
+                <Zap size={20} className="text-yellow-500" /> Portabilidade
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <button onClick={handleDownloadSource} className="p-6 border-2 border-slate-200 bg-slate-50 rounded-2xl flex flex-col items-center gap-3 hover:bg-slate-100 transition-all">
@@ -1456,11 +1460,6 @@ const handleBaixarBackup = async (nome: string) => {
                   <span className="text-[10px] font-black uppercase">Build EXE</span>
                   <p className="text-[9px] text-slate-400 text-center">Gerar executável Windows</p>
                 </button>
-              </div>
-              <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
-                <p className="text-xs font-bold text-blue-800">
-                  Versão atual: <span className="font-black">v1.0.0 RC</span> — Mercado Fácil PDV (ASSPEN)
-                </p>
               </div>
             </div>
           </div>

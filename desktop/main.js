@@ -57,34 +57,46 @@ function paginaDeErro(detalhe) {
 </div></body>`;
 }
 
-// Verifica periodicamente se há nova versão publicada (apps/version.json).
-function checarAtualizacao(win) {
-  if (!app.isPackaged) return;
-  const req = https.get(VERSION_URL, { timeout: 8000 }, (res) => {
-    let data = '';
-    res.on('data', (c) => (data += c));
-    res.on('end', () => {
-      try {
-        const manifest = JSON.parse(data);
-        const atual = app.getVersion();
-        if (manifest?.version && compararVersoes(manifest.version, atual) > 0 && !win.isDestroyed()) {
-          dialog.showMessageBox(win, {
-            type: 'info',
-            title: 'Nova versão disponível',
-            message: `Mercado Fácil atualizado!`,
-            detail: `A versão ${manifest.version} está disponível (você está na ${atual}).\n\nBaixe o novo instalador diretamente do sistema (Use a opção "Baixar App") e substitua o atual.`,
-            buttons: ['Abrir site para baixar', 'Agora não'],
-            defaultId: 0,
-            cancelId: 1,
-          }).then(({ response }) => {
-            if (response === 0) shell.openExternal(WEB_URL).catch(() => {});
-          }).catch(() => { /* janela fechada antes do clique — nada a fazer */ });
-        }
-      } catch { /* manifest inválido — ignora silenciosamente */ }
+// Baixa e faz parse do manifest público de versões (apps/version.json).
+// Reutilizado pelo aviso automático e pelo IPC 'app-check-update' (painel do app).
+function baixarManifestVersao() {
+  return new Promise((resolve) => {
+    const req = https.get(VERSION_URL, { timeout: 8000 }, (res) => {
+      let data = '';
+      res.on('data', (c) => (data += c));
+      res.on('end', () => {
+        try {
+          const manifest = JSON.parse(data);
+          resolve(manifest && typeof manifest === 'object' ? manifest : null);
+        } catch { resolve(null); /* manifest inválido — ignora silenciosamente */ }
+      });
     });
+    req.on('error', () => resolve(null)); // sem internet/bloqueio — ignora
+    req.on('timeout', () => { req.destroy(); resolve(null); });
   });
-  req.on('error', () => { /* sem internet/bloqueio — ignora */ });
-  req.on('timeout', () => req.destroy());
+}
+
+// Verifica periodicamente se há nova versão publicada (apps/version.json).
+async function checarAtualizacao(win) {
+  if (!app.isPackaged) return;
+  const manifest = await baixarManifestVersao();
+  const atual = app.getVersion();
+  if (manifest?.version && compararVersoes(manifest.version, atual) > 0 && win && !win.isDestroyed()) {
+    dialog.showMessageBox(win, {
+      type: 'info',
+      title: 'Atualização disponível',
+      message: `Nova versão ${manifest.version} disponível`,
+      detail: `Você está usando a versão ${atual}.\n\n` +
+        `Recomendamos atualizar para receber as últimas correções e melhorias. ` +
+        `Clique em "Baixar atualização" para abrir a página de download e substitua o programa atual.`,
+      buttons: ['Baixar atualização', 'Agora não'],
+      defaultId: 0,
+      cancelId: 1,
+      noLink: true,
+    }).then(({ response }) => {
+      if (response === 0) shell.openExternal(manifest.webUrl || WEB_URL).catch(() => {});
+    }).catch(() => { /* janela fechada antes do clique — nada a fazer */ });
+  }
   setTimeout(() => checarAtualizacao(win), 6 * 60 * 60 * 1000); // re-checa a cada 6h
 }
 
@@ -468,4 +480,39 @@ ipcMain.on('close-print-window', (event) => {
 ipcMain.handle('get-app-mode', (event) => {
   exigirOrigemPermitida(event);
   return APP_MODE;
+});
+
+// Versão real do aplicativo instalado (a que o electron-builder embutiu).
+// A interface usa isto para comparar com a versão publicada e avisar o operador.
+ipcMain.handle('get-app-version', (event) => {
+  exigirOrigemPermitida(event);
+  return app.getVersion();
+});
+
+// Consulta o manifest público e devolve o estado de atualização pronto para a UI.
+ipcMain.handle('app-check-update', async (event) => {
+  exigirOrigemPermitida(event);
+  const atual = app.getVersion();
+  const manifest = await baixarManifestVersao();
+  const latest = manifest?.version ? String(manifest.version) : '';
+  return {
+    current: atual,
+    latest,
+    updateAvailable: !!latest && compararVersoes(latest, atual) > 0,
+    webUrl: manifest?.webUrl || WEB_URL,
+    releasedAt: manifest?.releasedAt || '',
+  };
+});
+
+// Abre a página oficial de download no navegador padrão. SEGURANÇA: só aceita a
+// origem oficial (evita openExternal para URL arbitrária em caso de XSS).
+ipcMain.handle('app-open-update', (event, url) => {
+  exigirOrigemPermitida(event);
+  let destino = WEB_URL;
+  try {
+    const u = new URL(String(url || ''));
+    if (u.protocol === 'https:' && u.hostname === 'mercado-facil-mt.web.app') destino = u.toString();
+  } catch { /* URL ausente/inválida → usa a oficial */ }
+  shell.openExternal(destino).catch(() => {});
+  return true;
 });
