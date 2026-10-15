@@ -715,7 +715,7 @@ exports.registrarUsuario = onCall({}, async (request) => {
     if (senha.length < 6) {
       throw new HttpsError(
         "invalid-argument",
-        existente.role === "admin"
+        existente.role && ["admin", "master"].includes(String(existente.role).toLowerCase())
           ? "A senha atual do administrador tem menos de 6 caracteres. Atualize o campo password do documento users/" +
             existente.id +
             " no Firestore (texto puro, mínimo 6) e tente novamente."
@@ -1604,12 +1604,14 @@ exports.rejeitarDeposito = onCall({}, async (request) => {
   return { ok: true };
 });
 
-/** Admin principal — crédito direto de saldo (aporte manual). */
+/** Admin com permissão 'wallet' (ou principal) — crédito direto de saldo (aporte manual).
+ *  Delegação deliberada: admins por função podem creditar; o principal continua
+ *  podendo tudo. Senha mestra + rate limit + auditoria continuam obrigatórios. */
 exports.creditarSaldo = onCall({
   memory: "512MiB",
   timeoutSeconds: 60,
 }, async (request) => {
-  const caller = await exigirAdminPrincipal(request);
+  const caller = await exigirAdminPermissao(request, "wallet");
   const userId = String(request.data?.userId || "");
   const valor = validarValor(request.data?.valor);
   const motivo = String(request.data?.motivo || "Crédito administrativo").slice(0, 200);
@@ -1733,15 +1735,15 @@ exports.zerarCarteiras = onCall(async (request) => {
 });
 
 /**
- * Admin principal — devolução de saldo por alvará (preso em saída temporária).
+ * Admin com permissão 'wallet' (ou principal) — devolução de saldo por alvará (preso em saída temporária).
  * O admin autoriza a devolução do saldo da carteira do interno/familiar
- * gerando um comprovante de devolução. Exige admin principal + senha mestra.
+ * gerando um comprovante de devolução. Exige permissão de carteira (wallet) + senha mestra.
  */
 exports.devolucaoAlvara = onCall({
   memory: "512MiB",
   timeoutSeconds: 60,
 }, async (request) => {
-  const caller = await exigirAdminPrincipal(request);
+  const caller = await exigirAdminPermissao(request, "wallet");
   await verificarSenhaMestra(request.data?.senhaMestra);
 
   const userId = String(request.data?.userId || "").trim();
@@ -1838,14 +1840,14 @@ exports.devolucaoAlvara = onCall({
   return { ok: true, novoSaldo, valorDevolvido, comprovante: comprovanteData };
 });
 
-/** Admin PRINCIPAL — retirada de saldo (débito) de qualquer usuário.
+/** Admin com permissão 'wallet' (ou principal) — retirada de saldo (débito) de qualquer usuário.
  *  O dinheiro SAI da gaveta: exige senha mestra (bcrypt + rate limit),
  *  mesmo nível de segurança do aporte de crédito (creditarSaldo). */
 exports.sacarSaldoAdmin = onCall({
   memory: "512MiB",
   timeoutSeconds: 60,
 }, async (request) => {
-  const caller = await exigirAdminPrincipal(request);
+  const caller = await exigirAdminPermissao(request, "wallet");
   const userId = String(request.data?.userId || "");
   const valor = validarValor(request.data?.valor);
   const motivo = String(request.data?.motivo || "Retirada de crédito").slice(0, 200);
@@ -2512,18 +2514,22 @@ exports.processarVendaAdmin = onCall({
     );
   }
   if (paymentMethod === "FIADO" || paymentMethod === "FIADO_30") {
-    const apiKey = String(request.data?.apiKey || "") || process.env.FIREBASE_API_KEY || "";
+    // Rate limit dedicado por operador (janela de 1 min): contém brute force da
+    // senha mestra. O processarVendaAdmin é a rota de MAIOR frequência para
+    // testar senhas e antes não tinha teto algum — os callables de pré-validação
+    // têm limite de 10/min, mas eram contornáveis chamando esta função direto.
+    verificarRateLimit("vendaSenha:" + caller.id, 10);
     if (paymentMethod === "FIADO_30") {
       // FIADO_30 NÃO é venda fiada tradicional em "conta" — é uma venda a prazo
-      // (30 dias) contra o usuário cadastrado. Exige apenas UMA senha mestra:
-      // qualquer uma das duas (primária de login OU secundária/master).
+      // (30 dias) contra o usuário cadastrado. Exige a SENHA MESTRA: o login do
+      // operador NÃO autoriza sozinho (seria auto-aprovação de quem está no terminal).
       const senhaUnica = String(request.data?.senhaPrimaria || "");
       if (!senhaUnica) {
         throw new HttpsError("invalid-argument", "Venda fiada de 30 dias exige a senha mestra do administrador.");
       }
-      const unica = await validarSenhaUnicaServidor(caller, senhaUnica, apiKey);
+      const unica = await validarSenhaUnicaServidor(senhaUnica);
       if (!unica.ok) {
-        throw new HttpsError("permission-denied", "Uma das senhas está incorreta. Tente novamente.");
+        throw new HttpsError("permission-denied", "Senha do supervisor incorreta. Tente novamente.");
       }
     } else {
       // FIADO unificado: o PDV valida a senha mestra (única) antes de finalizar.
@@ -2533,9 +2539,9 @@ exports.processarVendaAdmin = onCall({
       if (!senhaUnica) {
         throw new HttpsError("invalid-argument", "Venda fiada exige a senha mestra do administrador.");
       }
-      const unica = await validarSenhaUnicaServidor(caller, senhaUnica, apiKey);
+      const unica = await validarSenhaUnicaServidor(senhaUnica);
       if (!unica.ok) {
-        throw new HttpsError("permission-denied", "Uma das senhas está incorreta. Tente novamente.");
+        throw new HttpsError("permission-denied", "Senha do supervisor incorreta. Tente novamente.");
       }
     }
   }
@@ -2565,17 +2571,27 @@ exports.processarVendaAdmin = onCall({
         "Desconto exige conexão para validar a senha no servidor. Conecte à internet e finalize a venda novamente."
       );
     }
+    // Mesmo teto do bloco de fiado: uma tentativa de senha por venda conta no
+    // rate limit "vendaSenha" do operador (10/min por janela de 1 minuto).
+    verificarRateLimit("vendaSenha:" + caller.id, 10);
     const apiKeyDesconto = String(request.data?.apiKey || "") || process.env.FIREBASE_API_KEY || "";
     if (descontoPct <= 20) {
       const senhaUnicaDesc = String(request.data?.senhaPrimaria || request.data?.senhaSecundaria || "");
       if (!senhaUnicaDesc) {
         throw new HttpsError("invalid-argument", "Desconto exige a senha mestra do administrador.");
       }
-      const unicaDesc = await validarSenhaUnicaServidor(caller, senhaUnicaDesc, apiKeyDesconto);
+      const unicaDesc = await validarSenhaUnicaServidor(senhaUnicaDesc);
       if (!unicaDesc.ok) {
         throw new HttpsError("permission-denied", "Senha mestra incorreta. Tente novamente.");
       }
     } else {
+      // PARIDADE com o front: o pré-check (callable validarDuplaSenhaMestra) é
+      // exclusivo de admin/master — sem isto, um vendedor conseguiria >20% por
+      // chamada direta com o PRÓPRIO login como primária + a senha mestra.
+      const roleCaller = String(caller.role || "").toLowerCase();
+      if (!["admin", "master"].includes(roleCaller)) {
+        throw new HttpsError("permission-denied", "Desconto acima de 20% é exclusivo de administradores.");
+      }
       const sPrimariaDesc = String(request.data?.senhaPrimaria || "");
       const sSecundariaDesc = String(request.data?.senhaSecundaria || "");
       if (!sPrimariaDesc || !sSecundariaDesc) {
@@ -4340,10 +4356,12 @@ exports.validarDuplaSenhaMestra = onCall(async (request) => {
 });
 
 /**
- * Valida a dupla senha mestra no servidor:
- *  - primária   = senha de login do admin no Firebase Auth (re-auth via REST)
+ * Valida a dupla senha mestra no servidor (desconto >20% e pré-check do PDV):
+ *  - primária   = senha de login de QUEM ESTÁ LOGADO (hash legado bcrypt em
+ *                 auth_secrets/{authUid|id} ou re-auth REST no Firebase Auth)
  *  - secundária = senha mestra (bcrypt em settings/private, com migração da legada)
- * Reutilizado pelo endpoint validarDuplaSenhaMestra e pelo gate de venda fiada.
+ * Reutilizado pelo endpoint validarDuplaSenhaMestra e pelo gate de desconto >20%
+ * em processarVendaAdmin.
  */
 async function validarDuplaSenhaServidor(user, senhaPrimaria, senhaSecundaria, apiKey) {
   const sPrimaria = String(senhaPrimaria || "");
@@ -4399,17 +4417,18 @@ async function validarDuplaSenhaServidor(user, senhaPrimaria, senhaSecundaria, a
 }
 
 /**
- * Valida UMA senha mestra no servidor para FIADO_30: a senha informada é
- * considerada correta se corresponder a QUALQUER uma das duas senhas:
- *  - secundária = senha mestra (bcrypt em settings/private, com migração legada)
- *  - primária   = senha de login do admin no Firebase Auth (re-auth via REST ou hash legado)
- * Usada no endpoint validarSenhaMestraUnica e no gate de venda fiada de 30 dias.
+ * Valida UMA senha para FIADO_30, FIADO e desconto de até 20%: corresponde à
+ * SENHA MESTRA (bcrypt em settings/private, com migração da legada).
+ * A senha de login (primária) NÃO autoriza sozinha — seria auto-aprovação de
+ * quem está no terminal; o login só entra na DUPLA do desconto >20%
+ * (validarDuplaSenhaServidor). Usada no endpoint validarSenhaMestraUnica e
+ * nos gates de venda fiada/desconto de processarVendaAdmin.
  */
-async function validarSenhaUnicaServidor(user, senhaInformada, apiKey) {
+async function validarSenhaUnicaServidor(senhaInformada) {
   const senha = String(senhaInformada || "");
   if (!senha) return { ok: false, motivo: "vazia" };
 
-  // Secundária ─ senha mestra (bcrypt), mesmo fluxo de verificarSenhaMestra.
+  // Senha mestra (bcrypt), mesmo fluxo de verificarSenhaMestra.
   const privSnap = await db.collection("settings").doc("private").get();
   const priv = privSnap.exists ? privSnap.data() : {};
   let secundariaOk = false;
@@ -4436,35 +4455,12 @@ async function validarSenhaUnicaServidor(user, senhaInformada, apiKey) {
     }
   }
 
-  // Primária ─ senha de login do admin no Firebase Auth (re-auth via REST).
-  let primariaOk = false;
-  const hashLegado = await obterHashLegadoDeUsuario(user);
-  if (hashLegado) {
-    try {
-      primariaOk = await bcrypt.compare(senha, hashLegado);
-    } catch (e) {
-      logger.warn("[validarSenhaUnicaServidor] Falha ao comparar hash legado primário:", e.message);
-    }
-  }
-  if (!primariaOk) {
-    primariaOk = await senhaLoginConfere(user, senha, apiKey);
-  }
-
-  // ALTO: vendedor/operador NÃO pode se auto-autorizar com a própria senha de
-  // login (primariaOk) — anularia a régua de 2 fatores do fiado/desconto.
-  // Para TODAS as roles (incluindo admin/master) vale APENAS a senha MESTRA.
-  // O login password (primariaOk) é usado só para re-auth em alterarSenha.
-  const roleLower = String((user && user.role) || "").toLowerCase();
-  if (["vendedor", "operator", "admin", "master"].includes(roleLower)) {
-    return { ok: secundariaOk, secundariaOk, primariaOk: false, definida: true, motivo: secundariaOk ? "" : "secundaria" };
-  }
-
-  return { ok: secundariaOk, secundariaOk, primariaOk, definida: true, motivo: secundariaOk ? "" : "secundaria" };
+  return { ok: secundariaOk, secundariaOk, definida: true, motivo: secundariaOk ? "" : "secundaria" };
 }
 
 /**
- * Admin │ valida UMA senha mestra (primária OU secundária) para autorizar
- * venda fiada de 30 dias. Usado no front para conferir antes de finalizar.
+ * Admin │ valida a SENHA MESTRA para autorizar venda fiada/desconto até 20%.
+ * Usado no front para conferir antes de finalizar (a senha de login não conta).
  */
 exports.validarSenhaMestraUnica = onCall(async (request) => {
   const user = await exigirAutenticado(request);
@@ -4479,8 +4475,7 @@ exports.validarSenhaMestraUnica = onCall(async (request) => {
   if (!senha) {
     throw new HttpsError("invalid-argument", "Digite a senha mestra.");
   }
-  const apiKey = String(request.data?.apiKey || "") || process.env.FIREBASE_API_KEY || "";
-  const resultado = await validarSenhaUnicaServidor(user, senha, apiKey);
+  const resultado = await validarSenhaUnicaServidor(senha);
   return { ok: !!resultado.ok, definida: true, motivo: resultado.motivo || "" };
 });
 

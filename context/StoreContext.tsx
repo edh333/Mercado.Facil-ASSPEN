@@ -2371,12 +2371,22 @@ return false;
         }
     };
 
+    // Mesma régua do hasPermission do AdminDashboard: master = tudo; vendedor =
+    // só PDV/pedidos/produtos/caixa; admin = permissions do doc (ausente = total,
+    // não-array = nega em vez de quebrar). Antes qualquer admin recebia true
+    // aqui e IGNORAVA as restrições granulares — inconsistente com as abas.
     const checkPermission = (permission: string): boolean => {
         const u = currentUser;
         if (!u) return false;
-        if (u.role === UserRole.ADMIN || (u as any).role === 'master') return true;
+        const ehMaster = (u as any).mainAdmin === true || u.id === 'admin' || u.id === 'master'
+            || String(u.email || '').toLowerCase() === 'admin@mercado.com';
+        if (ehMaster) return true;
+        if (u.role === UserRole.VENDEDOR) return ['sales', 'orders', 'products', 'cash'].includes(permission);
+        if (u.role !== UserRole.ADMIN) return false;
         const perms = (u as any).permissions;
-        return Array.isArray(perms) && (perms.includes('all') || perms.includes(permission));
+        if (perms === undefined || perms === null) return true;
+        if (!Array.isArray(perms)) return false;
+        return perms.includes('all') || perms.includes(permission);
     };
 
     // useCallback: identidade estável. Sem isso todo efeito com showNotification
@@ -2426,8 +2436,12 @@ return false;
         try {
             const res = await fnValidarDuplaSenhaMestra({ senhaPrimaria: senhaPrimaria || '', senhaSecundaria: senhaSecundaria || '', apiKey: FIREBASE_API_KEY || '' }) as any;
             return { ok: !!res.data?.ok, motivo: String(res.data?.motivo || '') };
-        } catch (e) {
+        } catch (e: any) {
             console.warn('[validateDualMasterPassword]', e);
+            // Perfil sem autorização (ex.: vendedor tentando >20%) não é "senha
+            // errada" — o motivo 'permissao' deixa o PDV mostrar a causa real.
+            const code = String(e?.code || e?.details?.code || '').toLowerCase().replace(/functions\//, '');
+            if (code.includes('permission-denied')) return { ok: false, motivo: 'permissao' };
             return { ok: false, motivo: '' };
         }
     };

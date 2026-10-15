@@ -841,7 +841,15 @@ return (
                     products={products}
                     walletTx={walletTx}
                     onSelectTransaction={setSelectedWalletTx}
-                    onOpenSales={() => setShowSalesModal(true)}
+                    onOpenSales={() => {
+                      // Paridade com sidebar/F2/servidor: sem permissão 'sales'
+                      // o PDV abria e a venda era recusada só na finalização.
+                      if (!hasPermission('sales')) {
+                        showNotification('Permissão negada: seu acesso não inclui vendas (PDV).', 'error');
+                        return;
+                      }
+                      setShowSalesModal(true);
+                    }}
                     onOpenShortcuts={() => setShowShortcutsModal(true)}
                   />
                 </>
@@ -962,8 +970,8 @@ return (
                   loadAllUsers={() => expandUsersLimit(2000)}
                   toggleExcepcionalFlag={(userId, value) => updateDoc(doc(db, 'users', userId), { autorizacaoExcepcional: value })}
                   onAddCredit={(user) => {
-                    if (!isMaster) {
-                      showNotification('Apenas o administrador principal pode inserir crédito manual.', 'error');
+                    if (!hasPermission('wallet')) {
+                      showNotification('Crédito manual exige a permissão de carteira (wallet) — fale com o administrador principal.', 'error');
                       return;
                     }
                     setManualCreditTarget(user);
@@ -1195,8 +1203,8 @@ return (
           toggleUserCredit={toggleUserCredit}
           toggleExcepcionalFlag={(userId, value) => updateDoc(doc(db, 'users', userId), { autorizacaoExcepcional: value })}
           onAddCredit={(user) => {
-            if (!isMaster) {
-              showNotification('Apenas o administrador principal pode inserir crédito manual.', 'error');
+            if (!hasPermission('wallet')) {
+              showNotification('Crédito manual exige a permissão de carteira (wallet) — fale com o administrador principal.', 'error');
               return;
             }
             setManualCreditTarget(user);
@@ -1205,7 +1213,7 @@ return (
         />
       )}
 
-      {/* Modal de Aporte Manual de Crédito (somente admin principal) */}
+      {/* Modal de Aporte Manual de Crédito (admin com permissão wallet) */}
       <ManualCreditModal
         user={manualCreditTarget}
         onClose={() => setManualCreditTarget(null)}

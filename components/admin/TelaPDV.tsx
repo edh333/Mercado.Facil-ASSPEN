@@ -494,7 +494,7 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
       // operador de caixa, que não tem a senha primária+secundária dupla).
       const ok = await validateAnyMasterPassword(senhaSupervisor.trim());
       setSenhaSupervisaoOk(ok);
-      setSenhaSupervisaoErro(ok ? '' : 'Senha inválida para esta operação.');
+      setSenhaSupervisaoErro(ok ? '' : 'Senha do supervisor incorreta.');
     } catch {
       setSenhaSupervisaoOk(false);
       setSenhaSupervisaoErro('Não foi possível validar a senha. Verifique a conexão.');
@@ -542,7 +542,9 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
               ? 'Senha mestra incorreta (o segundo campo).'
               : res.motivo === 'primaria'
                 ? 'Senha de entrada (login) incorreta (o primeiro campo).'
-                : 'Senhas inválidas para autorizar o desconto.'
+                : res.motivo === 'permissao'
+                  ? 'Seu perfil não pode autorizar desconto acima de 20% — exclusivo de administradores.'
+                  : 'Senhas inválidas para autorizar o desconto.'
           );
           return;
         }
