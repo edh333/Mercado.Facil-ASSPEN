@@ -95,16 +95,22 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Primary color
     root.style.setProperty('--primary-color', primaryColor);
     root.style.setProperty('--secondary-color', primaryColor);
+    // Tint da marca derivado da cor configurada (antes era um rgba verde fixo,
+    // então a cor de marca "vazava" verde mesmo com o admin escolhendo outro tom)
+    root.style.setProperty('--primary-light', `color-mix(in srgb, ${primaryColor} 12%, transparent)`);
+    // Sinaliza marca CUSTOMIZADA: só então o index.css remapeia a escala emerald
+    // para a cor da marca (evita mexer no visual no verde padrão).
+    root.dataset.brand = primaryColor.toLowerCase() === DEFAULT_PRIMARY ? 'default' : 'custom';
 
     if (isDark) {
-      // Dark mode premium (estética shadcn/zinc)
-      root.style.setProperty('--bg-main', '#09090b');              // zinc-950
-      root.style.setProperty('--bg-card', '#18181b');              // zinc-900
+      // Dark mode premium (estética shadcn/slate — MESMA família neutra do light)
+      root.style.setProperty('--bg-main', '#020617');              // slate-950
+      root.style.setProperty('--bg-card', '#0f172a');              // slate-900
       root.style.setProperty('--bg-input', 'rgba(255,255,255,0.06)');
       root.style.setProperty('--bg-muted', 'rgba(255,255,255,0.08)');
-      root.style.setProperty('--text-main', '#fafafa');            // zinc-50
-      root.style.setProperty('--text-muted', '#a1a1aa');           // zinc-400
-      root.style.setProperty('--border-color', '#27272a');         // zinc-800
+      root.style.setProperty('--text-main', '#f8fafc');            // slate-50
+      root.style.setProperty('--text-muted', '#94a3b8');           // slate-400
+      root.style.setProperty('--border-color', '#1e293b');         // slate-800
       root.style.setProperty('--glass-border', 'rgba(255,255,255,0.08)');
     } else {
       // Light mode premium (estética asspen/shadcn — fundo quente, tinta escura)
