@@ -533,7 +533,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
         // "Saiu para entrega" ANTES de "entregue": 'out_for_delivery' contém
         // 'deliver' e estava caindo na cor verde de pedido entregue.
         if (s.includes('out_for_delivery') || s.includes('saiu') || s.includes('delivery')) return 'bg-sky-100 text-sky-700';
-        if (s.includes('deliver') || s.includes('entregue')) return 'bg-emerald-100 text-emerald-700';
+        if (s.includes('deliver') || s.includes('entregue')) return 'bg-success-soft text-success-dark';
         if (s === 'paid' || s.includes('pago')) return 'bg-green-100 text-green-700';
         if (s.includes('separa') || s.includes('prepar')) return 'bg-indigo-100 text-indigo-700';
         return 'bg-amber-100 text-amber-700';
@@ -1433,7 +1433,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 {order.paymentMethod === 'WALLET' ? (
-                                                    <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-[11px] font-semibold">Saldo</span>
+                                                    <span className="px-3 py-1 bg-success-soft text-success-dark rounded-full text-[11px] font-semibold">Saldo</span>
                                                 ) : (
                                                     <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-[11px] font-semibold">PIX</span>
                                                 )}

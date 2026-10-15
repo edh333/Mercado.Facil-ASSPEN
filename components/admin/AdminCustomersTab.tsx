@@ -328,7 +328,7 @@ export function AdminCustomersTab({
               })();
               return (
                 <div key={c.id} className={`flex items-center gap-5 p-5 hover:bg-slate-50 transition-all ${c.status === 'blocked' ? 'opacity-50' : ''}`}>
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${isOverLimit ? 'bg-red-100 text-red-600' : usedPct > 70 ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${isOverLimit ? 'bg-red-100 text-red-600' : usedPct > 70 ? 'bg-amber-100 text-amber-600' : 'bg-success-soft text-success-dark'}`}>
                     <Users size={22} />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -466,7 +466,7 @@ export function AdminCustomersTab({
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Status</label>
                 <button
                   onClick={() => setEditData({ ...editData, status: editData.status === 'active' ? 'blocked' : 'active' })}
-                  className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${editData.status === 'active' ? 'bg-emerald-100 text-emerald-700 border border-emerald-300' : 'bg-red-100 text-red-700 border border-red-300'}`}
+                  className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${editData.status === 'active' ? 'bg-success-soft text-success-dark border border-success-soft' : 'bg-red-100 text-red-700 border border-red-300'}`}
                 >
                   {editData.status === 'active' ? 'Ativo' : 'Bloqueado'}
                 </button>

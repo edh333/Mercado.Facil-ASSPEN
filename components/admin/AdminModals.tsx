@@ -522,7 +522,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                        <div className="bg-white p-4 rounded-xl border-2 border-slate-200 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
                            <div className="flex justify-between items-center mb-2">
                                <label className="text-slate-700 font-black text-[10px] uppercase tracking-widest">Código de Barras (EAN)</label>
-                               <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[9px] font-black uppercase tracking-wider">Leitor Ativo</span>
+                               <span className="px-2 py-0.5 bg-success-soft text-success-dark rounded-full text-[9px] font-black uppercase tracking-wider">Leitor Ativo</span>
                            </div>
                            <input
                                ref={barcodeInputRef}
@@ -604,7 +604,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                                      <Lock size={9} /> Travado
                                  </span>
                              ) : (
-                                 <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[9px] font-black uppercase tracking-wider">Auto · margem</span>
+                                 <span className="px-2 py-0.5 bg-success-soft text-success-dark rounded-full text-[9px] font-black uppercase tracking-wider">Auto · margem</span>
                              )}
                          </div>
                          <input

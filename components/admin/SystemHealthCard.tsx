@@ -44,7 +44,7 @@ export const SystemHealthCard: React.FC = () => {
             <h3 className="text-sm font-black uppercase tracking-tight text-slate-900 flex items-center gap-2">
               Saúde do Sistema
               <span className={`px-2 py-0.5 rounded-full text-[8px] font-black tracking-widest ${
-                semAvisos ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                semAvisos ? 'bg-success-soft text-success-dark' : 'bg-amber-100 text-amber-700'
               }`}>
                 {semAvisos ? 'TUDO OK' : `${relatorio?.avisos.length} AVISO(S)`}
               </span>

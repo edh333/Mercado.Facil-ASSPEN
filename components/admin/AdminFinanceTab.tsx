@@ -580,7 +580,7 @@ const cashTotais = useMemo(() => {
                         {diff !== 0 ? `${diff > 0 ? '+' : ''}${diff.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '—'}
                       </td>
                       <td className="p-4 text-center">
-                        <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${aberta ? 'bg-emerald-100 text-emerald-700' : s.autoClosed ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
+                        <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${aberta ? 'bg-success-soft text-success-dark' : s.autoClosed ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
                           {aberta ? 'Aberto' : s.autoClosed ? 'Auto-fechado' : 'Fechado'}
                         </span>
                       </td>
@@ -599,7 +599,7 @@ const cashTotais = useMemo(() => {
               <div key={s.id} className="py-4 flex flex-col gap-2">
                 <div className="flex justify-between items-center">
                   <span className="font-bold uppercase text-sm text-[var(--text-main)]">{s.operatorName || s.operatorId || '—'}</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${aberta ? 'bg-emerald-100 text-emerald-700' : s.autoClosed ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
+                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${aberta ? 'bg-success-soft text-success-dark' : s.autoClosed ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
                     {aberta ? 'Aberto' : s.autoClosed ? 'Auto-fechado' : 'Fechado'}
                   </span>
                 </div>

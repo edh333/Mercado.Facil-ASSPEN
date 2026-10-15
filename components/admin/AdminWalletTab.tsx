@@ -430,7 +430,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                       <div className="flex flex-col items-end gap-2 shrink-0">
                         <div className="text-right">
                           <p className="font-black text-emerald-600">R$ {formatarMoeda(Number(u.walletBalance) || 0)}</p>
-                          <span className={`inline-block mt-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${u.status === 'active' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-500 border-red-200'}`}>
+                          <span className={`inline-block mt-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${u.status === 'active' ? 'bg-success-soft text-success-dark border-success-soft' : 'bg-red-50 text-red-500 border-red-200'}`}>
                             {u.status === 'active' ? 'Ativo' : u.status || '—'}
                           </span>
                         </div>
@@ -553,7 +553,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                     </div>
                   </td>
                   <td className="p-6 text-center">
-                    <span className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border ${tx.type === 'deposit' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-500 border-red-200'}`}>
+                    <span className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border ${tx.type === 'deposit' ? 'bg-success-soft text-success-dark border-success-soft' : 'bg-red-50 text-red-500 border-red-200'}`}>
                       {tx.type === 'deposit' ? '↑ Crédito' : tx.type === 'purchase' ? '↓ Compra' : '↓ Retirada'}
                     </span>
                   </td>
@@ -564,7 +564,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                   </td>
                   <td className="p-6 text-center">
                     <span className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border inline-flex items-center gap-1.5 ${
-                      tx.status === 'approved' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' :
+                      tx.status === 'approved' ? 'bg-success-soft text-success-dark border-success-soft' :
                       tx.status === 'pending'  ? 'bg-amber-50 text-amber-600 border-amber-200' :
                                                  'bg-red-50 text-red-500 border-red-200'
                     }`}>
@@ -624,7 +624,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                 <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">
                   {new Date(tx.createdAt).toLocaleDateString('pt-BR')} • {new Date(tx.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
                 </div>
-                <span className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${tx.type === 'deposit' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-500 border-red-200'}`}>
+                <span className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${tx.type === 'deposit' ? 'bg-success-soft text-success-dark border-success-soft' : 'bg-red-50 text-red-500 border-red-200'}`}>
                   {tx.type === 'deposit' ? '↑ Crédito' : '↓ Débito'}
                 </span>
               </div>
@@ -644,7 +644,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                 </div>
                 <div className="flex flex-col items-end">
                   <span className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border flex items-center gap-1.5 mb-3 ${
-                    tx.status === 'approved' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' :
+                    tx.status === 'approved' ? 'bg-success-soft text-success-dark border-success-soft' :
                     tx.status === 'pending'  ? 'bg-amber-50 text-amber-600 border-amber-200' :
                                                'bg-red-50 text-red-500 border-red-200'
                   }`}>

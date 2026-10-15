@@ -204,11 +204,20 @@ html[data-brand="custom"] {
 @utility bg-success {
   background-color: var(--success-color);
 }
+@utility bg-success-soft {
+  background-color: color-mix(in srgb, var(--success-color) 14%, transparent);
+}
 @utility text-success {
   color: var(--success-color);
 }
+@utility text-success-dark {
+  color: color-mix(in srgb, var(--success-color) 72%, black);
+}
 @utility border-success {
   border-color: var(--success-color);
+}
+@utility border-success-soft {
+  border-color: color-mix(in srgb, var(--success-color) 38%, transparent);
 }
 
 /* ═══════════════════════════════════════════════════════════

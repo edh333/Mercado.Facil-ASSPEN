@@ -94,7 +94,7 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
   };
 
   const statusBadge =
-    user.status === 'active' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+    user.status === 'active' ? 'bg-success-soft text-success-dark border-success-soft' :
     user.status === 'suspended' ? 'bg-red-100 text-red-600 border-red-200' :
     'bg-amber-100 text-amber-700 border-amber-200';
 
@@ -424,7 +424,7 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
                       </div>
                       <div className="text-right shrink-0">
                         <p className="font-black text-slate-900 text-sm">R$ {formatarMoeda(o.total || 0)}</p>
-                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${o.status === 'cancelled' ? 'bg-red-50 text-red-600 border-red-200' : o.status === 'delivered' ? 'bg-blue-50 text-blue-600 border-blue-200' : o.status === 'paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-amber-50 text-amber-600 border-amber-200'}`}>
+                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${o.status === 'cancelled' ? 'bg-red-50 text-red-600 border-red-200' : o.status === 'delivered' ? 'bg-blue-50 text-blue-600 border-blue-200' : o.status === 'paid' ? 'bg-success-soft text-success-dark border-success-soft' : 'bg-amber-50 text-amber-600 border-amber-200'}`}>
                           {o.status}
                         </span>
                       </div>
@@ -453,7 +453,7 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
                         <p className={`font-black text-sm ${tx.type === 'withdrawal' ? 'text-red-600' : 'text-emerald-600'}`}>
                           {tx.type === 'withdrawal' ? '−' : '+'} R$ {formatarMoeda(Math.abs(tx.amount || 0))}
                         </p>
-                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${tx.status === 'approved' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : tx.status === 'pending' ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-red-50 text-red-600 border-red-200'}`}>
+                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${tx.status === 'approved' ? 'bg-success-soft text-success-dark border-success-soft' : tx.status === 'pending' ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-red-50 text-red-600 border-red-200'}`}>
                           {tx.status}
                         </span>
                       </div>

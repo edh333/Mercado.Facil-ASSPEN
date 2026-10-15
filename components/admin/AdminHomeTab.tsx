@@ -380,7 +380,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
               <div key={idx} className="flex items-center justify-between p-4 bg-[var(--bg-main)] rounded-2xl border border-transparent hover:border-[var(--border-color)] transition-all group">
                 <div className="flex items-center gap-3">
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm ${
-                    item?.status === 'delivered' || item?.status === 'paid' ? 'bg-emerald-50 text-emerald-600' :
+                    item?.status === 'delivered' || item?.status === 'paid' ? 'bg-success-soft text-success-dark' :
                     item?.status === 'pending' || item?.status === 'pending_payment' ? 'bg-amber-50 text-amber-600' :
                     item?.status === 'cancelled' ? 'bg-red-50 text-red-600' :
                     'bg-[var(--bg-card)] text-[var(--text-muted)] group-hover:text-[var(--primary-color)]'

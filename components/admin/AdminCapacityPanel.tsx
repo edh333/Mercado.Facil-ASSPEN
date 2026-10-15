@@ -198,7 +198,7 @@ export const AdminCapacityPanel: React.FC = () => {
           </p>
           <p className="text-[9px] text-slate-400 font-bold uppercase">pedidos/dia na média</p>
         </div>
-        <div className={`rounded-2xl border p-4 ${riscoAlto ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200'}`}>
+        <div className={`rounded-2xl border p-4 ${riscoAlto ? 'bg-red-50 border-red-200' : 'bg-success-soft border-success-soft'}`}>
           <div className="flex items-center gap-2 mb-2">
             <AlertTriangle size={16} className={riscoAlto ? 'text-red-500' : 'text-emerald-500'} />
             <p className={`text-[10px] font-black uppercase tracking-wider ${riscoAlto ? 'text-red-600' : 'text-emerald-700'}`}>Uso Estimado da Cota</p>

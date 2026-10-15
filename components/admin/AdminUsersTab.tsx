@@ -205,7 +205,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
   };
 
   const statusBadge = (status: string) =>
-    status === 'active' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+    status === 'active' ? 'bg-success-soft text-success-dark border-success-soft' :
     status === 'suspended' ? 'bg-red-100 text-red-600 border-red-200' :
     'bg-amber-100 text-amber-700 border-amber-200';
 

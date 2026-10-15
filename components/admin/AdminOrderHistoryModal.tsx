@@ -30,7 +30,7 @@ const translate = (s?: string): string => {
 const color = (s?: string): string => {
   const st = norm(s);
   if (['pending', 'pendente', 'aguardando'].includes(st)) return 'bg-amber-50 text-amber-700 border-amber-200';
-  if (['paid', 'pago', 'aprovado'].includes(st)) return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+  if (['paid', 'pago', 'aprovado'].includes(st)) return 'bg-success-soft text-success-dark border-success-soft';
   if (['preparing', 'separacao'].includes(st)) return 'bg-sky-50 text-sky-700 border-sky-200';
   if (['delivered', 'entregue'].includes(st)) return 'bg-indigo-50 text-indigo-700 border-indigo-200';
   if (['cancelled', 'cancelado'].includes(st)) return 'bg-rose-50 text-rose-700 border-rose-200';

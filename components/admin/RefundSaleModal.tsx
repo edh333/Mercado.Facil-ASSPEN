@@ -258,7 +258,7 @@ export const RefundSaleModal: React.FC<RefundSaleModalProps> = ({
     >
       {resultado && (
         <div className="p-5">
-          <div className={`rounded-2xl border p-4 flex items-start gap-3 ${resultado.ok ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
+          <div className={`rounded-2xl border p-4 flex items-start gap-3 ${resultado.ok ? 'bg-success-soft border-success-soft' : 'bg-red-50 border-red-200'}`}>
             {resultado.ok
               ? <CheckCircle size={20} className="text-emerald-500 mt-0.5 shrink-0" />
               : <AlertTriangle size={20} className="text-red-500 mt-0.5 shrink-0" />}

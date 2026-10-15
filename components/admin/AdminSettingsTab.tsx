@@ -745,7 +745,7 @@ const handleBaixarBackup = async (nome: string) => {
                               {isVendedorRole(admin.role) ? (
                                 <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">Acesso PDV</span>
                               ) : (!admin.permissions || admin.permissions.length === 0 || admin.permissions.includes('all') ? (
-                                <span className={`text-[10px] font-black uppercase px-1.5 py-0.5 rounded ${admin.permissions?.includes('all') ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                                <span className={`text-[10px] font-black uppercase px-1.5 py-0.5 rounded ${admin.permissions?.includes('all') ? 'bg-success-soft text-success-dark' : 'bg-amber-100 text-amber-700'}`}>
                                   {admin.permissions?.includes('all') ? 'Acesso total' : 'Sem permissões'}
                                 </span>
                               ) : (
@@ -1696,7 +1696,7 @@ const handleBaixarBackup = async (nome: string) => {
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* AVISO DE MANUTENÇÃO PREVENTIVA — verde em dia, âmbar quando passa de 30 dias */}
-              <div className={`mb-4 p-4 rounded-2xl border-2 flex flex-wrap items-center justify-between gap-3 ${manutencaoAtrasada ? 'bg-amber-50 border-amber-300' : 'bg-emerald-50 border-emerald-200'}`}>
+              <div className={`mb-4 p-4 rounded-2xl border-2 flex flex-wrap items-center justify-between gap-3 ${manutencaoAtrasada ? 'bg-amber-50 border-amber-300' : 'bg-success-soft border-success-soft'}`}>
                 <div className="flex items-center gap-3">
                   <div className={`p-2.5 rounded-xl text-white ${manutencaoAtrasada ? 'bg-amber-500' : 'bg-emerald-600'}`}>
                     {manutencaoAtrasada ? <AlertTriangle size={20} /> : <Check size={20} />}

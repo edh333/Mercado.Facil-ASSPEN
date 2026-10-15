@@ -328,7 +328,7 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
 
       {/* Close Audit Result Banner */}
       {closeResult && (
-        <div className={`mb-5 p-4 rounded-2xl border flex items-start gap-3 ${closeResult.diff === 0 ? 'bg-emerald-50 border-emerald-200' : closeResult.diff < 0 ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'}`}>
+        <div className={`mb-5 p-4 rounded-2xl border flex items-start gap-3 ${closeResult.diff === 0 ? 'bg-success-soft border-success-soft' : closeResult.diff < 0 ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'}`}>
           {closeResult.diff === 0
             ? <CheckCircle className="text-emerald-500 mt-0.5 shrink-0" size={20} />
             : <AlertTriangle className={`${closeResult.diff < 0 ? 'text-red-500' : 'text-amber-500'} mt-0.5 shrink-0`} size={20} />
@@ -443,7 +443,7 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
                     )}
                   </div>
                   <div className="text-right shrink-0">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${s.status === 'open' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${s.status === 'open' ? 'bg-success-soft text-success-dark' : 'bg-slate-100 text-slate-500'}`}>
                       {s.status === 'open' ? 'Aberto' : 'Fechado'}
                     </span>
                     {s.status === 'closed' && (s.cashDifference ?? s.balanceDiff) !== undefined && (
