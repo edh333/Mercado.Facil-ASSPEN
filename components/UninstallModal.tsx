@@ -83,7 +83,7 @@ export const UninstallModal: React.FC<UninstallModalProps> = ({ isOpen, onClose 
         <div className="space-y-2.5">
           {info.lines.map((line, i) => (
             <div key={i} className="flex items-start gap-3 p-3.5 rounded-2xl border border-slate-200 bg-white">
-              <span className="w-6 h-6 shrink-0 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-black text-[10px]">{i + 1}</span>
+              <span className="w-6 h-6 shrink-0 rounded-lg bg-brand text-white flex items-center justify-center font-black text-[10px]">{i + 1}</span>
               <p className="text-[11px] font-bold text-slate-700 leading-relaxed">{line}</p>
             </div>
           ))}

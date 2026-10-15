@@ -837,7 +837,7 @@ if (pedidoOffline) {
                     onClick={() => { setFormaPagamento(m.key); setPixConfirmado(false); setSenhaSupervisor(''); setSenhaSupervisaoOk(false); setSenhaSupervisaoErro(''); }}
                     className={`flex items-center justify-center gap-1 rounded-xl border text-[10px] font-bold transition-all min-h-[44px] ${
                       ativo
-                        ? 'bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-600/20'
+                        ? 'bg-brand border-emerald-600 text-white shadow-md shadow-emerald-600/20'
                         : 'bg-white border-slate-200 text-slate-500 hover:border-emerald-300 hover:text-emerald-600'
                     }`}
                   >
@@ -953,7 +953,7 @@ if (pedidoOffline) {
                 {/* Botão de Adicionar Estilizado */}
                 <button
                   type="submit"
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 rounded-xl flex items-center justify-center shadow-md shadow-emerald-600/10 transition-colors"
+                  className="bg-brand hover:bg-brand-dark text-white px-4 rounded-xl flex items-center justify-center shadow-md shadow-emerald-600/10 transition-colors"
                   aria-label="Adicionar produto"
                 >
                   <Plus size={20} />
@@ -973,7 +973,7 @@ if (pedidoOffline) {
                     onClick={() => setModoVisao('grade')}
                     className={`p-1.5 rounded-md transition-all flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider ${
                       modoVisao === 'grade'
-                        ? 'bg-emerald-600 text-white shadow-sm'
+                        ? 'bg-brand text-white shadow-sm'
                         : 'text-slate-500 hover:text-emerald-600'
                     }`}
                     title="Visualizar em Grade"
@@ -986,7 +986,7 @@ if (pedidoOffline) {
                     onClick={() => setModoVisao('lista')}
                     className={`p-1.5 rounded-md transition-all flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider ${
                       modoVisao === 'lista'
-                        ? 'bg-emerald-600 text-white shadow-sm'
+                        ? 'bg-brand text-white shadow-sm'
                         : 'text-slate-500 hover:text-emerald-600'
                     }`}
                     title="Visualizar em Lista"
@@ -1037,7 +1037,7 @@ if (pedidoOffline) {
                       </div>
                     </div>
                     {!semEstoque && preco > 0 && (
-                      <div className="absolute top-2 right-2 w-7 h-7 rounded-full bg-emerald-600 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md">
+                      <div className="absolute top-2 right-2 w-7 h-7 rounded-full bg-brand text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md">
                         <Plus size={15} />
                       </div>
                     )}
@@ -1130,7 +1130,7 @@ if (pedidoOffline) {
                     <span className="w-9 text-center text-base font-black text-slate-900 tabular-nums">{item.quantity}x</span>
                     <button
                       onClick={() => atualizarQuantidade(item.productId, 1)}
-                      className="w-9 h-9 rounded-xl bg-white border-2 border-emerald-700 text-emerald-700 flex items-center justify-center hover:bg-emerald-600 hover:border-emerald-600 hover:text-white transition-colors shadow-md active:scale-95"
+                      className="w-9 h-9 rounded-xl bg-white border-2 border-emerald-700 text-emerald-700 flex items-center justify-center hover:bg-brand-dark hover:border-emerald-600 hover:text-white transition-colors shadow-md active:scale-95"
                       aria-label="Aumentar"
                     >
                       <Plus size={16} strokeWidth={3} />
@@ -1213,7 +1213,7 @@ if (pedidoOffline) {
                         disabled={validandoSenhaSupervisor || !senhaSupervisor.trim()}
                         className={`h-[42px] shrink-0 px-4 rounded-xl border text-xs font-bold transition-colors ${
                           senhaSupervisaoOk
-                            ? 'bg-emerald-600 border-emerald-600 text-white'
+                            ? 'bg-brand border-emerald-600 text-white'
                             : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-400 hover:text-emerald-700'
                         } ${validandoSenhaSupervisor ? 'opacity-50 cursor-wait' : ''} ${!senhaSupervisor.trim() ? 'opacity-40 cursor-not-allowed' : ''}`}
                       >
@@ -1432,7 +1432,7 @@ if (pedidoOffline) {
                 onClick={finalizarVenda}
                 className={`w-full py-4 px-6 rounded-xl transition-all flex items-center justify-center gap-2 text-base font-bold ${
                   podeFinalizar
-                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg cursor-pointer'
+                    ? 'bg-brand hover:bg-brand-dark text-white shadow-lg cursor-pointer'
                     : 'bg-slate-100 text-slate-400 border border-slate-200 shadow-none cursor-not-allowed pointer-events-none'
                 }`}
               >
@@ -1465,7 +1465,7 @@ if (pedidoOffline) {
             />
             <button
               onClick={confirmarPrecoDinamico}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl shadow-md shadow-emerald-600/20 transition-colors flex items-center justify-center gap-2"
+              className="w-full bg-brand hover:bg-brand-dark text-white font-bold py-3 rounded-xl shadow-md shadow-emerald-600/20 transition-colors flex items-center justify-center gap-2"
             >
               <Plus size={18} /> Adicionar ao Carrinho
             </button>

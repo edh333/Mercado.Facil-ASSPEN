@@ -145,7 +145,7 @@ export const AdminCapacityPanel: React.FC = () => {
           <button
             onClick={abrirCapacidade}
             disabled={loading}
-            className="px-4 py-2 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-wider flex items-center gap-2 hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-50"
+            className="px-4 py-2 bg-brand text-white rounded-xl font-black text-[10px] uppercase tracking-wider flex items-center gap-2 hover:bg-brand-dark active:scale-95 transition-all disabled:opacity-50"
           >
             <Plus size={14} /> Aumentar Capacidade
           </button>
@@ -393,7 +393,7 @@ export const AdminCapacityPanel: React.FC = () => {
             </button>
             <button
               onClick={aplicarCapacidade}
-              className="flex-[1.5] py-3.5 bg-emerald-600 text-white rounded-xl font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-emerald-700 active:scale-95 transition-all"
+              className="flex-[1.5] py-3.5 bg-brand text-white rounded-xl font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-brand-dark active:scale-95 transition-all"
             >
               <ShieldCheck size={16} /> Confirmar Aumento
             </button>

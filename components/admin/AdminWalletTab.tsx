@@ -326,9 +326,9 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
           Movimentações
         </h2>
         <div className="flex bg-slate-100 rounded-2xl p-1.5 w-full md:w-auto border border-slate-200">
-          <button onClick={() => setActiveSubTab('ALL')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-[1.25rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'ALL' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Todos</button>
-          <button onClick={() => setActiveSubTab('DEPOSITS')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-[1.25rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'DEPOSITS' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Depósitos</button>
-          <button onClick={() => setActiveSubTab('WITHDRAWALS')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-[1.25rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'WITHDRAWALS' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Saídas e Compras</button>
+          <button onClick={() => setActiveSubTab('ALL')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-[1.25rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'ALL' ? 'bg-brand text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Todos</button>
+          <button onClick={() => setActiveSubTab('DEPOSITS')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-[1.25rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'DEPOSITS' ? 'bg-brand text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Depósitos</button>
+          <button onClick={() => setActiveSubTab('WITHDRAWALS')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-[1.25rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'WITHDRAWALS' ? 'bg-brand text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Saídas e Compras</button>
           <button onClick={() => setActiveSubTab('SALDOS')} className={`flex-1 md:flex-none px-6 py-2.5 rounded-[1.25rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSubTab === 'SALDOS' ? 'bg-indigo-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Saldos</button>
         </div>
         <button onClick={exportWalletToCSV} className="px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 bg-slate-100 text-slate-700 hover:bg-slate-200 hover:scale-105 active:scale-95 border border-slate-200">
@@ -383,7 +383,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
               <button onClick={exportSaldosCSV} className="px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 bg-slate-100 text-slate-700 hover:bg-slate-200 hover:scale-105 active:scale-95 border border-slate-200">
                 <Download size={16} /> Exportar CSV
               </button>
-              <button onClick={printSaldos} className="px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 bg-emerald-500 text-white hover:bg-emerald-600 hover:scale-105 active:scale-95 shadow-md">
+              <button onClick={printSaldos} className="px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 bg-brand text-white hover:bg-brand-dark hover:scale-105 active:scale-95 shadow-md">
                 <Printer size={16} /> Imprimir PDF
               </button>
             </div>
@@ -394,7 +394,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
             <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
               <div className="p-6 border-b border-slate-100 flex items-center justify-between gap-3 bg-gradient-to-br from-emerald-50/80 to-transparent">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-emerald-500 text-white rounded-xl"><Users size={18} /></div>
+                  <div className="p-2.5 bg-brand text-white rounded-xl"><Users size={18} /></div>
                   <div>
                     <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">Créditos de Carteira</h3>
                     <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">Usuários com saldo positivo</p>
@@ -578,7 +578,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                         {tx.status === 'pending' && (
                           <button
                             onClick={() => onSelectTransaction?.(tx)}
-                            className="px-4 py-2 min-h-[44px] rounded-xl text-[9px] font-black uppercase tracking-[0.2em] bg-emerald-500 text-white shadow-md hover:bg-emerald-600 active:scale-95 transition-all"
+                            className="px-4 py-2 min-h-[44px] rounded-xl text-[9px] font-black uppercase tracking-[0.2em] bg-brand text-white shadow-md hover:bg-brand-dark active:scale-95 transition-all"
                           >
                             Validar
                           </button>
@@ -656,7 +656,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                       {tx.status === 'pending' && (
                         <button
                           onClick={() => onSelectTransaction?.(tx)}
-                          className="flex items-center gap-1 text-[9px] font-black text-white uppercase cursor-pointer bg-emerald-500 px-4 py-2 min-h-[44px] rounded-xl active:scale-95 transition-all"
+                          className="flex items-center gap-1 text-[9px] font-black text-white uppercase cursor-pointer bg-brand px-4 py-2 min-h-[44px] rounded-xl active:scale-95 transition-all"
                         >
                           Validar <ChevronRight size={14}/>
                         </button>

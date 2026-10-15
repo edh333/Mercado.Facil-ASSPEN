@@ -422,7 +422,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
           footer={
             <>
               <button type="button" onClick={() => { setShowProductModal(false); setEditingProduct(null); }} className="flex-1 py-4 bg-white text-slate-700 font-bold rounded-xl hover:bg-slate-50 uppercase text-[11px] tracking-widest transition-all border border-slate-300 shadow-sm hover:shadow-md active:scale-[0.98]">Cancelar</button>
-              <button type="submit" form="product-form" disabled={isProductLoading || !productForm.name.trim()} className="flex-[2] py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md shadow-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/30 flex items-center justify-center gap-3 uppercase text-[11px] tracking-widest transition-all px-6 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">
+              <button type="submit" form="product-form" disabled={isProductLoading || !productForm.name.trim()} className="flex-[2] py-4 bg-brand hover:bg-brand-dark text-white font-bold rounded-xl shadow-md shadow-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/30 flex items-center justify-center gap-3 uppercase text-[11px] tracking-widest transition-all px-6 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">
                 {isProductLoading ? <Loader2 size={18} className="animate-spin"/> : <Check size={18} />}
                 {editingProduct ? 'Salvar Alterações' : 'Cadastrar Produto'}
               </button>
@@ -857,7 +857,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                   onClick={() => {
                     abrirJanelaImpressao({ type: 'RECIBO', subType: viewingReceipt.type === 'EXPENSE' ? 'EXPENSE' : 'ORDER', data: viewingReceipt.data }, viewingReceipt.config || settings);
                   }}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95 shadow-sm"
+                  className="bg-brand hover:bg-brand-dark text-white px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95 shadow-sm"
                 >
                   <Printer size={16}/> Janela de Impressão
                 </button>
@@ -927,7 +927,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
         icon={<Printer size={20} />}
         actions={
           <>
-            <button onClick={handleRawPrint} className="h-11 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-90 bg-emerald-600 text-white hover:bg-emerald-500 shadow-sm">
+            <button onClick={handleRawPrint} className="h-11 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-90 bg-brand text-white hover:bg-brand-dark shadow-sm">
               <Printer size={14}/> Imprimir na Fiscal
             </button>
             <button onClick={handleBaixarTxt} className="h-11 px-4 bg-slate-50 border border-slate-200 text-slate-700 text-xs font-black tracking-wider rounded-xl hover:bg-slate-100 transition-colors flex items-center justify-center" title="Baixar .txt para impressão externa">
@@ -1006,7 +1006,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
               <button
                 onClick={handleStockEditSubmit}
                 disabled={stockEditLoading}
-                className="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-black uppercase hover:bg-emerald-500 disabled:opacity-50"
+                className="flex-1 py-3 bg-brand text-white rounded-xl font-black uppercase hover:bg-brand-dark disabled:opacity-50"
               >
                 {stockEditLoading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Salvar Estoque
               </button>
@@ -1122,7 +1122,7 @@ const ToggleSwitch = ({ label, sublabel, checked, onChange }: any) => (
         </div>
         <label className="relative inline-flex items-center cursor-pointer">
             <input type="checkbox" className="sr-only peer" checked={checked} onChange={onChange} />
-            <div className="w-12 h-7 bg-slate-600 rounded-full peer peer-checked:bg-emerald-500 transition-all after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all after:shadow-lg peer-checked:after:translate-x-5"></div>
+            <div className="w-12 h-7 bg-slate-600 rounded-full peer peer-checked:bg-brand transition-all after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all after:shadow-lg peer-checked:after:translate-x-5"></div>
         </label>
     </div>
 );

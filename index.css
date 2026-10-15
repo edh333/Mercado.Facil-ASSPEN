@@ -182,6 +182,19 @@ html[data-brand="custom"] {
   --color-emerald-950: color-mix(in oklab, var(--primary-color) 38%, black);
 }
 
+/* ─────────────────────────────────────────────
+   UTILITÁRIOS DE MARCA
+   Substituem os tons fixos bg-emerald-500/600/700 nos CONTROLES (botões,
+   toggles, abas, nav). Derivam hover/active da própria cor configurada.
+   Textos, bordas e tints continuam na escala emerald remapeada acima.
+   ───────────────────────────────────────────── */
+@utility bg-brand {
+  background-color: var(--primary-color);
+}
+@utility bg-brand-dark {
+  background-color: color-mix(in srgb, var(--primary-color) 88%, black);
+}
+
 /* ═══════════════════════════════════════════════════════════
    GLOBAL STYLES
    ═══════════════════════════════════════════════════════════ */

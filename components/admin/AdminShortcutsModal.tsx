@@ -85,7 +85,7 @@ export const AdminShortcutsModal: React.FC<AdminShortcutsModalProps> = ({ isOpen
         {SHORTCUTS.map(s => (
           <div key={s.key} className="flex items-center justify-between gap-4 p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors">
             <div className="flex items-center gap-3">
-              <span className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-black text-xs font-mono shadow-md">{s.key}</span>
+              <span className="px-3 py-1.5 rounded-lg bg-brand text-white font-black text-xs font-mono shadow-md">{s.key}</span>
               <div className="flex items-center gap-2 text-slate-700">
                 <span className="opacity-60">{s.icon}</span>
                 <span className="font-black text-xs uppercase tracking-tight">{s.label}</span>

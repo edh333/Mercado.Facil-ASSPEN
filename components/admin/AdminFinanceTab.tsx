@@ -336,7 +336,7 @@ const cashTotais = useMemo(() => {
     <div className="inline-flex bg-[var(--bg-main)] border border-[var(--border-color)] rounded-2xl p-1.5 gap-1 shadow-sm w-full sm:w-auto">
       {([
         { key: 'ALL' as const, rotulo: 'Tudo', icone: <ListFilter size={14}/>, ativo: 'bg-[var(--bg-card)] text-[var(--text-main)] shadow-md' },
-        { key: 'ENTRIES' as const, rotulo: 'Entradas', icone: <TrendingUp size={14}/>, ativo: 'bg-emerald-600 text-white shadow-md' },
+        { key: 'ENTRIES' as const, rotulo: 'Entradas', icone: <TrendingUp size={14}/>, ativo: 'bg-brand text-white shadow-md' },
         { key: 'EXITS' as const, rotulo: 'Saídas', icone: <TrendingDown size={14}/>, ativo: 'bg-red-600 text-white shadow-md' },
       ]).map(t => (
         <button
@@ -356,13 +356,13 @@ const cashTotais = useMemo(() => {
       {/* Upper Dashboard */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm relative">
         <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none">
-          <div className="absolute top-0 left-0 w-32 h-32 bg-emerald-600 rounded-full blur-[60px] -ml-16 -mt-16 opacity-10"></div>
+          <div className="absolute top-0 left-0 w-32 h-32 bg-brand rounded-full blur-[60px] -ml-16 -mt-16 opacity-10"></div>
         </div>
         <h2 className="text-xl font-bold text-[var(--text-main)] flex items-center gap-2 tracking-tight relative z-10">
             <DollarSign size={24} className="text-emerald-600"/> Painel Financeiro
         </h2>
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto relative z-10">
-            <button onClick={() => setShowExpenseModal(true)} className="flex-1 md:flex-none bg-emerald-600 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 transition-all">
+            <button onClick={() => setShowExpenseModal(true)} className="flex-1 md:flex-none bg-brand text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 transition-all">
                 <Plus size={18}/> Novo Lançamento
             </button>
             <div className="relative flex-1 md:flex-none" ref={acoesRef}>
@@ -413,7 +413,7 @@ const cashTotais = useMemo(() => {
         {isMaster && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-[var(--bg-card)] p-8 rounded-[3rem] border border-[var(--border-color)] shadow-xl relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-600 opacity-5 rounded-full -mr-16 -mt-16 group-hover:scale-125 transition-transform"></div>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-brand opacity-5 rounded-full -mr-16 -mt-16 group-hover:scale-125 transition-transform"></div>
               <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-[0.3em] mb-2">Saldo Consolidado <span className="opacity-50 tracking-normal normal-case">· janela carregada (limite: {ordersLimit} pedidos)</span></p>
               <h3 className="text-4xl font-black text-[var(--text-main)] tracking-tighter">
                 <span className="text-sm opacity-30 mr-1">R$</span>
@@ -433,7 +433,7 @@ const cashTotais = useMemo(() => {
               <h3 className="text-3xl font-black text-emerald-600 tracking-tighter">R$ {totalEntries.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h3>
             </div>
             <div className="h-1.5 w-full bg-emerald-500/10 rounded-full mt-4 overflow-hidden">
-                <div className="h-full bg-emerald-500 transition-all duration-1000" style={{ width: `${Math.min(100, (totalEntries/(totalEntries+totalExits || 1))*100)}%` }}/>
+                <div className="h-full bg-brand transition-all duration-1000" style={{ width: `${Math.min(100, (totalEntries/(totalEntries+totalExits || 1))*100)}%` }}/>
             </div>
           </div>
 
@@ -505,7 +505,7 @@ const cashTotais = useMemo(() => {
           <div className="flex items-center justify-center gap-6 mt-4 pt-4 border-t border-[var(--border-color)]">
             {activeSubTab !== 'EXITS' && (
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-emerald-500 rounded-full"></div>
+              <div className="w-3 h-3 bg-brand rounded-full"></div>
               <span className="text-[9px] font-black text-[var(--text-muted)] uppercase">Entradas</span>
             </div>
             )}
@@ -727,7 +727,7 @@ const cashTotais = useMemo(() => {
                         <td colSpan={5} className="p-6 text-center">
                             <button
                                 onClick={loadMoreExpenses}
-                                className="px-8 py-4 bg-[var(--bg-main)] border-2 border-[var(--border-color)] text-[var(--text-main)] font-black rounded-2xl hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition-all text-[10px] uppercase tracking-widest shadow-sm active:scale-95"
+                                className="px-8 py-4 bg-[var(--bg-main)] border-2 border-[var(--border-color)] text-[var(--text-main)] font-black rounded-2xl hover:bg-brand-dark hover:text-white hover:border-emerald-600 transition-all text-[10px] uppercase tracking-widest shadow-sm active:scale-95"
                             >
                                 Carregar Mais Despesas
                             </button>
@@ -781,7 +781,7 @@ const cashTotais = useMemo(() => {
             <div className="p-6 text-center border-t border-[var(--border-color)]">
                 <button
                     onClick={loadMoreExpenses}
-                    className="px-8 py-4 bg-[var(--bg-main)] border-2 border-[var(--border-color)] text-[var(--text-main)] font-black rounded-2xl hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition-all text-[10px] uppercase tracking-widest shadow-sm active:scale-95 w-full"
+                    className="px-8 py-4 bg-[var(--bg-main)] border-2 border-[var(--border-color)] text-[var(--text-main)] font-black rounded-2xl hover:bg-brand-dark hover:text-white hover:border-emerald-600 transition-all text-[10px] uppercase tracking-widest shadow-sm active:scale-95 w-full"
                 >
                     Carregar Mais Despesas
                 </button>

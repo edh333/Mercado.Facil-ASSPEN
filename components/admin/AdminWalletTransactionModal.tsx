@@ -42,7 +42,7 @@ const ComprovanteImg: React.FC<{ src: string; onBlocked?: () => void }> = ({ src
           <div className="flex flex-col gap-2 justify-center items-center">
             <button onClick={() => setErro(false)} className="px-4 py-2 bg-amber-200 hover:bg-amber-300 text-amber-800 rounded-lg text-[10px] font-black uppercase transition-all w-full max-w-xs">Tentar Recarregar</button>
             {src && src.startsWith('http') && (
-              <button onClick={handleOpenNewTab} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white rounded-lg text-[10px] font-black uppercase transition-all w-full max-w-xs flex items-center justify-center gap-2">
+              <button onClick={handleOpenNewTab} className="px-4 py-2 bg-brand hover:bg-brand-dark text-white rounded-lg text-[10px] font-black uppercase transition-all w-full max-w-xs flex items-center justify-center gap-2">
                 <ExternalLink size={14} /> Abrir em Nova Aba
               </button>
             )}
@@ -62,7 +62,7 @@ const ComprovanteImg: React.FC<{ src: string; onBlocked?: () => void }> = ({ src
             <FileText size={48} className="text-emerald-500 mb-3" />
             <p className="font-black text-emerald-600 text-sm mb-1">Comprovante em PDF</p>
             <p className="text-[10px] text-slate-500 text-center mb-4">Clique para abrir em tela cheia</p>
-            <button className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2">
+            <button className="px-4 py-2 bg-brand hover:bg-brand-dark text-white rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2">
               <ExternalLink size={12} /> Abrir PDF
             </button>
           </div>
@@ -480,7 +480,7 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
                       <button
                         onClick={() => setConfirmAction('approve')}
                         disabled={isApproving || isRejecting}
-                        className="py-5 bg-emerald-600 text-white rounded-3xl font-black text-[11px] uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50 touch-target"
+                        className="py-5 bg-brand text-white rounded-3xl font-black text-[11px] uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50 touch-target"
                       >
                         <CheckCircle size={20}/> {isApproving ? 'PROCESSANDO...' : 'Validar e Creditar'}
                       </button>
@@ -516,7 +516,7 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
                       <p className="font-black text-emerald-600 text-sm mb-1">Comprovante em PDF</p>
                       <p className="text-[10px] text-slate-500 text-center mb-4">PDFs não podem ser visualizados inline devido a restrições de segurança do navegador.</p>
                       <div className="flex gap-3">
-                        <button onClick={() => window.open(proofSrc, '_blank')} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2">
+                        <button onClick={() => window.open(proofSrc, '_blank')} className="px-4 py-2 bg-brand hover:bg-brand-dark text-white rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2">
                           <ExternalLink size={14} /> Abrir PDF em Nova Aba
                         </button>
                         <button onClick={handleDownload} className="px-4 py-2 bg-slate-600 hover:bg-slate-500 text-white rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2">

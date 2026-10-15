@@ -62,7 +62,7 @@ export const StoreSuspendedScreen: React.FC<StoreSuspendedScreenProps> = ({
                     {/* CTA principal */}
                     <button
                         onClick={onSendCredit}
-                        className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-emerald-200 active:scale-[0.98] transition-all cursor-pointer"
+                        className="w-full py-3.5 bg-brand hover:bg-brand-dark text-white rounded-xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-emerald-200 active:scale-[0.98] transition-all cursor-pointer"
                     >
                         <Coins size={15} /> + Enviar Crédito via PIX
                     </button>

@@ -181,7 +181,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
     <div className="space-y-6 animate-slideUp">
       {/* Upper Management Header */}
       <div className="flex flex-col xl:flex-row xl:flex-wrap justify-between items-start xl:items-center gap-3 sm:gap-4 bg-[var(--bg-card)] p-6 rounded-3xl border border-[var(--border-color)] shadow-sm relative">
-        <div className="absolute top-0 left-0 w-32 h-32 bg-emerald-500 rounded-full blur-[60px] -ml-16 -mt-16 opacity-10 pointer-events-none overflow-hidden"></div>
+        <div className="absolute top-0 left-0 w-32 h-32 bg-brand rounded-full blur-[60px] -ml-16 -mt-16 opacity-10 pointer-events-none overflow-hidden"></div>
 
         <div className="relative z-10">
           <h2 className="text-2xl font-bold text-[var(--text-main)] flex items-center gap-3 tracking-tight">
@@ -195,7 +195,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
             <div className="flex flex-wrap bg-[var(--bg-main)] rounded-2xl p-1.5 border border-[var(--border-color)] w-full md:w-auto gap-1.5">
                 <button onClick={() => setStatusFilter('ALL')} className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${statusFilter === 'ALL' ? 'bg-[var(--text-main)] text-[var(--bg-card)] shadow-lg' : 'text-[var(--text-muted)] hover:bg-[var(--bg-muted)]'}`}>Tudo</button>
                 <button onClick={() => setStatusFilter('PENDING')} className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 flex items-center gap-2 ${statusFilter === 'PENDING' ? 'bg-amber-500 text-white shadow-lg ring-2 ring-amber-300' : 'text-amber-600 hover:bg-amber-100'}`}>Pendentes {contagens.pend > 0 && <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${statusFilter === 'PENDING' ? 'bg-white/20' : 'bg-amber-500/15'}`}>{contagens.pend}</span>}</button>
-                <button onClick={() => setStatusFilter('PAID')} className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 flex items-center gap-2 ${statusFilter === 'PAID' ? 'bg-emerald-600 text-white shadow-lg' : 'text-emerald-600 hover:bg-emerald-100'}`}>Concluídos {contagens.conc > 0 && <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${statusFilter === 'PAID' ? 'bg-white/20' : 'bg-emerald-500/15'}`}>{contagens.conc}</span>}</button>
+                <button onClick={() => setStatusFilter('PAID')} className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 flex items-center gap-2 ${statusFilter === 'PAID' ? 'bg-brand text-white shadow-lg' : 'text-emerald-600 hover:bg-emerald-100'}`}>Concluídos {contagens.conc > 0 && <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${statusFilter === 'PAID' ? 'bg-white/20' : 'bg-emerald-500/15'}`}>{contagens.conc}</span>}</button>
                 <button onClick={() => setStatusFilter('CANCELLED')} className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 flex items-center gap-2 ${statusFilter === 'CANCELLED' ? 'bg-rose-600 text-white shadow-lg' : 'text-rose-600 hover:bg-rose-100'}`}>Cancelados {contagens.canc > 0 && <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${statusFilter === 'CANCELLED' ? 'bg-white/20' : 'bg-rose-500/15'}`}>{contagens.canc}</span>}</button>
                 <button onClick={() => setStatusFilter('REFUNDED')} className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 flex items-center gap-2 ${statusFilter === 'REFUNDED' ? 'bg-indigo-600 text-white shadow-lg' : 'text-indigo-600 hover:bg-indigo-100'}`}>Devolvidos {contagens.dev > 0 && <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${statusFilter === 'REFUNDED' ? 'bg-white/20' : 'bg-indigo-500/15'}`}>{contagens.dev}</span>}</button>
             </div>
@@ -215,7 +215,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                     title="Ver as vendas de um dia específico"
                     className="px-2 py-1.5 rounded-lg text-[10px] font-black bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-main)] outline-none focus:border-emerald-500 shrink-0 cursor-pointer"
                 />
-                <button onClick={() => setDateFilter('DAY')} className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all shrink-0 ${dateFilter === 'DAY' ? 'bg-emerald-600 text-white shadow-lg' : 'text-emerald-600 hover:bg-emerald-100'}`}>Dia</button>
+                <button onClick={() => setDateFilter('DAY')} className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all shrink-0 ${dateFilter === 'DAY' ? 'bg-brand text-white shadow-lg' : 'text-emerald-600 hover:bg-emerald-100'}`}>Dia</button>
             </div>
 
             {/* Sort Order */}
@@ -244,7 +244,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
             {/* Export Button */}
             <button
                 onClick={exportOrdersToCSV}
-                className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 bg-emerald-500 text-white hover:bg-emerald-600"
+                className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 bg-brand text-white hover:bg-emerald-600"
             >
                 <Download size={14}/> Exportar
             </button>
@@ -332,7 +332,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                     <div className="flex flex-wrap items-center justify-end gap-2">
                       <p className="text-base font-black text-[var(--text-main)] tracking-tighter">R$ {(Number(order.total) || 0).toFixed(2).replace('.', ',')}</p>
                       <button onClick={() => setViewingReceipt({ data: order, type: 'ORDER' })} className="flex items-center justify-center gap-1.5 bg-[var(--bg-main)] border border-[var(--border-color)] text-[var(--text-main)] text-xs font-bold px-3 py-2.5 rounded-xl hover:bg-[var(--bg-muted)] transition-colors shrink-0 min-h-[40px]" title="Ver Comprovante de Pagamento"><Eye size={16}/> Comprovante</button>
-                      <button onClick={() => setSelectedOrderDetails(order)} className="px-4 py-2.5 min-h-[40px] bg-emerald-500 text-white font-black rounded-xl text-[10px] uppercase tracking-widest shadow hover:bg-emerald-600 active:scale-95 transition-all flex items-center gap-2 touch-target">
+                      <button onClick={() => setSelectedOrderDetails(order)} className="px-4 py-2.5 min-h-[40px] bg-brand text-white font-black rounded-xl text-[10px] uppercase tracking-widest shadow hover:bg-brand-dark active:scale-95 transition-all flex items-center gap-2 touch-target">
                         Detalhes <ArrowRight size={14}/>
                       </button>
                     </div>
@@ -421,7 +421,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                     <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></span> Aprovando...
                   </div>
                 ) : (
-                  <button onClick={() => setConfirmarAprovId(order.id)} className="flex items-center justify-center gap-1.5 px-3 py-2.5 min-h-[40px] bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition-colors shrink-0">
+                  <button onClick={() => setConfirmarAprovId(order.id)} className="flex items-center justify-center gap-1.5 px-3 py-2.5 min-h-[40px] bg-brand text-white text-xs font-bold rounded-xl hover:bg-brand-dark transition-colors shrink-0">
                     <CheckCircle size={16}/> Aprovar
                   </button>
                 ))}
@@ -441,7 +441,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
         <div className="flex justify-center mt-8 pb-10">
           <button
             onClick={loadMoreOrders}
-            className="px-10 py-4 bg-[var(--bg-card)] border-2 border-[var(--border-color)] text-[var(--text-main)] font-black uppercase tracking-[0.2em] rounded-2xl hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-all shadow-sm active:scale-95"
+            className="px-10 py-4 bg-[var(--bg-card)] border-2 border-[var(--border-color)] text-[var(--text-main)] font-black uppercase tracking-[0.2em] rounded-2xl hover:bg-brand-dark hover:text-white hover:border-emerald-500 transition-all shadow-sm active:scale-95"
           >
             Carregar Mais Pedidos
           </button>

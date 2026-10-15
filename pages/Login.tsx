@@ -450,7 +450,7 @@ const [recoveryName, setRecoveryName] = useState('');
                                         <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={e => e.target.files && setFileObject(e.target.files[0])} />
                                         {fileObject ? (
                                             <div className="flex flex-col items-center gap-2">
-                                                <div className="w-12 h-12 bg-emerald-500 text-white rounded-2xl flex items-center justify-center shadow-lg"><CheckCircle size={24} /></div>
+                                                <div className="w-12 h-12 bg-brand text-white rounded-2xl flex items-center justify-center shadow-lg"><CheckCircle size={24} /></div>
                                                 <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-widest">Documento Anexado</p>
                                             </div>
                                         ) : (
@@ -467,7 +467,7 @@ const [recoveryName, setRecoveryName] = useState('');
                                         <div className="relative mt-0.5 shrink-0">
                                             <input
                                                 type="checkbox"
-                                                className="peer w-5 h-5 appearance-none border-2 border-slate-300 rounded-md checked:bg-emerald-500 checked:border-emerald-500 transition-all cursor-pointer"
+                                                className="peer w-5 h-5 appearance-none border-2 border-slate-300 rounded-md checked:bg-brand checked:border-emerald-500 transition-all cursor-pointer"
                                                 checked={legalTermAccepted} onChange={e => setLegalTermAccepted(e.target.checked)}
                                             />
                                             <CheckCircle size={13} className="absolute top-1 left-1 text-white opacity-0 peer-checked:opacity-100 pointer-events-none transition-opacity" />

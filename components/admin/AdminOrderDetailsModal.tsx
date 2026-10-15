@@ -412,7 +412,7 @@ export const AdminOrderDetailsModal: React.FC<AdminOrderDetailsModalProps> = ({
                     </h4>
                     {order.paymentMethod !== 'WALLET' && proofSrc && proofSrc !== 'PENDENTE_UPLOAD_LOCAL_CACHE' && (
                         <span className="px-3 py-1 bg-emerald-500/10 text-emerald-700 rounded-full text-[9px] font-black uppercase flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
+                            <span className="w-1.5 h-1.5 bg-brand rounded-full"></span>
                             Anexado
                         </span>
                     )}
@@ -452,7 +452,7 @@ export const AdminOrderDetailsModal: React.FC<AdminOrderDetailsModalProps> = ({
                           <>
                             <button 
                               onClick={() => window.open(proofSrc, '_blank')} 
-                              className="flex-1 min-w-[140px] py-3 px-4 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2"
+                              className="flex-1 min-w-[140px] py-3 px-4 bg-brand hover:bg-brand-dark text-white rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2"
                             >
                               <ExternalLink size={14} /> Abrir PDF em Nova Aba
                             </button>
@@ -475,7 +475,7 @@ export const AdminOrderDetailsModal: React.FC<AdminOrderDetailsModalProps> = ({
                           <>
                             <button 
                               onClick={() => window.open(proofSrc, '_blank')} 
-                              className="flex-1 min-w-[140px] py-3 px-4 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2"
+                              className="flex-1 min-w-[140px] py-3 px-4 bg-brand hover:bg-brand-dark text-white rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2"
                             >
                               <ExternalLink size={14} /> Abrir em Nova Aba
                             </button>
@@ -605,8 +605,8 @@ export const AdminOrderDetailsModal: React.FC<AdminOrderDetailsModalProps> = ({
                           disabled={isProcessing}
                           className={`w-full py-4 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl transition-all flex items-center justify-center gap-4 ${
                             isProcessing
-                              ? 'bg-emerald-700 text-white/80 cursor-not-allowed'
-                              : 'bg-emerald-600 text-white hover:brightness-110 active:scale-95'
+                              ? 'bg-brand-dark text-white/80 cursor-not-allowed'
+                              : 'bg-brand text-white hover:brightness-110 active:scale-95'
                           }`}
                         >
                           {isProcessing ? (<><Loader2 size={20} className="animate-spin" /> Processando...</>) : (<><CheckCircle size={22}/> Aprovar e Finalizar Compra</>)}

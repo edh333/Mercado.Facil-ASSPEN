@@ -119,7 +119,7 @@ export const AdminMessagesTab: React.FC<AdminMessagesTabProps> = ({ users, messa
               onClick={() => setSelected(ALL_USERS)}
               className={`w-full rounded-2xl px-4 py-3 text-left transition-all flex items-center gap-3 border ${
                 selected === ALL_USERS
-                  ? 'bg-emerald-500 text-white border-emerald-500 shadow-lg'
+                  ? 'bg-brand text-white border-emerald-500 shadow-lg'
                   : 'bg-[var(--bg-main)] text-[var(--text-main)] border-[var(--border-color)] hover:border-emerald-500/50'
               }`}
             >
@@ -155,7 +155,7 @@ export const AdminMessagesTab: React.FC<AdminMessagesTabProps> = ({ users, messa
                   onClick={() => setSelected(u.id)}
                   className={`w-full rounded-2xl px-4 py-3 text-left transition-all flex items-center gap-3 border ${
                     selected === u.id
-                      ? 'bg-emerald-500 text-white border-emerald-500 shadow-lg'
+                      ? 'bg-brand text-white border-emerald-500 shadow-lg'
                       : 'bg-[var(--bg-main)] text-[var(--text-main)] border-[var(--border-color)] hover:border-emerald-500/50'
                   }`}
                 >
@@ -232,7 +232,7 @@ export const AdminMessagesTab: React.FC<AdminMessagesTabProps> = ({ users, messa
                       <div
                         className={`max-w-[80%] px-5 py-3.5 rounded-2xl shadow-sm ${
                           msg.fromAdmin
-                            ? 'bg-emerald-600 text-white rounded-br-sm'
+                            ? 'bg-brand text-white rounded-br-sm'
                             : 'bg-[var(--bg-main)] text-[var(--text-main)] border border-[var(--border-color)] rounded-bl-sm'
                         }`}
                       >
@@ -274,7 +274,7 @@ export const AdminMessagesTab: React.FC<AdminMessagesTabProps> = ({ users, messa
                 <button
                   onClick={handleSend}
                   disabled={sending || !body.trim()}
-                  className="px-8 py-4 bg-emerald-600 text-white font-black text-[10px] uppercase tracking-widest rounded-2xl shadow-xl flex items-center justify-center gap-2 hover:bg-emerald-500 transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald-600"
+                  className="px-8 py-4 bg-brand text-white font-black text-[10px] uppercase tracking-widest rounded-2xl shadow-xl flex items-center justify-center gap-2 hover:bg-brand-dark transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald-600"
                 >
                   <Send size={16} className={sending ? 'animate-pulse' : ''} /> {sending ? 'Enviando...' : 'Enviar'}
                 </button>

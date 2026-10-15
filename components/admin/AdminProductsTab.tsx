@@ -332,7 +332,7 @@ horizontal para chegar em editar/estoque/excluir. */}
             <button
               onClick={() => setModoListaSimples(s => !s)}
               title="Lista simplificada (nomes e valores)"
-              className={`p-2 px-3 rounded-lg transition-all flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest ${modoListaSimples ? 'bg-emerald-500 text-white shadow-sm' : 'text-[var(--text-muted)] hover:bg-[var(--bg-main)]'}`}
+              className={`p-2 px-3 rounded-lg transition-all flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest ${modoListaSimples ? 'bg-brand text-white shadow-sm' : 'text-[var(--text-muted)] hover:bg-[var(--bg-main)]'}`}
             >
               <Printer size={14}/> Lista
             </button>
@@ -387,7 +387,7 @@ horizontal para chegar em editar/estoque/excluir. */}
             <option value="admin">Só PDV Admin</option>
           </select>
 
-          <button onClick={() => { setEditingProduct(null); setShowProductModal(true); }} className="bg-emerald-500 text-white px-6 py-2 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl flex items-center justify-center gap-2 hover:opacity-90 transition-all active:scale-95"><Plus size={18}/> Novo Produto</button>
+          <button onClick={() => { setEditingProduct(null); setShowProductModal(true); }} className="bg-brand text-white px-6 py-2 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl flex items-center justify-center gap-2 hover:opacity-90 transition-all active:scale-95"><Plus size={18}/> Novo Produto</button>
         </div>
       </div>
 
@@ -429,7 +429,7 @@ horizontal para chegar em editar/estoque/excluir. */}
                   placeholder="0"
                 />
               </div>
-              <button onClick={handleImportXML} disabled={!xmlFile || xmlPreviewLoading} className={`w-full md:w-auto px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-2 ${(!xmlFile || xmlPreviewLoading) ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-emerald-600 text-white hover:opacity-90 active:scale-95'}`}>
+              <button onClick={handleImportXML} disabled={!xmlFile || xmlPreviewLoading} className={`w-full md:w-auto px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-2 ${(!xmlFile || xmlPreviewLoading) ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-brand text-white hover:opacity-90 active:scale-95'}`}>
                 {xmlPreviewLoading ? <RefreshCw size={18} className="animate-spin"/> : <Check size={18}/>} {xmlPreviewLoading ? 'Lendo Nota...' : 'Processar NFe'}
               </button>
               {margin.trim() !== '' && margemPct !== parseFloat(margin) && (
@@ -504,7 +504,7 @@ horizontal para chegar em editar/estoque/excluir. */}
                   <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-main)] flex-1">Imprimir catálogo</span>
               </button>
               <button onClick={printProductList} className="flex items-center gap-3 bg-[var(--bg-card)] border border-[var(--border-color)] p-4 rounded-2xl hover:bg-[var(--bg-main)] hover:shadow-lg transition-all active:scale-95 group text-left">
-                  <div className="p-2.5 bg-emerald-100 rounded-xl text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-colors shrink-0"><Download size={18}/></div>
+                  <div className="p-2.5 bg-emerald-100 rounded-xl text-emerald-600 group-hover:bg-brand group-hover:text-white transition-colors shrink-0"><Download size={18}/></div>
                   <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-main)] flex-1">Lista de preços (PDF)</span>
               </button>
 <button onClick={async () => {
@@ -580,7 +580,7 @@ horizontal para chegar em editar/estoque/excluir. */}
             <div className="flex items-center gap-2">
               <button
                 onClick={printSimpleList}
-                className="px-4 py-2 rounded-xl bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 font-black text-[10px] uppercase tracking-widest hover:bg-emerald-500 hover:text-white transition-all active:scale-95 flex items-center gap-1.5"
+                className="px-4 py-2 rounded-xl bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 font-black text-[10px] uppercase tracking-widest hover:bg-brand-dark hover:text-white transition-all active:scale-95 flex items-center gap-1.5"
               >
                 <Printer size={14}/> Imprimir
               </button>
@@ -820,7 +820,7 @@ horizontal para chegar em editar/estoque/excluir. */}
         <div className="flex justify-center mt-12 pb-10">
           <button
             onClick={loadMoreProducts}
-            className="px-10 py-4 bg-[var(--bg-card)] border-2 border-[var(--border-color)] text-[var(--text-main)] font-black uppercase tracking-[0.2em] rounded-2xl hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-all shadow-sm active:scale-95 flex items-center gap-3"
+            className="px-10 py-4 bg-[var(--bg-card)] border-2 border-[var(--border-color)] text-[var(--text-main)] font-black uppercase tracking-[0.2em] rounded-2xl hover:bg-brand-dark hover:text-white hover:border-emerald-500 transition-all shadow-sm active:scale-95 flex items-center gap-3"
           >
             <RefreshCw size={18} className="animate-spin-slow"/> Carregar Mais Produtos
           </button>

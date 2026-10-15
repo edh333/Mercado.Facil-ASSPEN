@@ -12,7 +12,7 @@ interface AdminButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement>
 // Usa tokens (var(--...)) para funcionar igual no tema claro e no escuro.
 const VARIANT_STYLE: Record<AdminButtonVariant, string> = {
   primary:
-    'rounded-3xl py-4 px-8 text-[11px] font-black uppercase tracking-widest bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 hover:brightness-110 transition-all active:scale-95',
+    'rounded-3xl py-4 px-8 text-[11px] font-black uppercase tracking-widest bg-brand text-white shadow-lg shadow-emerald-500/25 hover:brightness-110 transition-all active:scale-95',
   secondary:
     'rounded-3xl py-3 px-6 text-[10px] font-black uppercase tracking-widest bg-[var(--bg-muted)] text-[var(--text-main)] hover:bg-[var(--bg-main)] border border-[var(--border-color)] transition-all active:scale-95',
   danger:

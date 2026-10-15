@@ -223,7 +223,7 @@ export function AdminCustomersTab({
         </h2>
         <button
           onClick={() => { setEditData({ nome: '', telefone: '', creditLimit: 0, status: 'active' }); setCreditLimitOriginal(0); setSenhaMestra(''); setShowModal(true); }}
-          className="px-6 py-3 bg-emerald-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-emerald-600 transition-all active:scale-95 shadow-md"
+          className="px-6 py-3 bg-brand text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-brand-dark transition-all active:scale-95 shadow-md"
         >
           <Plus size={18} /> Novo Cliente
         </button>
@@ -280,7 +280,7 @@ export function AdminCustomersTab({
           { key: 'exhausted', label: 'Limite Esgotado' },
           { key: 'blocked', label: 'Bloqueados' },
         ] as const).map(f => (
-          <button key={f.key} onClick={() => setFilterType(f.key)} className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 ${filterType === f.key ? 'bg-emerald-500 text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}>
+          <button key={f.key} onClick={() => setFilterType(f.key)} className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 ${filterType === f.key ? 'bg-brand text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}>
             {f.label}
           </button>
         ))}
@@ -356,7 +356,7 @@ export function AdminCustomersTab({
                     <button
                       onClick={() => { setPayModal({ customer: c }); setPayAmount(''); }}
                       disabled={!c.currentDebt || c.currentDebt <= 0}
-                      className="px-4 py-2.5 bg-emerald-500 text-white text-xs font-black rounded-xl hover:bg-emerald-600 transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed shadow-sm uppercase tracking-wider"
+                      className="px-4 py-2.5 bg-brand text-white text-xs font-black rounded-xl hover:bg-brand-dark transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed shadow-sm uppercase tracking-wider"
                     >
                       <DollarSign size={14} className="inline mr-1" /> Receber
                     </button>
@@ -395,7 +395,7 @@ export function AdminCustomersTab({
             <button onClick={() => { setShowModal(false); setEditData(null); }} className="flex-1 py-3 rounded-2xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all">
               Cancelar
             </button>
-            <button onClick={handleSave} disabled={saving || !editData?.nome?.trim()} className="flex-1 py-3 rounded-2xl bg-emerald-500 text-white font-bold text-sm shadow-md hover:bg-emerald-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+            <button onClick={handleSave} disabled={saving || !editData?.nome?.trim()} className="flex-1 py-3 rounded-2xl bg-brand text-white font-bold text-sm shadow-md hover:bg-brand-dark transition-all disabled:opacity-50 flex items-center justify-center gap-2">
               {saving ? <RefreshCw className="animate-spin" size={16} /> : <Check size={16} />}
               {editData?.id ? 'Salvar' : 'Cadastrar'}
             </button>
@@ -499,7 +499,7 @@ export function AdminCustomersTab({
             <button
               onClick={handleReceivePayment}
               disabled={paying || !payAmount || parseMoeda(payAmount) <= 0}
-              className="flex-1 py-3 rounded-2xl bg-emerald-500 text-white font-bold text-sm shadow-md hover:bg-emerald-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              className="flex-1 py-3 rounded-2xl bg-brand text-white font-bold text-sm shadow-md hover:bg-brand-dark transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {paying ? <RefreshCw className="animate-spin" size={16} /> : <CheckCircle size={16} />}
               Confirmar Pagamento

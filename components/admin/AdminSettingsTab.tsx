@@ -1025,7 +1025,7 @@ const handleBaixarBackup = async (nome: string) => {
                         updateSettings({ ...settings, pixKeys: [...existentes, chave] });
                         setNewPixKey('');
                       }}
-                      className="bg-emerald-600 text-white px-4 rounded-xl font-black text-xs"
+                      className="bg-brand text-white px-4 rounded-xl font-black text-xs"
                     >
                       +
                     </button>
@@ -1048,7 +1048,7 @@ const handleBaixarBackup = async (nome: string) => {
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" className="sr-only peer" aria-label="Carteira do Interno / Saldo" checked={settings?.allow_balance_purchases !== false} onChange={e => updateSettings({ ...settings, allow_balance_purchases: e.target.checked, enablePrisonerWallet: e.target.checked })} />
-                    <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
+                    <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-brand after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
                   </label>
                 </div>
                 <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
@@ -1058,7 +1058,7 @@ const handleBaixarBackup = async (nome: string) => {
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" className="sr-only peer" aria-label="Forçar PIX para todos os usuários" checked={!!settings?.forcePixOnlyUsers} onChange={e => updateSettings({ ...settings, forcePixOnlyUsers: e.target.checked })} />
-                    <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
+                    <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-brand after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
                   </label>
                 </div>
                 <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
@@ -1068,7 +1068,7 @@ const handleBaixarBackup = async (nome: string) => {
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" className="sr-only peer" aria-label="Permitir compras" checked={settings?.allow_user_purchases !== false} onChange={e => updateSettings({ ...settings, allow_user_purchases: e.target.checked })} />
-                    <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
+                    <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-brand after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
                   </label>
                 </div>
                 <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
@@ -1151,7 +1151,7 @@ const handleBaixarBackup = async (nome: string) => {
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" className="sr-only peer" checked={!!settings?.autoPrint} onChange={e => updateSettings({ ...settings, autoPrint: e.target.checked })} />
-                    <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
+                    <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-brand after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
                   </label>
                 </div>
                 <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
@@ -1196,7 +1196,7 @@ const handleBaixarBackup = async (nome: string) => {
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" className="sr-only peer" checked={settings?.escposEnabled !== false} onChange={e => updateSettings({ ...settings, escposEnabled: e.target.checked })} />
-                    <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
+                    <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-brand after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
                   </label>
                 </div>
                 <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
@@ -1206,7 +1206,7 @@ const handleBaixarBackup = async (nome: string) => {
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" className="sr-only peer" checked={settings?.autoCutPaper !== false} onChange={e => updateSettings({ ...settings, autoCutPaper: e.target.checked })} />
-                    <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
+                    <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-brand after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
                   </label>
                 </div>
                 <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
@@ -1227,7 +1227,7 @@ const handleBaixarBackup = async (nome: string) => {
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" className="sr-only peer" checked={!!settings?.drawerKick} onChange={e => updateSettings({ ...settings, drawerKick: e.target.checked })} />
-                    <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
+                    <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-brand after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
                   </label>
                 </div>
                 <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
@@ -1391,7 +1391,7 @@ const handleBaixarBackup = async (nome: string) => {
                     onClick={() => updateSettings({ ...settings, pdvLayout: 'IMAGE_1_DEFAULT' })}
                     className={`p-6 rounded-2xl border-4 transition-all flex flex-col items-center gap-3 ${(!settings?.pdvLayout || settings?.pdvLayout === 'IMAGE_1_DEFAULT') ? 'border-slate-800 bg-slate-100' : 'border-slate-200 bg-slate-50'}`}
                   >
-                    <div className="w-12 h-12 rounded-xl bg-emerald-600 flex items-center justify-center text-white">
+                    <div className="w-12 h-12 rounded-xl bg-brand flex items-center justify-center text-white">
                       <ShoppingBag size={24} />
                     </div>
                     <span className="text-sm font-black text-slate-800">Padrão Moderno</span>
@@ -1632,7 +1632,7 @@ const handleBaixarBackup = async (nome: string) => {
                     showNotification?.('Erro ao reativar o sistema.', 'error');
                   }
                 }, 'maintenance')}
-                className="inline-flex items-center gap-2 px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-emerald-500/30 transition-all"
+                className="inline-flex items-center gap-2 px-6 py-3.5 bg-brand hover:bg-brand-dark text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-emerald-500/30 transition-all"
               >
                 <Power size={15} /> Reativar sistema
               </button>
@@ -1732,7 +1732,7 @@ const handleBaixarBackup = async (nome: string) => {
                 </button>
                 {!renovarConfirming ? (
                   <button onClick={() => setRenovarConfirming(true)} className="p-6 border-2 border-emerald-50 bg-emerald-50/50 rounded-2xl flex flex-col items-center gap-3 hover:bg-emerald-100 transition-all">
-                    <div className="bg-emerald-600 text-white p-3 rounded-xl"><RefreshCw size={24} /></div>
+                    <div className="bg-brand text-white p-3 rounded-xl"><RefreshCw size={24} /></div>
                     <span className="text-[10px] font-black uppercase">Renovar Sistema</span>
                   </button>
                 ) : (
@@ -1741,7 +1741,7 @@ const handleBaixarBackup = async (nome: string) => {
                       <RefreshCw size={16}/> Confirmar renovação? Nenhum dado é apagado — o app recarrega em seguida.
                     </p>
                     <div className="flex gap-2">
-                      <button onClick={handleRenovarSistema} className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95">
+                      <button onClick={handleRenovarSistema} className="px-4 py-2.5 bg-brand hover:bg-brand-dark text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95">
                         Sim, renovar
                       </button>
                       <button onClick={() => setRenovarConfirming(false)} className="px-4 py-2.5 bg-white border-2 border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all">
@@ -1835,7 +1835,7 @@ const handleBaixarBackup = async (nome: string) => {
                 onClick={handleCriarPonto}
                 className="p-5 border-2 border-emerald-100 bg-emerald-50/50 rounded-2xl flex flex-col items-center gap-3 hover:bg-emerald-100 transition-all"
               >
-                <div className="bg-emerald-600 text-white p-3 rounded-xl"><Save size={22} /></div>
+                <div className="bg-brand text-white p-3 rounded-xl"><Save size={22} /></div>
                 <span className="text-[10px] font-black uppercase text-emerald-800">Criar Ponto Agora</span>
               </button>
               <button
@@ -1890,7 +1890,7 @@ const handleBaixarBackup = async (nome: string) => {
                       <div className="flex items-center gap-2 shrink-0">
                         <button
                           onClick={() => setRestoreTarget(p)}
-                          className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2"
+                          className="px-4 py-2.5 bg-brand hover:bg-brand-dark text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2"
                         >
                           <RotateCcw size={14} /> Restaurar
                         </button>

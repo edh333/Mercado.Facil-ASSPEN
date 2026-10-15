@@ -352,7 +352,7 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
           {/* Status Badge */}
           <div className="flex items-center gap-2 mb-5">
             <span className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-full text-xs font-bold">
-              <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+              <span className="w-2 h-2 bg-brand rounded-full animate-pulse" />
               CAIXA ABERTO
             </span>
             <span className="text-slate-400 text-xs">desde {fmtTs(session.openedAt)}</span>

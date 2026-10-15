@@ -384,7 +384,7 @@ export const MaintenanceCenter: React.FC<Props> = ({
                         <button
                           onClick={() => marcarFeito(c.item.id)}
                           title={c.emDia ? 'Marcar novamente (renova o prazo)' : 'Marcar como realizado'}
-                          className={'mt-0.5 w-5 h-5 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all active:scale-90 ' + (c.emDia ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-[var(--border-color)] text-transparent hover:border-emerald-500')}
+                          className={'mt-0.5 w-5 h-5 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all active:scale-90 ' + (c.emDia ? 'bg-brand border-emerald-500 text-white' : 'border-[var(--border-color)] text-transparent hover:border-emerald-500')}
                         >
                           <CheckCircle2 size={13} />
                         </button>

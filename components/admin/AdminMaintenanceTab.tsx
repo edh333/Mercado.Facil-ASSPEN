@@ -133,7 +133,7 @@ export const AdminMaintenanceTab: React.FC<Props> = ({
           <button
             onClick={gerarBackup}
             disabled={backupando}
-            className="flex items-center justify-center gap-2.5 px-4 py-4 rounded-2xl bg-emerald-500 text-white text-[11px] font-black uppercase tracking-wider shadow-lg shadow-emerald-500/25 hover:brightness-110 transition-all active:scale-[0.98] disabled:opacity-50"
+            className="flex items-center justify-center gap-2.5 px-4 py-4 rounded-2xl bg-brand text-white text-[11px] font-black uppercase tracking-wider shadow-lg shadow-emerald-500/25 hover:brightness-110 transition-all active:scale-[0.98] disabled:opacity-50"
           >
             {backupando ? <Loader2 size={16} className="animate-spin" /> : <DatabaseBackup size={16} />}
             Gerar backup agora

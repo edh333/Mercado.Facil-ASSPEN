@@ -1280,12 +1280,12 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                                             <p className="text-[10px] font-bold text-red-400 uppercase">PIX indisponível. Fale com a administração.</p>
                                                         </div>
                                                     )}
-                                                    <button onClick={() => { copiarTextoComFallback(pixPayload || ''); setPixCopied(true); setTimeout(() => setPixCopied(false), 2000); }} className={`w-full mt-3 py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${pixCopied ? 'bg-emerald-600 text-white' : 'bg-blue-500 text-white'}`}>
+                                                    <button onClick={() => { copiarTextoComFallback(pixPayload || ''); setPixCopied(true); setTimeout(() => setPixCopied(false), 2000); }} className={`w-full mt-3 py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${pixCopied ? 'bg-brand text-white' : 'bg-blue-500 text-white'}`}>
                                                         {pixCopied ? <><CheckCircle size={12} /> COPIADO!</> : <><RefreshCcw size={12} /> Copiar PIX</>}
                                                     </button>
                                                 </div>
                                             )}
-                                            <button onClick={() => { if (depositAmount <= 0) { showNotification('DIGITE O VALOR DO CRÉDITO.', 'error'); return; } if (depositAmount > 100000) { showNotification('VALOR ACIMA DO LIMITE POR DEPÓSITO (R$ 100.000,00).', 'error'); return; } setDepositStage('proof'); if (fileInputRef.current) fileInputRef.current.value = ''; }} disabled={depositAmount <= 0} className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 transition-all cursor-pointer">
+                                            <button onClick={() => { if (depositAmount <= 0) { showNotification('DIGITE O VALOR DO CRÉDITO.', 'error'); return; } if (depositAmount > 100000) { showNotification('VALOR ACIMA DO LIMITE POR DEPÓSITO (R$ 100.000,00).', 'error'); return; } setDepositStage('proof'); if (fileInputRef.current) fileInputRef.current.value = ''; }} disabled={depositAmount <= 0} className="w-full py-3.5 bg-brand hover:bg-brand-dark text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 transition-all cursor-pointer">
                                                 <Sparkles size={14} /> Já fiz o PIX do Crédito
                                             </button>
                                         </div>
@@ -1585,7 +1585,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                             <h4 className="text-slate-800 font-bold text-xs tracking-wide line-clamp-2 uppercase mb-2">{p.name}</h4>
                                             <div className="flex items-center justify-between gap-2">
                                                 <span className="text-[var(--primary-color)] font-extrabold text-xs">R$ {formatarMoeda(p.price)}</span>
-                                                <button onClick={() => addToCart(p)} disabled={isOutOfStock} className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg p-2 transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"><Plus size={16} /></button>
+                                                <button onClick={() => addToCart(p)} disabled={isOutOfStock} className="bg-brand hover:bg-brand-dark text-white rounded-lg p-2 transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"><Plus size={16} /></button>
                                             </div>
                                         </div>
                                     </div>
@@ -1654,7 +1654,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                 <span className="text-xs font-black text-slate-400 uppercase">Total Geral</span>
                                 <span className="text-xl font-black text-slate-900">R$ {formatarMoeda(cartTotal)}</span>
                             </div>
-                            <button onClick={() => { setIsCartReviewOpen(false); setIsCheckoutModalOpen(true); }} className="w-full py-3 bg-emerald-600 text-white font-black rounded-2xl uppercase text-xs shadow-lg active:scale-95 flex items-center justify-center gap-2 shrink-0">
+                            <button onClick={() => { setIsCartReviewOpen(false); setIsCheckoutModalOpen(true); }} className="w-full py-3 bg-brand text-white font-black rounded-2xl uppercase text-xs shadow-lg active:scale-95 flex items-center justify-center gap-2 shrink-0">
                                 <Banknote size={14} className="inline-block mr-1.5 -mt-0.5" /> AVANÇAR PARA PAGAMENTO
                             </button>
                         </div>
@@ -1695,7 +1695,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
 
             {/* CART FAB — desktop */}
             {totalItensNoCarrinho > 0 && !soCredito && (
-                <button onClick={() => setIsCartReviewOpen(true)} className="hidden md:flex fixed bottom-6 right-6 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-5 rounded-full shadow-2xl flex items-center gap-2 z-50 transition-all active:scale-95 cursor-pointer">
+                <button onClick={() => setIsCartReviewOpen(true)} className="hidden md:flex fixed bottom-6 right-6 bg-brand hover:bg-brand-dark text-white font-bold py-3 px-5 rounded-full shadow-2xl flex items-center gap-2 z-50 transition-all active:scale-95 cursor-pointer">
                     <span className="relative">
                         <ShoppingCart size={20} />
                         <span className="absolute -top-2 -right-2 w-auto min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center border border-white">{totalItensNoCarrinho}</span>
@@ -1749,7 +1749,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                     setDepositStage('proof'); if (fileInputRef.current) fileInputRef.current.value = '';
                                 }}
                                 disabled={depositAmount <= 0}
-                                className="w-full bg-emerald-600 hover:bg-emerald-700"
+                                className="w-full bg-brand hover:bg-emerald-700"
                             >
                                 Já fiz o PIX do Crédito
                             </UiButton>
@@ -1956,7 +1956,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                             />
                         </div>
                         <div className="p-4 bg-white border-t border-slate-100 print:hidden space-y-2">
-                            <button onClick={() => imprimirComPrioridadeFiscal({ type: 'CUPOM', data: viewingOrderCupom }, settings).catch(console.error)} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-black text-xs uppercase shadow-lg shadow-emerald-500/20 transition-all active:scale-95">Imprimir Comprovante</button>
+                            <button onClick={() => imprimirComPrioridadeFiscal({ type: 'CUPOM', data: viewingOrderCupom }, settings).catch(console.error)} className="w-full bg-brand hover:bg-brand-dark text-white py-4 rounded-2xl font-black text-xs uppercase shadow-lg shadow-emerald-500/20 transition-all active:scale-95">Imprimir Comprovante</button>
                             <button onClick={() => setViewingOrderCupom(null)} className="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 cursor-pointer">
                                 <X size={13} className="inline-block mr-1.5 -mt-0.5" /> Fechar
                             </button>

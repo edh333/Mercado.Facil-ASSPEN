@@ -51,8 +51,8 @@ export const ConfirmacaoDestrutiva: React.FC<ConfirmacaoDestrutivaProps> = ({
                     <button type="button" onClick={onConfirm} disabled={!valido || processando}
                         className={`w-full sm:w-auto h-11 px-8 rounded-xl transition-all text-sm font-bold flex items-center justify-center gap-2 ${
                             processando
-                                ? 'bg-emerald-700 text-white/80 cursor-not-allowed'
-                                : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/10 cursor-pointer'
+                                ? 'bg-brand-dark text-white/80 cursor-not-allowed'
+                                : 'bg-brand hover:bg-brand-dark text-white shadow-md shadow-emerald-600/10 cursor-pointer'
                         } ${!valido && !processando ? 'opacity-40 cursor-not-allowed' : ''}`}>
                         {processando ? (<><Loader2 size={16} className="animate-spin" /> Processando...</>) : 'Confirmar'}
                     </button>

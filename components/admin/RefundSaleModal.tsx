@@ -248,7 +248,7 @@ export const RefundSaleModal: React.FC<RefundSaleModalProps> = ({
             <button
               type="button"
               onClick={resetSelecao}
-              className="flex-1 px-8 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25"
+              className="flex-1 px-8 py-3 rounded-xl bg-brand hover:bg-brand-dark text-white font-black text-[10px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25"
             >
               <RotateCcw size={14} /> {acao === 'cancelar' ? 'Cancelar Outra Venda' : 'Estornar Outro Pedido'}
             </button>

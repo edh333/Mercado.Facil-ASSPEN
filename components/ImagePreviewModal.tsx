@@ -206,7 +206,7 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ src, alt, onClose
               <h5 className="font-black text-amber-300 uppercase text-sm mb-2">Não foi possível carregar a visualização</h5>
               <p className="text-[11px] text-slate-400 mb-4 max-w-xs">A URL do comprovante pode ter expirado ou há restrição de acesso (CORS).</p>
               <div className="flex gap-3">
-                <button onClick={handleOpenNewTab} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl text-[10px] font-black uppercase transition-all">
+                <button onClick={handleOpenNewTab} className="px-4 py-2 bg-brand hover:bg-brand-dark text-white rounded-xl text-[10px] font-black uppercase transition-all">
                   <ExternalLink size={14} className="mr-1" /> Abrir em Nova Aba
                 </button>
                 <button onClick={handleDownload} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-xl text-[10px] font-black uppercase transition-all">
@@ -220,7 +220,7 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ src, alt, onClose
               <h5 className="font-black text-emerald-300 uppercase text-sm mb-2">Documento PDF</h5>
               <p className="text-[11px] text-slate-400 mb-4 max-w-xs">PDFs não podem ser visualizados inline devido a restrições de segurança do navegador.</p>
               <div className="flex gap-3">
-                <button onClick={handleOpenNewTab} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2">
+                <button onClick={handleOpenNewTab} className="px-4 py-2 bg-brand hover:bg-brand-dark text-white rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2">
                   <ExternalLink size={14} /> Abrir PDF em Nova Aba
                 </button>
                 <button onClick={handleDownload} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2">

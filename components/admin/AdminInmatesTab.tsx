@@ -285,7 +285,7 @@ const cancelarEdicao = () => {
             <button
                 onClick={printInmateList}
                 title="Imprimir lista completa de internos com saldos"
-                className="text-[10px] font-black uppercase border-2 border-[var(--border-color)] px-4 py-2 rounded-xl bg-[var(--bg-card)] text-[var(--text-main)] hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-all flex items-center gap-2"
+                className="text-[10px] font-black uppercase border-2 border-[var(--border-color)] px-4 py-2 rounded-xl bg-[var(--bg-card)] text-[var(--text-main)] hover:bg-brand-dark hover:text-white hover:border-emerald-500 transition-all flex items-center gap-2"
             >
                 <Printer size={14}/> Imprimir
             </button>
@@ -305,7 +305,7 @@ const cancelarEdicao = () => {
         {/* Registration Form */}
         <div className="lg:col-span-5 xl:col-span-4 space-y-6">
           <div className="bg-[var(--bg-card)] p-8 rounded-[2.5rem] border border-[var(--border-color)] shadow-2xl h-fit relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500 opacity-5 rounded-full -mr-16 -mt-16"></div>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-brand opacity-5 rounded-full -mr-16 -mt-16"></div>
               <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-main)] mb-6 flex items-center gap-2 relative z-10">
                 {editando ? <><Pencil size={18} className="text-emerald-500"/> Editar Interno</> : <><Plus size={18} className="text-emerald-500"/> Novo Pré-Cadastro</>}
               </h3>
@@ -357,7 +357,7 @@ const cancelarEdicao = () => {
                   </div>
                   <button
                       onClick={handleSalvar}
-                      className="w-full py-5 bg-emerald-500 text-white font-black rounded-2xl hover:opacity-90 transition-all shadow-xl uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 mt-2"
+                      className="w-full py-5 bg-brand text-white font-black rounded-2xl hover:opacity-90 transition-all shadow-xl uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 mt-2"
                   >
                       {editando ? <><Pencil size={18}/> Atualizar Cadastro</> : <><UserCheck size={18}/> Salvar no Banco</>}
                   </button>
@@ -535,7 +535,7 @@ const cancelarEdicao = () => {
               <div className="p-4 border-t border-[var(--border-color)] bg-[var(--bg-main)]">
                 <button
                   onClick={loadMoreInmates}
-                  className="w-full py-3 bg-[var(--bg-card)] border-2 border-[var(--border-color)] text-[var(--text-main)] rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-all flex items-center justify-center gap-2"
+                  className="w-full py-3 bg-[var(--bg-card)] border-2 border-[var(--border-color)] text-[var(--text-main)] rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-brand-dark hover:text-white hover:border-emerald-500 transition-all flex items-center justify-center gap-2"
                 >
                   <Loader2 size={14} /> Carregar mais internos
                 </button>

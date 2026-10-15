@@ -114,10 +114,10 @@ export function AdminStockAlertsTab({ products, onEditProduct }: AdminStockAlert
           />
         </div>
         <div className="flex gap-2">
-          <button onClick={() => toggleSort('stock')} className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-xs font-black uppercase tracking-wider transition-all ${sortBy === 'stock' ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
+          <button onClick={() => toggleSort('stock')} className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-xs font-black uppercase tracking-wider transition-all ${sortBy === 'stock' ? 'bg-brand text-white border-emerald-500' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
             <ArrowUpDown size={14} /> Estoque
           </button>
-          <button onClick={() => toggleSort('name')} className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-xs font-black uppercase tracking-wider transition-all ${sortBy === 'name' ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
+          <button onClick={() => toggleSort('name')} className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-xs font-black uppercase tracking-wider transition-all ${sortBy === 'name' ? 'bg-brand text-white border-emerald-500' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
             <ArrowUpDown size={14} /> Nome
           </button>
         </div>
@@ -156,7 +156,7 @@ export function AdminStockAlertsTab({ products, onEditProduct }: AdminStockAlert
                   </div>
                   <button
                     onClick={() => onEditProduct(p)}
-                    className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black rounded-xl transition-all active:scale-95 shadow-sm uppercase tracking-wider shrink-0"
+                    className="px-5 py-2.5 bg-brand hover:bg-brand-dark text-white text-xs font-black rounded-xl transition-all active:scale-95 shadow-sm uppercase tracking-wider shrink-0"
                   >
                     Repor
                   </button>

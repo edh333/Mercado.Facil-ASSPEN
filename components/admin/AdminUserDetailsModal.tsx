@@ -151,7 +151,7 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
                     {user.status === 'pending' && (
                       <button
                         onClick={() => setConfirmAcao({ tipo: 'aprovar' })}
-                        className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:brightness-110 active:scale-95 transition-all"
+                        className="px-4 py-2 bg-brand text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:brightness-110 active:scale-95 transition-all"
                       >
                         <CheckCircle size={15} /> Aprovar Cadastro
                       </button>
@@ -265,7 +265,7 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
                           <>
                             <button 
                               onClick={() => window.open(docUrl, '_blank')} 
-                              className="flex-1 min-w-[140px] py-3 px-4 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2"
+                              className="flex-1 min-w-[140px] py-3 px-4 bg-brand hover:bg-brand-dark text-white rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2"
                             >
                               <ExternalLink size={14} /> Abrir PDF em Nova Aba
                             </button>
@@ -288,7 +288,7 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
                           <>
                             <button 
                               onClick={() => setPreviewDoc(true)} 
-                              className="flex-1 min-w-[140px] py-3 px-4 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2"
+                              className="flex-1 min-w-[140px] py-3 px-4 bg-brand hover:bg-brand-dark text-white rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2"
                             >
                               <FileText size={14} /> Visualizar / Imprimir
                             </button>
@@ -377,7 +377,7 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
                   {user.status !== 'active' && (
                     <button
                       onClick={() => { suspendUser(user.id, false); }}
-                      className="flex-1 py-4 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:brightness-110 active:scale-95 transition-all"
+                      className="flex-1 py-4 bg-brand text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:brightness-110 active:scale-95 transition-all"
                     >
                       <Unlock size={17} /> Reativar Acesso
                     </button>

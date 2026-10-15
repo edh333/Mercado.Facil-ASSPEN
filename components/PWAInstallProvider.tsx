@@ -158,7 +158,7 @@ export const PWAInstallProvider: React.FC<{ children: ReactNode }> = ({ children
           <span>🔄 Nova versão do sistema disponível</span>
           <button
             onClick={() => window.location.reload()}
-            className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-1.5 rounded-xl font-black uppercase tracking-widest text-[10px] transition-colors active:scale-95"
+            className="bg-brand hover:bg-brand-dark text-white px-4 py-1.5 rounded-xl font-black uppercase tracking-widest text-[10px] transition-colors active:scale-95"
           >
             Atualizar agora
           </button>

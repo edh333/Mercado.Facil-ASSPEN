@@ -26,7 +26,7 @@ export const NavItem: React.FC<NavItemProps> = ({ icon: Icon, label, active, onC
         <span className="text-[13px] leading-tight text-left truncate">{label}</span>
       </div>
       {badge ? (
-          <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-bold text-white ml-2 shadow-lg shadow-emerald-500/40">
+          <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-brand text-[10px] font-bold text-white ml-2 shadow-lg shadow-emerald-500/40">
               {badge}
           </span>
       ) : null}

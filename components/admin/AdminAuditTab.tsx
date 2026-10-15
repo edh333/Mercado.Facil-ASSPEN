@@ -196,7 +196,7 @@ export const AdminAuditTab: React.FC = () => {
                   onClick={() => setSelecionada(a.id)}
                   className={`px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all flex items-center gap-2 ${
                     ativo
-                      ? 'bg-emerald-500 text-white border-emerald-500'
+                      ? 'bg-brand text-white border-emerald-500'
                       : 'bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-main)] hover:bg-[var(--bg-main)]'
                   }`}
                 >

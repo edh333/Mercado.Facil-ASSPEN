@@ -104,7 +104,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
         <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mr-1"><Zap size={10} className="inline-block mr-1 -mt-0.5 text-amber-500" />Ações Rápidas</span>
         <button
           onClick={onOpenSales}
-          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-sm transition-all active:scale-95 cursor-pointer"
+          className="flex items-center gap-2 bg-brand hover:bg-brand-dark text-white font-bold px-4 py-2 rounded-xl text-xs shadow-sm transition-all active:scale-95 cursor-pointer"
         >
           <Zap size={14} /> PDV - NOVA VENDA (F2)
         </button>
@@ -143,7 +143,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
                 {r.label}: <span className="text-emerald-600">{formatarMoeda(r.amount)}</span>
               </span>
             ))}
-            <span className="flex items-center gap-1.5 bg-emerald-600 text-white rounded-lg px-3 py-1.5 text-[10px] font-black shadow-sm ml-auto">
+            <span className="flex items-center gap-1.5 bg-brand text-white rounded-lg px-3 py-1.5 text-[10px] font-black shadow-sm ml-auto">
               Total: {formatarMoeda(todayPayments.total)}
             </span>
           </>
@@ -322,7 +322,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
                   <div className="flex-1 min-w-0">
                     <p className="font-black text-xs text-[var(--text-main)] uppercase truncate">{p?.name || 'Produto sem nome'}</p>
                     <div className="w-full bg-[var(--bg-main)] rounded-full h-1.5 mt-1">
-                      <div className="h-1.5 rounded-full bg-emerald-500 transition-all" style={{ width: `${Math.min(100, (p.qty / (topProducts[0]?.qty || 1)) * 100)}%` }}/>
+                      <div className="h-1.5 rounded-full bg-brand transition-all" style={{ width: `${Math.min(100, (p.qty / (topProducts[0]?.qty || 1)) * 100)}%` }}/>
                     </div>
                   </div>
                   <div className="text-right shrink-0">

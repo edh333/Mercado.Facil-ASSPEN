@@ -50,7 +50,7 @@ export const TelaPosVenda: React.FC<TelaPosVendaProps> = ({
       >
         {/* Cabeçalho */}
         <div className="px-6 pt-7 pb-5 text-center bg-gradient-to-b from-emerald-50 to-white">
-          <div className="w-16 h-16 mx-auto rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/30">
+          <div className="w-16 h-16 mx-auto rounded-full bg-brand text-white flex items-center justify-center shadow-lg shadow-emerald-500/30">
             <CheckCircle2 size={32} strokeWidth={2.5} />
           </div>
           <h2 className="mt-4 text-xl font-black uppercase tracking-widest text-slate-900">
@@ -146,7 +146,7 @@ export const TelaPosVenda: React.FC<TelaPosVendaProps> = ({
             <button
               onClick={onImprimir}
               disabled={reimprimindo}
-              className="h-12 w-full rounded-2xl bg-emerald-600 text-white font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-emerald-600/20 hover:bg-emerald-500 disabled:opacity-60 disabled:active:scale-100"
+              className="h-12 w-full rounded-2xl bg-brand text-white font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-emerald-600/20 hover:bg-brand-dark disabled:opacity-60 disabled:active:scale-100"
             >
               <Printer size={16} />
               {reimprimindo ? 'Imprimindo...' : cupomImpressoAuto ? 'Reimprimir cupom' : 'Imprimir cupom'}
