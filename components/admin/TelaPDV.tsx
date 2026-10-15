@@ -151,7 +151,7 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
   // ── Desconto na venda (até 50%; validado no servidor por faixa de senha) ──
   const [descontoAberto, setDescontoAberto] = useState(false);
   const [descontoPct, setDescontoPct] = useState(0);
-  // Senhas autorizadas para o desconto atual: ≤20% = uma (login ou mestra);
+  // Senhas autorizadas para o desconto atual: ≤20% = uma (mestra);
   // >20% = dupla (entrada + mestra). Reencaminhadas ao servidor, que revalida.
   const [descontoSenhas, setDescontoSenhas] = useState<{ primaria: string; secundaria?: string } | null>(null);
   const [descPctInput, setDescPctInput] = useState('');
@@ -504,7 +504,7 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
   };
 
   // ── Desconto: valida a senha conforme a faixa e SÓ ENTÃO aplica ──
-  // ≤20% = UMA senha (login OU mestra) · >20% até 50% = DUPLA senha.
+  // ≤20% = senha MESTRA · >20% até 50% = DUPLA senha (login + mestra).
   // O servidor revalida as mesmas senhas antes de calcular o total.
   const confirmarDesconto = async () => {
     const v = parseFloat(String(descPctInput).replace(',', '.'));
@@ -520,7 +520,7 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
     const s1 = descSenha1.trim();
     const s2 = descSenha2.trim();
     if (pct <= 20) {
-      if (!s1) { setDescErro('Informe a senha do administrador (login ou mestra).'); return; }
+      if (!s1) { setDescErro('Informe a senha mestra.'); return; }
     } else if (!s1 || !s2) {
       setDescErro('Acima de 20% é necessária a DUPLA senha: senha de entrada (login) + senha mestra.');
       return;
@@ -528,12 +528,24 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
     setValidandoDesconto(true);
     setDescErro('');
     try {
-      const ok = pct <= 20
-        ? await validateAnyMasterPassword(s1)
-        : await validateDualMasterPassword(s1, s2);
-      if (!ok) {
-        setDescErro(pct <= 20 ? 'Senha inválida para autorizar o desconto.' : 'Senhas inválidas para autorizar o desconto.');
-        return;
+      if (pct <= 20) {
+        const ok = await validateAnyMasterPassword(s1);
+        if (!ok) {
+          setDescErro('Senha mestra inválida para autorizar o desconto.');
+          return;
+        }
+      } else {
+        const res = await validateDualMasterPassword(s1, s2);
+        if (!res.ok) {
+          setDescErro(
+            res.motivo === 'secundaria'
+              ? 'Senha mestra incorreta (o segundo campo).'
+              : res.motivo === 'primaria'
+                ? 'Senha de entrada (login) incorreta (o primeiro campo).'
+                : 'Senhas inválidas para autorizar o desconto.'
+          );
+          return;
+        }
       }
       setDescontoPct(pct);
       setDescontoSenhas(pct <= 20 ? { primaria: s1 } : { primaria: s1, secundaria: s2 });
@@ -1505,16 +1517,16 @@ if (pedidoOffline) {
                   <p className="text-[11px] font-semibold text-slate-400 mb-3">
                     {exigeDupla
                       ? 'Acima de 20%: informe a senha de entrada (login) + a senha mestra.'
-                      : 'Até 20%: informe UMA senha — login do administrador ou senha mestra.'}
+                      : 'Até 20%: informe a senha mestra.'}
                   </p>
 
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">{exigeDupla ? 'Senha de entrada (login)' : 'Senha do administrador'}</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">{exigeDupla ? 'Senha de entrada (login)' : 'Senha mestra'}</label>
                   <input
                     type="password"
                     value={descSenha1}
                     onChange={(e) => { setDescSenha1(e.target.value); setDescErro(''); }}
                     onKeyDown={(e) => e.key === 'Enter' && podeConfirmar && !validandoDesconto && confirmarDesconto()}
-                    placeholder="Digite a senha"
+                    placeholder={exigeDupla ? 'Digite a senha de login' : 'Digite a senha mestra'}
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white text-sm font-medium transition-all mb-3"
                   />
                   {exigeDupla && (

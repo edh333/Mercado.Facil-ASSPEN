@@ -206,7 +206,7 @@ interface StoreContextType {
     isInstallable: boolean;
     installApp: () => Promise<void>;
     validateMasterPassword: (password: string) => Promise<boolean>;
-    validateDualMasterPassword: (senhaPrimaria: string, senhaSecundaria: string) => Promise<boolean>;
+    validateDualMasterPassword: (senhaPrimaria: string, senhaSecundaria: string) => Promise<{ ok: boolean; motivo: string }>;
     validateAnyMasterPassword: (senha: string) => Promise<boolean>;
     defineMasterPassword: (password: string) => Promise<boolean>;
     masterPasswordStatus: () => Promise<{ definida: boolean }>;
@@ -2425,10 +2425,10 @@ return false;
     const validateDualMasterPassword = async (senhaPrimaria: string, senhaSecundaria: string) => {
         try {
             const res = await fnValidarDuplaSenhaMestra({ senhaPrimaria: senhaPrimaria || '', senhaSecundaria: senhaSecundaria || '', apiKey: FIREBASE_API_KEY || '' }) as any;
-            return !!res.data?.ok;
+            return { ok: !!res.data?.ok, motivo: String(res.data?.motivo || '') };
         } catch (e) {
             console.warn('[validateDualMasterPassword]', e);
-            return false;
+            return { ok: false, motivo: '' };
         }
     };
 

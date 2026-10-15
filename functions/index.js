@@ -470,6 +470,61 @@ async function obterHashLegado(userId) {
   return userSnap.exists ? String(userSnap.data().password || "") : "";
 }
 
+// Contas legadas podem ter id do doc != authUid (o hash é gravado por authUid),
+// então testamos os dois. Cobre login por CPF, contas migradas e admin principal.
+async function obterHashLegadoDeUsuario(user) {
+  if (!user) return "";
+  const ids = [...new Set([String(user.authUid || ""), String(user.id || "")].filter(Boolean))];
+  for (const id of ids) {
+    const h = await obterHashLegado(id);
+    if (h) return h;
+  }
+  return "";
+}
+
+// E-mails candidatos para o re-auth REST: o e-mail REAL da conta no Firebase Auth
+// (fonte da verdade) e o e-mail do doc. Sem isso, contas cujo doc não tem e-mail
+// (ou cujo e-mail diverge do Auth, ex.: "<cpf>@asspen.local") nunca validam a
+// senha de login — o desconto >20% e o fiado passam a recusar a senha correta.
+async function emailsAuthDoUsuario(user) {
+  const emails = [];
+  const authUid = String((user && (user.authUid || user.id)) || "");
+  if (authUid) {
+    try {
+      const rec = await admin.auth().getUser(authUid);
+      if (rec && rec.email) emails.push(String(rec.email));
+    } catch (e) {
+      logger.warn("[emailsAuthDoUsuario] falha ao ler e-mail do Auth:", e.message);
+    }
+  }
+  const docEmail = String((user && user.email) || "").trim();
+  if (docEmail) emails.push(docEmail);
+  return [...new Set(emails.map((e) => String(e).trim()).filter(Boolean))];
+}
+
+// Re-auth da senha de login contra o Firebase Auth testando cada e-mail candidato.
+// Retorna true no primeiro que aceitar a senha. apiKey vazio ⇒ não tenta (retorna false).
+async function senhaLoginConfere(user, senha, apiKey) {
+  if (!apiKey) return false;
+  for (const email of await emailsAuthDoUsuario(user)) {
+    try {
+      const resp = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${encodeURIComponent(apiKey)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password: senha, returnSecureToken: true }),
+        }
+      );
+      if (resp.status === 200) return true;
+      logger.info("[senhaLoginConfere] Login negado via REST (status " + resp.status + ") para " + email + ".");
+    } catch (e) {
+      logger.warn("[senhaLoginConfere] Falha ao validar senha de login via REST:", e.message);
+    }
+  }
+  return false;
+}
+
 async function salvarHashLegado(userId, hash) {
   await db.collection("auth_secrets").doc(userId).set(
     { password: hash, updatedAt: new Date().toISOString() },
@@ -1193,30 +1248,23 @@ exports.alterarSenha = onCall(async (request) => {
   const senhaAtual = String(request.data?.senhaAtual || "").trim();
   if (!senhaAtual) throw new HttpsError("invalid-argument", "Informe a senha atual.");
   const novaSenha = validarSenha(request.data?.novaSenha);
-  // Valida a senha atual via re-auth (Firebase Auth) — falha fechada se errada.
+  // Valida a senha atual via re-auth (Firebase Auth) ou hash legado — falha fechada.
+  // O re-auth testa o e-mail REAL da conta no Auth (contas por CPF têm e-mail
+  // "<cpf>@asspen.local", que não aparece no doc users).
   const apiKey = String(request.data?.apiKey || process.env.FIREBASE_API_KEY || "").trim();
-  if (apiKey && user.email) {
-    const resp = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${encodeURIComponent(apiKey)}`,
-      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: user.email, password: senhaAtual, returnSecureToken: true }) }
-    );
-    if (resp.status !== 200) throw new HttpsError("invalid-argument", "Senha atual incorreta.");
-  } else {
-    // Fallback: compara com hash legado (bcrypt).
-    //
-    // FALHA FECHADA: se não existe hash legado, a senha atual NÃO pode ser
-    // validada por nenhum caminho. Antes disso a Function seguia e trocava a
-    // senha sem nunca conferir a senha atual — qualquer sessão autenticada
-    //akia o reset sem saber a senha antiga.
-    const hashLegado = await obterHashLegado(user.id);
-    if (!hashLegado) {
+  const hashLegado = await obterHashLegadoDeUsuario(user);
+  const confereLogin = await senhaLoginConfere(user, senhaAtual, apiKey);
+  const confereHash = hashLegado ? await bcrypt.compare(senhaAtual, hashLegado).catch(() => false) : false;
+  if (!confereLogin && !confereHash) {
+    // FALHA FECHADA: sem nenhum caminho para validar, não troca a senha sem
+    // conferir a antiga. Sem API key e sem hash legado nem há como tentar.
+    if (!apiKey && !hashLegado) {
       throw new HttpsError(
         "failed-precondition",
         "Não foi possível validar a senha atual neste ambiente. Redefina a senha pelo administrador."
       );
     }
-    const ok = await bcrypt.compare(senhaAtual, hashLegado);
-    if (!ok) throw new HttpsError("invalid-argument", "Senha atual incorreta.");
+    throw new HttpsError("invalid-argument", "Senha atual incorreta.");
   }
   await admin.auth().updateUser(request.auth.uid, { password: novaSenha });
   // Senha trocada → derruba sessões antigas (revoga refresh tokens; o token
@@ -2493,9 +2541,10 @@ exports.processarVendaAdmin = onCall({
   }
 
   // DESCONTO no PDV: validado AQUI no servidor (nunca confia só no frontend).
-  // Faixas: até 20% = UMA senha (login OU mestra, validarSenhaUnicaServidor);
-  // acima de 20% até 50% = DUPLA senha (senha de entrada + senha mestra,
-  // validarDuplaSenhaServidor — mesma régua do fiado). Acima de 50% = proibido.
+  // Faixas: até 20% = UMA senha, APENAS a mestra (validarSenhaUnicaServidor);
+  // acima de 20% até 50% = DUPLA senha (senha de entrada/login do operador
+  // logado + senha mestra, validarDuplaSenhaServidor — mesma régua do fiado).
+  // Acima de 50% = proibido. Os erros dizem QUAL campo falhou (motivo).
   // O total é recalculado DENTRO da transação sobre o subtotal de catálogo.
   const descontoPctRaw = request.data?.descontoPct;
   let descontoPct = 0;
@@ -2520,11 +2569,11 @@ exports.processarVendaAdmin = onCall({
     if (descontoPct <= 20) {
       const senhaUnicaDesc = String(request.data?.senhaPrimaria || request.data?.senhaSecundaria || "");
       if (!senhaUnicaDesc) {
-        throw new HttpsError("invalid-argument", "Desconto exige a senha do administrador (login ou mestra).");
+        throw new HttpsError("invalid-argument", "Desconto exige a senha mestra do administrador.");
       }
       const unicaDesc = await validarSenhaUnicaServidor(caller, senhaUnicaDesc, apiKeyDesconto);
       if (!unicaDesc.ok) {
-        throw new HttpsError("permission-denied", "Senha de desconto inválida. Tente novamente.");
+        throw new HttpsError("permission-denied", "Senha mestra incorreta. Tente novamente.");
       }
     } else {
       const sPrimariaDesc = String(request.data?.senhaPrimaria || "");
@@ -2534,7 +2583,13 @@ exports.processarVendaAdmin = onCall({
       }
       const duplaDesc = await validarDuplaSenhaServidor(caller, sPrimariaDesc, sSecundariaDesc, apiKeyDesconto);
       if (!duplaDesc.ok) {
-        throw new HttpsError("permission-denied", "Senhas de desconto inválidas. Tente novamente.");
+        // Diz QUAL das duas senhas falhou para o operador corrigir o campo certo.
+        throw new HttpsError(
+          "permission-denied",
+          duplaDesc.motivo === "secundaria"
+            ? "Senha mestra incorreta (o segundo campo). Tente novamente."
+            : "Senha de entrada (login) incorreta (o primeiro campo). Tente novamente."
+        );
       }
     }
   }
@@ -4281,7 +4336,7 @@ exports.validarDuplaSenhaMestra = onCall(async (request) => {
   }
 
   const resultado = await validarDuplaSenhaServidor(user, senhaPrimaria, senhaSecundaria, apiKey);
-  return { ok: !!resultado.ok, definida: true };
+  return { ok: !!resultado.ok, definida: true, motivo: resultado.motivo || "" };
 });
 
 /**
@@ -4324,7 +4379,7 @@ async function validarDuplaSenhaServidor(user, senhaPrimaria, senhaSecundaria, a
   // (mesmo usado no login do app) — cobre divergência de e-mail entre o
   // doc users e o Auth e a ausência de API key no payload/env.
   let primariaOk = false;
-  const hashLegado = await obterHashLegado(user && user.id);
+  const hashLegado = await obterHashLegadoDeUsuario(user);
   if (hashLegado) {
     try {
       primariaOk = await bcrypt.compare(sPrimaria, hashLegado);
@@ -4332,28 +4387,15 @@ async function validarDuplaSenhaServidor(user, senhaPrimaria, senhaSecundaria, a
       logger.warn("[validarDuplaSenhaServidor] Falha ao comparar hash legado:", e.message);
     }
   }
-  if (!primariaOk && apiKey && user && user.email) {
-    try {
-      const resp = await fetch(
-        `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${encodeURIComponent(apiKey)}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: user.email, password: sPrimaria, returnSecureToken: true }),
-        }
-      );
-      primariaOk = resp.status === 200;
-      if (!primariaOk) {
-        logger.info("[validarDuplaSenhaServidor] Primária negada via REST (status " + resp.status + ").");
-      }
-    } catch (e) {
-      logger.warn("[validarDuplaSenhaServidor] Falha ao validar primária via REST:", e.message);
+  if (!primariaOk) {
+    primariaOk = await senhaLoginConfere(user, sPrimaria, apiKey);
+    if (!primariaOk) {
+      logger.info("[validarDuplaSenhaServidor] Primária recusada (hash legado e re-auth REST).");
     }
-  } else if (!primariaOk) {
-    logger.warn("[validarDuplaSenhaServidor] Primária validada somente pelo hash legado (sem API key/email).");
   }
 
-  return { ok: primariaOk && secundariaOk, primariaOk, secundariaOk, definida: true };
+  const motivo = !secundariaOk ? "secundaria" : (primariaOk ? "" : "primaria");
+  return { ok: primariaOk && secundariaOk, primariaOk, secundariaOk, definida: true, motivo };
 }
 
 /**
@@ -4396,7 +4438,7 @@ async function validarSenhaUnicaServidor(user, senhaInformada, apiKey) {
 
   // Primária ─ senha de login do admin no Firebase Auth (re-auth via REST).
   let primariaOk = false;
-  const hashLegado = await obterHashLegado(user && user.id);
+  const hashLegado = await obterHashLegadoDeUsuario(user);
   if (hashLegado) {
     try {
       primariaOk = await bcrypt.compare(senha, hashLegado);
@@ -4404,20 +4446,8 @@ async function validarSenhaUnicaServidor(user, senhaInformada, apiKey) {
       logger.warn("[validarSenhaUnicaServidor] Falha ao comparar hash legado primário:", e.message);
     }
   }
-  if (!primariaOk && apiKey && user && user.email) {
-    try {
-      const resp = await fetch(
-        `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${encodeURIComponent(apiKey)}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: user.email, password: senha, returnSecureToken: true }),
-        }
-      );
-      primariaOk = resp.status === 200;
-    } catch (e) {
-      logger.warn("[validarSenhaUnicaServidor] Falha ao validar primária via REST:", e.message);
-    }
+  if (!primariaOk) {
+    primariaOk = await senhaLoginConfere(user, senha, apiKey);
   }
 
   // ALTO: vendedor/operador NÃO pode se auto-autorizar com a própria senha de
@@ -4426,10 +4456,10 @@ async function validarSenhaUnicaServidor(user, senhaInformada, apiKey) {
   // O login password (primariaOk) é usado só para re-auth em alterarSenha.
   const roleLower = String((user && user.role) || "").toLowerCase();
   if (["vendedor", "operator", "admin", "master"].includes(roleLower)) {
-    return { ok: secundariaOk, secundariaOk, primariaOk: false, definida: true };
+    return { ok: secundariaOk, secundariaOk, primariaOk: false, definida: true, motivo: secundariaOk ? "" : "secundaria" };
   }
 
-  return { ok: secundariaOk, secundariaOk, primariaOk, definida: true };
+  return { ok: secundariaOk, secundariaOk, primariaOk, definida: true, motivo: secundariaOk ? "" : "secundaria" };
 }
 
 /**
@@ -4451,7 +4481,7 @@ exports.validarSenhaMestraUnica = onCall(async (request) => {
   }
   const apiKey = String(request.data?.apiKey || "") || process.env.FIREBASE_API_KEY || "";
   const resultado = await validarSenhaUnicaServidor(user, senha, apiKey);
-  return { ok: !!resultado.ok, definida: true };
+  return { ok: !!resultado.ok, definida: true, motivo: resultado.motivo || "" };
 });
 
 /** Autenticado ─ hora confiável do servidor (substitui APIs externas de horário). */
