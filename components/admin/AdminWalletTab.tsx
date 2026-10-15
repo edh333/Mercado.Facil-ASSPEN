@@ -500,7 +500,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                         </div>
                         {limite > 0 && (
                           <div className="mt-3 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                            <div className={`h-full rounded-full ${pct >= 90 ? 'bg-red-500' : pct >= 60 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${pct}%` }} />
+                            <div className={`h-full rounded-full ${pct >= 90 ? 'bg-red-500' : pct >= 60 ? 'bg-amber-500' : 'bg-success'}`} style={{ width: `${pct}%` }} />
                           </div>
                         )}
                       </div>

@@ -195,6 +195,22 @@ html[data-brand="custom"] {
   background-color: color-mix(in srgb, var(--primary-color) 88%, black);
 }
 
+/* ─────────────────────────────────────────────
+   UTILITÁRIOS SEMÂNTICOS DE ESTADO
+   NÃO seguem a marca: sucesso/erro/aviso têm cor própria. Use estes em
+   medidores (gauges), barras de status, toasts e badges de estado —
+   onde "verde" significa "tudo certo", independente da cor configurada.
+   ───────────────────────────────────────────── */
+@utility bg-success {
+  background-color: var(--success-color);
+}
+@utility text-success {
+  color: var(--success-color);
+}
+@utility border-success {
+  border-color: var(--success-color);
+}
+
 /* ═══════════════════════════════════════════════════════════
    GLOBAL STYLES
    ═══════════════════════════════════════════════════════════ */

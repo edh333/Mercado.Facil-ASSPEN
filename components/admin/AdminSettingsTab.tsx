@@ -1362,19 +1362,19 @@ const handleBaixarBackup = async (nome: string) => {
               </h3>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {[
-                  { id: ThemeOption.POLICE_MT, label: 'Polícia Penal', colors: 'bg-slate-900', hex: '#0f172a' },
-                  { id: ThemeOption.MODERN_GREEN, label: 'Modern Green', colors: 'bg-emerald-600', hex: '#064e3b' },
-                  { id: ThemeOption.PROFESSIONAL_BLUE, label: 'Prof. Blue', colors: 'bg-blue-600', hex: '#1d4ed8' },
-                  { id: ThemeOption.ELEGANT_PURPLE, label: 'Elegant Purple', colors: 'bg-purple-600', hex: '#7c3aed' },
-                  { id: ThemeOption.CYBER_DARK, label: 'Cyber Dark', colors: 'bg-black', hex: '#000000' },
-                  { id: ThemeOption.VIBRANT_ORANGE, label: 'Vibrant Orange', colors: 'bg-orange-600', hex: '#ea580c' }
+                  { id: ThemeOption.POLICE_MT, label: 'Polícia Penal', swatch: '#0f172a', hex: '#0f172a' },
+                  { id: ThemeOption.MODERN_GREEN, label: 'Modern Green', swatch: '#059669', hex: '#064e3b' },
+                  { id: ThemeOption.PROFESSIONAL_BLUE, label: 'Prof. Blue', swatch: '#2563eb', hex: '#1d4ed8' },
+                  { id: ThemeOption.ELEGANT_PURPLE, label: 'Elegant Purple', swatch: '#9333ea', hex: '#7c3aed' },
+                  { id: ThemeOption.CYBER_DARK, label: 'Cyber Dark', swatch: '#000000', hex: '#000000' },
+                  { id: ThemeOption.VIBRANT_ORANGE, label: 'Vibrant Orange', swatch: '#ea580c', hex: '#ea580c' }
                 ].map(t => (
                   <button
                     key={t.id}
                     onClick={() => updateSettings({ ...settings, theme: t.id, primaryColor: t.hex })}
                     className={`p-5 rounded-2xl border-4 transition-all flex flex-col items-center gap-2 ${settings?.theme === t.id ? 'border-slate-800 bg-slate-100' : 'border-transparent bg-slate-50 hover:border-slate-300'}`}
                   >
-                    <div className={`w-10 h-10 rounded-full ${t.colors}`} />
+                    <div className="w-10 h-10 rounded-full" style={{ backgroundColor: t.swatch }} />
                     <span className="text-[10px] font-bold uppercase text-slate-700">{t.label}</span>
                     {settings?.theme === t.id && <Check size={16} className="text-slate-800" />}
                   </button>

@@ -112,7 +112,7 @@ export const DeviceStorageManager: React.FC = () => {
           </div>
           <div className="h-2 rounded-full bg-[var(--border-color)] overflow-hidden">
             <div
-              className={'h-full rounded-full transition-all ' + ((metrica.percentual || 0) > 90 ? 'bg-red-500' : (metrica.percentual || 0) > 70 ? 'bg-amber-500' : 'bg-emerald-500')}
+              className={'h-full rounded-full transition-all ' + ((metrica.percentual || 0) > 90 ? 'bg-red-500' : (metrica.percentual || 0) > 70 ? 'bg-amber-500' : 'bg-success')}
               style={{ width: Math.max(2, Math.min(100, metrica.percentual || 0)) + '%' }}
             />
           </div>

@@ -305,7 +305,7 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
 
       {/* Toast */}
       {toast && (
-        <div className={`fixed top-4 right-4 z-50 px-5 py-3 rounded-2xl shadow-lg text-white text-sm font-semibold transition-all ${toast.type === 'success' ? 'bg-emerald-500' : 'bg-red-500'}`}>
+        <div className={`fixed top-4 right-4 z-50 px-5 py-3 rounded-2xl shadow-lg text-white text-sm font-semibold transition-all ${toast.type === 'success' ? 'bg-success' : 'bg-red-500'}`}>
           {toast.msg}
         </div>
       )}

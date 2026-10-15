@@ -297,7 +297,7 @@ export const MaintenanceCenter: React.FC<Props> = ({
   const storageThreshold = Number(maintenance?.storageThresholdPct) || 80;
   const storageBar = storageLimit > 0 ? Math.min(100, storagePct) : 0;
   const storageAlerta = storageLimit > 0 && storagePct >= storageThreshold;
-  const storageCor = storagePct >= 100 ? 'bg-red-500' : storageAlerta ? 'bg-amber-500' : 'bg-emerald-500';
+  const storageCor = storagePct >= 100 ? 'bg-red-500' : storageAlerta ? 'bg-amber-500' : 'bg-success';
 
   return (
     <div className="bg-[var(--bg-card)] rounded-[2.5rem] border border-[var(--border-color)] shadow-sm overflow-hidden mb-6">

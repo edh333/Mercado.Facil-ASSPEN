@@ -348,7 +348,7 @@ export function AdminCustomersTab({
                     </div>
                     {c.creditLimit > 0 && (
                       <div className="mt-2 w-full max-w-[200px] h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full transition-all ${isOverLimit ? 'bg-red-500' : usedPct > 70 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min(usedPct, 100)}%` }} />
+                        <div className={`h-full rounded-full transition-all ${isOverLimit ? 'bg-red-500' : usedPct > 70 ? 'bg-amber-500' : 'bg-success'}`} style={{ width: `${Math.min(usedPct, 100)}%` }} />
                       </div>
                     )}
                   </div>
