@@ -309,16 +309,6 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-// ── LICENÇAS DE ATIVAÇÃO (token-based) ──
-    // Tokens XXXX-XXXX-XXXX-XXXX usados para ativar o sistema. Somente admin
-    // gera (setDoc) e acompanha; a leitura na ativação é feita pelo próprio
-    // admin autenticado. Exclusão proibida (rastreabilidade de licenças).
-    match /system_licenses/{licenseId} {
-      allow read: if isAdmin();
-      allow create, update: if isAdmin();
-      allow delete: if false;
-    }
-
 // ── LOGS DE AUDITORIA (ações sensíveis; imutáveis) ──
     // Create: as ações de ADMIN que ainda rodam no cliente (anexar comprovante,
     // excluir usuário, zerar estoque, zerar financeiro) registram o log daqui.
