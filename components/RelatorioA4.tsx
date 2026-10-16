@@ -1,6 +1,12 @@
 import React from 'react';
 import { formatarMoeda } from '../utils';
 import { toDate } from '../utils/dateUtils';
+import {
+    specSalesCsv, specStockAbc, specTopProducts, specDailyClosing, specVendasDiarias,
+    specDetalheVendasDia, specSalesByCategory, specLowStock, specProductsCatalog,
+    specUsersCredits, specRankingClientes, specVendasOperador, specFiadoVendas,
+    specFiadoContas, specFiadoVencimentosFaixa, type CelulaSpec
+} from '../utils/reportSpecs';
 
 interface RelatorioA4Props {
     report: any;
@@ -25,7 +31,6 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
         return n < 0 ? `- R$ ${formatarMoeda(Math.abs(n))}` : `R$ ${formatarMoeda(n)}`;
     };
     const fmtData = (d: any): string => (toDate(d)?.toLocaleDateString('pt-BR') || '—');
-    const fmtHora = (d: any): string => (toDate(d)?.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) || '—');
     const instituicao = String(config?.institutionName || config?.appName || 'MERCADO FÁCIL').toUpperCase();
     const cnpj = String(config?.cnpj || '').trim();
     const telefone = String(config?.contactPhone || '').trim();
@@ -78,7 +83,7 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
 
     // Tabela genérica: cabeçalhos alinhados, linhas ({cell, align, bold, color}) e rodapé opcional.
     interface Celula { text: string; align?: 'left' | 'center' | 'right'; bold?: boolean; color?: string; sub?: string }
-    const Tabela = ({ colunas, linhas, rodape, colunais }: { colunas: string[]; linhas: (string | Celula)[][]; rodape?: (string | Celula)[]; colunais?: ('left' | 'center' | 'right')[] }) => {
+    const Tabela = ({ colunas, linhas, rodape, colunais, vazio }: { colunas: string[]; linhas: (string | Celula)[][]; rodape?: (string | Celula)[]; colunais?: ('left' | 'center' | 'right')[]; vazio?: string }) => {
         const aligns = colunais || colunas.map(() => 'left' as const);
         const renderCell = (cell: string | Celula, idx: number, isFooter = false) => {
             const texto = typeof cell === 'string' ? cell : cell.text;
@@ -114,7 +119,7 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
                         </tr>
                     ))}
                     {linhas.length === 0 && (
-                        <tr><td colSpan={colunas.length} className="px-3 py-10 text-center text-[10px] font-black uppercase tracking-widest text-slate-500">Nenhum registro encontrado no período.</td></tr>
+                        <tr><td colSpan={colunas.length} className="px-3 py-10 text-center text-[10px] font-black uppercase tracking-widest text-slate-500">{vazio || 'Nenhum registro encontrado no período.'}</td></tr>
                     )}
                 </tbody>
                 {rodape && (
@@ -127,6 +132,13 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
             </table>
         );
     };
+
+    // Adaptador SpecTabela -> shape interno (Celula) — nenhuma lógica por relatório.
+    const toCelula = (cell: CelulaSpec): Celula => typeof cell === 'string'
+        ? { text: cell }
+        : { text: cell.texto, align: cell.align, bold: cell.bold, color: cell.cor, sub: cell.sub };
+    const toLinhas = (linhas: CelulaSpec[][]): Celula[][] => linhas.map(r => r.map(toCelula));
+    const toRodape = (rodape?: CelulaSpec[]): Celula[] | undefined => rodape ? rodape.map(toCelula) : undefined;
 
     const BoxTitulo = ({ titulo, extra }: { titulo: string; extra?: string }) => (
         <div className="flex items-center justify-between mb-3 print-avoid-break">
@@ -223,7 +235,8 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
     const renderStockAbc = () => {
         const abc = report.stockAbc;
         if (!abc) return null;
-        const cor = (c: string) => c === 'A' ? '#047857' : c === 'B' ? '#b45309' : '#b91c1c';
+        const s = specStockAbc(report);
+        if (!s) return null;
         return (
             <section className="space-y-8">
                 <div className="grid grid-cols-4 gap-4">
@@ -235,26 +248,11 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
                 <div>
                     <BoxTitulo titulo="Classificação A/B/C por Faturamento" extra={`${abc.qtdProdutosTotais} produtos`} />
                     <Tabela
-                        colunas={['Produto', 'Qtd Vendida', 'Receita', '% Acum.', 'Estoque', 'Valor (Custo)', 'Classe']}
-                        colunais={['left', 'right', 'right', 'right', 'right', 'right', 'center']}
-                        linhas={abc.linhas.map((l: any) => [
-                            { text: String(l.name), bold: true, sub: l.qtdVendida === 0 ? 'Sem giro no período' : undefined },
-                            { text: String(l.qtdVendida), align: 'right' as const },
-                            { text: fmt(l.receita), align: 'right' as const, bold: true, color: '#047857' },
-                            { text: `${Number(l.acumuladoPct || 0).toFixed(1)}%`, align: 'right' as const },
-                            { text: String(l.estoque), align: 'right' as const },
-                            { text: fmt(l.valorEstoqueCusto), align: 'right' as const },
-                            { text: String(l.classe), align: 'center' as const, bold: true, color: cor(l.classe) }
-                        ])}
-                        rodape={[
-                            { text: `TOTAL · ${abc.qtdProdutosTotais} produtos`, bold: true },
-                            { text: '', align: 'right' as const },
-                            { text: fmt(abc.totalReceita), align: 'right' as const, bold: true, color: '#047857' },
-                            { text: '100%', align: 'right' as const },
-                            { text: '', align: 'right' as const },
-                            { text: fmt(abc.totalValorEstoqueCusto), align: 'right' as const, bold: true },
-                            { text: '', align: 'center' as const }
-                        ]}
+                        colunas={s.colunas}
+                        colunais={s.alinhamentos}
+                        linhas={toLinhas(s.linhas)}
+                        rodape={toRodape(s.rodape)}
+                        vazio={s.vazio}
                     />
                     <Legenda texto="Critério: A ≤ 80% do faturamento · B ≤ 95% · C restante. Inventário valorizado a custo para balanço patrimonial." />
                 </div>
@@ -265,6 +263,8 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
     const renderTopProducts = () => {
         const tp = report.topProducts;
         if (!tp) return null;
+        const s = specTopProducts(report);
+        if (!s) return null;
         return (
             <section className="space-y-8">
                 <div className="grid grid-cols-3 gap-4">
@@ -275,24 +275,11 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
                 <div>
                     <BoxTitulo titulo="TOP Produtos — Ranking por Quantidade Vendida" extra={`${tp.linhas.length} posições`} />
                     <Tabela
-                        colunas={['#', 'Produto', 'Categoria', 'Qtd Vendida', 'Receita', 'Preço Médio']}
-                        colunais={['center', 'left', 'left', 'right', 'right', 'right']}
-                        linhas={tp.linhas.map((l: any, idx: number) => [
-                            { text: String(idx + 1), align: 'center' as const, bold: true, color: idx === 0 ? '#b45309' : '#64748b' },
-                            { text: String(l.name), bold: true },
-                            { text: String(l.categoria || '') },
-                            { text: String(l.qtdVendida), align: 'right' as const, bold: true },
-                            { text: fmt(l.receita), align: 'right' as const, bold: true, color: '#047857' },
-                            { text: fmt(l.precoMedio), align: 'right' as const }
-                        ])}
-                        rodape={[
-                            { text: '', align: 'center' as const },
-                            { text: `TOTAL · ${tp.totalProdutos} produtos`, bold: true },
-                            { text: '', align: 'left' as const },
-                            { text: String(tp.totalItens), align: 'right' as const, bold: true },
-                            { text: fmt(tp.totalReceita), align: 'right' as const, bold: true, color: '#047857' },
-                            { text: '', align: 'right' as const }
-                        ]}
+                        colunas={s.colunas}
+                        colunais={s.alinhamentos}
+                        linhas={toLinhas(s.linhas)}
+                        rodape={toRodape(s.rodape)}
+                        vazio={s.vazio}
                     />
                 </div>
             </section>
@@ -302,6 +289,8 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
     const renderSalesCsv = () => {
         const csv = report.salesCsv;
         if (!csv) return null;
+        const s = specSalesCsv(report);
+        if (!s) return null;
         return (
             <section className="space-y-8">
                 <div className="grid grid-cols-3 gap-4">
@@ -312,26 +301,11 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
                 <div>
                     <BoxTitulo titulo="Movimentação de Vendas — Arquivo para o Contador" extra="CSV separado por ';'" />
                     <Tabela
-                        colunas={['Data', 'Cupom', 'CPF Cliente', 'Pagamento', 'Alíq.', 'Imposto Est.', 'Valor Total']}
-                        colunais={['left', 'left', 'center', 'center', 'right', 'right', 'right']}
-                        linhas={csv.linhas.map((l: any) => [
-                            { text: String(l.DATA) },
-                            { text: `${String(l.NUMERO_CUPOM)}`, bold: true },
-                            { text: String(l.CPF_CLIENTE || '—'), align: 'center' as const },
-                            { text: String(l.FORMA_PAGAMENTO || '—'), align: 'center' as const },
-                            { text: `${l['ALIQUOTA_ESTIMADA(%)']}%`, align: 'right' as const },
-                            { text: fmt(l.IMPOSTO_ESTIMADO), align: 'right' as const, bold: true, color: '#b45309' },
-                            { text: fmt(l.VALOR_TOTAL), align: 'right' as const, bold: true }
-                        ])}
-                        rodape={[
-                            { text: `TOTAL · ${csv.linhas.length} vendas`, bold: true },
-                            { text: '', align: 'left' as const },
-                            { text: '', align: 'center' as const },
-                            { text: '', align: 'center' as const },
-                            { text: '', align: 'right' as const },
-                            { text: fmt(csv.totalImpostos), align: 'right' as const, bold: true, color: '#b45309' },
-                            { text: fmt(csv.totalVendas), align: 'right' as const, bold: true, color: '#047857' }
-                        ]}
+                        colunas={s.colunas}
+                        colunais={s.alinhamentos}
+                        linhas={toLinhas(s.linhas)}
+                        rodape={toRodape(s.rodape)}
+                        vazio={s.vazio}
                     />
                     <Legenda texto="CPF sanitizado (LGPD): os 7 primeiros dígitos são mascarados." />
                 </div>
@@ -342,6 +316,8 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
     const renderVendasDiarias = () => {
         const ds = report.dailySales || report.collective;
         if (!ds) return null;
+        const s = specVendasDiarias(report);
+        if (!s) return null;
         return (
             <section className="space-y-8">
                 <div className="grid grid-cols-4 gap-4">
@@ -353,22 +329,11 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
                 <div>
                     <BoxTitulo titulo="Vendas por Dia" extra={`Ticket médio: ${fmt(ds.ticketMedio)}`} />
                     <Tabela
-                        colunas={['Data', 'Vendas', 'Itens', 'Faturamento', 'Ticket Médio']}
-                        colunais={['left', 'center', 'center', 'right', 'right']}
-                        linhas={ds.dias.map((d: any) => [
-                            { text: String(d.data), bold: true },
-                            { text: String(d.vendas), align: 'center' as const },
-                            { text: String(d.items), align: 'center' as const },
-                            { text: fmt(d.total), align: 'right' as const, bold: true, color: '#047857' },
-                            { text: fmt(d.vendas > 0 ? d.total / d.vendas : 0), align: 'right' as const }
-                        ])}
-                        rodape={[
-                            { text: 'TOTAL', align: 'center' as const, bold: true },
-                            { text: String(ds.totalVendas), align: 'center' as const, bold: true },
-                            { text: String(ds.totalItens), align: 'center' as const, bold: true },
-                            { text: fmt(ds.totalGeral), align: 'right' as const, bold: true, color: '#047857' },
-                            { text: fmt(ds.ticketMedio), align: 'right' as const, bold: true }
-                        ]}
+                        colunas={s.colunas}
+                        colunais={s.alinhamentos}
+                        linhas={toLinhas(s.linhas)}
+                        rodape={toRodape(s.rodape)}
+                        vazio={s.vazio}
                     />
                 </div>
             </section>
@@ -378,6 +343,8 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
     const renderSalesByCategory = () => {
         const c = report.salesByCategory;
         if (!c) return null;
+        const s = specSalesByCategory(report);
+        if (!s) return null;
         return (
             <section className="space-y-8">
                 <div className="grid grid-cols-3 gap-4">
@@ -388,20 +355,11 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
                 <div>
                     <BoxTitulo titulo="Desempenho por Grupo (Categoria)" extra={`${c.qtdPedidos} pedidos no período`} />
                     <Tabela
-                        colunas={['Grupo', 'Itens Vendidos', 'Receita', '% do Total']}
-                        colunais={['left', 'right', 'right', 'right']}
-                        linhas={c.linhas.map((l: any) => [
-                            { text: String(l.categoria), bold: true },
-                            { text: String(l.quantidade), align: 'right' as const },
-                            { text: fmt(l.receita), align: 'right' as const, bold: true, color: '#047857' },
-                            { text: `${c.totalReceita ? (Number(l.receita) / Number(c.totalReceita) * 100).toFixed(1) : '0.0'}%`, align: 'right' as const }
-                        ])}
-                        rodape={[
-                            { text: 'TOTAL', bold: true },
-                            { text: String(c.totalQuantidade), align: 'right' as const, bold: true },
-                            { text: fmt(c.totalReceita), align: 'right' as const, bold: true, color: '#047857' },
-                            { text: '100%', align: 'right' as const, bold: true }
-                        ]}
+                        colunas={s.colunas}
+                        colunais={s.alinhamentos}
+                        linhas={toLinhas(s.linhas)}
+                        rodape={toRodape(s.rodape)}
+                        vazio={s.vazio}
                     />
                 </div>
             </section>
@@ -411,6 +369,8 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
     const renderLowStock = () => {
         const ls = report.lowStock;
         if (!ls) return null;
+        const s = specLowStock(report);
+        if (!s) return null;
         return (
             <section className="space-y-8">
                 <div className="grid grid-cols-3 gap-4">
@@ -421,24 +381,11 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
                 <div>
                     <BoxTitulo titulo="Reposição / Inventário — Itens Abaixo do Mínimo" />
                     <Tabela
-                        colunas={['Produto', 'Categoria', 'Código', 'Estoque', 'Mínimo', 'Valor (Custo)']}
-                        colunais={['left', 'left', 'center', 'center', 'center', 'right']}
-                        linhas={ls.linhas.map((l: any) => [
-                            { text: String(l.name), bold: true, sub: l.semEstoque ? 'SEM ESTOQUE' : 'Estoque crítico' },
-                            { text: String(l.category || '') },
-                            { text: l.barcode ? String(l.barcode) : '—', align: 'center' as const },
-                            { text: String(l.estoque), align: 'center' as const, bold: true, color: l.estoque <= 0 ? '#b91c1c' : '#b45309' },
-                            { text: String(l.minimo), align: 'center' as const },
-                            { text: fmt(l.valorEstoque), align: 'right' as const }
-                        ])}
-                        rodape={[
-                            { text: `TOTAL · ${ls.totalCriticos} item(ns) em reposição`, bold: true },
-                            { text: '', align: 'left' as const },
-                            { text: '', align: 'center' as const },
-                            { text: '', align: 'center' as const },
-                            { text: '', align: 'center' as const },
-                            { text: fmt(ls.totalValorEstoque), align: 'right' as const, bold: true }
-                        ]}
+                        colunas={s.colunas}
+                        colunais={s.alinhamentos}
+                        linhas={toLinhas(s.linhas)}
+                        rodape={toRodape(s.rodape)}
+                        vazio={s.vazio}
                     />
                 </div>
             </section>
@@ -448,6 +395,8 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
     const renderProductsCatalog = () => {
         const pc = report.productsCatalog;
         if (!pc) return null;
+        const s = specProductsCatalog(report);
+        if (!s) return null;
         return (
             <section className="space-y-8">
                 <div className="grid grid-cols-3 gap-4">
@@ -458,28 +407,11 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
                 <div>
                     <BoxTitulo titulo="Catálogo Completo de Produtos" extra={`${pc.linhas.length} SKUs`} />
                     <Tabela
-                        colunas={['Nº', 'Produto', 'Marca', 'Peso', 'Categoria', 'Código', 'Estoque', 'Preço de Venda']}
-                        colunais={['center', 'left', 'left', 'left', 'left', 'center', 'right', 'right']}
-                        linhas={pc.linhas.map((l: any, idx: number) => [
-                            { text: String(idx + 1), align: 'center' as const, bold: true, color: '#64748b' },
-                            { text: String(l.name), bold: true },
-                            { text: l.brand || '—' },
-                            { text: l.weight || '—' },
-                            { text: String(l.category || '') },
-                            { text: l.barcode || '—', align: 'center' as const },
-                            { text: String(l.estoque), align: 'right' as const, bold: true, color: l.estoque <= 0 ? '#b91c1c' : l.estoque <= 5 ? '#b45309' : '#334155' },
-                            { text: `${l.precoPromocional > 0 ? 'Oferta ' : ''}${fmt(l.precoPromocional > 0 ? l.precoPromocional : l.preco)}`, align: 'right' as const, bold: true, color: l.precoPromocional > 0 ? '#047857' : '#334155' }
-                        ])}
-                        rodape={[
-                            { text: `TOTAL · ${pc.totalProdutos} produtos`, bold: true },
-                            { text: '', align: 'left' as const },
-                            { text: '', align: 'left' as const },
-                            { text: '', align: 'left' as const },
-                            { text: '', align: 'left' as const },
-                            { text: '', align: 'center' as const },
-                            { text: String(pc.totalEstoque), align: 'right' as const, bold: true },
-                            { text: fmt(pc.totalValorEstoque), align: 'right' as const, bold: true, color: '#047857' }
-                        ]}
+                        colunas={s.colunas}
+                        colunais={s.alinhamentos}
+                        linhas={toLinhas(s.linhas)}
+                        rodape={toRodape(s.rodape)}
+                        vazio={s.vazio}
                     />
                 </div>
             </section>
@@ -523,6 +455,8 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
     const renderDailyClosing = () => {
         const dc = report.dailyClosing;
         if (!dc) return null;
+        const s = specDailyClosing(report);
+        if (!s) return null;
         return (
             <section className="space-y-8">
                 <div className="grid grid-cols-4 gap-4">
@@ -534,20 +468,11 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
                 <div>
                     <BoxTitulo titulo="Vendas por Forma de Pagamento" extra={report.title} />
                     <Tabela
-                        colunas={['Forma de Pagamento', 'Nº de Operações', 'Valor', '% do Total']}
-                        colunais={['left', 'center', 'right', 'right']}
-                        linhas={dc.paymentRows.map((r: any) => [
-                            { text: String(r.label), bold: true },
-                            { text: String(r.count), align: 'center' as const },
-                            { text: fmt(r.amount), align: 'right' as const, bold: true, color: '#047857' },
-                            { text: `${dc.totalSales ? (Number(r.amount) / Number(dc.totalSales) * 100).toFixed(1) : '0.0'}%`, align: 'right' as const }
-                        ])}
-                        rodape={[
-                            { text: `TOTAL · ${dc.salesCount} venda(s)`, bold: true },
-                            { text: '', align: 'center' as const },
-                            { text: fmt(dc.totalSales), align: 'right' as const, bold: true, color: '#047857' },
-                            { text: '100%', align: 'right' as const, bold: true }
-                        ]}
+                        colunas={s.colunas}
+                        colunais={s.alinhamentos}
+                        linhas={toLinhas(s.linhas)}
+                        rodape={toRodape(s.rodape)}
+                        vazio={s.vazio}
                     />
                     <Legenda texto={`Despesas do período: ${dc.expensesCount} lançamento(s) · Depósitos: ${dc.depositsCount} aprovação(ões).`} />
                 </div>
@@ -566,24 +491,22 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
                     <CardResumo label="Itens Vendidos" valor={String(d.totalItens)} />
                     <CardResumo label="Faturamento" valor={fmt(d.totalGeral)} destaque="positivo" />
                 </div>
-                {d.dias.map((dia: any) => (
-                    <div key={dia.data} className="print-avoid-break">
-                        <BoxTitulo titulo={`${dia.data} — ${dia.vendas} venda(s) · ${dia.itens} itens`} extra={fmt(dia.total)} />
-                        <Tabela
-                            colunas={['Hora', 'Cupom', 'Cliente / Interno', 'Itens', 'Pagamento', 'Operador', 'Valor']}
-                            colunais={['center', 'left', 'left', 'left', 'center', 'center', 'right']}
-                            linhas={dia.vendasDetalhe.map((v: any) => [
-                                { text: fmtHora('2000-01-01T' + (v.hora || '00:00') + ':00'), align: 'center' as const },
-                                { text: String(v.cupom || ''), bold: true },
-                                { text: String(v.cliente || 'Consumidor'), sub: v.interno ? String(v.interno) : v.cpf ? `CPF ${String(v.cpf)}` : '' },
-                                { text: v.items.map((i: any) => `${i.qtd}x ${i.nome}`).join(' · ') },
-                                { text: (v.formas || []).join(' / '), align: 'center' as const },
-                                { text: String(v.operador || '—'), align: 'center' as const },
-                                { text: fmt(v.total), align: 'right' as const, bold: true, color: '#047857' }
-                            ])}
-                        />
-                    </div>
-                ))}
+                {d.dias.map((dia: any) => {
+                    const s = specDetalheVendasDia(dia);
+                    if (!s) return null;
+                    return (
+                        <div key={dia.data} className="print-avoid-break">
+                            <BoxTitulo titulo={`${dia.data} — ${dia.vendas} venda(s) · ${dia.itens} itens`} extra={fmt(dia.total)} />
+                            <Tabela
+                                colunas={s.colunas}
+                                colunais={s.alinhamentos}
+                                linhas={toLinhas(s.linhas)}
+                                rodape={toRodape(s.rodape)}
+                                vazio={s.vazio}
+                            />
+                        </div>
+                    );
+                })}
             </section>
         );
     };
@@ -591,6 +514,8 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
     const renderRankingClientes = () => {
         const r = report.rankingClientes;
         if (!r) return null;
+        const s = specRankingClientes(report);
+        if (!s) return null;
         return (
             <section className="space-y-8">
                 <div className="grid grid-cols-3 gap-4">
@@ -601,28 +526,11 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
                 <div>
                     <BoxTitulo titulo="Ranking de Clientes do Período" />
                     <Tabela
-                        colunas={['#', 'Cliente', 'CPF', 'Compras', 'Itens', 'Faturamento', 'Ticket', '%']}
-                        colunais={['center', 'left', 'center', 'center', 'center', 'right', 'right', 'right']}
-                        linhas={r.linhas.map((l: any) => [
-                            { text: String(l.pos), align: 'center' as const, bold: true, color: l.pos <= 3 ? '#b45309' : '#64748b' },
-                            { text: String(l.cliente), bold: true },
-                            { text: l.cpf || '—', align: 'center' as const },
-                            { text: String(l.compras), align: 'center' as const },
-                            { text: String(l.itens), align: 'center' as const },
-                            { text: fmt(l.total), align: 'right' as const, bold: true, color: '#047857' },
-                            { text: fmt(l.ticket), align: 'right' as const },
-                            { text: `${Number(l.pct || 0).toFixed(1)}%`, align: 'right' as const }
-                        ])}
-                        rodape={[
-                            { text: '', align: 'center' as const },
-                            { text: `TOTAL · ${r.totalClientes} cliente(s)`, bold: true },
-                            { text: '', align: 'center' as const },
-                            { text: String(r.totalVendas), align: 'center' as const, bold: true },
-                            { text: '', align: 'center' as const },
-                            { text: fmt(r.totalGeral), align: 'right' as const, bold: true, color: '#047857' },
-                            { text: '', align: 'right' as const },
-                            { text: '100%', align: 'right' as const, bold: true }
-                        ]}
+                        colunas={s.colunas}
+                        colunais={s.alinhamentos}
+                        linhas={toLinhas(s.linhas)}
+                        rodape={toRodape(s.rodape)}
+                        vazio={s.vazio}
                     />
                 </div>
             </section>
@@ -632,6 +540,8 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
     const renderVendasOperador = () => {
         const o = report.vendasOperador;
         if (!o) return null;
+        const s = specVendasOperador(report);
+        if (!s) return null;
         return (
             <section className="space-y-8">
                 <div className="grid grid-cols-3 gap-4">
@@ -642,26 +552,11 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
                 <div>
                     <BoxTitulo titulo="Desempenho por Operador (CAIXA)" />
                     <Tabela
-                        colunas={['#', 'Operador', 'Vendas', 'Itens', 'Faturamento', 'Ticket', '%']}
-                        colunais={['center', 'left', 'center', 'center', 'right', 'right', 'right']}
-                        linhas={o.linhas.map((l: any) => [
-                            { text: String(l.pos), align: 'center' as const, bold: true, color: l.pos === 1 ? '#b45309' : '#64748b' },
-                            { text: String(l.operador), bold: true },
-                            { text: String(l.vendas), align: 'center' as const },
-                            { text: String(l.itens), align: 'center' as const },
-                            { text: fmt(l.total), align: 'right' as const, bold: true, color: '#047857' },
-                            { text: fmt(l.ticket), align: 'right' as const },
-                            { text: `${Number(l.pct || 0).toFixed(1)}%`, align: 'right' as const }
-                        ])}
-                        rodape={[
-                            { text: '', align: 'center' as const },
-                            { text: `TOTAL · ${o.totalOperadores} operador(es)`, bold: true },
-                            { text: String(o.totalVendas), align: 'center' as const, bold: true },
-                            { text: '', align: 'center' as const },
-                            { text: fmt(o.totalGeral), align: 'right' as const, bold: true, color: '#047857' },
-                            { text: '', align: 'right' as const },
-                            { text: '100%', align: 'right' as const, bold: true }
-                        ]}
+                        colunas={s.colunas}
+                        colunais={s.alinhamentos}
+                        linhas={toLinhas(s.linhas)}
+                        rodape={toRodape(s.rodape)}
+                        vazio={s.vazio}
                     />
                 </div>
             </section>
@@ -671,6 +566,8 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
     const renderFiadoVendas = () => {
         const f = report.fiadoVendas;
         if (!f) return null;
+        const s = specFiadoVendas(report);
+        if (!s) return null;
         return (
             <section className="space-y-8">
                 <div className="grid grid-cols-3 gap-4">
@@ -680,26 +577,11 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
                 <div>
                     <BoxTitulo titulo="Vendas Fiadas (Período)" />
                     <Tabela
-                        colunas={['Data', 'Cliente', 'CPF', 'Forma', 'Status', 'Itens', 'Valor']}
-                        colunais={['left', 'left', 'center', 'center', 'center', 'left', 'right']}
-                        linhas={f.vendas.map((v: any) => [
-                            { text: String(v.data) },
-                            { text: String(v.cliente), bold: true },
-                            { text: v.cpf || '—', align: 'center' as const },
-                            { text: String(v.forma || ''), align: 'center' as const },
-                            { text: '', align: 'center' as const },
-                            { text: v.items.map((i: any) => `${i.qtd}x ${i.nome}`).join(' · ') },
-                            { text: fmt(v.total), align: 'right' as const, bold: true, color: '#b45309' }
-                        ])}
-                        rodape={[
-                            { text: `TOTAL · ${f.count} venda(s)`, bold: true },
-                            { text: '', align: 'left' as const },
-                            { text: '', align: 'center' as const },
-                            { text: '', align: 'center' as const },
-                            { text: '', align: 'center' as const },
-                            { text: '', align: 'left' as const },
-                            { text: fmt(f.total), align: 'right' as const, bold: true, color: '#b45309' }
-                        ]}
+                        colunas={s.colunas}
+                        colunais={s.alinhamentos}
+                        linhas={toLinhas(s.linhas)}
+                        rodape={toRodape(s.rodape)}
+                        vazio={s.vazio}
                     />
                 </div>
             </section>
@@ -710,8 +592,8 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
         const c = report.fiadoContas;
         if (!c) return null;
         const resumo = c.resumo || {};
-        const statusCor = (st: string) => st === 'vencido' ? '#b91c1c' : st === 'vence_hoje' ? '#b45309' : st === 'a_vencer' ? '#1d4ed8' : '#64748b';
-        const statusLabel = (conta: any) => conta.status === 'vencido' ? `VENCIDO (${conta.diasAtraso}d)` : conta.status === 'vence_hoje' ? 'VENCE HOJE' : conta.status === 'a_vencer' ? 'A VENCER' : 'SEM VENCIMENTO';
+        const s = specFiadoContas(report);
+        if (!s) return null;
         return (
             <section className="space-y-8">
                 <div className="grid grid-cols-4 gap-4">
@@ -723,30 +605,11 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
                 <div>
                     <BoxTitulo titulo="Contas a Receber (Fiado)" />
                     <Tabela
-                        colunas={['Cliente', 'CPF', 'Telefone', 'Dívida', 'Limite', 'Disponível', 'Início', 'Vencimento', 'Status']}
-                        colunais={['left', 'center', 'center', 'right', 'right', 'right', 'center', 'center', 'center']}
-                        linhas={c.contas.map((conta: any) => [
-                            { text: String(conta.nome), bold: true },
-                            { text: conta.cpf || '—', align: 'center' as const },
-                            { text: conta.telefone || '—', align: 'center' as const },
-                            { text: fmt(conta.divida), align: 'right' as const, bold: true, color: '#b45309' },
-                            { text: fmt(conta.limite), align: 'right' as const },
-                            { text: fmt(conta.disponivel), align: 'right' as const },
-                            { text: String(conta.debtStartedAt || '—'), align: 'center' as const },
-                            { text: String(conta.debtDueAt || '—'), align: 'center' as const },
-                            { text: statusLabel(conta), align: 'center' as const, bold: true, color: statusCor(conta.status) }
-                        ])}
-                        rodape={[
-                            { text: `TOTAL · ${c.contas.length} conta(s)`, bold: true },
-                            { text: '', align: 'center' as const },
-                            { text: '', align: 'center' as const },
-                            { text: fmt(resumo.totalDivida || 0), align: 'right' as const, bold: true, color: '#b45309' },
-                            { text: fmt(resumo.totalLimite || 0), align: 'right' as const, bold: true },
-                            { text: fmt(resumo.totalDisponivel || 0), align: 'right' as const, bold: true },
-                            { text: '', align: 'center' as const },
-                            { text: '', align: 'center' as const },
-                            { text: '', align: 'center' as const }
-                        ]}
+                        colunas={s.colunas}
+                        colunais={s.alinhamentos}
+                        linhas={toLinhas(s.linhas)}
+                        rodape={toRodape(s.rodape)}
+                        vazio={s.vazio}
                     />
                 </div>
             </section>
@@ -756,30 +619,26 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
     const renderFiadoVencimentos = () => {
         const v = report.fiadoVencimentos;
         if (!v) return null;
+        const faixas = (v.faixas || []).filter((f: any) => Number(f.count) > 0);
         return (
             <section className="space-y-8">
-                {v.faixas.filter((f: any) => Number(f.count) > 0).map((faixa: any) => (
-                    <div key={faixa.faixa} className="print-avoid-break">
-                        <BoxTitulo titulo={`${faixa.faixa} — ${faixa.count} cliente(s)`} extra={fmt(faixa.totalDivida)} />
-                        <Tabela
-                            colunas={['Cliente', 'Dívida', 'Vencimento', 'Dias']}
-                            colunais={['left', 'right', 'center', 'right']}
-                            linhas={faixa.itens.map((i: any) => [
-                                { text: String(i.nome), bold: true },
-                                { text: fmt(i.divida), align: 'right' as const, bold: true, color: '#b45309' },
-                                { text: String(i.debtDueAt || '—'), align: 'center' as const },
-                                { text: String(i.diasAtraso) + ' dia(s)', align: 'right' as const }
-                            ])}
-                            rodape={[
-                                { text: `SUBTOTAL · ${faixa.count} conta(s)`, bold: true },
-                                { text: fmt(faixa.totalDivida), align: 'right' as const, bold: true, color: '#b45309' },
-                                { text: '', align: 'center' as const },
-                                { text: '', align: 'right' as const }
-                            ]}
-                        />
-                    </div>
-                ))}
-                {v.faixas.every((f: any) => Number(f.count) === 0) && (
+                {faixas.map((faixa: any) => {
+                    const s = specFiadoVencimentosFaixa(faixa);
+                    if (!s) return null;
+                    return (
+                        <div key={faixa.faixa} className="print-avoid-break">
+                            <BoxTitulo titulo={`${faixa.faixa} — ${faixa.count} cliente(s)`} extra={fmt(faixa.totalDivida)} />
+                            <Tabela
+                                colunas={s.colunas}
+                                colunais={s.alinhamentos}
+                                linhas={toLinhas(s.linhas)}
+                                rodape={toRodape(s.rodape)}
+                                vazio={s.vazio}
+                            />
+                        </div>
+                    );
+                })}
+                {faixas.length === 0 && (
                     <div className="text-center py-16 text-slate-500 font-black uppercase tracking-[0.2em] border-4 border-dashed border-slate-100 rounded-[3rem]">
                         Nenhuma dívida em aberto no fiado.
                     </div>
@@ -796,6 +655,8 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
         const ativos = lista.filter((x: any) => x.status === 'active').length;
         const pendentes = lista.filter((x: any) => x.status === 'pending').length;
         const suspensos = lista.filter((x: any) => x.status === 'suspended').length;
+        const s = specUsersCredits(report);
+        if (!s) return null;
         return (
             <section className="space-y-8">
                 <div className="grid grid-cols-4 gap-4">
@@ -807,24 +668,11 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
                 <div>
                     <BoxTitulo titulo="Relatório de Créditos dos Usuários" extra={`${lista.length} familiar(es)`} />
                     <Tabela
-                        colunas={['#', 'Familiar', 'CPF', 'Status', 'Saldo Disponível', 'Gasto Semanal']}
-                        colunais={['center', 'left', 'center', 'center', 'right', 'right']}
-                        linhas={lista.map((x: any, idx: number) => [
-                            { text: String(idx + 1).padStart(2, '0'), align: 'center' as const },
-                            { text: String(x.name || '—'), bold: true },
-                            { text: String(x.cpf || '—'), align: 'center' as const },
-                            { text: x.status === 'active' ? 'Ativo' : x.status === 'pending' ? 'Pendente' : 'Suspenso', align: 'center' as const, bold: true, color: x.status === 'active' ? '#047857' : x.status === 'pending' ? '#b45309' : '#b91c1c' },
-                            { text: fmt(x.saldo), align: 'right' as const, bold: true, color: Number(x.saldo || 0) > 0 ? '#047857' : '#64748b' },
-                            { text: fmt(x.gastoSemanal), align: 'right' as const }
-                        ])}
-                        rodape={[
-                            { text: `TOTAL · ${lista.length} familiares`, bold: true },
-                            { text: '', align: 'left' as const },
-                            { text: '', align: 'center' as const },
-                            { text: '', align: 'center' as const },
-                            { text: fmt(totalSaldo), align: 'right' as const, bold: true, color: '#047857' },
-                            { text: fmt(totalGasto), align: 'right' as const, bold: true }
-                        ]}
+                        colunas={s.colunas}
+                        colunais={s.alinhamentos}
+                        linhas={toLinhas(s.linhas)}
+                        rodape={toRodape(s.rodape)}
+                        vazio={s.vazio}
                     />
                     {(pendentes > 0 || suspensos > 0) && (
                         <Legenda texto={`Critério da listagem: todos os familiares cadastrados${pendentes > 0 ? ` · ${pendentes} pendente(s)` : ''}${suspensos > 0 ? ` · ${suspensos} suspenso(s)` : ''}.`} />

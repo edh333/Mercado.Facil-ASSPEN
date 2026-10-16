@@ -11,6 +11,12 @@ import { rotuloPagamento } from '../../utils/pdvPayment';
 import { buildMonthlyDre, buildSalesCsv, buildStockAbc, buildTopProducts, buildDailySales, buildSalesByCategory, buildLowStock, buildProductsCatalog, buildExtratoIndividual, buildDetalheVendas, buildRankingClientes, buildVendasOperador, buildFiadoVendas, buildContasReceberFiado, buildFiadoVencimentos } from '../../context/StoreContext';
 import { useReportData } from '../../hooks/useReportData';
 import { AlertTriangle, Loader2 } from 'lucide-react';
+import {
+    specSalesCsv, specStockAbc, specTopProducts, specDailyClosing, specVendasDiarias,
+    specDetalheVendasDia, specSalesByCategory, specLowStock, specProductsCatalog,
+    specUsersCredits, specRankingClientes, specVendasOperador, specFiadoVendas,
+    specFiadoContas, specFiadoVencimentosFaixa, type CelulaSpec, type SpecTabela
+} from '../../utils/reportSpecs';
 
 // Tipos de relatório que respeitam os filtros de refinamento (forma de pagamento,
 // status, cliente e operador). Fonte ÚNICA — AdminReportsTab importa desta lista.
@@ -143,6 +149,8 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
     const {} = useTheme();
     const [thermalMode, setThermalMode] = React.useState(false);
     const [fontSize, setFontSize] = React.useState(14);
+    const [diasAbertos, setDiasAbertos] = React.useState<Record<string, boolean>>({});
+    useEffect(() => { setDiasAbertos({}); }, [config?.type, config?.startDate, config?.endDate]);
 
     // Os arrays do contexto vêm truncados (50 pedidos) para o painel não
     // pesar. O relatório, porém, precisa do período INTEIRO: um total
@@ -152,10 +160,6 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
     const dadosRelatorio = useReportData(isOpen, config?.startDate, config?.endDate);
     const pedidosRelatorio = dadosRelatorio.pedidos ?? orders;
     const despesasRelatorio = dadosRelatorio.despesas ?? expenses;
-
-    // Dias expandidos no Detalhamento de Vendas (resetados quando o relatório muda).
-    const [diasAbertos, setDiasAbertos] = React.useState<Record<string, boolean>>({});
-    useEffect(() => { setDiasAbertos({}); }, [config?.type, config?.startDate, config?.endDate]);
 
     // Código do relatório: gerado UMA vez por configuração (fonte estável).
     // Antes era Math.random() no próprio render — mudava a cada re-render.
@@ -629,38 +633,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                 </div>
 
                 <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[2.5rem] overflow-hidden shadow-xl">
-                    <div className="max-h-[45vh] overflow-y-auto custom-scrollbar">
-                        <table className="w-full text-left">
-                            <thead className="bg-[var(--text-main)] text-[var(--bg-card)] font-black uppercase text-[9px] tracking-widest sticky top-0 z-10 shadow-lg">
-                                <tr>
-                                    <th className="p-4">Data</th>
-                                    <th className="p-4">Cupom</th>
-                                    <th className="p-4">CPF Cliente</th>
-                                    <th className="p-4">Pagamento</th>
-                                    <th className="p-4 text-right">Alíq.</th>
-                                    <th className="p-4 text-right">Imposto Est.</th>
-                                    <th className="p-4 text-right">Valor Total</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-[var(--border-color)] bg-[var(--bg-card)]">
-                                {csv.linhas.length === 0 ? (
-                                    <tr><td colSpan={7} className="p-20 text-center font-black uppercase text-xs opacity-30">Nenhuma venda encontrada para este período.</td></tr>
-                                ) : csv.linhas.map((l: any, idx: number) => (
-                                    <tr key={idx} className="hover:bg-[var(--bg-main)]/30 transition-all">
-                                        <td className="p-4 text-[10px] font-black font-mono text-[var(--text-main)]">{l.DATA}</td>
-                                        <td className="p-4 text-[10px] font-black text-[var(--text-main)]">{l.NUMERO_CUPOM}</td>
-                                        <td className="p-4 text-[10px] font-black font-mono text-[var(--text-muted)]">{l.CPF_CLIENTE}</td>
-                                        <td className="p-4">
-                                            <span className="px-2.5 py-1 rounded-lg font-black text-[10px] uppercase tracking-widest bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">{l.FORMA_PAGAMENTO}</span>
-                                        </td>
-                                        <td className="p-4 text-right text-[10px] font-black text-[var(--text-muted)]">{l['ALIQUOTA_ESTIMADA(%)']}%</td>
-                                        <td className="p-4 text-right text-[10px] font-black text-amber-600">R$ {l.IMPOSTO_ESTIMADO}</td>
-                                        <td className="p-4 text-right text-xs font-black text-[var(--text-main)]">R$ {l.VALOR_TOTAL}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                    {tabelaSpec(specSalesCsv(report))}
                 </div>
                 <p className="text-[9px] text-[var(--text-muted)] text-center uppercase font-black tracking-widest opacity-60">
                     CPF sanitizado (LGPD) — os 7 primeiros dígitos são mascarados.
@@ -672,7 +645,6 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
     const renderStockAbc = () => {
         const abc = report.stockAbc;
         if (!abc) return null;
-        const corClasse = (c: string) => c === 'A' ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30' : c === 'B' ? 'bg-amber-500/15 text-amber-600 border-amber-500/30' : 'bg-red-500/15 text-red-600 border-red-500/30';
         return (
             <div className="space-y-6 animate-fadeIn">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -697,41 +669,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                         </h4>
                         <span className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest">{abc.qtdProdutosTotais} produtos</span>
                     </div>
-                    <div className="max-h-[45vh] overflow-y-auto custom-scrollbar">
-                        <table className="w-full text-left">
-                            <thead className="bg-[var(--text-main)] text-[var(--bg-card)] font-black uppercase text-[9px] tracking-widest sticky top-0 z-10 shadow-lg">
-                                <tr>
-                                    <th className="p-4">Produto</th>
-                                    <th className="p-4 text-right">Qtd Vendida</th>
-                                    <th className="p-4 text-right">Receita</th>
-                                    <th className="p-4 text-right">% Acum.</th>
-                                    <th className="p-4 text-right">Estoque</th>
-                                    <th className="p-4 text-right">Valor (Custo)</th>
-                                    <th className="p-4 text-center">Classe</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-[var(--border-color)] bg-[var(--bg-card)]">
-                                {abc.linhas.length === 0 ? (
-                                    <tr><td colSpan={7} className="p-20 text-center font-black uppercase text-xs opacity-30">Nenhum produto cadastrado.</td></tr>
-                                ) : abc.linhas.map((l: any, idx: number) => (
-                                    <tr key={idx} className="hover:bg-[var(--bg-main)]/30 transition-all">
-                                        <td className="p-4">
-                                            <p className="text-[11px] font-black uppercase text-[var(--text-main)] tracking-tight max-w-[220px] truncate">{l.name}</p>
-                                            {l.qtdVendida === 0 && <span className="text-[10px] font-black text-red-500 uppercase tracking-widest">Sem giro no período</span>}
-                                        </td>
-                                        <td className="p-4 text-right text-[11px] font-black text-[var(--text-main)]">{l.qtdVendida}</td>
-                                        <td className="p-4 text-right text-[11px] font-black text-emerald-600">R$ {l.receita.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                                        <td className="p-4 text-right text-[11px] font-black text-[var(--text-muted)]">{l.acumuladoPct.toFixed(1)}%</td>
-                                        <td className="p-4 text-right text-[11px] font-black text-[var(--text-main)]">{l.estoque}</td>
-                                        <td className="p-4 text-right text-[11px] font-black text-[var(--text-main)]">R$ {l.valorEstoqueCusto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                                        <td className="p-4 text-center">
-                                            <span className={`inline-block px-3 py-1 rounded-lg font-black text-[9px] uppercase tracking-widest border ${corClasse(l.classe)}`}>{l.classe}</span>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                    {tabelaSpec(specStockAbc(report))}
                 </div>
                 <p className="text-[9px] text-[var(--text-muted)] text-center uppercase font-black tracking-widest opacity-60">
                     Critério: A ≤ 80% do faturamento · B ≤ 95% · C restante. Inventário valorizado a custo para balanço patrimonial.
@@ -743,11 +681,6 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
     const renderTopProducts = () => {
         const tp = report.topProducts;
         if (!tp) return null;
-        const medalha = (pos: number) =>
-            pos === 1 ? 'bg-amber-500/15 text-amber-600 border-amber-500/40'
-            : pos === 2 ? 'bg-slate-400/15 text-slate-500 border-slate-400/40'
-            : pos === 3 ? 'bg-orange-700/15 text-orange-700 border-orange-700/40'
-            : 'bg-[var(--bg-main)]/50 text-[var(--text-muted)] border-[var(--border-color)]';
         return (
             <div className="space-y-6 animate-fadeIn">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -772,38 +705,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                         </h4>
                         <span className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest">{tp.linhas.length} posições</span>
                     </div>
-                    <div className="max-h-[45vh] overflow-y-auto custom-scrollbar">
-                        <table className="w-full text-left">
-                            <thead className="bg-[var(--bg-main)]/50 sticky top-0 z-10">
-                                <tr>
-                                    <th className="p-4 text-[9px] font-black uppercase tracking-widest text-[var(--text-muted)] w-10">#</th>
-                                    <th className="p-4">Produto</th>
-                                    <th className="p-4 text-right">Qtd Vendida</th>
-                                    <th className="p-4 text-right">Receita</th>
-                                    <th className="p-4 text-right">Preço Médio</th>
-                                    <th className="p-4 text-right">Estoque</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-[var(--border-color)] bg-[var(--bg-card)]">
-                                {tp.linhas.length === 0 ? (
-                                    <tr><td colSpan={6} className="p-20 text-center font-black uppercase text-xs opacity-30">Nenhum produto com venda no período.</td></tr>
-                                ) : tp.linhas.map((l: any, idx: number) => (
-                                    <tr key={idx} className="hover:bg-[var(--bg-main)]/30 transition-all">
-                                        <td className="p-4">
-                                            <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-[10px] font-black border ${medalha(idx + 1)}`}>{idx + 1}</span>
-                                        </td>
-                                        <td className="p-4">
-                                            <p className="text-[11px] font-black uppercase text-[var(--text-main)] tracking-tight max-w-[220px] truncate">{l.name}</p>
-                                        </td>
-                                        <td className="p-4 text-right text-[11px] font-black text-[var(--text-main)]">{l.qtdVendida}</td>
-                                        <td className="p-4 text-right text-[11px] font-black text-emerald-600">R$ {l.receita.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                                        <td className="p-4 text-right text-[11px] font-black text-[var(--text-main)]">R$ {l.precoMedio.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                                        <td className="p-4 text-right text-[11px] font-black text-[var(--text-muted)]">{l.estoque}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                    {tabelaSpec(specTopProducts(report))}
                 </div>
             </div>
         );
@@ -820,12 +722,6 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
         const totalSaldo = lista.reduce((a, b) => a + b.saldo, 0);
         const totalGastoSemanal = lista.reduce((a, b) => a + b.gastoSemanal, 0);
         const saldoMedio = lista.length ? totalSaldo / lista.length : 0;
-        const statusBadge = (s: string) =>
-            s === 'active' ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30'
-            : s === 'pending' ? 'bg-amber-500/15 text-amber-600 border-amber-500/30'
-            : 'bg-red-500/15 text-red-600 border-red-500/30';
-        const statusLabel = (s: string) =>
-            s === 'active' ? 'Ativo' : s === 'pending' ? 'Pendente' : 'Suspenso';
         return (
             <div className="space-y-6 animate-fadeIn">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -861,48 +757,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                 )}
 
                 <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[2.5rem] overflow-hidden shadow-xl">
-                    <div className="max-h-[50vh] overflow-y-auto custom-scrollbar">
-                        <table className="w-full text-left">
-                            <thead className="bg-[var(--text-main)] text-[var(--bg-card)] font-black uppercase text-[9px] tracking-widest sticky top-0 z-10 shadow-lg">
-                                <tr>
-                                    <th className="p-5">#</th>
-                                    <th className="p-5">Familiar</th>
-                                    <th className="p-5">CPF</th>
-                                    <th className="p-5">Status</th>
-                                    <th className="p-5 text-right">Saldo Disponível</th>
-                                    <th className="p-5 text-right">Gasto Semanal</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-[var(--border-color)] bg-[var(--bg-card)]">
-                                {lista.length === 0 ? (
-                                    <tr><td colSpan={6} className="p-20 text-center font-black uppercase text-xs opacity-30">Nenhum familiar cadastrado.</td></tr>
-                                ) : lista.map((x: any, idx: number) => (
-                                    <tr key={x.u.id} className="hover:bg-[var(--bg-main)]/30 transition-all group">
-                                        <td className="p-5 text-[10px] font-black text-[var(--text-muted)]">{String(idx + 1).padStart(2, '0')}</td>
-                                        <td className="p-5">
-                                            <p className="text-[11px] font-black uppercase text-[var(--text-main)] tracking-tight max-w-[200px] truncate">{x.u.name || '—'}</p>
-                                            {x.u.inmateName && <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest truncate max-w-[200px]">PUP: {x.u.inmateName}</p>}
-                                        </td>
-                                        <td className="p-5 text-[10px] font-black font-mono text-[var(--text-muted)]">{x.u.cpf || '—'}</td>
-                                        <td className="p-5">
-                                            <span className={`px-3 py-1 rounded-lg font-black text-[10px] uppercase tracking-widest border ${statusBadge(x.u.status)}`}>{statusLabel(x.u.status)}</span>
-                                        </td>
-                                        <td className={`p-5 text-right font-black text-sm tracking-tighter ${x.saldo > 0 ? 'text-emerald-600' : 'text-[var(--text-muted)]'}`}>R$ {x.saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                                        <td className="p-5 text-right font-black text-sm tracking-tighter text-amber-600">R$ {x.gastoSemanal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                            {lista.length > 0 && (
-                                <tfoot className="bg-[var(--bg-main)]/40">
-                                    <tr className="border-t-2 border-[var(--border-color)]">
-                                        <td colSpan={4} className="p-5 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Total de {lista.length} familiares</td>
-                                        <td className="p-5 text-right font-black text-[var(--text-main)]">R$ {totalSaldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                                        <td className="p-5 text-right font-black text-[var(--text-main)]">R$ {totalGastoSemanal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                                    </tr>
-                                </tfoot>
-                            )}
-                        </table>
-                    </div>
+                    {tabelaSpec(specUsersCredits(report))}
                 </div>
                 <p className="text-[9px] text-[var(--text-muted)] text-center uppercase font-black tracking-widest opacity-60">
                     Saldos em tempo real — atualize a página para revalidar os valores.
@@ -914,7 +769,6 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
     const renderDailyClosing = () => {
         const dc = report.dailyClosing;
         if (!dc) return null;
-        const maxAmount = Math.max(...dc.paymentRows.map((r: any) => r.amount), 0.01);
         const fmt = formatBRL;
         return (
             <div className="space-y-6 animate-fadeIn">
@@ -958,26 +812,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                             <PieChart size={16}/> Vendas por Forma de Pagamento
                         </h4>
                     </div>
-                    <div className="divide-y divide-[var(--border-color)]">
-                        {dc.paymentRows.length === 0 && (
-                            <div className="p-8 text-center font-black uppercase text-xs opacity-30">Nenhuma venda neste período.</div>
-                        )}
-                        {dc.paymentRows.map((row: any, idx: number) => (
-                            <div key={idx} className="p-5">
-                                <div className="flex justify-between items-center mb-2">
-                                    <span className="text-xs font-black text-[var(--text-main)] uppercase tracking-tight">{row.label}</span>
-                                    <span className="text-sm font-black text-[var(--text-main)] tracking-tighter">{fmt(row.amount)}</span>
-                                </div>
-                                <div className="h-2 bg-[var(--bg-main)] rounded-full overflow-hidden">
-                                    <div className="h-full rounded-full" style={{ width: `${Math.max((row.amount / maxAmount) * 100, row.amount > 0 ? 4 : 0)}%`, backgroundColor: ['#10b981', '#6366f1', '#f59e0b', '#3b82f6', '#ef4444', '#8b5cf6'][idx % 6] }}></div>
-                                </div>
-                            </div>
-                        ))}
-                        <div className="p-5 flex justify-between items-center bg-[var(--bg-main)]/30">
-                            <span className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Total de Vendas</span>
-                            <span className="text-base font-black text-[var(--text-main)] tracking-tighter">{fmt(dc.totalSales)}</span>
-                        </div>
-                    </div>
+                    {tabelaSpec(specDailyClosing(report))}
                 </div>
             </div>
         );
@@ -1029,6 +864,79 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
         </div>
     );
 
+    // Cor hex (fonte ÚNICA em utils/reportSpecs) -> classe tailwind do preview.
+    const corParaClasse = (cor?: string): string | undefined => {
+        switch (cor) {
+            case '#047857': return 'text-emerald-600';
+            case '#b91c1c': return 'text-red-500';
+            case '#b45309': return 'text-amber-600';
+            case '#1d4ed8': return 'text-blue-500';
+            case '#334155': return 'text-[var(--text-main)]';
+            case '#64748b': return 'text-[var(--text-muted)]';
+            default: return undefined;
+        }
+    };
+
+    // Adaptador SpecTabela -> markup do preview (consome a MESMA fonte do A4).
+    const tabelaSpec = (s: SpecTabela | null) => {
+        if (!s) return null;
+        const th = (i: number) => s.alinhamentos[i] === 'right' ? 'text-right' : s.alinhamentos[i] === 'center' ? 'text-center' : 'text-left';
+        const cell = (celula: CelulaSpec, j: number) => {
+            const obj = typeof celula === 'object' ? celula : null;
+            const texto = obj ? obj.texto : String(celula);
+            const cls = obj
+                ? (corParaClasse(obj.cor) || 'text-[var(--text-main)]')
+                : (j === 0 ? 'font-black uppercase text-[var(--text-main)] tracking-tight' : 'font-bold text-[var(--text-main)]');
+            return (
+                <td key={j} className={`p-4 ${th(j)}`}>
+                    <span className={`text-[11px] font-black tracking-tight ${cls}`}>{texto}</span>
+                    {obj?.sub && <span className="block text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest mt-0.5">{obj.sub}</span>}
+                </td>
+            );
+        };
+        return (
+            <div className="max-h-[48vh] overflow-y-auto custom-scrollbar">
+                <table className="w-full text-left">
+                    <thead className="bg-[var(--text-main)] text-[var(--bg-card)] font-black uppercase text-[9px] tracking-widest sticky top-0 z-10 shadow-lg">
+                        <tr>
+                            {s.colunas.map((h, i) => <th key={i} className={`p-4 ${th(i)}`}>{h}</th>)}
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--border-color)] bg-[var(--bg-card)]">
+                        {s.linhas.length === 0 ? (
+                            <tr><td colSpan={s.colunas.length} className="p-20 text-center font-black uppercase text-xs opacity-30">{s.vazio}</td></tr>
+                        ) : s.linhas.map((linha, idx) => (
+                            <tr key={idx} className="hover:bg-[var(--bg-main)]/30 transition-all">{linha.map(cell)}</tr>
+                        ))}
+                    </tbody>
+                    {s.rodape && (
+                        <tfoot className="bg-[var(--bg-main)]/40">
+                            <tr className="border-t-2 border-[var(--border-color)]">
+                                {s.rodape.map((celula, j) => (
+                                    <td key={j} className={`p-4 ${th(j)} font-black text-[11px] uppercase tracking-widest ${typeof celula === 'object' ? (corParaClasse(celula.cor) || 'text-[var(--text-main)]') : 'text-[var(--text-main)]'}`}>
+                                        {typeof celula === 'string' ? celula : celula.texto}
+                                    </td>
+                                ))}
+                            </tr>
+                        </tfoot>
+                    )}
+                </table>
+            </div>
+        );
+    };
+
+    // Tabela a partir da spec compartilhada (card + título genérico + corpo).
+    const renderSpecTabela = (titulo: string, s: SpecTabela | null) => (
+        <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[2.5rem] overflow-hidden shadow-xl">
+            <div className="p-6 border-b border-[var(--border-color)] bg-[var(--bg-main)]/30">
+                <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--text-muted)] flex items-center gap-2">
+                    <BarChart3 size={16} className="text-emerald-600"/> {titulo}
+                </h4>
+            </div>
+            {tabelaSpec(s)}
+        </div>
+    );
+
     const renderVendasDiarias = () => {
         const ds = report.dailySales || report.collective;
         if (!ds) return null;
@@ -1049,24 +957,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                         <p className="text-xl font-black text-indigo-600">{fmt(ds.ticketMedio)}</p>
                     </div>
                 </div>
-                {renderTabelaPadrao(
-                    'Vendas por Dia',
-                    ['Data', 'Nº Vendas', 'Itens Vendidos', 'Faturamento'],
-                    ['left', 'right', 'right', 'right'],
-                    ds.dias.map((dia: any) => [
-                        dia.data,
-                        String(dia.vendas),
-                        String(dia.items),
-                        { texto: fmt(dia.total), classe: 'text-emerald-600' }
-                    ]),
-                    [
-                        'TOTAL',
-                        String(ds.totalVendas),
-                        String(ds.totalItens),
-                        fmt(ds.totalGeral)
-                    ],
-                    'Nenhuma venda neste período.'
-                )}
+                {renderSpecTabela('Vendas por Dia', specVendasDiarias(report))}
             </div>
         );
     };
@@ -1076,7 +967,6 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
         if (!d) return null;
         const fmt = formatBRL;
         const formas = d.porForma || [];
-        const toggleDia = (data: string) => setDiasAbertos(prev => ({ ...prev, [data]: !prev[data] }));
 
         const exportCsvDetalhe = () => {
             const linhas: (string | number)[][] = [];
@@ -1099,6 +989,8 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
             });
             baixarArquivoCsv('detalhamento-vendas', ['DATA', 'HORA', 'CUPOM', 'CLIENTE', 'INTERNO', 'CPF', 'OPERADOR', 'PAGAMENTO', 'STATUS', 'ITENS', 'VALOR'], linhas);
         };
+
+        const toggleDia = (data: string) => setDiasAbertos(prev => ({ ...prev, [data]: !prev[data] }));
 
         return (
             <div className="space-y-6 animate-fadeIn">
@@ -1170,50 +1062,8 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                                     </div>
                                 </button>
                                 {aberto && (
-                                    <div className="border-t border-[var(--border-color)] overflow-x-auto">
-                                        <table className="w-full text-left min-w-[820px]">
-                                            <thead className="bg-[var(--text-main)] text-[var(--bg-card)] font-black uppercase text-[9px] tracking-widest sticky top-0 z-10">
-                                                <tr>
-                                                    <th className="p-3">Hora</th>
-                                                    <th className="p-3">Cupom</th>
-                                                    <th className="p-3">Quem Comprou</th>
-                                                    <th className="p-3">Itens (o quê)</th>
-                                                    <th className="p-3">Pagamento</th>
-                                                    <th className="p-3">Operador</th>
-                                                    <th className="p-3 text-right">Valor</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-[var(--border-color)] bg-[var(--bg-card)]">
-                                                {dia.vendasDetalhe.map((v: any) => (
-                                                    <tr key={v.id} className="hover:bg-[var(--bg-main)]/30 transition-all align-top">
-                                                        <td className="p-3 whitespace-nowrap text-[10px] font-black font-mono text-[var(--text-muted)]">{v.hora}</td>
-                                                        <td className="p-3 whitespace-nowrap text-[10px] font-black font-mono text-[var(--text-muted)]">{v.cupom}</td>
-                                                        <td className="p-3 text-[11px]">
-                                                            <span className="font-black text-[var(--text-main)] uppercase">{v.cliente}</span>
-                                                            {v.interno && <span className="block font-bold text-[var(--text-muted)]">{v.interno}</span>}
-                                                            {v.cpf && <span className="block text-[9px] font-mono text-[var(--text-muted)] opacity-70">CPF {v.cpf}</span>}
-                                                        </td>
-                                                        <td className="p-3">
-                                                            {v.items.map((i: any, j: number) => (
-                                                                <div key={j} className="text-[11px] font-bold text-[var(--text-main)] whitespace-nowrap">
-                                                                    <span className="text-emerald-600 font-black">{i.qtd}x</span> {i.nome}
-                                                                    <span className="text-[var(--text-muted)]"> = {fmt(i.sub)}</span>
-                                                                </div>
-                                                            ))}
-                                                        </td>
-                                                        <td className="p-3 text-[10px] font-black uppercase text-[var(--text-muted)]">{v.formas.map((f: string) => rotuloPagamento(f)).join(' / ')}</td>
-                                                        <td className="p-3 text-[10px] font-black uppercase text-[var(--text-muted)]">{v.operador}</td>
-                                                        <td className="p-3 text-right text-[11px] font-black text-emerald-600 whitespace-nowrap">{fmt(v.total)}</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                            <tfoot>
-                                                <tr className="bg-[var(--bg-main)]/40 border-t-2 border-[var(--border-color)]">
-                                                    <td colSpan={6} className="p-3 text-right font-black text-[10px] uppercase tracking-widest text-[var(--text-main)]">Total do dia ({dia.vendas} vendas)</td>
-                                                    <td className="p-3 text-right font-black text-[11px] text-emerald-600">{fmt(dia.total)}</td>
-                                                </tr>
-                                            </tfoot>
-                                        </table>
+                                    <div className="border-t border-[var(--border-color)]">
+                                        {tabelaSpec(specDetalheVendasDia(dia))}
                                     </div>
                                 )}
                             </div>
@@ -1255,23 +1105,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                         <Download size={14}/> CSV
                     </button>
                 </div>
-                {renderTabelaPadrao(
-                    'Quem Mais Compra',
-                    ['#', 'Cliente', 'CPF', 'Compras', 'Itens', 'Faturamento', 'Ticket Médio', '% do Total'],
-                    ['left', 'left', 'left', 'right', 'right', 'right', 'right', 'right'],
-                    r.linhas.map((l: any) => [
-                        { texto: `#${l.pos}`, classe: 'text-amber-600' },
-                        l.cliente,
-                        { texto: l.cpf || '—', classe: 'text-[var(--text-muted)]' },
-                        String(l.compras),
-                        String(l.itens),
-                        { texto: fmt(l.total), classe: 'text-emerald-600' },
-                        fmt(l.ticket),
-                        { texto: `${l.pct.toFixed(1)}%`, classe: 'text-[var(--text-muted)]' }
-                    ]),
-                    ['TOTAL', String(r.totalClientes) + ' cliente(s)', '', String(r.totalVendas), '', fmt(r.totalGeral), '', '100%'],
-                    'Nenhuma venda neste período.'
-                )}
+                {renderSpecTabela('Quem Mais Compra', specRankingClientes(report))}
             </div>
         );
     };
@@ -1307,21 +1141,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                         <Download size={14}/> CSV
                     </button>
                 </div>
-                {renderTabelaPadrao(
-                    'Desempenho por Operador',
-                    ['#', 'Operador', 'Vendas', 'Itens', 'Faturamento', '% do Total'],
-                    ['left', 'left', 'right', 'right', 'right', 'right'],
-                    o.linhas.map((l: any) => [
-                        { texto: `#${l.pos}`, classe: 'text-amber-600' },
-                        l.operador,
-                        String(l.vendas),
-                        String(l.itens),
-                        { texto: fmt(l.total), classe: 'text-emerald-600' },
-                        { texto: `${l.pct.toFixed(1)}%`, classe: 'text-[var(--text-muted)]' }
-                    ]),
-                    ['TOTAL', String(o.totalOperadores) + ' operador(es)', String(o.totalVendas), '', fmt(o.totalGeral), '100%'],
-                    'Nenhuma venda neste período.'
-                )}
+                {renderSpecTabela('Desempenho por Operador', specVendasOperador(report))}
             </div>
         );
     };
@@ -1353,22 +1173,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                         <Download size={14}/> CSV
                     </button>
                 </div>
-                {renderTabelaPadrao(
-                    'Vendas no Fiado (Período)',
-                    ['Data', 'Cliente', 'CPF', 'Forma', 'Status', 'Itens', 'Valor'],
-                    ['left', 'left', 'left', 'left', 'left', 'left', 'right'],
-                    f.vendas.map((v: any) => [
-                        v.data,
-                        v.cliente,
-                        { texto: v.cpf || '—', classe: 'text-[var(--text-muted)]' },
-                        v.forma,
-                        { texto: rotuloStatus(v.status), classe: v.status ? (ehReceita(v.status) ? 'text-emerald-600' : 'text-red-500') : 'text-[var(--text-muted)]' },
-                        v.items.map((i: any) => `${i.qtd}x ${i.nome}`).join(', '),
-                        { texto: fmt(v.total), classe: 'text-amber-600' }
-                    ]),
-                    ['TOTAL', '', '', '', '', String(f.count) + ' venda(s)', fmt(f.total)],
-                    'Nenhuma venda fiada neste período.'
-                )}
+                {renderSpecTabela('Vendas no Fiado (Período)', specFiadoVendas(report))}
             </div>
         );
     };
@@ -1377,16 +1182,6 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
         const c = report.fiadoContas;
         if (!c) return null;
         const fmt = formatBRL;
-        const rotuloEstado = (st: string) => {
-            const map: Record<string, string> = {
-                vencido: 'VENCIDO',
-                vence_hoje: 'VENCE HOJE',
-                a_vencer: 'A VENCER',
-                sem_vencimento: 'SEM VENCIMENTO'
-            };
-            return map[st] || st;
-        };
-        const corEstado = (st: string) => st === 'vencido' ? 'text-red-500' : st === 'vence_hoje' ? 'text-amber-600' : st === 'a_vencer' ? 'text-blue-500' : 'text-[var(--text-muted)]';
         const resumo: any = c.resumo || {};
         return (
             <div className="space-y-6 animate-fadeIn">
@@ -1408,24 +1203,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                         <p className="text-xl font-black text-amber-600">{resumo.vencemHoje || 0}</p>
                     </div>
                 </div>
-                {renderTabelaPadrao(
-                    'Contas a Receber (Fiado)',
-                    ['Cliente', 'CPF', 'Dívida', 'Limite', 'Disponível', 'Usado', 'Início', 'Vencimento', 'Status'],
-                    ['left', 'left', 'right', 'right', 'right', 'right', 'left', 'left', 'left'],
-                    c.contas.map((conta: any) => [
-                        conta.nome,
-                        { texto: conta.cpf || '—', classe: 'text-[var(--text-muted)]' },
-                        { texto: fmt(conta.divida), classe: 'text-amber-600' },
-                        fmt(conta.limite),
-                        fmt(conta.disponivel),
-                        `${conta.pctLimite}%`,
-                        conta.debtStartedAt,
-                        conta.debtDueAt,
-                        { texto: rotuloEstado(conta.status) + (conta.diasAtraso > 0 && conta.status === 'vencido' ? ` (${conta.diasAtraso}d)` : ''), classe: corEstado(conta.status) }
-                    ]),
-                    ['TOTAL', '', fmt(resumo.totalDivida || 0), fmt(resumo.totalLimite || 0), fmt(resumo.totalDisponivel || 0), '', '', '', String(c.contas.length) + ' conta(s)'],
-                    'Nenhum débito de fiado em aberto.'
-                )}
+                {renderSpecTabela('Contas a Receber (Fiado)', specFiadoContas(report))}
             </div>
         );
     };
@@ -1447,32 +1225,11 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                 <div className="space-y-4">
                     {v.faixas.filter((f: any) => f.count > 0).map((faixa: any) => (
                         <div key={faixa.faixa} className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[2rem] overflow-hidden shadow-sm">
-                            <div className={`p-5 flex items-center justify-between border-b border-[var(--border-color)] bg-[var(--bg-main)]/30`}>
+                            <div className="p-5 flex items-center justify-between border-b border-[var(--border-color)] bg-[var(--bg-main)]/30">
                                 <p className={`text-[10px] font-black uppercase tracking-widest ${corFaixa(faixa.color)}`}>{faixa.faixa}</p>
                                 <p className="text-[10px] font-black text-[var(--text-muted)]">{faixa.count} cliente(s) · <span className="text-amber-600">{fmt(faixa.totalDivida)}</span></p>
                             </div>
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left min-w-[520px]">
-                                    <thead className="bg-[var(--text-main)] text-[var(--bg-card)] font-black uppercase text-[9px] tracking-widest">
-                                        <tr>
-                                            <th className="p-3">Cliente</th>
-                                            <th className="p-3 text-right">Dívida</th>
-                                            <th className="p-3">Vencimento</th>
-                                            <th className="p-3 text-right">Dias</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-[var(--border-color)] bg-[var(--bg-card)]">
-                                        {faixa.itens.map((i: any) => (
-                                            <tr key={i.usuarioId} className="hover:bg-[var(--bg-main)]/30 transition-all">
-                                                <td className="p-3 text-[11px] font-black text-[var(--text-main)] uppercase">{i.nome}</td>
-                                                <td className="p-3 text-right text-[11px] font-black text-amber-600">{fmt(i.divida)}</td>
-                                                <td className="p-3 text-[10px] font-black text-[var(--text-muted)]">{i.debtDueAt}</td>
-                                                <td className="p-3 text-right text-[10px] font-black text-[var(--text-muted)]">{i.diasAtraso} dia(s)</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                            {tabelaSpec(specFiadoVencimentosFaixa(faixa))}
                         </div>
                     ))}
                 </div>
@@ -1500,19 +1257,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                         <p className="text-xl font-black text-emerald-600">{fmt(c.totalReceita)}</p>
                     </div>
                 </div>
-                {renderTabelaPadrao(
-                    'Faturamento por Grupo',
-                    ['Grupo', 'Itens Vendidos', 'Receita', '% do Total'],
-                    ['left', 'right', 'right', 'right'],
-                    c.linhas.map((l: any) => [
-                        l.categoria,
-                        String(l.quantidade),
-                        { texto: fmt(l.receita), classe: 'text-emerald-600' },
-                        { texto: `${c.totalReceita ? ((l.receita / c.totalReceita) * 100).toFixed(1) : 0}%`, classe: 'text-[var(--text-muted)]' }
-                    ]),
-                    ['TOTAL', String(c.totalQuantidade), fmt(c.totalReceita), '100%'],
-                    'Nenhuma venda neste período.'
-                )}
+                {renderSpecTabela('Faturamento por Grupo', specSalesByCategory(report))}
             </div>
         );
     };
@@ -1537,19 +1282,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                         <p className="text-xl font-black text-[var(--text-main)]">{fmt(ls.totalValorEstoque)}</p>
                     </div>
                 </div>
-                {renderTabelaPadrao(
-                    'Produtos para Reposição',
-                    ['Produto', 'Estoque', 'Mínimo', 'Valor (Custo)'],
-                    ['left', 'right', 'right', 'right'],
-                    ls.linhas.map((l: any) => [
-                        `${l.name}${l.category ? ` · ${l.category}` : ''}`,
-                        { texto: String(l.estoque), classe: l.semEstoque ? 'text-red-500' : 'text-amber-600' },
-                        String(l.minimo),
-                        fmt(l.valorEstoque)
-                    ]),
-                    ['TOTAL', `${ls.totalCriticos} item(ns)`, '', fmt(ls.totalValorEstoque)],
-                    'Nenhum produto em estoque baixo. Tudo saudável!'
-                )}
+                {renderSpecTabela('Produtos para Reposição', specLowStock(report))}
             </div>
         );
     };
@@ -1574,23 +1307,7 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                         <p className="text-xl font-black text-emerald-600">{fmt(pc.totalValorEstoque)}</p>
                     </div>
                 </div>
-                {renderTabelaPadrao(
-                    'Catálogo Completo de Produtos',
-                    ['Nº', 'Produto', 'Marca', 'Peso', 'Categoria', 'Código', 'Estoque', 'Preço'],
-                    ['center', 'left', 'left', 'left', 'left', 'center', 'right', 'right'],
-                    pc.linhas.map((l: any, idx: number) => [
-                        String(idx + 1),
-                        l.name,
-                        l.brand || '—',
-                        l.weight || '—',
-                        l.category,
-                        l.barcode || '—',
-                        { texto: String(l.estoque), classe: l.estoque <= 0 ? 'text-red-500' : l.estoque <= (5) ? 'text-amber-600' : 'text-[var(--text-main)]' },
-                        `${l.precoPromocional > 0 ? 'Oferta: ' : ''}${l.precoPromocional > 0 ? fmt(l.precoPromocional) : fmt(l.preco)}`
-                    ]),
-                    null,
-                    'Nenhum produto cadastrado.'
-                )}
+                {renderSpecTabela('Catálogo Completo de Produtos', specProductsCatalog(report))}
             </div>
         );
     };
