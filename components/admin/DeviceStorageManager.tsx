@@ -8,6 +8,7 @@ import {
   medirArmazenamento,
   MetricaArmazenamento,
   ResultadoLimpeza,
+  SW_CACHE_ATUAL,
 } from '../../utils/deviceStorage';
 
 export const DeviceStorageManager: React.FC = () => {
@@ -71,7 +72,7 @@ export const DeviceStorageManager: React.FC = () => {
               Armazenamento deste dispositivo
             </h4>
             <p className="text-[10px] font-bold text-[var(--text-muted)] mt-0.5">
-              Cache, sessao, carrinho e arquivos temporarios gravados neste aparelho (navegador / PWA).
+              Cache, sessão, carrinho e arquivos temporários gravados neste aparelho (navegador / PWA).
             </p>
           </div>
         </div>
@@ -90,7 +91,7 @@ export const DeviceStorageManager: React.FC = () => {
           {[
             { rotulo: 'Uso total', valor: metrica.usadoBytes !== null ? formatarBytes(metrica.usadoBytes) : '--', extra: metrica.percentual !== null ? metrica.percentual + '%' : '--' },
             { rotulo: 'Chaves locais', valor: String(metrica.keysLocalStorage), extra: formatarBytes(metrica.bytesLocalStorage) },
-            { rotulo: 'Caches (SW)', valor: String(metrica.cachesArmazenados), extra: 'versao atual: v17' },
+            { rotulo: 'Caches (SW)', valor: String(metrica.cachesArmazenados), extra: 'versão: ' + SW_CACHE_ATUAL.replace('mercado-facil-', '') },
             { rotulo: 'Service workers', valor: String(metrica.swRegistrados), extra: 'registrados' },
             { rotulo: 'Bancos IndexedDB', valor: String(metrica.bancosIdb.length), extra: metrica.bancosIdb.length > 0 ? metrica.bancosIdb.slice(0, 2).join(', ') : 'nenhum' },
             { rotulo: 'Comprovantes pendentes', valor: String(metrica.uploadsPendentes), extra: 'aguardando envio' },
@@ -107,7 +108,7 @@ export const DeviceStorageManager: React.FC = () => {
       {metrica?.usadoBytes !== null && metrica?.cotaBytes ? (
         <div className="mb-5">
           <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-[var(--text-muted)] mb-1.5">
-            <span>Espaco ocupado do navegador</span>
+            <span>Espaço ocupado do navegador</span>
             <span>{formatarBytes(metrica.usadoBytes)} de {formatarBytes(metrica.cotaBytes)}</span>
           </div>
           <div className="h-2 rounded-full bg-[var(--border-color)] overflow-hidden">
@@ -139,7 +140,7 @@ export const DeviceStorageManager: React.FC = () => {
 
       <p className="mt-3 text-[9px] font-bold text-[var(--text-muted)] leading-relaxed">
         <AlertTriangle size={11} className="inline -mt-0.5 mr-1 text-amber-500" />
-        "Limpar caches" remove apenas versoes antigas do app (seguro e rapido). "Limpar TODOS" apaga sessao, carrinho,
+        "Limpar caches" remove apenas versões antigas do app (seguro e rápido). "Limpar TODOS" apaga sessão, carrinho,
         comprovantes pendentes e forca novo login — use so em troca de operador ou erro persistente.
       </p>
 

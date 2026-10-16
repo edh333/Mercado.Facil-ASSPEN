@@ -2,7 +2,7 @@ import React, { Fragment } from 'react';
 import { createPortal } from 'react-dom';
 import {
   X, Check, Upload, ImageIcon, Barcode,
-  MinusCircle, RefreshCw, Loader2, Lock, Package, Key, PlusCircle, Printer, KeyRound, ShieldCheck, Edit, Shield, AlertTriangle, Save, Globe, Store, ShoppingCart, Eye, EyeOff
+  MinusCircle, RefreshCw, Loader2, Lock, Package, Key, Printer, KeyRound, ShieldCheck, Edit, Shield, AlertTriangle, Save, Globe, Store, ShoppingCart, Eye, EyeOff
 } from 'lucide-react';
 import { Product, Expense, Order } from '../../types';
 import { compressImageFile, fileToBase64, normalizeName, formatarMoeda } from '../../utils';
@@ -700,9 +700,9 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
         <ModalShell
           open
           onClose={() => { setShowWithdrawalModal(null); setWithdrawalPassword(''); }}
-          title={showWithdrawalModal.isDeposit ? 'Adicionar Crédito' : showWithdrawalModal.isRefund ? 'Estornar Valor' : 'Retirar Saldo'}
+          title={showWithdrawalModal.isRefund ? 'Estornar Valor' : 'Retirar Saldo'}
           subtitle={showWithdrawalModal.userName || undefined}
-          icon={showWithdrawalModal.isDeposit ? <PlusCircle size={22}/> : showWithdrawalModal.isRefund ? <RefreshCw size={22}/> : <MinusCircle size={22}/>}
+          icon={showWithdrawalModal.isRefund ? <RefreshCw size={22}/> : <MinusCircle size={22}/>}
           size="sm"
         >
                    <div className="p-8 space-y-6">
@@ -736,7 +736,6 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                                   onChange={e => setWithdrawalReason(e.target.value)}
                                 ></textarea>
                             </div>
-                            {(showWithdrawalModal.isDeposit || showWithdrawalModal.isRefund || !showWithdrawalModal.isDeposit && !showWithdrawalModal.isRefund) && (
                             <div>
                                 <label className="text-slate-600 font-black text-[10px] uppercase tracking-widest mb-3 block flex items-center gap-1.5">
                                   <Lock size={12}/> Senha Secundária (obrigatória)
@@ -770,7 +769,6 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                                   <p className="mt-1 text-[10px] font-black text-red-500 uppercase">Mínimo de 8 caracteres</p>
                                 )}
                             </div>
-                            )}
                         </div>
 
                       <div className="flex gap-3 pt-2">
@@ -783,7 +781,7 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
                           <button
                             onClick={handleWithdrawal}
                             disabled={!withdrawalAmount || (parseFloat(String(withdrawalAmount).replace(',', '.')) || 0) <= 0 || withdrawalPassword.trim().length < 8}
-                            className={`flex-1 py-5 font-black rounded-2xl shadow-lg flex items-center justify-center gap-3 uppercase text-[11px] tracking-widest transition-all active:scale-[0.98] touch-target ${showWithdrawalModal.isDeposit ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:brightness-110' : showWithdrawalModal.isRefund ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:brightness-110' : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:brightness-110'} disabled:opacity-40 disabled:cursor-not-allowed`}
+                            className={`flex-1 py-5 font-black rounded-2xl shadow-lg flex items-center justify-center gap-3 uppercase text-[11px] tracking-widest transition-all active:scale-[0.98] touch-target ${showWithdrawalModal.isRefund ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:brightness-110' : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:brightness-110'} disabled:opacity-40 disabled:cursor-not-allowed`}
                           >
                             <Check size={20}/> Confirmar Operação
                           </button>

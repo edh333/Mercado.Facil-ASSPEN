@@ -117,11 +117,6 @@ export function listarVendasOffline(): VendaOffline[] {
   return ler();
 }
 
-/** Vendas sincronizadas com preço divergente — precisam de conferência do operador. */
-export function listarVendasOfflineAjustadas(): VendaOffline[] {
-  return ler().filter((v) => v.status === 'ajustada');
-}
-
 /**
  * Salva uma venda offline.
  * @returns true se foi gravada; false se a fila está cheia/indisponível.

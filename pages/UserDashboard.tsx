@@ -786,7 +786,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                         <div className="mt-4">
                             <p className="font-black text-base uppercase tracking-tight leading-tight truncate">{lastProd?.name || lastItem?.name || ''}</p>
                             {lastProd?.barcode && <p className="text-[10px] font-mono text-slate-500 mt-1">Cód: {lastProd.barcode}</p>}
-                            <p className="text-sm font-bold text-emerald-400 mt-2">Preço Unit: R$ {formatarMoeda(lastProd?.price || lastItem?.price || 0)}</p>
+                            <p className="text-sm font-bold text-[var(--primary-color)] mt-2">Preço Unit: R$ {formatarMoeda(lastProd?.price || lastItem?.price || 0)}</p>
                             <div className="mt-3 pt-3 border-t border-slate-800">
                                 <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Subtotal Item</p>
                                 <p className="font-black text-3xl text-white">R$ {formatarMoeda(lastSubtotal)}</p>
@@ -798,7 +798,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                         <div className="w-32 h-32 rounded-full bg-slate-800 flex items-center justify-center mb-6 border border-slate-700">
                             <ShoppingCart size={48} className="text-slate-600" />
                         </div>
-                        <p className="font-black text-base text-slate-500 uppercase tracking-wide">Mercado Facil</p>
+                        <p className="font-black text-base text-slate-500 uppercase tracking-wide">Mercado Fácil</p>
                         <p className="text-[11px] font-bold text-slate-600 mt-2">Bipe ou busque um produto</p>
                     </div>
                 )}
@@ -845,13 +845,13 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                     const displayName = prod ? prod.name : (item.name || 'Item');
                                     const displayPrice = item.priceAtPurchase ?? (prod ? prod.price : (item.price || 0));
                                     return (
-                                        <tr key={item.productId} className={`${idx % 2 === 0 ? 'bg-slate-50' : 'bg-white'} border-b border-slate-100 hover:bg-emerald-50/50 transition-colors`}>
+                                        <tr key={item.productId} className={`${idx % 2 === 0 ? 'bg-slate-50' : 'bg-white'} border-b border-slate-100 hover:bg-[var(--primary-color)]/5 transition-colors`}>
                                             <td className="text-slate-800 font-bold text-xs uppercase text-left pl-4 py-3">{displayName}</td>
                                             <td className="py-3 text-center">
                                                 <div className="inline-flex items-center gap-1 mx-auto">
                                                     <button onClick={() => updateQty(item.productId, -1)} className="w-9 h-9 rounded-full border bg-white shadow-sm flex items-center justify-center font-bold text-xs transition-all active:scale-95 text-slate-700 cursor-pointer hover:bg-red-50 hover:text-red-500 hover:border-red-300">−</button>
                                                     <span className="font-black text-sm text-slate-900 min-w-[28px] text-center">{item.quantity}</span>
-                                                    <button onClick={() => updateQty(item.productId, 1)} className="w-9 h-9 rounded-full border bg-white shadow-sm flex items-center justify-center font-bold text-xs transition-all active:scale-95 text-slate-700 cursor-pointer hover:bg-emerald-50 hover:text-[var(--primary-color)] hover:border-emerald-300">+</button>
+                                                    <button onClick={() => updateQty(item.productId, 1)} className="w-9 h-9 rounded-full border bg-white shadow-sm flex items-center justify-center font-bold text-xs transition-all active:scale-95 text-slate-700 cursor-pointer hover:bg-[var(--primary-color)]/5 hover:text-[var(--primary-color)] hover:border-[var(--primary-color)]/40">+</button>
                                                 </div>
                                             </td>
                                             <td className="text-slate-600 font-medium text-xs font-mono text-center py-3">R$ {formatarMoeda(displayPrice)}</td>
@@ -1295,7 +1295,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                                 <p className="font-black text-xs text-blue-300 uppercase tracking-wider mb-1">Comprovante de Pagamento</p>
                                                 <p className="text-[10px] text-blue-400 font-bold">Anexe a foto do comprovante PIX para confirmar o crédito</p>
                                             </div>
-                                            <div onClick={() => fileInputRef.current?.click()} className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${proofFile ? 'border-emerald-500 bg-emerald-500/10' : 'border-blue-700 bg-slate-800 hover:border-blue-500 hover:bg-slate-700'}`}>
+                                            <div onClick={() => fileInputRef.current?.click()} className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${proofFile ? 'border-[var(--success-color)] bg-[var(--success-color)]/10' : 'border-blue-700 bg-slate-800 hover:border-blue-500 hover:bg-slate-700'}`}>
                                                 <input type="file" ref={fileInputRef} className="hidden" accept="image/*,.pdf" onChange={async e => {
                                                     const f = e.target.files?.[0]; if (!f) return;
                                                     if (f.size > 10 * 1024 * 1024) { showNotification('Arquivo muito grande. Máximo 10MB.', 'error'); e.target.value = ''; return; }
@@ -1316,9 +1316,9 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                                 }} />
                                                 {proofFile ? (
                                                     <div>
-                                                        <Upload size={28} className="mx-auto text-emerald-400 mb-2" />
-                                                        <p className="font-black text-[10px] text-emerald-300">{proofFile.name}</p>
-                                                        <p className="text-[9px] text-emerald-400 font-bold mt-1 uppercase">Arquivo anexado</p>
+<Upload size={28} className="mx-auto text-[var(--primary-color)] mb-2" />
+                                                <p className="font-black text-[10px] text-[var(--primary-color)]">{proofFile.name}</p>
+                                                <p className="text-[9px] text-[var(--primary-color)] font-bold mt-1 uppercase">Arquivo anexado</p>
                                                     </div>
                                                 ) : (
                                                     <div>
@@ -1457,7 +1457,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                                 ))}
                                                 {order.paymentMethod !== 'WALLET' && order.paymentProofUrl && order.paymentProofUrl !== 'PENDENTE_UPLOAD_LOCAL_CACHE' && (
                                                     <div className="mt-3 pt-3 border-t border-slate-100">
-                                                        <a href={order.paymentProofUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-[var(--primary-color)] hover:text-emerald-700 text-[10px] font-black uppercase">
+                                                        <a href={order.paymentProofUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-[var(--primary-color)] hover:text-[var(--primary-color)] text-[10px] font-black uppercase">
                                                             <FileText size={14} /> Comprovante Anexado — Clique para Abrir
                                                         </a>
                                                     </div>
@@ -1682,7 +1682,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                         <div className="flex items-center gap-1 shrink-0">
                                             <button onClick={() => updateQty(item.productId, -1)} className="w-9 h-9 rounded-full border bg-white flex items-center justify-center font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer hover:bg-red-50 hover:text-red-500 hover:border-red-300">−</button>
                                             <span className="font-black text-xs text-slate-900 min-w-[22px] text-center">{item.quantity}</span>
-                                            <button onClick={() => updateQty(item.productId, 1)} className="w-9 h-9 rounded-full border bg-white flex items-center justify-center font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer hover:bg-emerald-50 hover:text-[var(--primary-color)] hover:border-emerald-300">+</button>
+                                            <button onClick={() => updateQty(item.productId, 1)} className="w-9 h-9 rounded-full border bg-white flex items-center justify-center font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer hover:bg-[var(--primary-color)]/5 hover:text-[var(--primary-color)] hover:border-[var(--primary-color)]/40">+</button>
                                         </div>
                                         <button onClick={() => removeFromCart(item.productId)} className="text-red-600 bg-red-50 hover:bg-red-100 px-3 min-h-[44px] py-2 rounded-lg text-[11px] font-black flex items-center gap-1 transition-all active:scale-95 shrink-0"><Trash2 size={12} /> RETIRAR</button>
                                     </div>
@@ -1734,7 +1734,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                         size="sm"
                                         icon={pixCopied ? <CheckCircle size={12} /> : <RefreshCcw size={12} />}
                                         onClick={() => { copiarTextoComFallback(pixPayload || ''); setPixCopied(true); setTimeout(() => setPixCopied(false), 2000); }}
-                                        className={`w-full mt-3 ${pixCopied ? 'bg-emerald-600' : 'bg-blue-500'}`}
+                                        className={`w-full mt-3 ${pixCopied ? 'bg-brand' : 'bg-blue-500'}`}
                                     >
                                         {pixCopied ? 'COPIADO!' : 'Copiar PIX'}
                                     </UiButton>
@@ -1749,7 +1749,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                     setDepositStage('proof'); if (fileInputRef.current) fileInputRef.current.value = '';
                                 }}
                                 disabled={depositAmount <= 0}
-                                className="w-full bg-brand hover:bg-emerald-700"
+                                className="w-full bg-brand hover:bg-brand-dark"
                             >
                                 Já fiz o PIX do Crédito
                             </UiButton>
@@ -1762,7 +1762,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                 <p className="font-black text-xs text-blue-700 uppercase tracking-wider mb-1">Comprovante de Pagamento</p>
                                 <p className="text-[10px] text-blue-500 font-bold">Anexe a foto do comprovante PIX para confirmar o crédito</p>
                             </div>
-                            <div onClick={() => fileInputRef.current?.click()} className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${proofFile ? 'border-emerald-500 bg-emerald-500/10' : 'border-blue-300 bg-slate-50 hover:border-blue-500 hover:bg-slate-100'}`}>
+                            <div onClick={() => fileInputRef.current?.click()} className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${proofFile ? 'border-[var(--primary-color)] bg-[var(--primary-color)]/10' : 'border-blue-300 bg-slate-50 hover:border-blue-500 hover:bg-slate-100'}`}>
                                 <input type="file" ref={fileInputRef} className="hidden" accept="image/*,.pdf" onChange={async e => {
                                     const f = e.target.files?.[0]; if (!f) return;
                                     if (f.size > 10 * 1024 * 1024) { showNotification('Arquivo muito grande. Máximo 10MB.', 'error'); e.target.value = ''; return; }
@@ -1783,9 +1783,9 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                 }} />
                                 {proofFile ? (
                                     <div>
-                                        <Upload size={28} className="mx-auto text-emerald-500 mb-2" />
-                                        <p className="font-black text-[10px] text-emerald-700">{proofFile.name}</p>
-                                        <p className="text-[9px] text-emerald-600 font-bold mt-1 uppercase">Arquivo anexado</p>
+<Upload size={28} className="mx-auto text-[var(--primary-color)] mb-2" />
+                                                <p className="font-black text-[10px] text-[var(--primary-color)]">{proofFile.name}</p>
+                                                <p className="text-[9px] text-[var(--primary-color)] font-bold mt-1 uppercase">Arquivo anexado</p>
                                     </div>
                                 ) : (
                                     <div>
@@ -1904,9 +1904,9 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                         )}
                                         <div className="bg-slate-50 rounded-xl border border-slate-200 p-3">
                                             <p className="text-[10px] font-black text-slate-400 uppercase mb-2 text-left">Comprovante de Pagamento</p>
-                                            <label className="flex items-center gap-2 bg-white p-3 rounded-xl border-2 border-dashed border-slate-300 cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/30 transition-all active:scale-[0.98]">
-                                                <Upload size={16} className="text-emerald-500 shrink-0" />
-                                                <span className="text-[10px] font-bold text-slate-700 text-left leading-tight break-all">{proofFile ? proofFile.name : 'CLIQUE AQUI PARA ENVIAR O COMPROVANTE PIX'}</span>
+                                            <label className="flex items-center gap-2 bg-white p-3 rounded-xl border-2 border-dashed border-[var(--primary-color)] cursor-pointer hover:border-[var(--primary-color)]/50 hover:bg-[var(--primary-color)]/5 transition-all active:scale-[0.98]">
+                                                <Upload size={16} className="text-[var(--primary-color)] shrink-0" />
+                                                <span className="text-[11px] font-semibold leading-relaxed text-[var(--primary-color)]">{proofFile ? proofFile.name : 'CLIQUE AQUI PARA ENVIAR O COMPROVANTE PIX'}</span>
                                                 <input type="file" accept="image/*,.pdf" className="hidden" onChange={async e => {
                                                 const f = e.target.files?.[0]; if (!f) return;
                                                 // Mesmas regras do depósito: valida ANTES (falha tardia no

@@ -30,9 +30,4 @@ export function registrarErroSentry(erro: unknown, contexto?: Record<string, unk
   Sentry.captureException(erro, { extra: contexto });
 }
 
-export function registrarMensagemSentry(mensagem: string, nivel: 'info' | 'warning' | 'error' = 'warning') {
-  if (!SENTRY_ATIVO) return;
-  Sentry.captureMessage(mensagem, nivel);
-}
-
 export default Sentry;

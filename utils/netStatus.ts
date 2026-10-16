@@ -45,8 +45,3 @@ export async function verificarInternetReal(
   cache = { valor, emMs: agora };
   return valor;
 }
-
-/** Limpa o cache do probe (usado em testes). */
-export function limparCacheRede(): void {
-  cache = null;
-}

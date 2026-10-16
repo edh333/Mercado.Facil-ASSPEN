@@ -26,8 +26,6 @@ export const MIME_POR_EXTENSAO: Record<string, string> = {
   bmp: 'image/bmp',
 };
 
-export const EXTENSOES_PERMITIDAS = Object.keys(MIME_POR_EXTENSAO);
-
 export const MAX_PROOF_BYTES = 8 * 1024 * 1024;
 
 /** Extensão do arquivo, em minúsculas, com o ponto ("", ".jpg"). */

@@ -422,18 +422,3 @@ export function errorToStandardError(error: unknown): StandardError {
   }
   return createStandardError(ErrorCodes.SERVER_ERROR);
 }
-
-/**
- * Hook React para mostrar erros padronizados via showNotification
- */
-export function useErrorHandler() {
-  // Deve ser implementado no contexto React
-  // export const useErrorHandler = () => {
-  //   const { showNotification } = useApp();
-  //   return (error: unknown) => {
-  //     const std = errorToStandardError(error);
-  //     showNotification(std.userMessage, 'error');
-  //     return std;
-  //   };
-  // };
-}

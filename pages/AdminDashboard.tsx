@@ -120,8 +120,6 @@ export function AdminDashboard() {
     resetCredits,
     mergeDuplicateProducts,
     toggleUserCredit,
-    activateSystem,
-    generateActivationKey,
     isInstallable,
     installApp,
     importInmatesCsv,
@@ -469,9 +467,7 @@ const isMaster = isMasterAdmin(currentUser);
     withdrawalProcessingRef.current = true;
     try {
       const targetId = showWithdrawalModal.userId || showWithdrawalModal.id;
-      if (showWithdrawalModal.isDeposit) {
-        await addWalletCreditDirectly(targetId, amount, withdrawalReason || 'Adição manual', withdrawalPassword);
-      } else if (showWithdrawalModal.isRefund) {
+      if (showWithdrawalModal.isRefund) {
         await addWalletCreditDirectly(targetId, amount, withdrawalReason || 'Estorno administrativo', withdrawalPassword);
       } else {
         await withdrawWalletCredit(targetId, amount, withdrawalReason, withdrawalPassword);
@@ -1130,8 +1126,6 @@ return (
                   updateSettings={updateSettings}
                   defineMasterPassword={defineMasterPassword}
                   showNotification={showNotification}
-                  activateSystem={activateSystem}
-                  generateActivationKey={generateActivationKey}
                   isInstallable={isInstallable}
                   installApp={installApp}
                   settings={settings}

@@ -768,19 +768,6 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
 }
 
 /**
- * Envia texto cru para a bobina térmica (compatibilidade Tectoy).
- * 1) Tenta impressão direta via QZ Tray (driver ESC/POS instalado).
- * 2) Sem QZ Tray, cai no window.print() (browser → driver térmico configurado).
- * Retorna true se usou QZ Tray, false se usou o fallback do navegador.
- */
-export async function imprimirCupomTectoy(conteudo: string, config?: any): Promise<boolean> {
-  const ok = await imprimirBobinaFiscal(conteudo, config);
-  if (ok) return true;
-  imprimirCupom(conteudo);
-  return false;
-}
-
-/**
  * Aguarda o SDK do QZ Tray carregar por até `timeout` ms.
  * Se o SDK não existe ou já falhou recentemente, retorna falso IMEDIATAMENTE
  * (sem espera de 4s) — corrige a demora de impressão quando o QZ não está presente.

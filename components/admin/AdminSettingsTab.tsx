@@ -104,9 +104,6 @@ interface AdminSettingsTabProps {
   createAdminUser: (data: any) => void;
   updateAdminPermissions: (userId: string, permissions: string[]) => void;
   resetAdminPassword: (userId: string, novaSenha: string, senhaMestra?: string) => Promise<void>;
-  // Optional legacy props forwarded by AdminDashboard
-  activateSystem?: (key: string) => Promise<{ success: boolean; message: string }>;
-  generateActivationKey?: (days: number) => Promise<string>;
   // PWA Install
   isInstallable?: boolean;
   installApp?: () => Promise<void>;

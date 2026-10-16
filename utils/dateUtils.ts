@@ -52,16 +52,3 @@ export function toDate(value: any): Date | null {
 export function toISOString(value: any): string {
   return toDate(value)?.toISOString() ?? "";
 }
-
-/**
- * Formata como dd/MM/yyyy HH:mm no fuso de Brasília (padrão).
- */
-export function formatDateBR(value: any): string {
-  const d = toDate(value);
-  if (!d) return "";
-  try {
-    return d.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
-  } catch {
-    return d.toLocaleString("pt-BR");
-  }
-}

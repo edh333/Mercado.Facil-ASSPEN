@@ -244,7 +244,7 @@ const [recoveryName, setRecoveryName] = useState('');
                         style={{ backgroundImage: `url(${settings.loginBgUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
                     ></div>
                 )}
-                <div className="absolute top-[-20%] right-[-15%] w-[60%] h-[60%] rounded-full blur-[140px] opacity-25" style={{ backgroundColor: '#10b981' }}></div>
+                <div className="absolute top-[-20%] right-[-15%] w-[60%] h-[60%] rounded-full blur-[140px] opacity-25" style={{ backgroundColor: 'var(--primary-color)' }}></div>
 
                 <motion.div
                     initial={{ opacity: 0, y: -12 }}
@@ -306,7 +306,7 @@ const [recoveryName, setRecoveryName] = useState('');
                 >
                     {/* Marca (mobile/tablet) */}
                     <div className="mb-6 flex items-center gap-2.5 lg:hidden">
-                        <div className="flex size-9 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-500/30">
+                        <div className="flex size-9 items-center justify-center rounded-lg bg-brand shadow-lg shadow-[var(--primary-color)]/30">
                             <Store size={18} />
                         </div>
                         <div className="leading-tight">
@@ -321,7 +321,7 @@ const [recoveryName, setRecoveryName] = useState('');
                             deixa claro qual aplicativo está aberto e quem pode entrar */}
                         {appTravado && (
                             <div className="mb-5 flex items-center justify-center">
-                                <span className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border ${modoAdmin ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                                <span className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border ${modoAdmin ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-[var(--primary-color)]/10 text-[var(--primary-color)] border-[var(--primary-color)]/30'}`}>
                                     {modoAdmin ? <ShieldCheck size={13} /> : <Store size={13} />}
                                     {modoAdmin ? 'App Admin — só administradores' : 'App Usuário — só usuários'}
                                 </span>
@@ -398,9 +398,9 @@ const [recoveryName, setRecoveryName] = useState('');
                                     </motion.div>
                                 )}
                                 {formSuccess && (
-                                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="bg-emerald-50 border border-emerald-100 border-l-4 border-l-emerald-500 p-3.5 rounded-xl flex gap-3 items-start overflow-hidden">
-                                        <CheckCircle className="text-emerald-500 shrink-0 mt-0.5" size={18} />
-                                        <p className="text-[11px] font-bold text-emerald-700 leading-snug">{formSuccess}</p>
+                                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="bg-success-soft border border-success-soft border-l-4 border-l-[var(--success-color)] p-3.5 rounded-xl flex gap-3 items-start overflow-hidden">
+                                        <CheckCircle className="text-success shrink-0 mt-0.5" size={18} />
+                                        <p className="text-[11px] font-bold text-success-dark leading-snug">{formSuccess}</p>
                                     </motion.div>
                                 )}
                             </AnimatePresence>
@@ -445,13 +445,13 @@ const [recoveryName, setRecoveryName] = useState('');
 
                                     <div
                                         onClick={() => fileInputRef.current?.click()}
-                                        className={`group border border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all duration-300 relative overflow-hidden ${fileObject ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 bg-slate-50 hover:border-emerald-400 hover:bg-emerald-50/40'}`}
+                                        className={`group border border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all duration-300 relative overflow-hidden ${fileObject ? 'border-[var(--primary-color)] bg-[var(--primary-color)]/10' : 'border-slate-300 bg-slate-50 hover:border-[var(--primary-color)]/60 hover:bg-[var(--primary-color)]/5'}`}
                                     >
                                         <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={e => e.target.files && setFileObject(e.target.files[0])} />
                                         {fileObject ? (
                                             <div className="flex flex-col items-center gap-2">
                                                 <div className="w-12 h-12 bg-brand text-white rounded-2xl flex items-center justify-center shadow-lg"><CheckCircle size={24} /></div>
-                                                <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-widest">Documento Anexado</p>
+                                                <p className="text-[11px] font-bold text-[var(--primary-color)] uppercase tracking-widest">Documento Anexado</p>
                                             </div>
                                         ) : (
                                             <div className="flex flex-col items-center gap-2 text-slate-500 group-hover:text-slate-700">
@@ -463,17 +463,17 @@ const [recoveryName, setRecoveryName] = useState('');
                                         )}
                                     </div>
 
-                                    <label className="flex items-start gap-3 cursor-pointer group bg-slate-50/80 p-4 rounded-2xl border border-slate-200/70 hover:border-emerald-300 transition-colors">
+                                    <label className="flex items-start gap-3 cursor-pointer group bg-slate-50/80 p-4 rounded-2xl border border-slate-200/70 hover:border-[var(--primary-color)]/50 transition-colors">
                                         <div className="relative mt-0.5 shrink-0">
                                             <input
                                                 type="checkbox"
-                                                className="peer w-5 h-5 appearance-none border-2 border-slate-300 rounded-md checked:bg-brand checked:border-emerald-500 transition-all cursor-pointer"
+                                                className="peer w-5 h-5 appearance-none border-2 border-slate-300 rounded-md checked:bg-brand checked:border-[var(--primary-color)] transition-all cursor-pointer"
                                                 checked={legalTermAccepted} onChange={e => setLegalTermAccepted(e.target.checked)}
                                             />
                                             <CheckCircle size={13} className="absolute top-1 left-1 text-white opacity-0 peer-checked:opacity-100 pointer-events-none transition-opacity" />
                                         </div>
                                         <span className="text-[11px] font-semibold leading-relaxed text-slate-600">
-                                            <span className="font-black text-slate-700">AVISO LEGAL:</span> Documento ou comprovante falso configura crime de Estelionato (Art. 171) e Falsificação (Art. 297 do CP), sujeito a processo criminal e banimento.
+                                            <span className="font-black text-slate-700">AVISO LEGAL:</span> Documento ou comprovante falso ou adulterado configura crime de Estelionato (Art. 171) e Falsificação de documento (Art. 298 do CP), sujeito a processo criminal e banimento.
                                         </span>
                                     </label>
                                 </div>
@@ -485,7 +485,7 @@ const [recoveryName, setRecoveryName] = useState('');
                                     {recoveryStep === 1 ? (
                                         <>
                                             <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                                <KeyRound size={18} className="text-emerald-500 shrink-0" />
+                                                <KeyRound size={18} className="text-[var(--primary-color)] shrink-0" />
                                                 <p className="text-[11px] font-bold text-slate-500 leading-snug">Informe os dados para localizarmos sua senha de acesso.</p>
                                             </div>
                                             <PremiumInput icon={UserCheck} label="Seu CPF" value={recoveryUserCpf} onChange={(e: any) => setRecoveryUserCpf(formatCPF(e.target.value))} inputMode="numeric" autoComplete="off" />
@@ -541,7 +541,7 @@ const [recoveryName, setRecoveryName] = useState('');
                                                 type={showPassword ? "text" : "password"}
                                                 autoComplete={isAdmin ? "current-password" : "current-password"}
                                                 action={
-                                                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="p-1.5 text-slate-400 hover:text-emerald-600 transition-colors cursor-pointer" aria-label="Mostrar senha">
+                                                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="p-1.5 text-slate-400 hover:text-[var(--primary-color)] transition-colors cursor-pointer" aria-label="Mostrar senha">
                                                         {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                                     </button>
                                                 }
@@ -598,7 +598,7 @@ const [recoveryName, setRecoveryName] = useState('');
                             <button
                                 type="submit"
                                 disabled={isLoading}
-                                className={`w-full py-3.5 rounded-xl font-semibold text-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2 relative overflow-hidden group bg-gradient-to-r from-emerald-600 to-emerald-500 hover:brightness-110 text-white disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer shadow-lg shadow-emerald-500/25`}
+                                className={`w-full py-3.5 rounded-xl font-semibold text-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2 relative overflow-hidden group bg-brand hover:brightness-110 text-white disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer shadow-lg shadow-[var(--primary-color)]/25`}
                             >
                                 <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
                                 {isLoading ? (
@@ -622,7 +622,7 @@ const [recoveryName, setRecoveryName] = useState('');
                                     <button
                                         type="button"
                                         onClick={() => setActiveTab('recovery')}
-                                        className="text-[11px] font-bold text-slate-500 hover:text-emerald-600 uppercase tracking-[0.15em] transition-all cursor-pointer"
+                                        className="text-[11px] font-bold text-slate-500 hover:text-[var(--primary-color)] uppercase tracking-[0.15em] transition-all cursor-pointer"
                                     >
                                         Esqueci minha senha
                                     </button>

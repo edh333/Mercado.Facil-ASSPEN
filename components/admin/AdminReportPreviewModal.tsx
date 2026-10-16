@@ -1740,10 +1740,6 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                     </div>
                     <div className="flex gap-3 w-full sm:w-auto">
                         <button disabled={!!dadosRelatorio.erro || dadosRelatorio.carregando} title={dadosRelatorio.erro ? 'Bloqueado: a leitura do período falhou e o relatório está incompleto.' : undefined} onClick={() => {
-                            if (dadosRelatorio.erro) {
-                                alert('A leitura do período falhou. O relatório está incompleto e a exportação foi bloqueada para não gerar um arquivo com totais errados.\n\n' + dadosRelatorio.erro);
-                                return;
-                            }
                             const jsonStr = JSON.stringify(report, null, 2);
                             const blob = new Blob([jsonStr], { type: 'application/json' });
                             const url = URL.createObjectURL(blob);
@@ -1758,10 +1754,6 @@ export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = (
                             <Download size={16}/> JSON
                         </button>
                         <button disabled={!!dadosRelatorio.erro || dadosRelatorio.carregando} title={dadosRelatorio.erro ? 'Bloqueado: a leitura do período falhou e o relatório está incompleto.' : undefined} onClick={() => {
-                            if (dadosRelatorio.erro) {
-                                alert('A leitura do período falhou. O relatório está incompleto e a impressão foi bloqueada para não gerar um PDF com totais errados.\n\n' + dadosRelatorio.erro);
-                                return;
-                            }
                             abrirJanelaImpressao({ type: 'RELATORIO', data: report }, settings);
                         }} className={`flex-1 sm:flex-none px-8 py-3 font-black rounded-2xl shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 text-[9px] uppercase tracking-[0.2em] ${dadosRelatorio.erro || dadosRelatorio.carregando ? 'opacity-40 cursor-not-allowed' : 'bg-[var(--text-main)] text-[var(--bg-card)] hover:brightness-110'}`}>
                             <Printer size={18}/> IMPRIMIR / SALVAR PDF
