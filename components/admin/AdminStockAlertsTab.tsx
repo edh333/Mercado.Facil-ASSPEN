@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import { Product } from '../../types';
 import { Package, AlertTriangle, Search, ArrowUpDown, Printer } from 'lucide-react';
 import { gerarListaReposicao, imprimirCupom } from '../../utils/printUtils';

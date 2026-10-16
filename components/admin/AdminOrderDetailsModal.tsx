@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  ShoppingCart, X, MessageSquareX, Send, Users, FileText, Printer,
+  ShoppingCart, MessageSquareX, Send, Users, FileText, Printer,
   RefreshCw, XCircle, CheckCircle, Box, Truck, CreditCard, MapPin, Loader2, ExternalLink, Shield, ShieldCheck, AlertTriangle, Copy
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
@@ -98,7 +98,7 @@ export const AdminOrderDetailsModal: React.FC<AdminOrderDetailsModalProps> = ({
   setPrintOrder, translateStatus, setHistoryModalCpf, setHistoryModalName,
   settings
 }) => {
-  const { colors } = useTheme();
+  const {} = useTheme();
   const { attachAdminProof, showNotification: notifCtx, aprovarPedido, refundOrder, validateMasterPassword, masterPasswordStatus, sendSystemMessage, currentUser } = useApp();
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [isRawPrinting, setIsRawPrinting] = React.useState(false);

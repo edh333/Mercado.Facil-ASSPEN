@@ -487,7 +487,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
     // com o valor praticado atual — promoção entrou ou saiu, o total exibido acompanha.
     useEffect(() => {
         if (!safeProducts.length) return;
-        const ids = new Set(safeProducts.map((p, idx) => String(p.id)));
+        const ids = new Set(safeProducts.map((p) => String(p.id)));
         // Calcula FORA do updater: o setCart é lazy e o `removidos` lido logo
         // depois vinha vazio quando havia render pendente — o item saía do
         // carrinho sem o familiar ser avisado de que o total mudou.

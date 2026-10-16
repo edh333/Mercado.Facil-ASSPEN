@@ -318,7 +318,7 @@ export const buildSalesByCategory = (orders: any[], products: any[], startDate: 
 /**
  * 6) RELATÓRIO DE ESTOQUE BAIXO / INVENTÁRIO — itens críticos e zerados.
  */
-export const buildLowStock = (products: any[], startDate: string, endDate: string) => {
+export const buildLowStock = (products: any[], _startDate: string, _endDate: string) => {
   const linhas = (products || [])
     .map(p => {
       const estoque = Math.max(0, Number(p.stock) || 0);

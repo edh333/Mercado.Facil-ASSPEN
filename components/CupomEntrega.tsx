@@ -3,7 +3,7 @@ import { formatarMoeda, mascararCpf } from '../utils';
 import { tituloInstitucional } from '../utils/printUtils';
 import { rotularCliente } from '../utils/clienteRotulos';
 import { AppConfig } from '../types';
-import { ShieldCheck, Hash, Printer, Scissors, QrCode, X } from 'lucide-react';
+import { Printer, Scissors, QrCode, X } from 'lucide-react';
 
 interface CupomEntregaProps {
   order?: any;

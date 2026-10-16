@@ -131,7 +131,6 @@ export const AdminAuditTab: React.FC = () => {
 
   const atual = (auditorias || []).find(a => a.id === selecionada) || null;
   const r = atual?.resumo;
-  const criticos = r?.CRITICO || 0;
   const total = r?.total || 0;
 
   return (

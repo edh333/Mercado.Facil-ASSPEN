@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode, useRef } from 'react';
 import { User, Product, Order, PrisonUnit, UserRole, CartItem, OrderStatus, AppConfig, Supplier, Expense, AuditLog, InmateLocation, SystemMessage, ThemeOption, Message, Notification, WalletTransaction, toUserRole } from '../types';
-import { cleanProductName, normalizeName, stringSimilarity, fileToBase64, textToBase64, formatarMoeda, getNetworkTime } from '../utils';
+import { cleanProductName, normalizeName, stringSimilarity, textToBase64, formatarMoeda } from '../utils';
 import { listarVendasOffline, salvarVendaOffline, removerVendaOffline, marcarErroVendaOffline, marcarAjustadaVendaOffline, descartarVendaOffline, rearmarVendaOffline, podeTentarSync, LIMITE_FILA, VendaOffline } from '../utils/offlineQueue';
 import { verificarInternetReal } from '../utils/netStatus';
 import {
@@ -32,7 +32,6 @@ import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage
 const functions = getFunctions();
 const fnBuscarLoginInfo = httpsCallable(functions, 'buscarLoginInfo');
 const fnRegistrarUsuario = httpsCallable(functions, 'registrarUsuario');
-const fnCriarPrimeiroAdmin = httpsCallable(functions, 'criarPrimeiroAdmin');
 const fnCriarAdmin = httpsCallable(functions, 'criarAdmin');
   const fnAtualizarPermissoesAdmin = httpsCallable(functions, 'atualizarPermissoesAdmin');
 const fnAlterarSenha = httpsCallable(functions, 'alterarSenha');
@@ -92,7 +91,7 @@ import { InvoiceData, parseInvoiceXML } from '../utils/invoiceParser';
 export type { InvoiceData } from '../utils/invoiceParser';
 
 import {
-    collection, doc, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, getDocsFromServer, getDocFromCache, orderBy, limit, startAfter, writeBatch, Unsubscribe, getDoc, runTransaction, increment, arrayUnion, Timestamp
+    collection, doc, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, getDocFromCache, orderBy, limit, startAfter, writeBatch, Unsubscribe, getDoc, increment
 } from 'firebase/firestore';
 import { getActiveSession, CashSession } from '../utils/cashSession';
 
@@ -114,13 +113,15 @@ interface StoreContextType {
     messages: Message[];
     notifications: Notification[];
     storageUsage: number;
-    // serverTime FOI removido de proposito. Ele era atualizado por um
-    // setInterval de 2 min dentro deste provider; por estar no objeto `value`
-    // (que nao e memoizado), cada tick criava um objeto de contexto NOVO e
-    // re-renderizava os 17 consumidores do useApp() mesmo com o app ocioso.
-    // Nenhum componente usava o valor (so era desestruturado e nunca lido).
-    // O estado interno `serverTime` continua existindo porque as checagens de
-    // expiracao/senha mestre o comparam localmente.
+    // serverTime FOI removido de proposito, em duas etapas. Primeiro do objeto
+    // `value`: ele era atualizado por um useEffect de poll (2 min) dentro deste
+    // provider; por o contexto nao ser memoizado, cada tick criava um objeto de
+    // contexto NOVO e re-renderizava os 17 consumidores do useApp() com o app ocioso.
+    // Depois o estado interno e o proprio poll (getNetworkTime + listeners de
+    // visibilitychange/online) tambem sairam: nada lia o valor (as checagens de
+    // expiracao/senha mestre usam Date.now() localmente), entao o fetch de hora
+    // remoto nao tinha contrapartida. Se um dia for usada hora do servidor nas
+    // checagens, recriar estado E poll E liga-los nas expiracoes.
 
     login: (cpf: string, pass: string, targetRole?: UserRole) => Promise<{ success: boolean; message?: string }>;
     loginAdmin: (email: string, pass: string) => Promise<void>;
@@ -302,7 +303,6 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const [authReady, setAuthReady] = useState(false);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [offlineUnlocked, setOfflineUnlocked] = useState(false);
-    const [serverTime, setServerTime] = useState<Date>(new Date());
     // Sessão de caixa física ATIVA do operador logado. Fonte única e reativa:
     // o PDV e a aba de caixa leem daqui (nunca replicam getActiveSession local).
     const [sessaoCaixaAtiva, setSessaoCaixaAtiva] = useState<CashSession | null>(null);
@@ -334,7 +334,6 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }, [refreshSessaoCaixa, currentUser?.id, currentUser?.role]);
 
     const [users, setUsers] = useState<User[]>([]);
-  const CONSUMER_USER: User = { id: 'consumidor_geral', name: 'CONSUMIDOR GERAL', email: 'venda@balcao.com', role: UserRole.FAMILY, status: 'active', approved: true, cpf: '000.000.000-00', inmateName: 'CONSUMIDOR', inmateCpf: '000.000.000-00' };
     const [products, setProducts] = useState<Product[]>([]);
     const productsCache = useMemo(() => products, [products]);
     const [orders, setOrders] = useState<Order[]>([]);
@@ -342,8 +341,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const [appConfig, setAppConfig] = useState<AppConfig>(DEFAULT_CONFIG);
     const [expenses, setExpenses] = useState<Expense[]>([]);
 
-    const [logs, setLogs] = useState<AuditLog[]>([]);
-    const MAX_LOGS = 200;
+    const [logs] = useState<AuditLog[]>([]);
 
     // Armazenamento local com limite (evitar acúmulo)
     const LOCAL_STORAGE_KEY = 'mercado_app_data';
@@ -381,8 +379,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
     const [systemMessages, setSystemMessages] = useState<SystemMessage[]>([]);    const [messages, setMessages] = useState<Message[]>([]);
     const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [storageUsage, setStorageUsage] = useState(0);
-    const [walletTransactions, setWalletTransactions] = useState<WalletTransaction[]>([]);
+    const [storageUsage] = useState(0);
     const [preRegisteredInmates, setPreRegisteredInmates] = useState<{ id: string, name: string, cpf: string }[]>([]);
 
     const [creditoCliente, setCreditoCliente] = useState<number>(0);
@@ -1820,7 +1817,6 @@ return false;
             showNotification('Falha ao baixar backup do servidor. Verifique conexão e tente novamente.', 'error');
         }
     };
-    const backupSystem = downloadBackup;
     const registrarAuditClient = async (acaoTipo: string, payloadAntes: any = null, payloadDepois: any = null) => {
         if (!currentUser) return;
         try {
@@ -3176,37 +3172,6 @@ useEffect(() => {
         };
     }, [authReady, currentUser?.id, currentUser?.role, expensesLimit, suppliersLimit, inmatesLimit, onErr]);
 
-    // Sincronização de hora confiável (somente admin): poll barato (2 min) com
-    // guard de 10 min, revalidando ao voltar para a aba (visibilitychange).
-    useEffect(() => {
-        if (!authReady || !currentUser || currentUser?.role !== UserRole.ADMIN) return;
-
-        let timer: any = null;
-        let lidarVisibilidadeHora: (() => void) | null = null;
-        let ultimaSyncHora = 0;
-
-        const atualizarHora = () => {
-            if (document.hidden || typeof navigator !== 'undefined' && !navigator.onLine) return;
-            const agora = Date.now();
-            if (agora - ultimaSyncHora < 10 * 60 * 1000) return;
-            ultimaSyncHora = agora;
-            getNetworkTime().then(t => setServerTime(t)).catch(() => {});
-        };
-        lidarVisibilidadeHora = () => { if (!document.hidden) atualizarHora(); };
-        document.addEventListener('visibilitychange', lidarVisibilidadeHora);
-        window.addEventListener('online', lidarVisibilidadeHora);
-        atualizarHora();
-        timer = setInterval(atualizarHora, 1000 * 60 * 2);
-
-        return () => {
-            clearInterval(timer);
-            if (lidarVisibilidadeHora) {
-                document.removeEventListener('visibilitychange', lidarVisibilidadeHora);
-                window.removeEventListener('online', lidarVisibilidadeHora);
-            }
-        };
-    }, [authReady, currentUser?.id, currentUser?.role]);
-
     return (
         <StoreContext.Provider value={{
             currentUser, users, products, productsCache, orders, units: INITIAL_UNITS, cart, appConfig, suppliers, expenses, logs, authLoading: !authReady, systemMessages, messages, notifications, settings: appConfig, storageUsage,
@@ -3240,7 +3205,7 @@ useEffect(() => {
                     
                 }
             },
-            adminDirectSale: async (targetUserId, items, paymentMethod, total, payments: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30'; amount: number }[] | undefined, change, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string, fiado30UserId?: string, senhaPrimaria?: string, senhaSecundaria?: string, sessaoCaixaId?: string, descontoPct?: number, inmateLocation?: InmateLocation) => {
+            adminDirectSale: async (targetUserId, items, paymentMethod, total, payments: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30'; amount: number }[] | undefined, change, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string, _fiado30UserId?: string, senhaPrimaria?: string, senhaSecundaria?: string, sessaoCaixaId?: string, descontoPct?: number, inmateLocation?: InmateLocation) => {
                 if (!currentUser || (currentUser.role !== UserRole.ADMIN && currentUser.role !== UserRole.VENDEDOR)) {
                     throw new Error("Acesso restrito à equipe autorizada.");
                 }

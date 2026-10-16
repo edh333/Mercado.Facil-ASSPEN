@@ -66,7 +66,7 @@ export const MaintenanceBanner: React.FC<{
   onReativar: () => void;
 }> = ({ maintenance, onReativar }) => {
   const [visivel, setVisivel] = useState(true);
-  const [jaResolvido, setJaResolvido] = useState(false);
+  const [, setJaResolvido] = useState(false);
 
   // Chave única por sessão de manutenção (usa timestamp de desativação)
   // Fallback defensivo: se desativadoEm não vier, usa timestamp atual

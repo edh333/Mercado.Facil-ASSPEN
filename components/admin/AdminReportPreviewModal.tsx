@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect } from 'react';
-import { X, Printer, FileText, TrendingUp, TrendingDown, Package, Users, Download, Calendar, BarChart3, PieChart, Activity, FileSpreadsheet, Landmark, Wallet, ChevronDown } from 'lucide-react';
+import { X, Printer, FileText, TrendingUp, TrendingDown, Users, Download, Calendar, BarChart3, PieChart, Activity, FileSpreadsheet, Landmark, Wallet, ChevronDown } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { User } from '../../types';
 import { isAdminRole } from '../../utils';
@@ -140,7 +140,7 @@ interface AdminReportPreviewModalProps {
 }
 
 export const AdminReportPreviewModal: React.FC<AdminReportPreviewModalProps> = ({ isOpen, onClose, config, orders, expenses, users, products, settings, transactions = [] }) => {
-    const { colors } = useTheme();
+    const {} = useTheme();
     const [thermalMode, setThermalMode] = React.useState(false);
     const [fontSize, setFontSize] = React.useState(14);
 

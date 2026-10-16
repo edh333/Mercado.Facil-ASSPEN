@@ -1,7 +1,7 @@
 import React from 'react';
 import {
-  Package, Search, Grid, List, Plus, Upload, Trash2, Edit, ImageIcon, Printer, AlertTriangle, Check, RefreshCw, Download, Globe, Store, ShoppingCart,
-  CheckCircle2, PackageX, Wrench, ChevronDown, ChevronUp
+  Package, Search, Grid, List, Plus, Upload, Trash2, Edit, Printer, AlertTriangle, Check, RefreshCw, Download, Globe, Store, ShoppingCart,
+  CheckCircle2, PackageX, Wrench, ChevronDown
 } from 'lucide-react';
 import { formatarMoeda, normalizeName } from '../../utils';
 import { toDate } from '../../utils/dateUtils';
@@ -39,8 +39,8 @@ interface AdminProductsTabProps {
 export const AdminProductsTab: React.FC<AdminProductsTabProps> = ({
   products, suppliers, searchTerm, setSearchTerm, viewMode, setViewMode,
   setShowProductModal, setEditingProduct, deleteProduct,
-  xmlFile, setXmlFile, handleImportXML, margin, setMargin, onPrintCatalog, mergeDuplicateProducts, sanitizeCatalog, handleResetStock, loadMoreProducts, productsLimit, previewXmlImport,
-  showStockEditModal, setShowStockEditModal,
+  xmlFile, setXmlFile, handleImportXML, margin, setMargin, onPrintCatalog, mergeDuplicateProducts, sanitizeCatalog, handleResetStock, loadMoreProducts, productsLimit,   previewXmlImport,
+  setShowStockEditModal,
   onRequestMasterPassword
 }) => {
   const [categoryFilter, setCategoryFilter] = React.useState('ALL');

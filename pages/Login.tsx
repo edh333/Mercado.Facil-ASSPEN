@@ -8,7 +8,6 @@ import {
 } from 'lucide-react';
 import { validateCPF, formatCPF } from '../utils';
 import { hasOfflineCredential } from '../utils/offlineUnlock';
-import { User as UserType } from '../types';
 import { AVISO_LEGAL_ENTRADA } from '../constants';
 import { motion, AnimatePresence } from 'framer-motion';
 import { OnlineStatusIndicator } from '../components/OnlineStatusIndicator';

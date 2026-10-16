@@ -40,10 +40,10 @@ interface AdminFinanceTabProps {
 }
 
 export const AdminFinanceTab: React.FC<AdminFinanceTabProps> = ({
-  expenses, orders, isMaster, suppliers, financeFilters, setFinanceFilters,
+  expenses, orders, isMaster, financeFilters, setFinanceFilters,
   handleOpenReceipt, totalEntries, totalExits, settings, addExpense, deleteExpense, resetFinance, resetCredits, showNotification, loadMoreExpenses, ordersLimit
 }) => {
-  const { colors } = useTheme();
+  const {} = useTheme();
   const [activeSubTab, setActiveSubTab] = useState<'ALL' | 'ENTRIES' | 'EXITS'>('ALL');
   const [confirmacao, setConfirmacao] = useState<null | 'FINANCEIRO' | 'CREDITOS'>(null);
   const [showExpenseModal, setShowExpenseModal] = useState(false);

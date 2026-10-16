@@ -17,7 +17,7 @@ interface Capacidade {
 const fmt = (v: number) => v.toLocaleString('pt-BR');
 
 export const AdminCapacityPanel: React.FC = () => {
-  const { users, ordersLimit, expensesLimit, productsLimit, usersLimit, suppliersLimit, inmatesLimit, aumentarCapacidade } = useApp();
+  const { users, ordersLimit, expensesLimit, productsLimit, usersLimit, aumentarCapacidade } = useApp();
   const [capacidade, setCapacidade] = useState<Capacidade>({ hoje: null, semana: null, mes: null, ano: null, total: null });
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState('');

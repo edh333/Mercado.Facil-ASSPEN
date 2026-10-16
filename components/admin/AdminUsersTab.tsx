@@ -124,7 +124,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
 
   const executarConfirmacao = () => {
     if (!confirmAction) return;
-    const { tipo, userId, bulkCount } = confirmAction;
+    const { tipo, userId } = confirmAction;
     if (tipo === 'suspender' && userId) suspendUser(userId, true);
     else if (tipo === 'excluir' && userId) deleteUser(userId);
     else if (tipo === 'bulkSuspender') {

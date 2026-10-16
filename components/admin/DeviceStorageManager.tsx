@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Database, HardDrive, RefreshCw, Trash2, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { HardDrive, RefreshCw, Trash2, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
 import {
   formatarBytes,

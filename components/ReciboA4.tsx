@@ -2,7 +2,7 @@ import React from "react";
 import { formatarMoeda, mascararCpf } from "../utils";
 import { Order, Expense, AppConfig } from "../types";
 import { valorPorExtenso } from "./NotaPromissoriaA4";
-import { Shield, Printer, X, ShieldCheck, QrCode, Hash, FileText, User, CreditCard } from "lucide-react";
+import { Shield, Printer, X, ShieldCheck, QrCode, FileText, User, CreditCard } from "lucide-react";
 
 interface ReciboA4Props {
   data: Order | Expense;
@@ -25,7 +25,7 @@ function formatCityDate(dateObj: Date, city: string): string {
   return `${city || 'Peixoto de Azevedo - MT'}, ${day} de ${month} de ${year}.`;
 }
 
-export const ReciboA4: React.FC<ReciboA4Props> = ({ data, type, config, printerName, onClose, embedded }) => {
+export const ReciboA4: React.FC<ReciboA4Props> = ({ data, type, config, printerName: _printerName, onClose, embedded }) => {
   if (!data) return <div className="p-20 text-center text-slate-500 font-black uppercase tracking-widest">Erro: Dados não localizados</div>;
   if (!config) return <div className="p-20 text-center text-slate-500 font-black uppercase tracking-widest">Erro: Configuração não encontrada</div>;
 
@@ -52,7 +52,6 @@ export const ReciboA4: React.FC<ReciboA4Props> = ({ data, type, config, printerN
       }
   } catch (e) {}
 
-  const dateLong = dateObj.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
   const dateShort = dateObj.toLocaleDateString('pt-BR');
   const timeShort = dateObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 

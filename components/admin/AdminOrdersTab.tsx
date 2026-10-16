@@ -1,10 +1,10 @@
 import React from 'react';
 import {
-  ShoppingCart, Search, Grid, List, Clock, Printer, DollarSign, ArrowRight, UserCheck, ShieldCheck, Download, XCircle, CheckCircle, CalendarDays, Eye
+  ShoppingCart, Search, Grid, List, Clock, Printer, ArrowRight, UserCheck, ShieldCheck, Download, XCircle, CheckCircle, CalendarDays, Eye
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useApp } from '../../context/StoreContext';
-import { Order, OrderStatus } from '../../types';
+import { Order } from '../../types';
 import { getLocalDateStr } from './adminUtils';
 import { toDate } from '../../utils/dateUtils';
 import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
@@ -34,7 +34,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
   const [dateFilter, setDateFilter] = React.useState<string>('ALL');
   const [specificDate, setSpecificDate] = React.useState<string>(getLocalDateStr());
   const [sortOrder, setSortOrder] = React.useState<'newest' | 'oldest'>('newest');
-  const { colors } = useTheme();
+  const {} = useTheme();
   const { aprovarPedido, showNotification } = useApp();
   const [confirmarAprovId, setConfirmarAprovId] = React.useState<string | null>(null);
   const [aprovarId, setAprovarId] = React.useState<string | null>(null);

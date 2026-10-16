@@ -7,7 +7,6 @@
 // Mesma regra de tituloInstitucional(): appName → sigla → instituição,
 // 1 linha só; fiscal mantém o nome legal completo em até 2 linhas.
 
-import React from 'react';
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import { CupomEntrega } from '../components/CupomEntrega';

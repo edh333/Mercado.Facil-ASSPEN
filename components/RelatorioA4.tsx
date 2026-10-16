@@ -26,8 +26,6 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
     };
     const fmtData = (d: any): string => (toDate(d)?.toLocaleDateString('pt-BR') || '—');
     const fmtHora = (d: any): string => (toDate(d)?.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) || '—');
-    const tem = (v: any): boolean => v !== undefined && v !== null && String(v).trim() !== '';
-
     const instituicao = String(config?.institutionName || config?.appName || 'MERCADO FÁCIL').toUpperCase();
     const cnpj = String(config?.cnpj || '').trim();
     const telefone = String(config?.contactPhone || '').trim();
@@ -758,7 +756,6 @@ export const RelatorioA4: React.FC<RelatorioA4Props> = ({ report, config }) => {
     const renderFiadoVencimentos = () => {
         const v = report.fiadoVencimentos;
         if (!v) return null;
-        const ordemCor: Record<string, string> = { red: '#b91c1c', amber: '#b45309', blue: '#1d4ed8', green: '#047857' };
         return (
             <section className="space-y-8">
                 {v.faixas.filter((f: any) => Number(f.count) > 0).map((faixa: any) => (

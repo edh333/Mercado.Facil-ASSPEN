@@ -1,10 +1,10 @@
-import React, { Fragment } from 'react';
+import React from 'react';
 import { createPortal } from 'react-dom';
 import {
   X, Check, Upload, ImageIcon, Barcode,
-  MinusCircle, RefreshCw, Loader2, Lock, Package, Key, Printer, KeyRound, ShieldCheck, Edit, Shield, AlertTriangle, Save, Globe, Store, ShoppingCart, Eye, EyeOff
+  MinusCircle, RefreshCw, Loader2, Lock, Package, Key, Printer, KeyRound, ShieldCheck, Save, Globe, Store, ShoppingCart, Eye, EyeOff
 } from 'lucide-react';
-import { Product, Expense, Order } from '../../types';
+import { Product, Order } from '../../types';
 import { compressImageFile, fileToBase64, normalizeName, formatarMoeda } from '../../utils';
 import { ModalShell } from '../ui/ModalShell';
 import { CupomEntrega } from '../CupomEntrega';
@@ -296,7 +296,6 @@ export const AdminModals: React.FC<AdminModalsProps> = ({
           return false;
         });
         if (duplicate) {
-          const reason = barcode ? `código de barras ${productForm.barcode}` : `nome "${productData.name}"`;
           confirmarDuplicataStorage.current = { productData };
           setConfirmarDuplicata(true);
           setIsProductLoading(false);

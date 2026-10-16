@@ -1,5 +1,3 @@
-import { OrderStatus } from '../../types';
-
 // Os rótulos de forma de pagamento (PAYMENT_LABELS / rotuloPagamento) foram
 // movidos para utils/pdvPayment: é o módulo PURO do domínio de pagamento, testável
 // e importável tanto pelo PDV quanto pelo modal de relatórios.

@@ -16,9 +16,6 @@ interface AppInfo {
   motivo?: string;
 }
 
-const BAIAO_MENSAGEM = (nome: string) =>
-  `O instalador "${nome}" está sendo baixado. Após concluir, execute o arquivo para instalar o app no computador.`;
-
 /** Botão discreto que abre o modal de download do app (setup.exe / PWA). */
 export const AppDownloadButton: React.FC<{
   variant?: 'icon' | 'full';

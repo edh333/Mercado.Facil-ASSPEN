@@ -9,7 +9,6 @@
 // O que é mockado: o contexto global (StoreContext) e o caminho de impressão.
 // O que é real: o TelaPDV inteiro, o fluxo de carrinho/pagamento e o teclado.
 
-import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';

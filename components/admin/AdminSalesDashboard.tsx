@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   TrendingUp, DollarSign, Receipt, ShoppingBag, Calendar, Download,
-  ArrowUpRight, ArrowDownRight, Package, CreditCard, Wallet, Banknote,
+  ArrowUpRight, ArrowDownRight, Package,
   PieChart as PieChartIcon, RefreshCcw, Sparkles
 } from 'lucide-react';
 import { Order } from '../../types';

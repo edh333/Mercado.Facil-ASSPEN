@@ -50,7 +50,7 @@ const getQuickDateRange = (period?: string): { start: Date; end: Date } => {
 export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
   reportConfig, setReportConfig, users, handleOpenReport, handleExportExcel, settings
 }) => {
-  const { colors } = useTheme();
+  const {} = useTheme();
   const [showUserDropdown, setShowUserDropdown] = React.useState(false);
   const [creditSearch, setCreditSearch] = React.useState('');
 

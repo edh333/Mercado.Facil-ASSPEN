@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Users, Search, Check, DollarSign, CreditCard, Plus,
   RefreshCw, Trash2, Save, CheckCircle, Printer, ShieldAlert,
-  Download, AlertTriangle, Filter
+  Download, Filter
 } from 'lucide-react';
 import { ModalShell } from '../ui/ModalShell';
 

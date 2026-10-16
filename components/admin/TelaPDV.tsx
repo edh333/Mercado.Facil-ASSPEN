@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { X, Search, Barcode, ShoppingCart, Check, Lock, User as UserIcon, Plus, Minus, Package, Wallet, CreditCard, DollarSign, Trash2, LayoutGrid, List, Percent, XCircle } from 'lucide-react';
+import { X, Search, Barcode, ShoppingCart, Check, User as UserIcon, Plus, Minus, Package, Wallet, CreditCard, DollarSign, Trash2, LayoutGrid, List, Percent, XCircle } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Product, User, Order, AppConfig, UserRole, InmateLocation } from '../../types';
 import { filtrarClientesPdv } from '../../utils/pdvSearch';
@@ -595,7 +595,6 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
     && !bloqueioFiado
     && !bloqueioWallet
     && !bloqueioPix;
-  const habilitadoVisual = podeFinalizar ? 'enabled' : 'disabled';
 
   const finalizarVenda = async () => {
     if (processando) return;

@@ -5,7 +5,6 @@
 // DESTAQUE da lista; o familiar (responsável/pagador) vem logo abaixo como
 // texto pequeno "Familiar: ..."; CPF mascarado à direita.
 
-import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, within } from '@testing-library/react';
 import { TelaPDV } from '../components/admin/TelaPDV';

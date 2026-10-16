@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     Store, ShieldCheck, QrCode, ClipboardCheck, Package, Building2,
     Smartphone, Tablet, Monitor, Download, ArrowRight, CheckCircle2,
-    Lock, HeartHandshake, Loader2, Menu, X
+    HeartHandshake, Loader2, Menu, X
 } from 'lucide-react';
 import { Login } from '../pages/Login';
 import { AppFooter } from './ui';

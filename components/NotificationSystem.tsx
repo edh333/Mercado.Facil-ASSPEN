@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 export const NotificationSystem: React.FC = () => {
     const { notifications, removeNotification } = useApp();
 
-    const handleRemove = useCallback((id: string) => {
+    useCallback((id: string) => {
         removeNotification(id);
     }, [removeNotification]);
 

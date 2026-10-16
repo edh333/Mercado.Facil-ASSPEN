@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useApp, buildSalesCsv } from '../context/StoreContext';
 import { User, Order, Product, UserRole, WalletTransaction } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, limit } from 'firebase/firestore';
 import { db } from '../firebase';
-import { useTheme } from '../context/ThemeContext';
 import { OnlineStatusIndicator } from '../components/OnlineStatusIndicator';
 import { OfflineSalesBanner } from '../components/admin/OfflineSalesBanner';
 import { PageHeader, UiButton } from '../components/ui';
@@ -891,7 +890,7 @@ return (
                     // Busca TODOS os produtos do Firestore (sem limite do productsLimit)
                     // para garantir que o catálogo mostre tudo, não apenas os primeiros 500.
                     try {
-                      const { getDocs, query: fsQuery, collection, orderBy, where, limit } = await import('firebase/firestore');
+                      const { getDocs, query: fsQuery, collection, orderBy, limit } = await import('firebase/firestore');
                       // Cap preventivo: evita leitura gigante de catálogo sem limite.
                       // Um catálogo de PDV raramente excede 5 mil SKUs; acima disso a
                       // impressão deve evoluir para faixas (ex.: por categoria).

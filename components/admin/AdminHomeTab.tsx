@@ -5,7 +5,7 @@ import {
   Zap, ArrowRight,
   BarChart3, TrendingUp, Award, PackageX, Plus, Banknote, Printer
 } from 'lucide-react';
-import { OrderStatus, WalletTransaction } from '../../types';
+import { WalletTransaction } from '../../types';
 import { ChartMount } from '../ui/ChartMount';
 import { useRecharts, RechartsSkeleton } from '../../utils/rechartsLoader';
 import { useTheme } from '../../context/ThemeContext';
@@ -39,7 +39,7 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
   stats, chartData, isMaster, setActiveTab, setShowProductModal, filterType, orders,
   products = [], walletTx, onSelectTransaction, onOpenSales, onOpenShortcuts
 }) => {
-  const { colors } = useTheme();
+  const {} = useTheme();
 
   // recharts é carregado sob demanda (só quem abre o dash admin baixa ~395 kB).
   const RC = useRecharts();

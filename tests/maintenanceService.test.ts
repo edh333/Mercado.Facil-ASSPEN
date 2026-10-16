@@ -71,7 +71,7 @@ describe('maintenanceService', () => {
 
     // Segunda chamada no mesmo dia NÃO refaz o pesado (retorna relatório salvo)
     s.setItem('appSettings', 'outro quebra');
-    const r2 = executarManutencao(s);
+    executarManutencao(s);
     expect(lerUltimoRelatorio(s)!.executadoEm).toBe(r1!.executadoEm);
     // com forcar=true refaz: o novo JSON quebrado vai para quarentena nesta rodada
     const r3 = executarManutencao(s, true);
