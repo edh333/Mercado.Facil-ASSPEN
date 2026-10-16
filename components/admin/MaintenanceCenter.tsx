@@ -288,7 +288,7 @@ export const MaintenanceCenter: React.FC<Props> = ({
   }
 
   // ---- PAINEL completo (aba inicial) ----
-  const categorias: Array<ChecagemChecklist['item']['categoria']> = ['Diaria', 'Semanal', 'Mensal', 'Trimestral', 'Semestral'];
+  const categorias: Array<ChecagemChecklist['item']['categoria']> = ['Diária', 'Semanal', 'Mensal', 'Trimestral', 'Semestral'];
   const totalAtencao = criticos + avisos + pendenciasChecklist;
 
   const storageBytes = Number(maintenance?.storageBytes) || 0;

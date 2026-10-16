@@ -191,7 +191,7 @@ describe('checklist', () => {
 
   it('a rotina padrao cobre todas as cadencias criticas', () => {
     const categorias = new Set(CHECKLIST_PADRAO.map((i) => i.categoria));
-    expect(categorias.has('Diaria')).toBe(true);
+    expect(categorias.has('Diária')).toBe(true);
     expect(categorias.has('Semanal')).toBe(true);
     expect(categorias.has('Mensal')).toBe(true);
     expect(categorias.has('Trimestral')).toBe(true);

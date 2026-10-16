@@ -123,15 +123,15 @@ export function computeMaintenanceAlerts(p: PropsComputeAlerts): AlertaManutenca
       id: 'backup-nunca',
       nivel: 'critical',
       titulo: 'Nenhum backup registrado',
-      mensagem: 'O sistema ainda nao registrou nenhum backup. O diario roda automaticamente as 03:15; se as Cloud Functions nao estiverem no ar, execute um backup manual agora.',
+      mensagem: 'O sistema ainda não registrou nenhum backup. O diário roda automaticamente às 03:15; se as Cloud Functions não estiverem no ar, execute um backup manual agora.',
       alvo: 'backup',
     });
   } else if (status && status !== 'ok' && status !== 'success') {
     alerts.push({
       id: 'backup-erro',
       nivel: 'critical',
-      titulo: 'Falha no ultimo backup',
-      mensagem: 'O ultimo backup (' + String(m.lastBackupFile || '') + ') retornou status "' + status + '". Verifique os logs das Cloud Functions e gere um backup manual.',
+      titulo: 'Falha no último backup',
+      mensagem: 'O último backup (' + String(m.lastBackupFile || '') + ') retornou status "' + status + '". Verifique os logs das Cloud Functions e gere um backup manual.',
       alvo: 'backup',
     });
   } else if (dias !== null && dias >= LIMIARES.backupCriticoDias) {
@@ -139,15 +139,15 @@ export function computeMaintenanceAlerts(p: PropsComputeAlerts): AlertaManutenca
       id: 'backup-vencido',
       nivel: 'critical',
       titulo: 'Backup desatualizado (' + pluralDias(dias) + ')',
-      mensagem: 'Ha mais de uma semana o servico diario de backup (03:15) nao confirma uma copia nova. Verifique as Functions e gere uma copia manual imediatamente.',
+      mensagem: 'Há mais de uma semana o serviço diário de backup (03:15) não confirma uma cópia nova. Verifique as Functions e gere uma cópia manual imediatamente.',
       alvo: 'backup',
     });
   } else if (dias !== null && dias >= LIMIARES.backupAlertaDias) {
     alerts.push({
       id: 'backup-atencao',
       nivel: 'warning',
-      titulo: 'Ultimo backup ha ' + pluralDias(dias),
-      mensagem: 'O backup diario nao confirmou uma copia nova recentemente. Confira o servico agendado (Function backupAutomaticoDiario).',
+      titulo: 'Último backup há ' + pluralDias(dias),
+      mensagem: 'O backup diário não confirmou uma cópia nova recentemente. Confira o serviço agendado (Function backupAutomaticoDiario).',
       alvo: 'backup',
     });
   }
@@ -157,7 +157,7 @@ export function computeMaintenanceAlerts(p: PropsComputeAlerts): AlertaManutenca
       id: 'cota',
       nivel: 'critical',
       titulo: 'Cota do Firebase atingida',
-      mensagem: 'Partes do sistema podem ficar temporariamente indisponiveis ate renovar a meia-noite UTC. Para operacao continua, ative o plano Blaze.',
+      mensagem: 'Partes do sistema podem ficar temporariamente indisponíveis até renovar a meia-noite UTC. Para operação contínua, ative o plano Blaze.',
       alvo: 'cota',
     });
   }
@@ -167,7 +167,7 @@ export function computeMaintenanceAlerts(p: PropsComputeAlerts): AlertaManutenca
       id: 'monitoramento',
       nivel: 'info',
       titulo: 'Monitoramento de erros desligado',
-      mensagem: 'O Sentry esta integrado, mas sem DSN configurado (VITE_SENTRY_DSN no .env). Sem ele, falhas so aparecem quando um usuario reportar. Configure em Configuracoes → Revisao.',
+      mensagem: 'O Sentry está integrado, mas sem DSN configurado (VITE_SENTRY_DSN no .env). Sem ele, falhas só aparecem quando um usuário reportar. Configure em Configurações → Revisão.',
       alvo: 'settings',
     });
   }
@@ -177,7 +177,7 @@ export function computeMaintenanceAlerts(p: PropsComputeAlerts): AlertaManutenca
       id: 'estoque-esgotados',
       nivel: 'warning',
       titulo: p.esgotados + ' produto(s) esgotado(s)',
-      mensagem: 'Itens sem estoque nao podem ser vendidos (nem pelo app nem pelo PDV). Planeje a reposicao.',
+      mensagem: 'Itens sem estoque não podem ser vendidos (nem pelo app nem pelo PDV). Planeje a reposição.',
       alvo: 'estoque',
     });
   } else if (p.estoqueBaixo > 0) {
@@ -185,7 +185,7 @@ export function computeMaintenanceAlerts(p: PropsComputeAlerts): AlertaManutenca
       id: 'estoque-baixo',
       nivel: 'info',
       titulo: p.estoqueBaixo + ' produto(s) com estoque baixo',
-      mensagem: 'Itens com 5 unidades ou menos. Programe a reposicao antes de esgotarem.',
+      mensagem: 'Itens com 5 unidades ou menos. Programe a reposição antes de esgotarem.',
       alvo: 'estoque',
     });
   }
@@ -194,8 +194,8 @@ export function computeMaintenanceAlerts(p: PropsComputeAlerts): AlertaManutenca
     alerts.push({
       id: 'pedidos',
       nivel: 'warning',
-      titulo: p.pedidosPendentes + ' pedido(s) pendente(s) de aprovacao',
-      mensagem: 'Pedidos aguardando analise da equipe. Quanto antes forem resolvidos, antes o fluxo se mantem saudavel.',
+      titulo: p.pedidosPendentes + ' pedido(s) pendente(s) de aprovação',
+      mensagem: 'Pedidos aguardando análise da equipe. Quanto antes forem resolvidos, antes o fluxo se mantém saudável.',
       alvo: 'pedidos',
     });
   }
@@ -204,8 +204,8 @@ export function computeMaintenanceAlerts(p: PropsComputeAlerts): AlertaManutenca
     alerts.push({
       id: 'depositos',
       nivel: 'warning',
-      titulo: p.depositosPendentes + ' deposito(s) pendente(s) de validacao',
-      mensagem: 'Comprovantes de deposito aguardando conferencia para liberar saldo.',
+      titulo: p.depositosPendentes + ' depósito(s) pendente(s) de validação',
+      mensagem: 'Comprovantes de depósito aguardando conferência para liberar saldo.',
       alvo: 'depositos',
     });
   }
@@ -214,7 +214,7 @@ export function computeMaintenanceAlerts(p: PropsComputeAlerts): AlertaManutenca
     alerts.push({
       id: 'usuarios',
       nivel: 'info',
-      titulo: p.usuariosPendentes + ' familiar(es) aguardando aprovacao',
+      titulo: p.usuariosPendentes + ' familiar(es) aguardando aprovação',
       mensagem: 'Novos familiares precisam ser aprovados para acessar o app.',
       alvo: 'usuarios',
     });
@@ -244,77 +244,77 @@ export interface ItemChecklist {
   titulo: string;
   descricao: string;
   intervaloDias: number;
-  categoria: 'Diaria' | 'Semanal' | 'Mensal' | 'Trimestral' | 'Semestral';
+  categoria: 'Diária' | 'Semanal' | 'Mensal' | 'Trimestral' | 'Semestral';
 }
 
 export const CHECKLIST_PADRAO: ItemChecklist[] = [
   {
     id: 'backup-diario',
-    titulo: 'Conferir o backup diario',
-    descricao: 'Verificar que o backup automatico (03:15) esta com status "ok" neste painel.',
+    titulo: 'Conferir o backup diário',
+    descricao: 'Verificar que o backup automático (03:15) está com status "ok" neste painel.',
     intervaloDias: 1,
-    categoria: 'Diaria',
+    categoria: 'Diária',
   },
   {
     id: 'monitorar-erros',
     titulo: 'Revisar erros do sistema',
     descricao: 'Conferir e-mail do Sentry (se ativo) e alertas registrados do Firebase.',
     intervaloDias: 1,
-    categoria: 'Diaria',
+    categoria: 'Diária',
   },
   {
     id: 'estoque-semana',
     titulo: 'Repor estoque',
-    descricao: 'Repor itens em falta ou com estoque baixo (aba Alertas de Reposicao).',
+    descricao: 'Repor itens em falta ou com estoque baixo (aba Alertas de Reposição).',
     intervaloDias: 7,
     categoria: 'Semanal',
   },
   {
     id: 'pendentes-semana',
-    titulo: 'Resolver pendencias',
-    descricao: 'Aprovar/reprovar pedidos, depositos e novos familiares.',
+    titulo: 'Resolver pendências',
+    descricao: 'Aprovar/reprovar pedidos, depósitos e novos familiares.',
     intervaloDias: 7,
     categoria: 'Semanal',
   },
   {
     id: 'chaves-credenciais',
     titulo: 'Revisar chaves e credenciais',
-    descricao: 'Conferir .env (ex.: GEMINI_API_KEY), rotacionar se necessario e revisar restricao de referenciador no API Key (Google Cloud).',
+    descricao: 'Conferir .env (ex.: GEMINI_API_KEY), rotacionar se necessário e revisar restrição de referenciador no API Key (Google Cloud).',
     intervaloDias: 30,
     categoria: 'Mensal',
   },
   {
     id: 'backup-restauracao',
-    titulo: 'Teste de restauracao',
-    descricao: 'Restaurar o backup mais recente em um projeto de teste e conferir saldos/vendas (≈10 min). E o unico caminho para provar que o backup funciona.',
+    titulo: 'Teste de restauração',
+    descricao: 'Restaurar o backup mais recente em um projeto de teste e conferir saldos/vendas (≈10 min). É o único caminho para provar que o backup funciona.',
     intervaloDias: 30,
     categoria: 'Mensal',
   },
   {
     id: 'cota-plano',
     titulo: 'Revisar cota e plano do Firebase',
-    descricao: 'Conferir uso em Firebase Console → Usage; relembrar o orcamento do plano Blaze (functions agendadas exigem Blaze).',
+    descricao: 'Conferir uso em Firebase Console → Usage; relembrar o orçamento do plano Blaze (functions agendadas exigem Blaze).',
     intervaloDias: 30,
     categoria: 'Mensal',
   },
   {
     id: 'versao-app',
-    titulo: 'Confirmar versao do app',
-    descricao: 'Verificar se ha versao nova do PWA/Electron publicada para distribuir.',
+    titulo: 'Confirmar versão do app',
+    descricao: 'Verificar se há versão nova do PWA/Electron publicada para distribuir.',
     intervaloDias: 30,
     categoria: 'Mensal',
   },
   {
     id: 'limpeza-dados',
     titulo: 'Limpeza de dados antigos',
-    descricao: 'Quando o armazenamento chegar a ~70% da cota, rodar a limpeza com backup (Configuracoes → Capacidade) e conferir o backup gerado.',
+    descricao: 'Quando o armazenamento chegar a ~70% da cota, rodar a limpeza com backup (Configurações → Capacidade) e conferir o backup gerado.',
     intervaloDias: 90,
     categoria: 'Trimestral',
   },
   {
     id: 'auditoria-seguranca',
-    titulo: 'Auditar regras e permissoes',
-    descricao: 'Revisar Firestore rules e permissoes dos administradores apos mudancas de pessoal.',
+    titulo: 'Auditar regras e permissões',
+    descricao: 'Revisar Firestore rules e permissões dos administradores após mudanças de pessoal.',
     intervaloDias: 180,
     categoria: 'Semestral',
   },
