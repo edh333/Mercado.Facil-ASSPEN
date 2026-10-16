@@ -143,10 +143,6 @@ interface StoreContextType {
     searchOrders: (term: string) => Promise<Order[]>;
     clearOldData: () => Promise<void>;
     archiveOldData: (orderIds: string[], expenseIds: string[]) => Promise<void>;
-    activateSystem: (token: string) => Promise<{ success: boolean; message: string }>;
-    generateActivationKey: (days: number) => Promise<string>;
-    isSystemActive: boolean;
-
 
     finalizarVendaComCredito: () => Promise<boolean>;
 
@@ -1749,84 +1745,6 @@ return false;
         }
     };
 
-    // Função de ativação do sistema (TOKEN-BASED)
-    const generateActivationKey = async (days: number): Promise<string> => {
-        const hex = (Math.random().toString(16).slice(2, 6) + Math.random().toString(16).slice(2, 6) + Math.random().toString(16).slice(2, 6) + Math.random().toString(16).slice(2, 6)).toUpperCase();
-        const token = hex.match(/.{1,4}/g)?.join('-') || hex;
-        try {
-            // Doc ID = token com hífens, idêntico ao que activateSystem() busca
-            // (antes era gravado sem hífens e a ativação nunca encontrava a chave).
-            await setDoc(doc(db, 'system_licenses', token), {
-                status: 'active',
-                expiresAt: new Date(Date.now() + days * 86400000).toISOString(),
-                createdAt: new Date().toISOString(),
-            });
-        } catch (e: any) {
-            console.warn('[generateActivationKey]', e.message);
-        }
-        return token;
-    };
-
-    const activateSystem = async (token: string): Promise<{ success: boolean; message: string }> => {
-        
-        try {
-            const cleanToken = token.trim().toUpperCase();
-            // Regex para validar formato XXXX-XXXX-XXXX-XXXX
-            const tokenRegex = /^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/;
-            
-            if (!tokenRegex.test(cleanToken)) {
-                return { success: false, message: 'Formato de token inválido. Use XXXX-XXXX-XXXX-XXXX' };
-            }
-
-            // Busca o token na coleção system_licenses
-            const licenseRef = doc(db, 'system_licenses', cleanToken);
-            const licenseSnap = await getDoc(licenseRef);
-
-            if (!licenseSnap.exists()) {
-                return { success: false, message: 'Token de ativação não encontrado ou já utilizado.' };
-            }
-
-            const licenseData = licenseSnap.data();
-            
-            if (licenseData.status !== 'active') {
-                return { success: false, message: 'Este token está desativado ou já expirou.' };
-            }
-
-            const expiresAt = new Date(licenseData.expiresAt);
-            if (expiresAt < serverTime) {
-                return { success: false, message: 'Token expirado. Entre em contato com o suporte.' };
-            }
-
-            // Ativa o sistema atualizando a config global
-            const newConfig = {
-                ...appConfig,
-                activationKey: cleanToken,
-                activationDate: new Date().toISOString(),
-                expirationDate: licenseData.expiresAt,
-                isTrial: false
-            };
-            
-            await updateSettings(newConfig);
-            
-            // Marca o token como utilizado para impedir reuso
-            await updateDoc(licenseRef, { status: 'used', usedAt: new Date().toISOString() });
-
-            return { success: true, message: 'Sistema ativado com sucesso!' };
-        } catch (e: any) {
-            console.error('Erro na ativação:', e);
-            return { success: false, message: 'Erro ao validar token: ' + e.message };
-        } finally {
-            
-        }
-    };
-
-    // Verificar se sistema está ativo (baseado na data de expiração da licença)
-    const isSystemActive = useMemo(() => {
-        if (!appConfig.expirationDate) return true;
-        const expDate = new Date(appConfig.expirationDate);
-        return expDate > serverTime;
-    }, [appConfig.expirationDate, serverTime]);
-
     // Normalização automática de dados legados (Adiciona deleted: false onde falta)
     const normalizeLegacyDocuments = async () => {
         if (currentUser?.role !== UserRole.ADMIN) return;
@@ -3297,9 +3215,6 @@ useEffect(() => {
             addToCart, removeFromCart, clearCart, createOrder, searchOrders,
             clearOldData: performAutoCleanup,
             archiveOldData: archiveData,
-            activateSystem,
-            generateActivationKey,
-            isSystemActive,
             
             updateOrderStatus, aprovarPedido, markOrderAsPrinted, addProduct, updateProduct, deleteProduct, deleteExpense,
             loadMoreOrders, loadMoreExpenses, loadMoreProducts, productsLimit, ordersLimit, expensesLimit, aumentarCapacidade, usersLimit, loadMoreUsers, expandUsersLimit, loadMoreSuppliers, loadMoreInmates, suppliersLimit, inmatesLimit, cotaCritica,
