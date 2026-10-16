@@ -124,3 +124,15 @@ export const THEME_COLORS: Record<string, {
 export const INITIAL_UNITS: PrisonUnit[] = [
   { id: '1', name: 'CDP Peixoto de Azevedo', city: 'Peixoto de Azevedo', bannedCategories: [], deliveryDays: [] },
 ];
+
+// Fonte única dos artigos penais citados no sistema (já houve drift 297 vs 298).
+export const ART_171 = 'Art. 171';
+export const ART_298 = 'Art. 298';
+
+// Aviso de crime exibido ao anexar comprovante de depósito (3 usos no UserDashboard).
+export const avisoComprovanteFalso = (verbo: 'prosseguir' | 'confirmar'): string =>
+  `Enviar comprovantes falsos ou adulterados configura CRIME — ${ART_171} (estelionato) e ${ART_298} (falsificação de documento) do Código Penal. Ao ${verbo}, você assume total responsabilidade civil e criminal.`;
+
+// Aviso do checkbox de aceite no cadastro (Login) — tem pena própria de banimento.
+export const AVISO_LEGAL_ENTRADA =
+  `Documento ou comprovante falso ou adulterado configura crime de Estelionato (${ART_171}) e Falsificação de documento (${ART_298} do CP), sujeito a processo criminal e banimento.`;

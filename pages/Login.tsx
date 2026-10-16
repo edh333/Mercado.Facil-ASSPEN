@@ -9,6 +9,7 @@ import {
 import { validateCPF, formatCPF } from '../utils';
 import { hasOfflineCredential } from '../utils/offlineUnlock';
 import { User as UserType } from '../types';
+import { AVISO_LEGAL_ENTRADA } from '../constants';
 import { motion, AnimatePresence } from 'framer-motion';
 import { OnlineStatusIndicator } from '../components/OnlineStatusIndicator';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -473,7 +474,7 @@ const [recoveryName, setRecoveryName] = useState('');
                                             <CheckCircle size={13} className="absolute top-1 left-1 text-white opacity-0 peer-checked:opacity-100 pointer-events-none transition-opacity" />
                                         </div>
                                         <span className="text-[11px] font-semibold leading-relaxed text-slate-600">
-                                            <span className="font-black text-slate-700">AVISO LEGAL:</span> Documento ou comprovante falso ou adulterado configura crime de Estelionato (Art. 171) e Falsificação de documento (Art. 298 do CP), sujeito a processo criminal e banimento.
+                                            <span className="font-black text-slate-700">AVISO LEGAL:</span> {AVISO_LEGAL_ENTRADA}
                                         </span>
                                     </label>
                                 </div>

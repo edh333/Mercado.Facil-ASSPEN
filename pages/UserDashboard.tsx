@@ -12,6 +12,7 @@ import { NotificationSystem } from '../components/NotificationSystem';
 
 import { generatePixPayload, formatarMoeda, compressImageFile, copiarTextoComFallback } from '../utils';
 import { MIN_PROOF_BYTES } from '../utils/fileHash';
+import { avisoComprovanteFalso } from '../constants';
 import { parseMoeda, roundCents, sanitizeMoedaInput, precoEfetivo } from '../utils/money';
 import { imprimirComPrioridadeFiscal } from '../utils/printUtils';
 import { toDate } from '../utils/dateUtils';
@@ -1327,7 +1328,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                                     </div>
                                                 )}
                                             </div>
-<div className="mt-3 p-2.5 bg-red-500/10 border-2 border-red-500/40 rounded-xl flex items-start gap-2"><AlertCircle size={12} className="inline-block shrink-0 mt-0.5" /><p className="text-[10px] font-black text-red-400 text-left leading-snug">Enviar comprovantes falsos ou adulterados configura CRIME — Art. 171 (estelionato) e Art. 298 (falsificação de documento) do Código Penal. Ao prosseguir, você assume total responsabilidade civil e criminal.</p></div>
+<div className="mt-3 p-2.5 bg-red-500/10 border-2 border-red-500/40 rounded-xl flex items-start gap-2"><AlertCircle size={12} className="inline-block shrink-0 mt-0.5" /><p className="text-[10px] font-black text-red-400 text-left leading-snug">{avisoComprovanteFalso('prosseguir')}</p></div>
                                             <button onClick={async () => { if (!proofFile) { showNotification('ANEXE O COMPROVANTE.', 'error'); return; } if (await depositToWalletAction()) setDepositStage('amount'); }} disabled={isSubmitting || !proofFile} className="w-full py-3.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 transition-all cursor-pointer">
                                                 {isSubmitting ? <><Loader2 size={14} className="animate-spin" /> Enviando...</> : <><Upload size={14} /> Enviar Comprovante</>}
                                             </button>
@@ -1794,7 +1795,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                     </div>
                                 )}
                             </div>
-                            <div className="p-2.5 bg-red-50 border-2 border-red-200 rounded-xl flex items-start gap-2"><AlertCircle size={12} className="inline-block shrink-0 mt-0.5" /><p className="text-[11px] font-black text-red-500 text-left leading-snug">Enviar comprovantes falsos ou adulterados configura CRIME — Art. 171 (estelionato) e Art. 298 (falsificação de documento) do Código Penal. Ao prosseguir, você assume total responsabilidade civil e criminal.</p></div>
+                            <div className="p-2.5 bg-red-50 border-2 border-red-200 rounded-xl flex items-start gap-2"><AlertCircle size={12} className="inline-block shrink-0 mt-0.5" /><p className="text-[11px] font-black text-red-500 text-left leading-snug">{avisoComprovanteFalso('prosseguir')}</p></div>
                             <UiButton
                                 size="md"
                                 icon={isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
@@ -1924,7 +1925,7 @@ unsubOrders = onSnapshot(q, (snapshot) => {
                                             {proofFile && (
                                                 <p className="text-[10px] text-[var(--primary-color)] font-bold mt-1 text-left break-all">Arquivo selecionado: {proofFile.name}</p>
                                             )}
-                                            <div className="mt-2 p-2.5 bg-red-500/10 border-2 border-red-500/40 rounded-xl flex items-start gap-2"><AlertCircle size={12} className="inline-block shrink-0 mt-0.5" /><p className="text-[11px] font-black text-red-600 text-left leading-snug">Enviar comprovantes falsos ou adulterados configura CRIME — Art. 171 (estelionato) e Art. 298 (falsificação de documento) do Código Penal. Ao confirmar, você assume total responsabilidade civil e criminal.</p></div>
+                                            <div className="mt-2 p-2.5 bg-red-500/10 border-2 border-red-500/40 rounded-xl flex items-start gap-2"><AlertCircle size={12} className="inline-block shrink-0 mt-0.5" /><p className="text-[11px] font-black text-red-600 text-left leading-snug">{avisoComprovanteFalso('confirmar')}</p></div>
                                         </div>
                                     </div>
                                 )}
