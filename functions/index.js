@@ -176,13 +176,13 @@ async function usuarioPorEmail(email) {
   return snap.empty ? null : { ...snap.docs[0].data(), id: snap.docs[0].id };
 }
 
-/** Dia local de São Paulo (YYYY-MM-DD) — formato canônico do campo `date`.
+/** Dia local de Mato Grosso (YYYY-MM-DD) — formato canônico do campo `date`.
  *  Pedidos criados pelo app (comprarComCarteira, registrarPedidoPix) usam o
  *  MESMO formato do PDV para relatórios/fechamento não dependerem do fuso do
  *  navegador do admin (o toDate do cliente já parseia 'YYYY-MM-DD' como
  *  meia-noite local). */
-function dataDiaLocalSP() {
-  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+function dataDiaLocalMT() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Cuiaba" });
 }
 
 /** Garante que o chamador é admin (role 'admin'/'ADMIN'/'master' no doc users) e está ativo. */
@@ -2952,7 +2952,7 @@ exports.processarVendaAdmin = onCall({
       // Dia local São Paulo (YYYY-MM-DD): base do fechamento de caixa/reportes.
       // Sem ele, o estorno de vendas em dinheiro não conseguia localizar a
       // sessão de caixa correspondente (resolverSessaoCaixaDoPedido usa date).
-      date: new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }),
+      date: new Date().toLocaleDateString("en-CA", { timeZone: "America/Cuiaba" }),
       status: 'paid',
       userId: targetUserId,
       userName: isConsumer ? "CONSUMIDOR FINAL" : (userData?.name || clienteFiadoNome || "Consumidor"),
@@ -4142,7 +4142,7 @@ async function executarResetSemanal() {
 
 exports.arquivarDadosAntigos = onSchedule({
   schedule: "0 3 * * *",
-  timeZone: "America/Sao_Paulo",
+  timeZone: "America/Cuiaba",
   memory: "512MiB"
 }, async (event) => {
   logger.info("Iniciando rotina automática de arquivamento (45 dias)...");
@@ -5053,7 +5053,7 @@ exports.backupAutomaticoDiario = onSchedule({
 // ============================================================
 exports.limparComprovantesExpirados = onSchedule({
   schedule: "30 4 * * *",
-  timeZone: "America/Sao_Paulo",
+  timeZone: "America/Cuiaba",
   timeoutSeconds: 540,
   memory: "512MiB"
 }, async () => {
@@ -5284,7 +5284,7 @@ async function limparOrfaosStorage(bucket, cfg) {
  */
 exports.limparStorageOrfaos = onSchedule({
   schedule: "10 4 * * *",
-  timeZone: "America/Sao_Paulo",
+  timeZone: "America/Cuiaba",
   timeoutSeconds: 540,
   memory: "1GiB",
 }, async () => {
@@ -5319,7 +5319,7 @@ exports.limparStorageOrfaos = onSchedule({
  */
 exports.monitorarUsoStorage = onSchedule({
   schedule: "0 */6 * * *",
-  timeZone: "America/Sao_Paulo",
+  timeZone: "America/Cuiaba",
   timeoutSeconds: 540,
   memory: "1GiB",
 }, async () => {
@@ -5807,7 +5807,7 @@ exports.gerenciarSessaoCaixa = onCall({
 // quem decide é o admin, na aba "Auditoria".
 exports.auditoriaDiaria = onSchedule({
   schedule: "0 5 * * *",
-  timeZone: "America/Sao_Paulo",
+  timeZone: "America/Cuiaba",
   timeoutSeconds: 540,
   memory: "512MiB"
 }, async () => {
