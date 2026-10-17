@@ -63,6 +63,8 @@ const fnResetStock = httpsCallable(functions, 'resetStock');
 const fnResetFinance = httpsCallable(functions, 'resetFinance');
 const fnImportXmlProduct = httpsCallable(functions, 'importXmlProduct');
 const fnDevolucaoAlvara = httpsCallable(functions, 'devolucaoAlvara');
+const fnExcluirUsuario = httpsCallable(functions, 'excluirUsuario');
+const fnAnexarComprovanteAdmin = httpsCallable(functions, 'anexarComprovanteAdmin');
 
 // NOTE: o módulo contábil (DRE/CSV/ABC/extrato) foi migrado para
 // utils/contabil.ts e o parser de NFe (nota fiscal XML) para utils/invoiceParser.ts.
@@ -863,11 +865,12 @@ return false;
         const url = await getDownloadURL(fileRef);
         let meta: ProofMeta | null = null;
         try { meta = await computeProofMeta(arquivoFinal); } catch { /* noop */ }
-        await updateDoc(doc(db, kind, docId), {
-            [CAMPO_PROVA[kind]]: url,
-            ...(meta ? { proofHash: meta.hash, proofSize: meta.size, proofMime: meta.mime } : {}),
+        // A gravação da URL + o audit_log agora rodam no servidor (não-forjável).
+        await fnAnexarComprovanteAdmin({
+            kind, docId, url,
+            proofHash: meta?.hash, proofSize: meta?.size, proofMime: meta?.mime,
         });
-        await registrarAuditClient('ANEXAR_COMPROVANTE_ADMIN', { kind, docId }, { url });
+        showNotification('Comprovante anexado com sucesso!', 'success');
         return url;
     };
 
@@ -1402,13 +1405,10 @@ return false;
     const deleteUser = async (uid: string) => {
         if (!currentUser || currentUser.role !== UserRole.ADMIN || !requirePermission('users')) return;
         try {
-            const alvo = users.find(u => u.id === uid);
-            const roleAlvo = String(alvo?.role || '').toLowerCase();
-            await updateDoc(doc(db, 'users', uid), { deleted: true, status: 'suspended' });
-            if (alvo && (roleAlvo === 'admin' || roleAlvo === 'master')) {
-                await registrarAuditClient('EXCLUIR_ADMIN', { usuarioId: uid, nome: alvo.name, email: alvo.email, permissao: alvo.permissions }, { status: 'ok' });
-            }
-        } catch (e: any) { showNotification("Erro ao excluir usuário", "error"); }
+            // Soft delete + audit_log rodam no servidor (não-forjável).
+            await fnExcluirUsuario({ uid });
+            showNotification("Usuário excluído.", "success");
+        } catch (e: any) { showNotification("Erro ao excluir usuário: " + (e?.message || ''), "error"); }
     };
     const updateUserStatus = async (uid: string, s: any) => {
         if (!currentUser || currentUser.role !== UserRole.ADMIN || !requirePermission('users')) return;
@@ -1815,20 +1815,6 @@ return false;
         } catch (e: any) {
             console.error('[backup] Falha ao baixar backup do servidor:', e);
             showNotification('Falha ao baixar backup do servidor. Verifique conexão e tente novamente.', 'error');
-        }
-    };
-    const registrarAuditClient = async (acaoTipo: string, payloadAntes: any = null, payloadDepois: any = null) => {
-        if (!currentUser) return;
-        try {
-            await addDoc(collection(db, 'audit_logs'), {
-                operadorUid: currentUser.id,
-                timestamp: new Date().toISOString(),
-                acaoTipo,
-                payloadAntes,
-                payloadDepois,
-            });
-        } catch (e: any) {
-            console.warn('[audit]', e.message);
         }
     };
     const resetSystem = async (confirm: boolean, senhaMestra?: string) => {

@@ -310,29 +310,16 @@ service cloud.firestore {
     }
 
 // ── LOGS DE AUDITORIA (ações sensíveis; imutáveis) ──
-    // Create: as ações de ADMIN que ainda rodam no cliente (anexar comprovante,
-    // excluir usuário, zerar estoque, zerar financeiro) registram o log daqui.
-    // Restrições: o autor é o próprio chamador (impede registrar em nome de
-    // outro operador) e o documento só pode ter os campos da linha de log —
-    // antes `allow create: if isAdmin()` aceitaria qualquer documento, o que
-    // deixava a trilha de auditoria forjável pelo próprio cliente.
-    // NOTA (limitação conhecida): um cliente ainda pode inventar uma ação que não
-    // ocorreu, porque a escrita vem do device. Fechar de vez exige mover as 4
-    // operações para Cloud Functions que auditam no servidor — o Firestore não
-    // consegue atribuir autoria confiável a um write do cliente.
-    // Edição e exclusão: NUNCA (log imutável, inclusive para o admin).
+    // As 4 ações de ADMIN (anexar comprovante, excluir usuário, zerar estoque,
+    // zerar financeiro) foram movidas para Cloud Functions, que auditam no
+    // SERVIDOR (admin SDK — ignora estas regras). O cliente NÃO escreve mais em
+    // audit_logs: antes um device podia inventar uma ação que não ocorreu (o
+    // Firestore não consegue atribuir autoria confiável a um write do cliente),
+    // então a trilha era forjável. Agora o create do cliente é NEGADO.
+    // Leitura: somente admin. Edição e exclusão: NUNCA (log imutável).
     match /audit_logs/{logId} {
       allow read: if isAdmin();
-      allow create: if isAdmin()
-        && request.resource.data.operadorUid is string
-        && request.resource.data.acaoTipo is string
-        && request.resource.data.acaoTipo.size() > 0
-        && request.resource.data.acaoTipo.size() <= 60
-        && userMatch(request.resource.data.operadorUid)
-        && request.resource.data.keys().hasOnly([
-          'operadorUid', 'timestamp', 'acaoTipo', 'payloadAntes', 'payloadDepois'
-        ]);
-      allow update, delete: if false;
+      allow create, update, delete: if false;
     }
 
     // ── AUDITORIA DIÁRIA DE ANOMALIAS ──

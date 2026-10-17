@@ -6134,6 +6134,94 @@ exports.resetFinance = onCall({
   return { despesasRemovidas: expSnap.size, sessoesRemovidas: cashSnap.size };
 });
 
+/**
+ * Admin (users) — soft delete de um usuário (deleted=true, status=suspended).
+ * MIGRADO DO CLIENTE: antes o update no doc + o registro em audit_logs eram
+ * escritos pelo DEVICE, então a trilha de auditoria podia ser forjada (a rule
+ * só conferia o autor, não que a ação realmente ocorreu). Agora a operação e o
+ * log rodam no servidor, com a permissão 'users' validada e o admin principal
+ * protegido contra exclusão.
+ */
+exports.excluirUsuario = onCall(async (request) => {
+  const caller = await exigirAdminPermissao(request, "users");
+  const uid = String(request.data?.uid || "").trim();
+  if (!uid) throw new HttpsError("invalid-argument", "Usuário não informado.");
+  if (uid === caller.id || uid === caller.uid) {
+    throw new HttpsError("invalid-argument", "Não é possível excluir o próprio usuário.");
+  }
+  const ref = db.collection("users").doc(uid);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Usuário não encontrado.");
+  const alvo = snap.data() || {};
+  const roleAlvo = String(alvo.role || "").toLowerCase();
+  // O admin principal nunca pode ser excluído (nem por outro admin com acesso).
+  if (alvo.mainAdmin === true || roleAlvo === "master" || uid === "admin" || uid === "master") {
+    throw new HttpsError("failed-precondition", "O administrador principal não pode ser excluído.");
+  }
+  await ref.update({ deleted: true, status: "suspended" });
+  await registrarAudit(
+    caller.id,
+    roleAlvo === "admin" ? "EXCLUIR_ADMIN" : "EXCLUIR_USUARIO",
+    { usuarioId: uid, nome: alvo.name, email: alvo.email, role: alvo.role, permissions: alvo.permissions },
+    { status: "ok", deleted: true }
+  );
+  return { ok: true };
+});
+
+/**
+ * Admin (orders/finance) — anexa manualmente um comprovante que chegou por
+ * outro canal (WhatsApp, balcão...) num pedido/depósito com upload pendente.
+ * MIGRADO DO CLIENTE: o upload do arquivo continua no app (as Storage rules
+ * governam quem pode gravar na pasta), mas a gravação da URL no documento e o
+ * registro em audit_logs agora rodam AQUI — antes vinham do device e a trilha
+ * era forjável.
+ * O dono do registro é DERIVADO DO PRÓPRIO DOCUMENTO (não confiamos no cliente)
+ * e o servidor confere que a URL é um arquivo real do Storage, dentro da pasta
+ * permitida e da pasta do dono.
+ */
+exports.anexarComprovanteAdmin = onCall(async (request) => {
+  const kind = String(request.data?.kind || "").trim();
+  if (kind !== "orders" && kind !== "wallet_transactions") {
+    throw new HttpsError("invalid-argument", "Tipo de documento inválido.");
+  }
+  const caller = await exigirAdminPermissao(request, kind === "wallet_transactions" ? "finance" : "orders");
+  const docId = String(request.data?.docId || "").trim();
+  const url = String(request.data?.url || "").trim();
+  const proofHash = String(request.data?.proofHash || "").trim().slice(0, 128);
+  const proofSize = Number(request.data?.proofSize) || 0;
+  const proofMime = String(request.data?.proofMime || "").trim().slice(0, 64);
+  const pasta = kind === "wallet_transactions" ? "wallet_proofs" : "comprovantes_pix";
+  const campoUrl = kind === "wallet_transactions" ? "proofUrl" : "paymentProofUrl";
+  if (!docId) throw new HttpsError("invalid-argument", "Documento inválido.");
+  if (!url) throw new HttpsError("invalid-argument", "Comprovante não informado.");
+
+  // 1) O dono é derivado do PRÓPRIO documento (não confiamos no client).
+  const docSnap = await db.collection(kind).doc(docId).get();
+  if (!docSnap.exists) throw new HttpsError("not-found", "Registro não encontrado.");
+  const donoId = String((docSnap.data() || {}).userId || "").trim();
+  if (!donoId) throw new HttpsError("failed-precondition", "Registro sem usuário associado.");
+
+  // 2) Arquivo real no Storage, na pasta correta e na pasta DO DONO do registro.
+  const objCheck = await verificarObjetoComprovante(url, pasta);
+  if (!objCheck.ok) throw new HttpsError("failed-precondition", objCheck.motivo);
+  const ehDono = await comprovanteEhDoUsuario(url, donoId, pasta);
+  if (!ehDono) {
+    throw new HttpsError("permission-denied", "O comprovante está na pasta de outro usuário. Verifique o upload.");
+  }
+
+  // 3) Grava a URL + metadados e registra a auditoria no SERVIDOR.
+  const patch = { [campoUrl]: url };
+  if (proofHash) { patch.proofHash = proofHash; patch.proofSize = proofSize; patch.proofMime = proofMime; }
+  await db.collection(kind).doc(docId).update(patch);
+  await registrarAudit(
+    caller.id,
+    "ANEXAR_COMPROVANTE_ADMIN",
+    { kind, docId, usuarioId: donoId },
+    { url, ...(proofHash ? { proofHash, proofSize, proofMime } : {}) }
+  );
+  return { ok: true, url };
+});
+
 /** Admin (products) — importa produtos via XML de NFe (server-side parsing + processInvoiceImport). */
 exports.importXmlProduct = onCall({
   memory: "512MiB",
