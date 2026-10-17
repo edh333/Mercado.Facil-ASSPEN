@@ -4120,14 +4120,22 @@ async function executarResetSemanal() {
     return;
   }
 
+  // Sem teto fixo: o reset precisa cobrir TODO usuário com cota gasta, não só
+  // os primeiros 5.000 (que viravam "esquecidos" em bases grandes). Como cada
+  // doc zerado sai da query (weeklySpent passa a 0), re-consultar do início
+  // avança sempre. Orçamento de tempo evita estourar o timeout da função; o que
+  // sobrar é zerado na execução seguinte (a data só é gravada no final).
+  const inicioReset = Date.now();
+  const ORCAMENTO_RESET_MS = 7 * 60 * 1000;
   let totalZerados = 0;
-  let snapshot = await db.collection("users").where("weeklySpent", ">", 0).limit(500).get();
-  while (!snapshot.empty && totalZerados < 5000) {
+  let concluido = false;
+  while (Date.now() - inicioReset < ORCAMENTO_RESET_MS) {
+    const snapshot = await db.collection("users").where("weeklySpent", ">", 0).limit(500).get();
+    if (snapshot.empty) { concluido = true; break; }
     const batch = db.batch();
     snapshot.docs.forEach((d) => batch.update(d.ref, { weeklySpent: 0 }));
     await batch.commit();
     totalZerados += snapshot.size;
-    snapshot = await db.collection("users").where("weeklySpent", ">", 0).limit(500).get();
   }
 
   // (coleção customer_accounts removida do sistema — fiado é gravado em users.
@@ -4136,8 +4144,15 @@ async function executarResetSemanal() {
     logger.info(`[WeeklyReset] ${totalZerados} usuários com cota semanal zerada.`);
   }
 
-  await settingsRef.set({ lastWeeklyReset: mondayStr }, { merge: true });
-  logger.info(`[WeeklyReset] Reset semanal de cota concluído (${mondayStr}).`);
+  if (concluido) {
+    // Só marca a semana como resetada quando a varredura TERMINOU. Se estourou
+    // o orçamento de tempo, a data não é gravada e a próxima execução continua
+    // de onde parou (os já zerados saem da query).
+    await settingsRef.set({ lastWeeklyReset: mondayStr }, { merge: true });
+    logger.info(`[WeeklyReset] Reset semanal de cota concluído (${mondayStr}).`);
+  } else {
+    logger.warn(`[WeeklyReset] Orçamento de tempo atingido; ${totalZerados} zerados até agora. Continua na próxima execução.`);
+  }
 }
 
 exports.arquivarDadosAntigos = onSchedule({
@@ -4224,14 +4239,29 @@ exports.arquivarDadosAntigos = onSchedule({
     // arquivado (soft archive: deleted = true) — NUNCA deletado fisicamente,
     // preservando a trilha de auditoria. Itens pendentes (PIX aguardando
     // confirmação, depósitos pendentes) NUNCA são arquivados.
+    //
+    // Paginação por CURSOR (orderBy dateField + startAfter no último doc): sem
+    // ordem, re-consultar do início travava nos primeiros 500 docs quando havia
+    // pendentes (que não são arquivados e não saem da query) — os antigos além
+    // deles nunca eram arquivados. O cursor avança mesmo sobre os pulados.
+    // Orçamento de tempo evita estourar o timeout; o restante fica para a
+    // próxima execução (os já arquivados saem da query por deleted:true).
+    const inicioArquivo = Date.now();
+    const ORCAMENTO_ARQUIVO_MS = 7 * 60 * 1000;
     for (const col of collections) {
-      let pagina = await db.collection(col.name)
-        .where(col.dateField, "<=", cutoffStr)
-        .where("deleted", "!=", true)
-        .limit(500)
-        .get();
-      let lote = 0;
-      while (!pagina.empty && lote < 12 && totalArchived < 6000) {
+      let cursor = null;
+      while (Date.now() - inicioArquivo < ORCAMENTO_ARQUIVO_MS) {
+        // A própria inequality (dateField <=) já define a ordem implícita da
+        // query — o startAfter usa essa ordem, sem exigir índice novo.
+        let consulta = db.collection(col.name)
+          .where(col.dateField, "<=", cutoffStr)
+          .where("deleted", "!=", true)
+          .limit(500);
+        if (cursor) consulta = consulta.startAfter(cursor);
+        const pagina = await consulta.get();
+        if (pagina.empty) break;
+        cursor = pagina.docs[pagina.docs.length - 1];
+
         const loteDocs = pagina.docs.filter((doc) => {
           const d = doc.data();
           if (d.deleted === true) return false;
@@ -4250,20 +4280,14 @@ exports.arquivarDadosAntigos = onSchedule({
             });
           }
           await batchArquivo.commit();
-          logger.info(`Arquivados ${loteDocs.length} documentos da coleção '${col.name}' em historico_geral.`);
 
           const batchArchive = db.batch();
-          loteDocs.forEach(doc => batchArchive.update(doc.ref, { deleted: true, archivedAt: new Date().toISOString() }));
+          const agoraIso = new Date().toISOString();
+          loteDocs.forEach(doc => batchArchive.update(doc.ref, { deleted: true, archivedAt: agoraIso }));
           await batchArchive.commit();
           totalArchived += loteDocs.length;
+          logger.info(`Arquivados ${loteDocs.length} documentos da coleção '${col.name}' em historico_geral.`);
         }
-        lote++;
-
-        pagina = await db.collection(col.name)
-          .where(col.dateField, "<=", cutoffStr)
-          .where("deleted", "!=", true)
-          .limit(500)
-          .get();
       }
     }
 

@@ -10,6 +10,7 @@ import {
   deleteField,
   Timestamp,
   query,
+  where,
   orderBy,
   limit
 } from "firebase/firestore";
@@ -32,14 +33,47 @@ const COLLECTION = "users";
 // valida currentDebt + creditLimit atômicamente na venda.
 export async function getCustomerAccounts(): Promise<CustomerAccount[]> {
   try {
-    const q = query(collection(db, COLLECTION), orderBy("name", "asc"), limit(500));
-    const snap = await getDocs(q);
+    // Busca por dívida aberta ou com crídito habilitado (reduz janela)
+    const q1 = query(
+      collection(db, COLLECTION),
+      where('currentDebt', '>', 0),
+      orderBy('currentDebt', 'desc'),
+      limit(1000)
+    );
+    let snap = await getDocs(q1);
+    const ids = new Set<string>();
     const list: CustomerAccount[] = [];
     snap.docs.forEach(d => {
       const u = d.data() as any;
-      const allowCredit = u.allowCredit === true;
       const temDivida = Number(u.currentDebt || 0) > 0;
-      if (!allowCredit && !temDivida) return; // só participantes ativos de fiado
+      if (!temDivida) return;
+      ids.add(d.id);
+      list.push({
+        id: d.id,
+        nome: String(u.name || u.nome || "Fiado").toUpperCase(),
+        cpf: u.cpf || u.inmateCpf || u.prisonerCpf || "",
+        telefone: u.phone || u.telefone || u.inmatePhone || "",
+        creditLimit: Number(u.creditLimit || 0),
+        currentDebt: Number(u.currentDebt || 0),
+        weeklySpent: Number(u.weeklySpent || 0),
+        status: String(u.status || "active").toLowerCase() === "blocked" ? "blocked" : "active",
+        transactions: [],
+        createdAt: u.createdAt || "",
+        debtStartedAt: u.debtStartedAt || ""
+      } as CustomerAccount);
+    });
+
+    // Completa com quem tem allowCredit mas ainda sem dívida (ativos para fiado)
+    const q2 = query(
+      collection(db, COLLECTION),
+      where('allowCredit', '==', true),
+      orderBy('name', 'asc'),
+      limit(1000)
+    );
+    snap = await getDocs(q2);
+    snap.docs.forEach(d => {
+      if (ids.has(d.id)) return;
+      const u = d.data() as any;
       list.push({
         id: d.id,
         nome: String(u.name || u.nome || "Fiado").toUpperCase(),

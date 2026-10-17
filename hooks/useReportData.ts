@@ -8,7 +8,7 @@ import { db } from '../firebase';
 const PAGINA = 500;
 // Teto de segurança: se o período tiver mais pedidos que isso, o relatório
 // avisa que está truncado em vez de mentir mostrando um total incompleto.
-const TETO_TOTAL = 10000;
+const TETO_TOTAL = 50000;
 
 const comId = (d: QueryDocumentSnapshot<DocumentData>): any => ({ ...d.data(), id: d.id });
 

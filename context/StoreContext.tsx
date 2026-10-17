@@ -93,7 +93,7 @@ import { InvoiceData, parseInvoiceXML } from '../utils/invoiceParser';
 export type { InvoiceData } from '../utils/invoiceParser';
 
 import {
-    collection, doc, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, getDocFromCache, orderBy, limit, startAfter, writeBatch, Unsubscribe, getDoc, increment
+    collection, doc, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, getDocsFromServer, getDocFromCache, orderBy, limit, startAfter, writeBatch, Unsubscribe, getDoc, increment
 } from 'firebase/firestore';
 import { getActiveSession, CashSession } from '../utils/cashSession';
 
@@ -146,6 +146,7 @@ interface StoreContextType {
     searchOrders: (term: string) => Promise<Order[]>;
     clearOldData: () => Promise<void>;
     archiveOldData: (orderIds: string[], expenseIds: string[]) => Promise<void>;
+    searchUsers: (term: string) => Promise<User[]>;
 
     finalizarVendaComCredito: () => Promise<boolean>;
 
@@ -2001,6 +2002,27 @@ return false;
 
         return [];
     };
+
+    const searchUsers = async (term: string): Promise<User[]> => {
+        const t = String(term || '').trim();
+        if (!t) return [];
+        const cleanCpf = t.replace(/\D/g, '');
+        try {
+            if (cleanCpf.length === 11) {
+                const qCpf = query(collection(db, 'users'), where('cpf', '==', cleanCpf), limit(20));
+                const s = await getDocsFromServer(qCpf);
+                if (!s.empty) return s.docs.map(d => ({ id: d.id, ...d.data() } as User));
+            }
+            const start = t;
+            const end = t + '\uf8ff';
+            const qName = query(collection(db, 'users'), orderBy('name', 'asc'), where('name', '>=', start), where('name', '<=', end), limit(50));
+            const s2 = await getDocsFromServer(qName);
+            if (!s2.empty) return s2.docs.map(d => ({ id: d.id, ...d.data() } as User));
+        } catch (e: any) {
+            console.warn('[searchUsers]', e?.message || e);
+        }
+        return [];
+    };
     const resetFinance = async (senhaMestra?: string) => {
         if (!currentUser || currentUser.role !== UserRole.ADMIN) return;
         try {
@@ -3163,7 +3185,7 @@ useEffect(() => {
             currentUser, users, products, productsCache, orders, units: INITIAL_UNITS, cart, appConfig, suppliers, expenses, logs, authLoading: !authReady, systemMessages, messages, notifications, settings: appConfig, storageUsage,
             creditoCliente, realizarSaque, verificarCredito, finalizarVendaComCredito,
             login, loginAdmin, loginFamiliar, logout, registerUser, recoverPassword, validateRecovery, createAdminUser, updateAdminPermissions, resetAdminPassword, resetUserPassword,
-            addToCart, removeFromCart, clearCart, createOrder, searchOrders,
+            addToCart, removeFromCart, clearCart, createOrder, searchOrders, searchUsers,
             clearOldData: performAutoCleanup,
             archiveOldData: archiveData,
             

@@ -10,6 +10,7 @@ import { getLocalDateStr } from './adminUtils';
 import { User, Order } from '../../types';
 import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
 import { ModalShell } from '../ui/ModalShell';
+import { useApp } from '../../context/StoreContext';
 
 interface AdminUsersTabProps {
   users: User[];
@@ -36,18 +37,33 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
   users, orders = [], userSearch, setUserSearch, showPasswords, setShowPasswords,
   setViewingUser, setShowWithdrawalModal, approveUser, suspendUser, toggleUserCredit, deleteUser,
   onAddCredit, canManageCredits = true, toggleExcepcionalFlag,
-  usersLimit = 500, loadMoreUsers, loadAllUsers
+  usersLimit = 500, loadMoreUsers
 }) => {
+  const { searchUsers } = useApp();
   const [mainTab, setMainTab] = React.useState<'CARDS' | 'VINCULOS'>('VINCULOS');
   const [statusFilter, setStatusFilter] = React.useState<'ALL' | 'PENDING' | 'ACTIVE' | 'SUSPENDED'>('ALL');
   const [selectedUsers, setSelectedUsers] = React.useState<Set<string>>(new Set());
+  const [remoteUsers, setRemoteUsers] = React.useState<User[]>([]);
 
-  // Busca client-side exige TODOS os usuários no stream: quando o admin
-  // digita, expande a carga para cobrir o cadastro inteiro (escala 1.500+).
+  // Busca SERVER-SIDE: o stream local é limitado (janela), então buscar só no
+  // array carregado não acha usuários fora da janela. Quando o termo tem 2+
+  // caracteres, consultamos o Firestore por nome/CPF e mesclamos o resultado.
   React.useEffect(() => {
-    if ((userSearch || '').trim().length >= 2 && loadAllUsers) loadAllUsers();
     if (loadMoreUsers && (users || []).length >= usersLimit - 1) loadMoreUsers();
   }, [userSearch, usersLimit]);
+
+  React.useEffect(() => {
+    const termo = (userSearch || '').trim();
+    if (termo.length < 2) { setRemoteUsers([]); return; }
+    let ativo = true;
+    const t = setTimeout(async () => {
+      try {
+        const res = await searchUsers(termo);
+        if (ativo) setRemoteUsers(res);
+      } catch { if (ativo) setRemoteUsers([]); }
+    }, 350);
+    return () => { ativo = false; clearTimeout(t); };
+  }, [userSearch]);
   const [showBulkActions, setShowBulkActions] = React.useState(false);
   const [openDropdown, setOpenDropdown] = React.useState<string | null>(null);
   const [confirmAction, setConfirmAction] = React.useState<null | {
@@ -138,7 +154,16 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
   const filteredUsers = React.useMemo(() => {
     const termo = normalizeSearch(userSearch);
     const termoDigitos = apenasDigitos(userSearch);
-    return (users || []).filter(u => {
+    // Mescla o stream local com os resultados da busca server-side (dedup por id)
+    // para que o filtro client-side enxergue usuários fora da janela carregada.
+    const base = (() => {
+      if (remoteUsers.length === 0) return users || [];
+      const map = new Map<string, User>();
+      (users || []).forEach(u => map.set(u.id, u));
+      remoteUsers.forEach(u => map.set(u.id, u));
+      return Array.from(map.values());
+    })();
+    return base.filter(u => {
       const notAdmin = !isAdminRole(u.role);
       const matchSearch = !termo ||
         normalizeSearch(u.name).includes(termo) ||
@@ -150,7 +175,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                          (statusFilter === 'SUSPENDED' && u.status === 'suspended');
       return notAdmin && matchSearch && matchStatus;
     }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  }, [users, userSearch, statusFilter]);
+  }, [users, remoteUsers, userSearch, statusFilter]);
 
   const toggleUserSelection = (userId: string) => {
     setSelectedUsers(prev => {
