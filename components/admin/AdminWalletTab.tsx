@@ -439,7 +439,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                           title="Devolver o saldo deste familiar por alvará (soltura/liberdade)"
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 hover:scale-105 active:scale-95 transition-all"
                         >
-                          <RotateCcw size={13} /> Alvará
+                          <RotateCcw size={13} /> Devolver saldo
                         </button>
                       </div>
                     </div>
