@@ -3,8 +3,9 @@ import { formatarMoeda, normalizeSearch, apenasDigitos } from '../../utils';
 import { Shield, Plus, Trash2, Search, UserCheck, FileUp, LayoutGrid, Smartphone, Loader2, Printer, Pencil, MapPin, RotateCcw } from 'lucide-react';
 import { useApp } from '../../context/StoreContext';
 import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
+import { ComprovanteAlvaraModal } from './ComprovanteAlvaraModal';
 import { PreRegisteredInmate } from '../../types';
-import { gerarComprovanteDevolucaoAlvara } from '../../utils/printUtils';
+import { ComprovanteAlvara } from '../../utils/printUtils';
 
 interface AdminInmatesTabProps {
   preRegisteredInmates: PreRegisteredInmate[];
@@ -28,7 +29,8 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
   const [inmateParaExcluir, setInmateParaExcluir] = React.useState<any>(null);
   const [inmateParaAlvara, setInmateParaAlvara] = React.useState<any>(null);
   const [isLoading, setIsLoading] = React.useState(false);
-  const { showNotification: notifCtx, updatePreRegisteredInmate, devolucaoAlvara } = useApp();
+  const [comprovanteAlvara, setComprovanteAlvara] = React.useState<ComprovanteAlvara[] | null>(null);
+  const { showNotification: notifCtx, updatePreRegisteredInmate, devolucaoAlvara, settings } = useApp();
 
   const handleDeleteInmate = (inmate: any) => {
     const vinculados = inmate?.linkedUsers?.length || 0;
@@ -67,7 +69,7 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
     setIsLoading(true);
     let totalDevolvido = 0;
     let falhas = 0;
-    const comprovantes: string[] = [];
+    const comprovantes: ComprovanteAlvara[] = [];
     for (const u of alvos) {
       try {
         const data = await devolucaoAlvara(
@@ -78,43 +80,14 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
         if (data?.ok) {
           totalDevolvido += Number(data.valorDevolvido || 0);
           const comprovante = data.comprovante;
-          if (comprovante) {
-            comprovantes.push(gerarComprovanteDevolucaoAlvara({
-              tipo: comprovante.tipo,
-              usuarioId: comprovante.usuarioId,
-              usuarioNome: comprovante.usuarioNome,
-              cpf: comprovante.cpf,
-              saldoAnterior: comprovante.saldoAnterior,
-              valorDevolvido: comprovante.valorDevolvido,
-              novoSaldo: comprovante.novoSaldo,
-              motivo: comprovante.motivo,
-              operador: comprovante.operador,
-              data: comprovante.data,
-            }));
-          }
+          if (comprovante) comprovantes.push(comprovante as ComprovanteAlvara);
         }
       } catch {
         falhas++; // o contexto já exibiu a notificação de erro desta chamada
       }
     }
-    // Impressão única: um comprovante por familiar na mesma janela.
-    if (comprovantes.length > 0) {
-      const texto = comprovantes.join('\n');
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        const corpo = texto
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;');
-        const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Comprovante Alvará</title><style>
-          body { font-family: 'Courier New', monospace; color:#0f172a; padding:32px; background:#fff; white-space: pre-wrap; }
-        </style></head><body>${corpo}</body></html>`;
-        printWindow.document.write(html);
-        printWindow.document.close();
-        printWindow.focus();
-        setTimeout(() => { try { printWindow.print(); } catch { /* janela fechou */ } }, 350);
-      }
-    }
+    // Um recibo por familiar devolvido — o operador escolhe cupom ou A4 no modal.
+    if (comprovantes.length > 0) setComprovanteAlvara(comprovantes);
     if (totalDevolvido > 0 && (alvos.length > 1 || falhas > 0)) {
       // Com 1 acerto o contexto já avisou "Devolução de R$ X realizada".
       notifCtx(
@@ -554,7 +527,7 @@ const cancelarEdicao = () => {
       <ConfirmacaoDestrutiva
         isOpen={inmateParaAlvara !== null}
         titulo="Devolução por Alvará"
-        descricao={`Devolver R$ ${formatarMoeda(inmateParaAlvara?.totalBalance || 0)} (saldo acumulado de ${inmateParaAlvara?.name || 'este interno'}) para as carteiras de TODOS os familiares vinculados com saldo? A senha mestra será exigida e o comprovante será impresso para assinatura.`}
+        descricao={`Devolver via PIX R$ ${formatarMoeda(inmateParaAlvara?.totalBalance || 0)} (saldo acumulado de ${inmateParaAlvara?.name || 'este interno'}) das carteiras de TODOS os familiares vinculados com saldo? Os saldos serão zerados e a senha mestra será exigida. Em seguida você escolhe imprimir os recibos em cupom (80mm) ou A4.`}
         semDigitar
         processando={isLoading}
         onConfirm={() => {
@@ -566,6 +539,11 @@ const cancelarEdicao = () => {
           }
         }}
         onClose={() => { if (!isLoading) setInmateParaAlvara(null); }}
+      />
+      <ComprovanteAlvaraModal
+        comprovantes={comprovanteAlvara}
+        settings={settings}
+        onClose={() => setComprovanteAlvara(null)}
       />
     </div>
   );

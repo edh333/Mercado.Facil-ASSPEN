@@ -5,7 +5,8 @@ import { celulaCsv } from '../../utils/csv';
 import { getCustomerAccounts } from '../../utils/customerUtils';
 import { useApp } from '../../context/StoreContext';
 import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
-import { gerarComprovanteDevolucaoAlvara } from '../../utils/printUtils';
+import { ComprovanteAlvaraModal } from './ComprovanteAlvaraModal';
+import { ComprovanteAlvara } from '../../utils/printUtils';
 
 // Data LOCAL (fuso do dispositivo) — sem o bug de toISOString (UTC) que
 // deslocava depósitos feitos entre 00:00 e 03:00 para o dia anterior.
@@ -32,7 +33,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
   walletTx, userSearch, setUserSearch, financeFilters, setFinanceFilters, loadingWallet,
   onSelectTransaction, users = [], onRequestMasterPassword
 }) => {
-  const { devolucaoAlvara } = useApp();
+  const { devolucaoAlvara, settings } = useApp();
   const [activeSubTab, setActiveSubTab] = React.useState<'ALL' | 'DEPOSITS' | 'WITHDRAWALS' | 'SALDOS'>('ALL');
   const [quickDateFilter, setQuickDateFilter] = React.useState<'ALL' | 'TODAY' | 'WEEK' | 'MONTH'>('ALL');
   const [fiadoAccounts, setFiadoAccounts] = React.useState<any[]>([]);
@@ -40,6 +41,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
   const [saldosAtualizadoEm, setSaldosAtualizadoEm] = React.useState<Date | null>(null);
   const [userParaAlvara, setUserParaAlvara] = React.useState<any>(null);
   const [isLoadingAlvara, setIsLoadingAlvara] = React.useState(false);
+  const [comprovanteAlvara, setComprovanteAlvara] = React.useState<ComprovanteAlvara[] | null>(null);
 
   React.useEffect(() => {
     if (activeSubTab !== 'SALDOS' || fiadoAccounts.length > 0) return;
@@ -80,31 +82,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
         senhaMestra
       );
       const comprovante = data?.comprovante;
-      if (comprovante) {
-        const texto = gerarComprovanteDevolucaoAlvara({
-          tipo: comprovante.tipo,
-          usuarioId: comprovante.usuarioId,
-          usuarioNome: comprovante.usuarioNome,
-          cpf: comprovante.cpf,
-          saldoAnterior: comprovante.saldoAnterior,
-          valorDevolvido: comprovante.valorDevolvido,
-          novoSaldo: comprovante.novoSaldo,
-          motivo: comprovante.motivo,
-          operador: comprovante.operador,
-          data: comprovante.data,
-        });
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-          const corpo = texto.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-          const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Comprovante Alvará</title><style>
-            body { font-family: 'Courier New', monospace; color:#0f172a; padding:32px; background:#fff; white-space: pre-wrap; }
-          </style></head><body>${corpo}</body></html>`;
-          printWindow.document.write(html);
-          printWindow.document.close();
-          printWindow.focus();
-          setTimeout(() => { try { printWindow.print(); } catch { /* janela fechou */ } }, 350);
-        }
-      }
+      if (comprovante) setComprovanteAlvara([comprovante as ComprovanteAlvara]);
     } catch {
       // o contexto já exibiu a notificação de erro desta chamada
     } finally {
@@ -678,7 +656,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
       <ConfirmacaoDestrutiva
         isOpen={userParaAlvara !== null}
         titulo="Devolução por Alvará"
-        descricao={`Devolver R$ ${formatarMoeda(Number(userParaAlvara?.walletBalance || 0))} de ${userParaAlvara?.name || userParaAlvara?.cpf || 'este familiar'} por alvará (soltura/liberdade)? A senha mestra será exigida e o comprovante será impresso para assinatura.`}
+        descricao={`Devolver via PIX R$ ${formatarMoeda(Number(userParaAlvara?.walletBalance || 0))} de ${userParaAlvara?.name || userParaAlvara?.cpf || 'este familiar'} por alvará (soltura/liberdade)? O saldo será zerado e a senha mestra será exigida. Em seguida você escolhe imprimir o recibo em cupom (80mm) ou A4.`}
         semDigitar
         processando={isLoadingAlvara}
         onConfirm={() => {
@@ -690,6 +668,11 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
           }
         }}
         onClose={() => { if (!isLoadingAlvara) setUserParaAlvara(null); }}
+      />
+      <ComprovanteAlvaraModal
+        comprovantes={comprovanteAlvara}
+        settings={settings}
+        onClose={() => setComprovanteAlvara(null)}
       />
     </div>
   );

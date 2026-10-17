@@ -1123,7 +1123,7 @@ export function gerarBoletimDiario(dados: any, config?: any): string {
  * Gera comprovante de devolução por alvará (saída temporária de interno).
  * Retorna texto formatado para impressão em bobina térmica 80mm.
  */
-export function gerarComprovanteDevolucaoAlvara(params: {
+export interface ComprovanteAlvara {
   tipo: string;
   usuarioId: string;
   usuarioNome: string;
@@ -1134,7 +1134,9 @@ export function gerarComprovanteDevolucaoAlvara(params: {
   motivo: string;
   operador: string;
   data: string;
-}): string {
+}
+
+export function gerarComprovanteDevolucaoAlvara(params: ComprovanteAlvara): string {
   const { tipo, usuarioId, usuarioNome, cpf, saldoAnterior, valorDevolvido, novoSaldo, motivo, operador, data } = params;
   const divisor = "-".repeat(40);
   const divisorDuplo = "=".repeat(40);
@@ -1169,4 +1171,134 @@ export function gerarComprovanteDevolucaoAlvara(params: {
   // literal) — o comprovante imprimia a palavra "adicionarFeed()" no papel.
   texto += adicionarFeed();
   return texto;
+}
+
+/**
+ * Abre a janela de impressão no formato CUPOM (bobina 80mm) para um ou mais
+ * comprovantes de devolução por alvará. Cada comprovante vira um cupom sequencial.
+ */
+export function imprimirComprovanteAlvaraCupom(comprovantes: ComprovanteAlvara[]): void {
+  const lista = (comprovantes || []).filter(Boolean);
+  if (!lista.length) return;
+  const texto = lista.map(gerarComprovanteDevolucaoAlvara).join('\n');
+  const win = window.open('', '_blank', 'width=420,height=760');
+  if (!win) return;
+  const corpo = texto
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<title>Comprovante de Devolução</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: 'Courier New', monospace; color:#0f172a; padding:24px; background:#fff; white-space:pre-wrap; font-size:12px; line-height:1.35; }
+    @media print { body { padding:8px; } }
+</style>
+</head>
+<body>${corpo}</body>
+</html>`;
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => { try { win.print(); } catch { /* janela fechada */ } }, 350);
+}
+
+/**
+ * Abre a janela de impressão no formato A4 profissional para um ou mais
+ * comprovantes de devolução por alvará (um bloco por interno, com assinaturas).
+ * A devolução é sempre registrada como reembolso via PIX.
+ */
+export function imprimirComprovanteAlvaraA4(comprovantes: ComprovanteAlvara[], settings?: any): void {
+  const lista = (comprovantes || []).filter(Boolean);
+  if (!lista.length) return;
+
+  const instituicao = settings?.institutionName || settings?.appName || 'MERCADO FÁCIL';
+  const documento = settings?.customReceiptDocName || 'COMPROVANTE DE DEVOLUÇÃO — NÃO FISCAL';
+  const hoje = new Date().toLocaleDateString('pt-BR');
+  const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const win = window.open('', '_blank', 'width=900,height=700');
+  if (!win) return;
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<title>Comprovante de Devolução — A4</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; color:#0f172a; padding:32px; background:#fff; }
+    .cabecalho { border-bottom:3px solid #059669; padding-bottom:16px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:flex-end; }
+    .cabecalho h1 { font-size:20px; text-transform:uppercase; letter-spacing:1px; color:#059669; }
+    .cabecalho p { font-size:12px; color:#64748b; margin-top:4px; }
+    .meta { text-align:right; font-size:11px; color:#64748b; }
+    .resumo { display:flex; gap:12px; margin-bottom:22px; }
+    .resumo .card { flex:1; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:14px 16px; }
+    .card p.titulo { font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:1.5px; color:#94a3b8; margin-bottom:4px; }
+    .card p.valor { font-size:18px; font-weight:800; color:#059669; }
+    .bloco { border:1px solid #e2e8f0; border-radius:12px; padding:16px; margin-bottom:16px; break-inside:avoid; }
+    .bloco-topo { display:flex; justify-content:space-between; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:#64748b; margin-bottom:10px; border-bottom:1px dashed #cbd5e1; padding-bottom:8px; }
+    .bloco table { width:100%; border-collapse:collapse; }
+    .bloco td { padding:6px 8px; font-size:12px; vertical-align:top; }
+    .rot { font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:#94a3b8; white-space:nowrap; width:1%; }
+    .val { color:#0f172a; font-weight:600; }
+    .val.destaque { color:#059669; font-weight:800; font-size:14px; }
+    .assinatura { margin-top:34px; display:flex; justify-content:space-between; }
+    .assinatura div { width:42%; border-top:1px solid #64748b; padding-top:8px; font-size:10px; text-transform:uppercase; text-align:center; color:#475569; }
+    .rodape { margin-top:24px; text-align:center; font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:1px; }
+    @page { size:A4; margin:16mm 14mm; }
+    @media print { body { padding:0; } }
+</style>
+</head>
+<body>
+    <div class="cabecalho">
+        <div>
+            <h1>Comprovante de Devolução</h1>
+            <p>${instituicao} — ${documento}</p>
+            <p style="font-size:11px;color:#94a3b8;margin-top:6px;">Devolução de saldo por alvará / saída temporária — reembolso via PIX</p>
+        </div>
+        <div class="meta">
+            <p>Emitido em: <b>${hoje} às ${hora}</b></p>
+            <p>${lista.length} recibo(s)</p>
+        </div>
+    </div>
+    <div class="resumo">
+        <div class="card"><p class="titulo">Total Devolvido</p><p class="valor">R$ ${lista.reduce((s, c) => s + Number(c.valorDevolvido || 0), 0).toFixed(2).replace('.', ',')}</p></div>
+        <div class="card"><p class="titulo">Recibos Emitidos</p><p class="valor">${lista.length}</p></div>
+    </div>
+    ${lista.map((c, i) => `
+    <div class="bloco">
+        <div class="bloco-topo">
+            <span>Recibo ${String(i + 1).padStart(2, '0')} de ${lista.length}</span>
+            <span>${String(c.data || `${hoje} às ${hora}`).replace(/</g, '&lt;')}</span>
+        </div>
+        <table>
+            <tr><td class="rot">Interno</td><td class="val" colspan="3">${String(c.usuarioNome || '').replace(/</g, '&lt;')}</td></tr>
+            <tr>
+                <td class="rot">CPF</td><td class="val">${String(mascararCpf(c.cpf)).replace(/</g, '&lt;')}</td>
+                <td class="rot">Operador</td><td class="val">${String(c.operador || '').replace(/</g, '&lt;')}</td>
+            </tr>
+            <tr>
+                <td class="rot">Saldo anterior</td><td class="val">R$ ${Number(c.saldoAnterior || 0).toFixed(2).replace('.', ',')}</td>
+                <td class="rot">Forma de devolução</td><td class="val">PIX</td>
+            </tr>
+            <tr>
+                <td class="rot">Valor devolvido</td><td class="val destaque">R$ ${Number(c.valorDevolvido || 0).toFixed(2).replace('.', ',')}</td>
+                <td class="rot">Saldo após devolução</td><td class="val">R$ ${Number(c.novoSaldo || 0).toFixed(2).replace('.', ',')}</td>
+            </tr>
+            <tr><td class="rot">Motivo</td><td class="val" colspan="3">${String(c.motivo || '').replace(/</g, '&lt;')}</td></tr>
+        </table>
+        <div class="assinatura">
+            <div>Assinatura do responsável</div>
+            <div>Recebedor (PIX)</div>
+        </div>
+    </div>`).join('')}
+    <div class="rodape">Documento emitido pelo sistema Mercado Fácil — não é comprovante fiscal.</div>
+</body>
+</html>`;
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => { try { win.print(); } catch { /* janela fechada */ } }, 500);
 }
