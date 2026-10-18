@@ -19,6 +19,7 @@ const {
   calcularPartesPagamento,
   validarTroco,
   verificarLimiteSemanal,
+  fiadoExcedeLimite,
   validarSaldoSuficiente,
   calcularNovoSaldo,
   caminhoStorageDeUrl,
