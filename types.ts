@@ -340,7 +340,7 @@ export interface WalletTransaction {
   prisonerCpf?: string;
   status: 'pending' | 'approved' | 'rejected';
   createdAt: string;
-  type: 'deposit' | 'purchase' | 'withdrawal' | 'correction';
+  type: 'deposit' | 'purchase' | 'withdrawal' | 'correction' | 'alvara_return' | 'refund';
   description?: string;
   payerName?: string; // Snapshot for history
   payerId?: string; // ID of the person who made the deposit
@@ -390,4 +390,6 @@ export interface CustomerAccount {
   transactions: CustomerAccountTransaction[];
   createdAt?: string;
   debtStartedAt?: string;
+  /** Saldo da carteira (créditos) do usuário — pode coexistir com a dívida de fiado. */
+  walletBalance?: number;
 }

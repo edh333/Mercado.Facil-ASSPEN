@@ -203,6 +203,14 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
     impressaoAutoFeitaRef.current = null;
     setCupomImpressoAuto(false);
     limparDesconto();
+    // Estados de voo que antes vazavam entre sessões se o componente ficasse
+    // montado (isOpen alternando): o operador reabria o PDV "Processando..." ou
+    // com cartão/PIX já confirmados de uma venda anterior.
+    setProcessando(false);
+    setCartaoConfirmado(false);
+    setPixMistoConfirmado(false);
+    setReimprimindo(false);
+    setValidandoSenhaSupervisor(false);
     refreshSessaoCaixa();
     setTimeout(() => clienteInputRef.current?.focus(), 100);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -243,12 +251,14 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
         } else if (descontoAberto) setDescontoAberto(false);
         else if (produtoPrecoDinamico) setProdutoPrecoDinamico(null);
         else if (mostrarListaClientes) setMostrarListaClientes(false);
-        else onClose();
+        // Não fecha durante o envio: desmontar no meio deixa a venda concluir no
+        // servidor sem o operador ver a confirmação (e sem dedupe ao reabrir).
+        else if (!processando) onClose();
       }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [isOpen, ultimoPedido, concluirVenda, cancelarAberto, descontoAberto, produtoPrecoDinamico, mostrarListaClientes, onClose]);
+  }, [isOpen, ultimoPedido, concluirVenda, cancelarAberto, descontoAberto, produtoPrecoDinamico, mostrarListaClientes, onClose, processando]);
 
   // ── Derivação de dados ──
   // O servidor exige a permissão "sales" para estornar (exigirAdminPermissao).
@@ -313,9 +323,15 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
 
   // ── Carrinho ──
   const adicionarAoCarrinho = (produto: Product, forceQty = 1) => {
-    if ((produto.stock ?? 0) <= 0) return;
+    if ((produto.stock ?? 0) <= 0) {
+      showNotification(`Sem estoque para ${produto?.name || 'este item'}.`, 'info');
+      return;
+    }
     const precoBase = precoEfetivo(produto);
-    if (precoBase <= 0) return;
+    if (precoBase <= 0) {
+      showNotification(`Produto "${produto?.name || 'sem nome'}" está sem preço definido.`, 'info');
+      return;
+    }
 
     if ((produto as any).dynamicPrice) {
       playAddSound();
@@ -328,7 +344,11 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
       const existente = prev.find(item => String(item.productId) === String(produto.id));
       if (existente) {
         const novaQtd = existente.quantity + forceQty;
-        const estoqueDisp = existente.stock ?? 0;
+        // Estoque RE-LIDO do catálogo atual: o snapshot guardado no item fica
+        // velho se `products` atualizar (venda em outra frente, sync). Sem isto
+        // o carrinho aceitava quantidade acima do estoque e só o servidor recusava.
+        const prodAtual = (products || []).find(p => String(p.id) === String(produto.id));
+        const estoqueDisp = prodAtual?.stock ?? existente.stock ?? 0;
         if (estoqueDisp <= 0 || novaQtd > estoqueDisp) {
           showNotification(`Estoque máximo para ${produto?.name || 'este item'}: ${estoqueDisp} un.`, 'info');
           return prev.map(item => String(item.productId) === String(produto.id) ? { ...item, quantity: estoqueDisp } : item);
@@ -682,10 +702,12 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
       }
     } catch (e: any) {
       setProcessando(false);
-      // FIADO offline é BLOQUEADO no servidor (senha mestra sempre revalidada
-      // lá). Nunca enfileirar: a dívida dependeria de uma senha que só existe
-      // no backend.
-      if (isFiado) {
+      // FIADO é validado SEMPRE no servidor (senha mestra). OFFLINE não
+      // enfileira — a dívida dependeria de uma senha que só existe no backend.
+      // ONLINE, porém, um erro do próprio servidor (limite de crédito, cliente
+      // bloqueado, senha recusada) é a mensagem REAL e precisa chegar ao
+      // operador — antes qualquer falha de fiado era rotulada como "sem conexão".
+      if (isFiado && typeof navigator !== 'undefined' && navigator.onLine === false) {
         showNotification(formaPagamento === 'FIADO_30'
           ? 'Fiado 30 Dias requer conexão para validar a senha mestra no servidor.'
           : 'Venda fiada exige conexão para validar a senha mestra no servidor. Conecte e finalize novamente.', 'error');
@@ -713,9 +735,16 @@ if (pedidoOffline) {
           }
         } catch (e2: any) {
           showNotification(e2.message || 'Não foi possível registrar a venda offline.', 'error');
+          return;
         }
       }
       showNotification(e.message || 'Erro ao finalizar venda.', 'error');
+    } finally {
+      // Trava de segurança: `processando` SEMPRE volta a false, mesmo quando a
+      // venda cai na fila offline (que dava `return` sem liberar o botão) ou
+      // quando onConfirm resolve sem pedido. Sem isto o PDV travava em
+      // "Processando..." e só voltava fechando/reabrindo a tela.
+      setProcessando(false);
     }
   };
 
@@ -740,7 +769,7 @@ if (pedidoOffline) {
           // outra venda, marcar "impresso" aqui rotularia a venda ERRADA.
           if (impressaoAutoFeitaRef.current === idVenda) setCupomImpressoAuto(!!ok);
         })
-        .catch(() => { /* sem fiscal: o operador imprime pelo botão da tela */ });
+        .catch((err) => { console.warn('[PDV] impressão automática falhou:', err); });
     }
     setTimeout(() => produtoInputRef.current?.focus(), 50);
   }, [ultimoPedido, settings]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -751,8 +780,13 @@ if (pedidoOffline) {
       if (recebido > totalFinal) return recebido - totalFinal;
     }
     if (formaPagamento === 'MIXED') {
-      const total = parseMoeda(valorMisto.PIX) + parseMoeda(valorMisto.WALLET) + parseMoeda(valorMisto.CASH);
-      if (total > totalFinal) return total - totalFinal;
+      const cash = parseMoeda(valorMisto.CASH);
+      const total = parseMoeda(valorMisto.PIX) + parseMoeda(valorMisto.WALLET) + cash;
+      const troco = total - totalFinal;
+      // Espelha montarPagamentoPdv: o troco só existe com DINHEIRO em caixa e
+      // limitado a ele. Antes a tela prometia "Troco a devolver" mesmo quando a
+      // venda seria recusada (excedente sem dinheiro / troco maior que o caixa).
+      if (troco > 0 && cash > 0 && troco <= cash) return troco;
     }
     return null;
   }, [formaPagamento, valorRecebido, valorMisto, totalFinal]);
@@ -790,8 +824,9 @@ if (pedidoOffline) {
             Som: {isSoundEnabled ? 'Ligado' : 'Desligado'}
           </button>
           <button
-            onClick={onClose}
-            className="w-9 h-9 rounded-xl bg-white border border-slate-200 text-slate-500 flex items-center justify-center hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors"
+            onClick={() => { if (!processando) onClose(); }}
+            disabled={processando}
+            className="w-9 h-9 rounded-xl bg-white border border-slate-200 text-slate-500 flex items-center justify-center hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             aria-label="Fechar PDV"
           >
             <X size={18} />
@@ -833,6 +868,7 @@ if (pedidoOffline) {
                   <button
                     key={m.key}
                     title={m.rotulo}
+                    aria-pressed={ativo}
                     onClick={() => { setFormaPagamento(m.key); setPixConfirmado(false); setSenhaSupervisor(''); setSenhaSupervisaoOk(false); setSenhaSupervisaoErro(''); }}
                     className={`flex items-center justify-center gap-1 rounded-xl border text-[10px] font-bold transition-all min-h-[44px] ${
                       ativo
@@ -862,13 +898,14 @@ if (pedidoOffline) {
 
             {/* Campo 1: Busca do Cliente */}
             <div ref={clienteSearchRef} className="flex flex-col gap-1.5 relative">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              <label htmlFor="pdv-busca-cliente" className="text-xs font-bold uppercase tracking-wider text-slate-500">
                 Buscar Cliente (preso em destaque)
               </label>
               <div className="relative">
                 <Search className="absolute left-4 top-3.5 h-5 w-5 text-slate-400" />
                 <input
                   ref={clienteInputRef}
+                  id="pdv-busca-cliente"
                   type="text"
                   value={buscaCliente}
                   onChange={(e) => { setBuscaCliente(e.target.value); setMostrarListaClientes(true); setClienteSelecionado(''); }}
@@ -1274,10 +1311,10 @@ if (pedidoOffline) {
                 />
                 <button
                   onClick={() => setCartaoConfirmado(c => !c)}
-                  className={`w-full py-2.5 px-4 bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors shadow-sm cursor-pointer text-center block mb-2 font-sans uppercase tracking-wider ${
+                  className={`w-full py-2.5 px-4 border font-bold text-xs rounded-xl transition-colors shadow-sm text-center block mb-2 font-sans uppercase tracking-wider ${
                     cartaoConfirmado
-                      ? 'bg-emerald-50 border-emerald-200 text-emerald-800 shadow-sm'
-                      : ''
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-800 cursor-default'
+                      : 'bg-slate-100 border-slate-200 hover:bg-slate-200 text-slate-700 cursor-pointer'
                   }`}
                 >
                   {cartaoConfirmado ? '✓ Recebimento Confirmado' : 'Confirmar Recebimento do Valor'}
@@ -1291,6 +1328,7 @@ if (pedidoOffline) {
                   id="pdv-valor-recebido"
                   aria-label="Valor Recebido"
                   type="text"
+                  inputMode="decimal"
                   value={valorRecebido}
                   onChange={(e) => setValorRecebido(e.target.value)}
                   placeholder="R$ 0,00"
@@ -1309,9 +1347,11 @@ if (pedidoOffline) {
                 <div className="grid grid-cols-3 gap-2 mb-2">
                   {(['PIX', 'WALLET', 'CASH'] as const).map(k => (
                     <div key={k} className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{k === 'CASH' ? 'Dinheiro' : k === 'WALLET' ? 'Créditos' : 'PIX'}</label>
+                      <label htmlFor={`pdv-misto-${k}`} className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{k === 'CASH' ? 'Dinheiro' : k === 'WALLET' ? 'Créditos' : 'PIX'}</label>
                       <input
+                        id={`pdv-misto-${k}`}
                         type="text"
+                        inputMode="decimal"
                         value={valorMisto[k]}
                         onChange={(e) => setValorMisto(prev => ({ ...prev, [k]: e.target.value }))}
                         placeholder="R$ 0,00"
@@ -1324,10 +1364,10 @@ if (pedidoOffline) {
                   <button
                     onClick={() => setPixMistoConfirmado(c => !c)}
                     disabled={pixMistoConfirmado}
-                    className={`w-full py-2.5 px-4 bg-amber-50 border border-amber-200 hover:bg-amber-100 text-amber-800 font-bold text-xs rounded-xl transition-colors shadow-sm cursor-pointer text-center block mb-2 font-sans uppercase tracking-wider ${
+                    className={`w-full py-2.5 px-4 border font-bold text-xs rounded-xl transition-colors shadow-sm text-center block mb-2 font-sans uppercase tracking-wider ${
                       pixMistoConfirmado
                         ? 'bg-emerald-50 border-emerald-200 text-emerald-800 cursor-default'
-                        : ''
+                        : 'bg-amber-50 border-amber-200 hover:bg-amber-100 text-amber-800 cursor-pointer'
                     }`}
                   >
                     {pixMistoConfirmado ? '✓ PIX Recebido e Confirmado' : 'Confirmar Recebimento do PIX (Misto)'}
@@ -1456,6 +1496,7 @@ if (pedidoOffline) {
             <input
               autoFocus
               type="text"
+              inputMode="decimal"
               value={produtoPrecoDinamico.preco}
               onChange={(e) => setProdutoPrecoDinamico(prev => prev ? { ...prev, preco: e.target.value } : prev)}
               onKeyDown={(e) => e.key === 'Enter' && confirmarPrecoDinamico()}
@@ -1482,7 +1523,11 @@ if (pedidoOffline) {
               const valorDesc = pctDesc > 0 ? arredondarCentavos((totalCarrinho * pctDesc) / 100) : 0;
               const totalDesc = arredondarCentavos(totalCarrinho - valorDesc);
               const excede50 = Number.isFinite(v) && v > 50;
-              const exigeDupla = Number.isFinite(v) && v > 20;
+              // Usa o percentual JÁ arredondado (mesma régua de confirmarDesconto,
+              // que calcula pct = round(v*10)/10). Com `v > 20` cru, um valor em
+              // (20, 20,05] pedia a 2ª senha e depois a descartava (a confirmação
+              // trata pct<=20 como senha única) — o operador digitava senha à toa.
+              const exigeDupla = pctDesc > 20;
               const podeConfirmar = pctDesc > 0 && !excede50 && !!descSenha1.trim() && (!exigeDupla || !!descSenha2.trim());
               return (
                 <>
@@ -1583,6 +1628,7 @@ if (pedidoOffline) {
           onImprimir={reimprimirCupom}
           onVisualizar={() => { if (setPrintOrder) setPrintOrder(ultimoPedido); }}
           onConcluir={concluirVenda}
+          podeVisualizar={!!setPrintOrder}
         />
       )}
 

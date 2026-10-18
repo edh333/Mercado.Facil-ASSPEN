@@ -3,7 +3,7 @@ import { PlusCircle, Check, Wallet, ShieldCheck, AlertTriangle, Lock, KeyRound, 
 import { ModalShell } from '../ui/ModalShell';
 import { User } from '../../types';
 import { formatarMoeda, isAdminRole } from '../../utils';
-import { parseMoeda, roundCents } from '../../utils/money';
+import { parseMoeda, roundCents, sanitizeMoedaInput } from '../../utils/money';
 
 interface ManualCreditModalProps {
   user: User | null;
@@ -41,7 +41,10 @@ export const ManualCreditModal: React.FC<ManualCreditModalProps> = ({ user, onCl
 
   const somarValor = (v: number) => {
     const atual = parseMoeda(amount) || 0;
-        setAmount(String(roundCents(atual + v)).replace('.', ','));
+    // Formata com 2 casas e vírgula: o campo é TEXTO (ver input abaixo), então
+    // "10,50" permanece legível e parseável — com type="number" o navegador
+    // descartava o valor com vírgula e os botões rápidos não funcionavam.
+    setAmount(roundCents(atual + v).toFixed(2).replace('.', ','));
   };
 
   const handleConfirm = async () => {
@@ -108,13 +111,13 @@ export const ManualCreditModal: React.FC<ManualCreditModalProps> = ({ user, onCl
             <div className="relative group">
               <span className="absolute left-5 top-1/2 -translate-y-1/2 font-black text-slate-400 text-2xl">R$</span>
               <input
-                type="number"
-                step="0.01"
-                min="0.01"
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
                 className="w-full pl-16 pr-5 py-5 bg-slate-100 border-2 border-slate-200 group-focus-within:border-emerald-500 group-focus-within:ring-4 group-focus-within:ring-emerald-500/20 rounded-2xl font-black text-3xl text-slate-900 outline-none transition-all placeholder:text-slate-400"
                 placeholder="0,00"
                 value={amount}
-                onChange={e => setAmount(e.target.value)}
+                onChange={e => setAmount(sanitizeMoedaInput(e.target.value))}
                 autoFocus
               />
             </div>

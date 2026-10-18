@@ -80,7 +80,10 @@ function ler(): VendaOffline[] {
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
-  } catch {
+  } catch (e) {
+    // Fila corrompida: não dá para recuperar aqui, mas silenciar escondia o
+    // problema (a próxima gravação sobrescreve o blob). Registra para diagnóstico.
+    console.error('[PDV OFFLINE] Fila local ilegível — reiniciando vazia.', e);
     return [];
   }
 }

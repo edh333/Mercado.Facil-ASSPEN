@@ -2,7 +2,7 @@ import React from 'react';
 import {
   CheckCircle, Ban, Trash2, Lock, Unlock, Save, ShieldCheck, FileText,
   Printer, ExternalLink, CreditCard, ShoppingCart, Users, AlertTriangle,
-  Camera, Loader2
+  Camera, Loader2, RotateCcw
 } from 'lucide-react';
 import { User, Order, WalletTransaction } from '../../types';
 import { formatarMoeda, formatCPF, formatPhone } from '../../utils';
@@ -10,6 +10,8 @@ import { ModalShell } from '../ui/ModalShell';
 import { ehReceita } from './adminUtils';
 import ImagePreviewModal from '../ImagePreviewModal';
 import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
+import { useAlvaraReturn } from './useAlvaraReturn';
+import { labelTransacao, direcaoTransacao } from '../../utils/walletTx';
 
 interface AdminUserDetailsModalProps {
   user: User;
@@ -24,6 +26,7 @@ interface AdminUserDetailsModalProps {
   toggleExcepcionalFlag?: (userId: string, value: boolean) => void;
   onAddCredit?: (user: User) => void;
   canManageCredits?: boolean;
+  onRequestMasterPassword?: (callback: (senhaMestra: string) => void) => void;
   showNotification: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
 }
 
@@ -31,8 +34,10 @@ const isPdfUrl = (url: string) => (url || '').toLowerCase().includes('.pdf') || 
 
 export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
   user, orders, walletTx, onClose, onSave, approveUser, suspendUser, deleteUser,
-  toggleUserCredit, toggleExcepcionalFlag, onAddCredit, canManageCredits = true, showNotification
+  toggleUserCredit, toggleExcepcionalFlag, onAddCredit, canManageCredits = true,
+  onRequestMasterPassword, showNotification
 }) => {
+  const { solicitar: solicitarAlvara, modais: alvaraModais } = useAlvaraReturn(onRequestMasterPassword);
   const [form, setForm] = React.useState<Partial<User>>({});
     const [saving, setSaving] = React.useState(false);
   const [previewDoc, setPreviewDoc] = React.useState(false);
@@ -360,6 +365,14 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
                   >
                     <ShieldCheck size={17} /> Crédito: {user.allowCredit !== false ? 'LIBERADO' : 'BLOQUEADO'}
                   </button>
+                  <button
+                    onClick={() => solicitarAlvara({ id: user.id, name: user.name, cpf: user.cpf, walletBalance: user.walletBalance })}
+                    disabled={Number(user.walletBalance || 0) <= 0}
+                    title="Devolver o saldo da carteira por alvará (soltura/liberdade) e emitir recibo"
+                    className="py-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-rose-100 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <RotateCcw size={17} /> Devolver saldo (alvará)
+                  </button>
                   {toggleExcepcionalFlag && (
                     <button
                       onClick={() => toggleExcepcionalFlag(user.id, !user.autorizacaoExcepcional)}
@@ -443,22 +456,25 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
                 <div className="max-h-[420px] overflow-y-auto custom-scrollbar divide-y divide-slate-100">
                   {userTxs.length === 0 ? (
                     <p className="p-10 text-center text-slate-300 font-black uppercase text-xs">Nenhuma movimentação</p>
-                  ) : userTxs.map(tx => (
+                  ) : userTxs.map(tx => {
+                    const debito = direcaoTransacao(tx) === 'debito';
+                    return (
                     <div key={tx.id} className="p-4 flex items-center justify-between gap-3 hover:bg-slate-50 transition-colors">
                       <div className="min-w-0">
-                        <p className="font-black text-slate-900 text-xs uppercase tracking-tight truncate">{tx.type}</p>
+                        <p className="font-black text-slate-900 text-xs uppercase tracking-tight truncate">{labelTransacao(tx.type)}</p>
                         <p className="text-[9px] text-slate-400 font-bold mt-0.5">{tx.createdAt ? new Date(tx.createdAt).toLocaleString('pt-BR') : '—'}</p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className={`font-black text-sm ${tx.type === 'withdrawal' ? 'text-red-600' : 'text-emerald-600'}`}>
-                          {tx.type === 'withdrawal' ? '−' : '+'} R$ {formatarMoeda(Math.abs(tx.amount || 0))}
+                        <p className={`font-black text-sm ${debito ? 'text-red-600' : 'text-emerald-600'}`}>
+                          {debito ? '−' : '+'} R$ {formatarMoeda(Math.abs(tx.amount || 0))}
                         </p>
                         <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${tx.status === 'approved' ? 'bg-success-soft text-success-dark border-success-soft' : tx.status === 'pending' ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-red-50 text-red-600 border-red-200'}`}>
                           {tx.status}
                         </span>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -477,6 +493,8 @@ export const AdminUserDetailsModal: React.FC<AdminUserDetailsModalProps> = ({
       {previewDoc && !isPdf && (
         <ImagePreviewModal src={docUrl} alt="Documento do cadastro" onClose={() => setPreviewDoc(false)} />
       )}
+
+      {alvaraModais}
 
       <ConfirmacaoDestrutiva
         isOpen={confirmAcao !== null}

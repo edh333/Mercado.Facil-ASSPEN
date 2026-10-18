@@ -64,7 +64,7 @@ async function carregarPeriodo(
  *  anterior no Brasil) e truncaria o último dia do relatório. */
 function limitesDoPeriodo(startDate?: string, endDate?: string) {
   const hoje = new Date();
-  const padrao = hoje.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+  const padrao = hoje.toLocaleDateString('en-CA', { timeZone: 'America/Cuiaba' });
   const ini = startDate || padrao;
   const fim = endDate || padrao;
   // Folga de 2 dias: o filtro final do relatório usa o campo `date`, que pode

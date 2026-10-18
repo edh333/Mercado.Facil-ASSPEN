@@ -963,6 +963,7 @@ return (
                   usersLimit={usersLimit}
                   loadMoreUsers={loadMoreUsers}
                   loadAllUsers={() => expandUsersLimit(2000)}
+                  onRequestMasterPassword={handleProtectedAction}
                   toggleExcepcionalFlag={(userId, value) => updateDoc(doc(db, 'users', userId), { autorizacaoExcepcional: value })}
                   onAddCredit={(user) => {
                     if (!hasPermission('wallet')) {
@@ -1142,6 +1143,7 @@ return (
           onClose={() => setShowSalesModal(false)}
           users={users}
           products={products}
+          orders={orders}
           onConfirm={handleConfirmDirectSale}
           onConfirmOffline={handleConfirmOfflineSale}
           setPrintOrder={setPrintOrder}
@@ -1202,6 +1204,7 @@ return (
             }
             setManualCreditTarget(user);
           }}
+          onRequestMasterPassword={handleProtectedAction}
           showNotification={showNotification}
         />
       )}

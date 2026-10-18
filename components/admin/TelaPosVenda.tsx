@@ -13,6 +13,11 @@ interface TelaPosVendaProps {
   onImprimir: () => void;
   onVisualizar: () => void;
   onConcluir: () => void;
+  /**
+   * Habilita "Visualizar" (abre o cupom numa janela). Quando o host não fornece
+   * `setPrintOrder`, o botão fica desabilitado em vez de fingir ação no clique.
+   */
+  podeVisualizar?: boolean;
 }
 
 /**
@@ -37,6 +42,7 @@ export const TelaPosVenda: React.FC<TelaPosVendaProps> = ({
   onImprimir,
   onVisualizar,
   onConcluir,
+  podeVisualizar = true,
 }) => {
   const resumo = useMemo(() => resumoPosVenda(pedido), [pedido]);
 
@@ -155,7 +161,8 @@ export const TelaPosVenda: React.FC<TelaPosVendaProps> = ({
             <div className="grid grid-cols-2 gap-2.5">
               <button
                 onClick={onVisualizar}
-                className="h-12 rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 hover:bg-slate-700"
+                disabled={!podeVisualizar}
+                className="h-12 rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
               >
                 <Eye size={16} />
                 Visualizar

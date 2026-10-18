@@ -2,6 +2,7 @@ import { toDate } from './dateUtils';
 import { ehReceita, ehCancelado } from '../components/admin/adminUtils';
 import { celulaCsv } from './csv';
 import { roundCents } from './money';
+import { labelTransacao } from './walletTx';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // MÓDULO CONTÁBIL — MOTOR DE RELATÓRIOS FISCAIS (DRE / CSV / CURVA ABC)
@@ -400,13 +401,30 @@ export const buildExtratoIndividual = (user: any, orders: any[], transactions: a
     });
 
   (transactions || [])
-    .filter((tx: any) => tx.type === 'deposit' && tx.status === 'approved' && String(tx.userId) === String(user.id) && inRangeContabil(tx.createdAt || tx.date, startDate, endDate))
+    .filter((tx: any) => tx.status === 'approved' && String(tx.userId) === String(user.id) && inRangeContabil(tx.createdAt || tx.date, startDate, endDate))
     .forEach((tx: any) => {
+      // `purchase` NÃO entra aqui: as compras pagas com a carteira já aparecem
+      // como Pedidos (acima) — incluí-las duplicaria o valor no extrato.
+      if (tx.type === 'purchase') return;
+      const amount = Math.abs(Number(tx.amount) || 0);
+      if (tx.type === 'deposit') {
+        movs.push({
+          date: tx.createdAt || tx.date,
+          type: 'ENTRY',
+          description: 'Depósito aprovado',
+          amount,
+          doc: String(tx.id || '')
+        });
+        return;
+      }
+      // Demais tipos (retirada manual, devolução por alvará, estorno, ajuste)
+      // eram IGNORADOS no extrato — o demonstrativo do familiar saía incompleto.
+      // A direção vem do SINAL do valor (negativo = saída da carteira).
       movs.push({
         date: tx.createdAt || tx.date,
-        type: 'ENTRY',
-        description: 'Depósito aprovado',
-        amount: Number(tx.amount) || 0,
+        type: (Number(tx.amount) || 0) < 0 ? 'EXIT' : 'ENTRY',
+        description: labelTransacao(tx.type),
+        amount,
         doc: String(tx.id || '')
       });
     });

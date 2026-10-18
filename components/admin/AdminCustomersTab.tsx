@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   Users, Search, Check, DollarSign, CreditCard, Plus,
   RefreshCw, Trash2, Save, CheckCircle, Printer, ShieldAlert,
-  Download, Filter
+  Download, Filter, RotateCcw
 } from 'lucide-react';
 import { ModalShell } from '../ui/ModalShell';
 
@@ -21,6 +21,7 @@ import { useApp } from '../../context/StoreContext';
 import { gerarRelatorioInadimplentes, imprimirCupom } from '../../utils/printUtils';
 import { celulaCsv } from '../../utils/csv';
 import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
+import { useAlvaraReturn } from './useAlvaraReturn';
 
 export function AdminCustomersTab({
   onRequestMasterPassword
@@ -28,6 +29,7 @@ export function AdminCustomersTab({
   onRequestMasterPassword?: (callback: (senhaMestra: string) => void) => void;
 }) {
   const { currentUser, showNotification } = useApp();
+  const { solicitar: solicitarAlvara, modais: alvaraModais } = useAlvaraReturn(onRequestMasterPassword);
   const [accounts, setAccounts] = useState<CustomerAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -360,6 +362,15 @@ export function AdminCustomersTab({
                     >
                       <DollarSign size={14} className="inline mr-1" /> Receber
                     </button>
+                    {Number(c.walletBalance || 0) > 0 && (
+                      <button
+                        onClick={() => solicitarAlvara({ id: c.id, name: c.nome, cpf: c.cpf, walletBalance: c.walletBalance, rotulo: 'este cliente' })}
+                        title="Devolver o saldo da carteira deste cliente por alvará (soltura/liberdade)"
+                        className="p-2.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-xl border border-indigo-200 transition-all active:scale-95"
+                      >
+                        <RotateCcw size={16} />
+                      </button>
+                    )}
                     <button
                       onClick={() => { setEditData({ id: c.id, nome: c.nome, cpf: c.cpf, telefone: c.telefone, creditLimit: c.creditLimit, status: c.status }); setCreditLimitOriginal(Number(c.creditLimit) || 0); setSenhaMestra(''); setShowModal(true); }}
                       className="p-2.5 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl border border-slate-200 transition-all active:scale-95"
@@ -553,6 +564,7 @@ export function AdminCustomersTab({
         onConfirm={() => void handleDelete()}
         onClose={() => { if (!deleting) setContaParaExcluir(null); }}
       />
+      {alvaraModais}
     </div>
   );
 }

@@ -49,6 +49,7 @@ export const AdminProductsTab: React.FC<AdminProductsTabProps> = ({
   const [confirmarEstoque, setConfirmarEstoque] = React.useState(false);
   const [xmlPreview, setXmlPreview] = React.useState<{ name: string; cost: number; qty: number; ean: string; brand: string }[]>([]);
   const [xmlPreviewLoading, setXmlPreviewLoading] = React.useState(false);
+  const [xmlErro, setXmlErro] = React.useState('');
   const [produtoParaExcluir, setProdutoParaExcluir] = React.useState<Product | null>(null);
   const [confirmarSanitizar, setConfirmarSanitizar] = React.useState(false);
   const [mesclando, setMesclando] = React.useState(false);
@@ -59,12 +60,18 @@ export const AdminProductsTab: React.FC<AdminProductsTabProps> = ({
   // O preço de venda é calculado AO VIVO com a margem digitada:
   // custo R$ 10 + margem 50% → venda R$ 15,00.
   React.useEffect(() => {
-    if (!xmlFile || !previewXmlImport) { setXmlPreview([]); return; }
+    if (!xmlFile || !previewXmlImport) { setXmlPreview([]); setXmlErro(''); return; }
     let ativo = true;
     setXmlPreviewLoading(true);
+    setXmlErro('');
     previewXmlImport(xmlFile)
       .then(items => { if (ativo) setXmlPreview(items || []); })
-      .catch(() => { if (ativo) setXmlPreview([]); })
+      .catch((e) => {
+        // Antes o erro sumia em silêncio e a tela ficava "sem prévia", como se a
+        // nota não tivesse itens. Agora o operador sabe que o XML é o problema.
+        console.warn('[Produtos] prévia da NFe falhou:', e);
+        if (ativo) { setXmlPreview([]); setXmlErro('Não foi possível ler o XML da NFe. Confirme se o arquivo é uma nota fiscal válida.'); }
+      })
       .finally(() => { if (ativo) setXmlPreviewLoading(false); });
     return () => { ativo = false; };
   }, [xmlFile]);
@@ -443,6 +450,11 @@ horizontal para chegar em editar/estoque/excluir. */}
             {xmlPreviewLoading && (
               <p className="mt-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Lendo NFe e conferindo preços...</p>
             )}
+            {!xmlPreviewLoading && !!xmlErro && (
+              <p className="mt-3 text-[11px] font-semibold text-red-600 bg-red-50 border border-red-100 rounded-xl p-3 flex items-center gap-2">
+                <AlertTriangle size={14} className="shrink-0" /> {xmlErro}
+              </p>
+            )}
             {!xmlPreviewLoading && xmlPreview.length > 0 && (
               <div className="mt-4 bg-[var(--bg-main)] border border-[var(--border-color)] rounded-2xl p-4">
                 <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
@@ -557,7 +569,7 @@ horizontal para chegar em editar/estoque/excluir. */}
         titulo="Sanitizar Preços Corrompidos"
         descricao="Zera preço/custo de TODOS os produtos com valor absurdo (>R$ 100 mil) para que voltem à loja com valor manual. Use após uma NFe corrompida gerar preços gigantescos."
         palavraChave="SANITIZAR"
-        onConfirm={() => { setConfirmarSanitizar(false); if (onRequestMasterPassword) onRequestMasterPassword((senha) => sanitizeCatalog(senha)); else void sanitizeCatalog(); }}
+        onConfirm={() => { setConfirmarSanitizar(false); if (onRequestMasterPassword) onRequestMasterPassword((senha) => { sanitizeCatalog(senha).catch(e => console.warn('[Produtos] sanitizar falhou:', e)); }); else sanitizeCatalog().catch(e => console.warn('[Produtos] sanitizar falhou:', e)); }}
         onClose={() => setConfirmarSanitizar(false)}
       />
 

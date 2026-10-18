@@ -59,7 +59,8 @@ export async function getCustomerAccounts(): Promise<CustomerAccount[]> {
         status: String(u.status || "active").toLowerCase() === "blocked" ? "blocked" : "active",
         transactions: [],
         createdAt: u.createdAt || "",
-        debtStartedAt: u.debtStartedAt || ""
+        debtStartedAt: u.debtStartedAt || "",
+        walletBalance: Number(u.walletBalance || 0)
       } as CustomerAccount);
     });
 
@@ -85,7 +86,8 @@ export async function getCustomerAccounts(): Promise<CustomerAccount[]> {
         status: String(u.status || "active").toLowerCase() === "blocked" ? "blocked" : "active",
         transactions: [],
         createdAt: u.createdAt || "",
-        debtStartedAt: u.debtStartedAt || ""
+        debtStartedAt: u.debtStartedAt || "",
+        walletBalance: Number(u.walletBalance || 0)
       } as CustomerAccount);
     });
     return list;

@@ -2,7 +2,7 @@ import React from 'react';
 import {
   Users, Search, Eye, EyeOff, FileText, MinusCircle, CheckCircle, Ban, Trash2, RefreshCw,
   PlusCircle, ShieldCheck, CheckSquare, Square, Link2, BarChart2, Download, Lock, Unlock,
-  MoreVertical, Upload, Loader2
+  MoreVertical, Upload, Loader2, RotateCcw
 } from 'lucide-react';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { formatarMoeda, isAdminRole, normalizeSearch, apenasDigitos } from '../../utils';
@@ -11,6 +11,7 @@ import { User, Order } from '../../types';
 import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
 import { ModalShell } from '../ui/ModalShell';
 import { useApp } from '../../context/StoreContext';
+import { useAlvaraReturn } from './useAlvaraReturn';
 
 interface AdminUsersTabProps {
   users: User[];
@@ -31,15 +32,17 @@ interface AdminUsersTabProps {
   usersLimit?: number;
   loadMoreUsers?: () => void;
   loadAllUsers?: () => void;
+  onRequestMasterPassword?: (callback: (senhaMestra: string) => void) => void;
 }
 
 export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
   users, orders = [], userSearch, setUserSearch, showPasswords, setShowPasswords,
   setViewingUser, setShowWithdrawalModal, approveUser, suspendUser, toggleUserCredit, deleteUser,
   onAddCredit, canManageCredits = true, toggleExcepcionalFlag,
-  usersLimit = 500, loadMoreUsers
+  usersLimit = 500, loadMoreUsers, onRequestMasterPassword
 }) => {
   const { searchUsers } = useApp();
+  const { solicitar: solicitarAlvara, modais: alvaraModais } = useAlvaraReturn(onRequestMasterPassword);
   const [mainTab, setMainTab] = React.useState<'CARDS' | 'VINCULOS'>('VINCULOS');
   const [statusFilter, setStatusFilter] = React.useState<'ALL' | 'PENDING' | 'ACTIVE' | 'SUSPENDED'>('ALL');
   const [selectedUsers, setSelectedUsers] = React.useState<Set<string>>(new Set());
@@ -470,6 +473,16 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                             <PlusCircle size={16} />
                           </button>
                         )}
+                        {/* Devolver saldo por alvará */}
+                        {Number(u.walletBalance || 0) > 0 && (
+                          <button
+                            onClick={() => solicitarAlvara({ id: u.id, name: u.name, cpf: u.cpf, walletBalance: u.walletBalance })}
+                            className="p-2.5 bg-rose-50 text-rose-600 hover:bg-rose-500 hover:text-white rounded-xl border border-rose-200 shadow-sm active:scale-95 transition-all"
+                            title={`Devolver saldo por alvará (R$ ${formatarMoeda(Number(u.walletBalance) || 0)})`}
+                          >
+                            <RotateCcw size={16} />
+                          </button>
+                        )}
                         {/* Suspender / Reativar */}
                         {u.status !== 'suspended' ? (
                           <button
@@ -621,6 +634,9 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                             )}
                             <button onClick={() => { setShowWithdrawalModal({ userId: u?.id || '', userName: u?.name || '', isRefund: true }); setOpenDropdown(null); }} className="w-full flex items-center gap-3 px-5 py-3 text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 text-xs font-black uppercase tracking-widest transition-all"><RefreshCw size={16}/> Estornar</button>
                             <button onClick={() => { setShowWithdrawalModal({ userId: u?.id || '', userName: u?.name || '' }); setOpenDropdown(null); }} className="w-full flex items-center gap-3 px-5 py-3 text-slate-700 hover:bg-orange-50 hover:text-orange-600 text-xs font-black uppercase tracking-widest transition-all"><MinusCircle size={16}/> Retirada Manual</button>
+                            {Number(u.walletBalance || 0) > 0 && (
+                              <button onClick={() => { solicitarAlvara({ id: u.id, name: u.name, cpf: u.cpf, walletBalance: u.walletBalance }); setOpenDropdown(null); }} className="w-full flex items-center gap-3 px-5 py-3 text-slate-700 hover:bg-rose-50 hover:text-rose-600 text-xs font-black uppercase tracking-widest transition-all"><RotateCcw size={16}/> Devolver saldo (alvará)</button>
+                            )}
                             {toggleExcepcionalFlag && (
                               <button onClick={() => { toggleExcepcionalFlag(u.id, !u.autorizacaoExcepcional); setOpenDropdown(null); }} className={`w-full flex items-center gap-3 px-5 py-3 text-xs font-black uppercase tracking-widest transition-all ${u.autorizacaoExcepcional ? 'text-purple-700 hover:bg-purple-50' : 'text-slate-700 hover:bg-purple-50 hover:text-purple-600'}`}><CheckSquare size={16}/> {u.autorizacaoExcepcional ? 'Remover Exceção' : 'Autorização Excepcional'}</button>
                             )}
@@ -745,6 +761,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
         onConfirm={executarConfirmacao}
         onClose={() => setConfirmAction(null)}
       />
+      {alvaraModais}
     </div>
   );
 };

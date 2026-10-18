@@ -3,10 +3,8 @@ import { CreditCard, Search, CheckCircle, XCircle, Clock, Download, ChevronRight
 import { formatarMoeda } from '../../utils';
 import { celulaCsv } from '../../utils/csv';
 import { getCustomerAccounts } from '../../utils/customerUtils';
-import { useApp } from '../../context/StoreContext';
-import { ConfirmacaoDestrutiva } from './ConfirmacaoDestrutiva';
-import { ComprovanteAlvaraModal } from './ComprovanteAlvaraModal';
-import { ComprovanteAlvara } from '../../utils/printUtils';
+import { useAlvaraReturn } from './useAlvaraReturn';
+import { labelTransacao } from '../../utils/walletTx';
 
 // Data LOCAL (fuso do dispositivo) — sem o bug de toISOString (UTC) que
 // deslocava depósitos feitos entre 00:00 e 03:00 para o dia anterior.
@@ -33,15 +31,12 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
   walletTx, userSearch, setUserSearch, financeFilters, setFinanceFilters, loadingWallet,
   onSelectTransaction, users = [], onRequestMasterPassword
 }) => {
-  const { devolucaoAlvara, settings } = useApp();
+  const { solicitar: solicitarAlvara, modais: alvaraModais } = useAlvaraReturn(onRequestMasterPassword);
   const [activeSubTab, setActiveSubTab] = React.useState<'ALL' | 'DEPOSITS' | 'WITHDRAWALS' | 'SALDOS'>('ALL');
   const [quickDateFilter, setQuickDateFilter] = React.useState<'ALL' | 'TODAY' | 'WEEK' | 'MONTH'>('ALL');
   const [fiadoAccounts, setFiadoAccounts] = React.useState<any[]>([]);
   const [fiadoLoading, setFiadoLoading] = React.useState(false);
   const [saldosAtualizadoEm, setSaldosAtualizadoEm] = React.useState<Date | null>(null);
-  const [userParaAlvara, setUserParaAlvara] = React.useState<any>(null);
-  const [isLoadingAlvara, setIsLoadingAlvara] = React.useState(false);
-  const [comprovanteAlvara, setComprovanteAlvara] = React.useState<ComprovanteAlvara[] | null>(null);
 
   React.useEffect(() => {
     if (activeSubTab !== 'SALDOS' || fiadoAccounts.length > 0) return;
@@ -68,29 +63,8 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
 
   // Devolução de saldo por alvará (soltura/liberdade): o interno saiu e ainda
   // havia crédito na carteira do familiar. Exige senha mestra (2º fator) e
-  // imprime o comprovante de devolução para assinatura — mesmo fluxo da aba
-  // de Internos, mas acionado direto na Carteira e Créditos.
-  const confirmAlvaraReturn = async (senhaMestra: string) => {
-    const alvo = userParaAlvara;
-    if (!alvo) return;
-    if (Number(alvo.walletBalance || 0) <= 0) { setUserParaAlvara(null); return; }
-    setIsLoadingAlvara(true);
-    try {
-      const data = await devolucaoAlvara(
-        alvo.id,
-        `Devolução por alvará — familiar ${alvo.name || alvo.cpf || '—'}`,
-        senhaMestra
-      );
-      const comprovante = data?.comprovante;
-      if (comprovante) setComprovanteAlvara([comprovante as ComprovanteAlvara]);
-    } catch {
-      // o contexto já exibiu a notificação de erro desta chamada
-    } finally {
-      setIsLoadingAlvara(false);
-      setUserParaAlvara(null);
-    }
-  };
-
+  // imprime o comprovante — fluxo reutilizável (useAlvaraReturn), o mesmo da
+  // aba de Internos, agora também disponível aqui na Carteira e Créditos.
   const stats = React.useMemo(() => {
     const today = localDateStr(new Date());
     return {
@@ -413,7 +387,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                           </span>
                         </div>
                         <button
-                          onClick={() => setUserParaAlvara(u)}
+                          onClick={() => solicitarAlvara({ id: u.id, name: u.name, cpf: u.cpf, walletBalance: u.walletBalance })}
                           title="Devolver o saldo deste familiar por alvará (soltura/liberdade)"
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 hover:scale-105 active:scale-95 transition-all"
                         >
@@ -474,6 +448,17 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                             <span className={`inline-block mt-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${a.status === 'blocked' ? 'bg-red-50 text-red-500 border-red-200' : 'bg-amber-50 text-amber-600 border-amber-200'}`}>
                               {a.status === 'blocked' ? 'Bloqueado' : 'Ativo'}
                             </span>
+                            {Number(a.walletBalance || 0) > 0 && (
+                              <div className="mt-2">
+                                <button
+                                  onClick={() => solicitarAlvara({ id: a.id, name: a.nome || a.name, cpf: a.cpf, walletBalance: a.walletBalance, rotulo: 'este cliente' })}
+                                  title={`Devolver o saldo da carteira (R$ ${formatarMoeda(Number(a.walletBalance) || 0)}) por alvará`}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 hover:scale-105 active:scale-95 transition-all"
+                                >
+                                  <RotateCcw size={13} /> Devolver R$ {formatarMoeda(Number(a.walletBalance) || 0)}
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </div>
                         {limite > 0 && (
@@ -532,7 +517,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                   </td>
                   <td className="p-6 text-center">
                     <span className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border ${tx.type === 'deposit' ? 'bg-success-soft text-success-dark border-success-soft' : 'bg-red-50 text-red-500 border-red-200'}`}>
-                      {tx.type === 'deposit' ? '↑ Crédito' : tx.type === 'purchase' ? '↓ Compra' : '↓ Retirada'}
+                      {tx.type === 'deposit' ? '↑ ' : '↓ '}{labelTransacao(tx.type)}
                     </span>
                   </td>
                   <td className="p-6 text-right font-black text-base">
@@ -603,7 +588,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
                   {new Date(tx.createdAt).toLocaleDateString('pt-BR')} • {new Date(tx.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
                 </div>
                 <span className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${tx.type === 'deposit' ? 'bg-success-soft text-success-dark border-success-soft' : 'bg-red-50 text-red-500 border-red-200'}`}>
-                  {tx.type === 'deposit' ? '↑ Crédito' : '↓ Débito'}
+                  {tx.type === 'deposit' ? '↑ ' : '↓ '}{labelTransacao(tx.type)}
                 </span>
               </div>
 
@@ -653,27 +638,7 @@ export const AdminWalletTab: React.FC<AdminWalletTabProps> = ({
           ))}
         </div>
       </div>
-      <ConfirmacaoDestrutiva
-        isOpen={userParaAlvara !== null}
-        titulo="Devolução por Alvará"
-        descricao={`Devolver via PIX R$ ${formatarMoeda(Number(userParaAlvara?.walletBalance || 0))} de ${userParaAlvara?.name || userParaAlvara?.cpf || 'este familiar'} por alvará (soltura/liberdade)? O saldo será zerado e a senha mestra será exigida. Em seguida você escolhe imprimir o recibo em cupom (80mm) ou A4.`}
-        semDigitar
-        processando={isLoadingAlvara}
-        onConfirm={() => {
-          if (!userParaAlvara) return;
-          if (onRequestMasterPassword) {
-            onRequestMasterPassword((senha) => confirmAlvaraReturn(senha));
-          } else {
-            confirmAlvaraReturn('');
-          }
-        }}
-        onClose={() => { if (!isLoadingAlvara) setUserParaAlvara(null); }}
-      />
-      <ComprovanteAlvaraModal
-        comprovantes={comprovanteAlvara}
-        settings={settings}
-        onClose={() => setComprovanteAlvara(null)}
-      />
+      {alvaraModais}
     </div>
   );
 };

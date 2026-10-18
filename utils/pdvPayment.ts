@@ -231,7 +231,7 @@ export function montarPagamentoPdv(input: MontagemPagamentoInput): MontagemPagam
     if (recebido < totalArredondado - 0.009) {
       return {
         ok: false,
-        message: `Valor recebido insuficiente. Faltam R$ ${(totalArredondado - recebido).toFixed(2)}. Receba ao menos o total da venda em dinheiro.`,
+        message: `Valor recebido insuficiente. Faltam R$ ${(totalArredondado - recebido).toFixed(2).replace('.', ',')}. Receba ao menos o total da venda em dinheiro.`,
       };
     }
     if (recebido > totalArredondado) {
@@ -267,7 +267,7 @@ export function montarPagamentoPdv(input: MontagemPagamentoInput): MontagemPagam
 
     const totalRecebido = pPix + pWallet + pCash;
     if (totalRecebido < totalArredondado - 0.009) {
-      return { ok: false, message: `Valor recebido insuficiente. Faltam R$ ${(totalArredondado - totalRecebido).toFixed(2)}. Verifique os valores informados.` };
+      return { ok: false, message: `Valor recebido insuficiente. Faltam R$ ${(totalArredondado - totalRecebido).toFixed(2).replace('.', ',')}. Verifique os valores informados.` };
     }
     // Excedente SÓ é aceito se houver dinheiro em caixa para devolver o troco.
     if (totalRecebido > totalArredondado + 0.009 && pCash <= 0) {

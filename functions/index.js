@@ -1786,14 +1786,17 @@ exports.devolucaoAlvara = onCall({
     usuarioAlvo = ud.name || userId;
     usuarioCpf = cleanCpf(ud.inmateCpf || ud.prisonerCpf || ud.cpf || "");
 
-    // Crédito na carteira do usuário
-    t.update(uRef, { walletBalance: admin.firestore.FieldValue.increment(arredondar(valorDevolvido)) });
+    // DÉBITO na carteira do usuário: a devolução por alvará ENTREGA o dinheiro
+    // de volta ao familiar, então o saldo SAI da conta. Antes usava increment(+)
+    // — bug crítico: um alvará de R$ 100 dobrava o saldo para R$ 200 em vez de
+    // zerar. Mesmo sinal de sacarSaldoAdmin (amount negativo = dinheiro saindo).
+    t.update(uRef, { walletBalance: admin.firestore.FieldValue.increment(-arredondar(valorDevolvido)) });
 
-    // Registro da transação de devolução
+    // Registro da transação de devolução (valor negativo = saída da carteira)
     await registrarTransacaoCarteira(t, db.collection("wallet_transactions").doc(), {
       userId,
       inmateCpf: cleanCpf(ud.inmateCpf || ud.prisonerCpf || ud.cpf),
-      amount: valorDevolvido,
+      amount: -valorDevolvido,
       proofUrl: "",
       status: "approved",
       createdAt: new Date().toISOString(),
