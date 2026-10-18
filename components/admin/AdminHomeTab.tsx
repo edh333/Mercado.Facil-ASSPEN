@@ -3,7 +3,7 @@ import { ehReceita } from './adminUtils';
 import {
   Users, ShoppingCart, DollarSign, ArrowDownCircle,
   Zap, ArrowRight,
-  BarChart3, TrendingUp, Award, PackageX, Plus, Banknote, Printer
+  BarChart3, TrendingUp, Award, PackageX, Plus, Banknote, Printer, ClipboardList
 } from 'lucide-react';
 import { WalletTransaction } from '../../types';
 import { ChartMount } from '../ui/ChartMount';
@@ -33,11 +33,12 @@ interface AdminHomeTabProps {
   onSelectTransaction: (tx: WalletTransaction) => void;
   onOpenSales: () => void;
   onOpenShortcuts?: () => void;
+  onOpenRelatoriosSimples?: () => void;
 }
 
 export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
   stats, chartData, isMaster, setActiveTab, setShowProductModal, filterType, orders,
-  products = [], walletTx, onSelectTransaction, onOpenSales, onOpenShortcuts
+  products = [], walletTx, onSelectTransaction, onOpenSales, onOpenShortcuts, onOpenRelatoriosSimples
 }) => {
   const {} = useTheme();
 
@@ -120,6 +121,15 @@ export const AdminHomeTab: React.FC<AdminHomeTabProps> = ({
         >
           <Printer size={14} /> ABRIR RELATÓRIOS (F4)
         </button>
+        {onOpenRelatoriosSimples && (
+          <button
+            onClick={onOpenRelatoriosSimples}
+            title="Relatórios simples: vendas, créditos, clientes, produtos e presos"
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-sm transition-all active:scale-95 cursor-pointer"
+          >
+            <ClipboardList size={14} /> RELATÓRIOS SIMPLES
+          </button>
+        )}
         {onOpenShortcuts && (
           <button
             onClick={onOpenShortcuts}

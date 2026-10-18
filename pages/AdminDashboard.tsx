@@ -40,6 +40,7 @@ import { AdminOrderHistoryModal } from '../components/admin/AdminOrderHistoryMod
 import { AdminUserDetailsModal } from '../components/admin/AdminUserDetailsModal';
 import { AdminWalletTransactionModal } from '../components/admin/AdminWalletTransactionModal';
 import { AdminReportPreviewModal } from '../components/admin/AdminReportPreviewModal';
+import { AdminRelatoriosSimplesModal } from '../components/admin/AdminRelatoriosSimplesModal';
 import { AdminCashTab } from '../components/admin/AdminCashTab';
 import { AdminDashboardCharts } from '../components/admin/AdminDashboardCharts';
 import { AdminStockAlertsTab } from '../components/admin/AdminStockAlertsTab';
@@ -204,6 +205,7 @@ export function AdminDashboard() {
   });
   const [reportsMode, setReportsMode] = useState<'visual' | 'formal'>('visual');
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showRelatoriosSimples, setShowRelatoriosSimples] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [showUninstallModal, setShowUninstallModal] = useState(false);
 
@@ -336,7 +338,7 @@ const isMaster = isMasterAdmin(currentUser);
 
   // ATALHOS GLOBAIS F1-F12 + '?' — funcionam em qualquer aba do painel.
   // Guardas: nada de atalho com janela aberta, nem digitando em campos.
-  const shortcutsModalOpen = [showSalesModal, showReportModal, showShortcutsModal, showProductModal, showWithdrawalModal, showAuthModal, historyModalCpf, viewingReceipt, selectedOrderDetails, selectedWalletTx, viewingUser, manualCreditTarget, showUninstallModal].some(Boolean);
+  const shortcutsModalOpen = [showSalesModal, showReportModal, showShortcutsModal, showProductModal, showWithdrawalModal, showAuthModal, historyModalCpf, viewingReceipt, selectedOrderDetails, selectedWalletTx, viewingUser, manualCreditTarget, showUninstallModal, showRelatoriosSimples].some(Boolean);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -846,6 +848,7 @@ return (
                       setShowSalesModal(true);
                     }}
                     onOpenShortcuts={() => setShowShortcutsModal(true)}
+                    onOpenRelatoriosSimples={() => setShowRelatoriosSimples(true)}
                   />
                 </>
               )}
@@ -1253,6 +1256,16 @@ return (
           transactions={walletTx}
         />
       )}
+
+      {/* Janela de Relatórios Simples (atalho da tela inicial) */}
+      <AdminRelatoriosSimplesModal
+        open={showRelatoriosSimples}
+        onClose={() => setShowRelatoriosSimples(false)}
+        orders={orders}
+        products={products}
+        users={users}
+        settings={settings}
+      />
 
       {/* Global shortcuts help overlay (F1-F12 / '?') */}
       {showShortcutsModal && (

@@ -1302,3 +1302,104 @@ export function imprimirComprovanteAlvaraA4(comprovantes: ComprovanteAlvara[], s
   win.focus();
   setTimeout(() => { try { win.print(); } catch { /* janela fechada */ } }, 500);
 }
+
+/**
+ * Impressão A4 GENÉRICA de um relatório simples (Vendas/Créditos/Clientes/
+ * Produtos/Presos e Saldos). Recebe a tabela já montada pelos construtores de
+ * `components/admin/relatoriosSimples.ts` e abre uma janela de impressão com
+ * cabeçalho institucional, cartões de resumo, tabela e campos de assinatura.
+ * O parâmetro é estrutural (não importa o tipo do módulo) para o printUtils
+ * continuar sem dependência de componentes.
+ */
+export function imprimirRelatorioSimplesA4(
+  rel: {
+    titulo: string;
+    subtitulo?: string;
+    colunas: { rotulo: string; align?: 'left' | 'center' | 'right' }[];
+    linhas: string[][];
+    resumo?: { rotulo: string; valor: string }[];
+    rodape?: string;
+  },
+  settings?: any
+): void {
+  const instituicao = settings?.institutionName || settings?.appName || 'MERCADO FÁCIL';
+  const documento = settings?.customReceiptDocName || 'RELATÓRIO GERENCIAL — NÃO FISCAL';
+  const hoje = new Date().toLocaleDateString('pt-BR');
+  const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const esc = (v: any) => String(v ?? '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  const ths = rel.colunas.map((c) => `<th style="text-align:${c.align || 'left'};">${esc(c.rotulo)}</th>`).join('');
+  const trs = rel.linhas.length
+    ? rel.linhas
+        .map(
+          (linha) =>
+            `<tr>${(linha || [])
+              .map((cel, ci) => `<td style="text-align:${rel.colunas[ci]?.align || 'left'};">${esc(cel)}</td>`)
+              .join('')}</tr>`
+        )
+        .join('')
+    : `<tr><td colspan="${rel.colunas.length || 1}" style="text-align:center;padding:28px;color:#94a3b8;">Nenhum registro.</td></tr>`;
+  const cards = (rel.resumo || [])
+    .map((r) => `<div class="card"><p class="titulo">${esc(r.rotulo)}</p><p class="valor">${esc(r.valor)}</p></div>`)
+    .join('');
+
+  const printWindow = window.open('', '_blank', 'width=1000,height=760');
+  if (!printWindow) return;
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<title>${esc(rel.titulo)}</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; color:#0f172a; padding:32px; background:#fff; }
+    .cabecalho { border-bottom:3px solid #0f172a; padding-bottom:16px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:flex-end; }
+    .cabecalho h1 { font-size:20px; text-transform:uppercase; letter-spacing:1px; color:#0f172a; }
+    .cabecalho p { font-size:12px; color:#64748b; margin-top:4px; }
+    .meta { text-align:right; font-size:11px; color:#64748b; }
+    .cards { display:flex; gap:12px; margin-bottom:22px; flex-wrap:wrap; }
+    .card { flex:1; min-width:150px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:14px 16px; }
+    .card p.titulo { font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:1.5px; color:#94a3b8; margin-bottom:4px; }
+    .card p.valor { font-size:18px; font-weight:800; color:#0f172a; }
+    table { width:100%; border-collapse:collapse; }
+    thead th { background:#0f172a; color:#fff; padding:10px; font-size:10px; text-transform:uppercase; letter-spacing:1px; }
+    tbody td { padding:8px 10px; font-size:12px; border-bottom:1px solid #e2e8f0; }
+    tbody tr:nth-child(even) { background:#f8fafc; }
+    .rodape-criterio { margin-top:14px; padding:10px 14px; background:#f1f5f9; border:1px solid #e2e8f0; border-radius:10px; font-size:10px; color:#475569; text-transform:uppercase; letter-spacing:1px; font-weight:700; }
+    .rodape { margin-top:22px; text-align:center; font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:1px; }
+    .assinatura { margin-top:56px; display:flex; justify-content:space-between; }
+    .assinatura div { width:40%; border-top:1px solid #64748b; padding-top:8px; font-size:10px; text-transform:uppercase; text-align:center; color:#475569; }
+    @page { size:A4; margin:14mm; }
+    @media print { body { padding:0; } thead { display:table-header-group; } tr { break-inside:avoid; } }
+</style>
+</head>
+<body>
+    <div class="cabecalho">
+        <div>
+            <h1>${esc(rel.titulo)}</h1>
+            <p>${esc(instituicao)} — ${esc(documento)}</p>
+            ${rel.subtitulo ? `<p style="font-size:11px;color:#94a3b8;margin-top:6px;">${esc(rel.subtitulo)}</p>` : ''}
+        </div>
+        <div class="meta">
+            <p>Emitido em: <b>${hoje} às ${hora}</b></p>
+            <p>${rel.linhas.length} registro(s)</p>
+        </div>
+    </div>
+    ${cards ? `<div class="cards">${cards}</div>` : ''}
+    <table>
+        <thead><tr>${ths}</tr></thead>
+        <tbody>${trs}</tbody>
+    </table>
+    ${rel.rodape ? `<div class="rodape-criterio">${esc(rel.rodape)}</div>` : ''}
+    <div class="rodape">Documento emitido pelo sistema Mercado Fácil — não é comprovante fiscal.</div>
+    <div class="assinatura">
+        <div>Responsável pela Emissão</div>
+        <div>Direção / Administração</div>
+    </div>
+</body>
+</html>`;
+  printWindow.document.write(html);
+  printWindow.document.close();
+  printWindow.focus();
+  setTimeout(() => { try { printWindow.print(); } catch { /* janela fechada */ } }, 500);
+}
