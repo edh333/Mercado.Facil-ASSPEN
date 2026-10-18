@@ -264,3 +264,69 @@ describe("fluxo FIADO (crédito) — regressão do ReferenceError", () => {
     expect(fake.getDoc("products", "p2").stock).toBe(50);
   });
 });
+
+// Fluxo 3 — Compra do usuário no app (carteira). Regressão do typo
+// dataDiaLocalSP() (o helper real é dataDiaLocalMT): o campo `date` quebrava
+// comprarComCarteira e registrarPedidoPix com ReferenceError.
+describe("fluxo compra no app (comprarComCarteira)", () => {
+  it("debita carteira/estoque e grava o pedido com date no formato local (YYYY-MM-DD)", async () => {
+    const res = await call("comprarComCarteira", {
+      items: [{ productId: "p1", quantity: 2 }],
+      clientToken: "tok-app-1",
+    }, "u1");
+
+    expect(res.ok).toBe(true);
+    const order = res.order;
+
+    expect(order.total).toBe(20);
+    expect(order.status).toBe("paid");
+    expect(order.paymentMethod).toBe("WALLET");
+    // O campo que estourava ReferenceError — precisa ser o dia local do MT.
+    expect(order.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+
+    expect(fake.getDoc("users", "u1").walletBalance).toBe(80);
+    expect(fake.getDoc("users", "u1").weeklySpent).toBe(20);
+    expect(fake.getDoc("products", "p1").stock).toBe(98);
+
+    const txs = fake.allDocs("wallet_transactions");
+    expect(txs).toHaveLength(1);
+    expect(txs[0].amount).toBe(-20);
+    expect(txs[0].type).toBe("withdrawal");
+  });
+
+  it("replay com o mesmo clientToken não debita duas vezes", async () => {
+    const payload = { items: [{ productId: "p1", quantity: 1 }], clientToken: "tok-app-replay" };
+    await call("comprarComCarteira", payload, "u1");
+    const saldoApos = fake.getDoc("users", "u1").walletBalance;
+
+    const second = await call("comprarComCarteira", payload, "u1");
+    expect(second.order?.replay || second.replay).toBe(true);
+
+    expect(fake.getDoc("users", "u1").walletBalance).toBe(saldoApos);
+    expect(fake.getDoc("products", "p1").stock).toBe(99);
+    expect(fake.count("orders")).toBe(1);
+  });
+
+  it("recusa compra acima do saldo da carteira sem mexer em nada", async () => {
+    await expect(
+      call("comprarComCarteira", { items: [{ productId: "p1", quantity: 20 }], clientToken: "tok-app-sem" }, "u1")
+    ).rejects.toMatchObject({ code: "functions/invalid-argument" });
+
+    expect(fake.getDoc("users", "u1").walletBalance).toBe(100);
+    expect(fake.getDoc("products", "p1").stock).toBe(100);
+    expect(fake.count("orders")).toBe(0);
+  });
+
+  it("respeita o limite semanal de compras com carteira", async () => {
+    fake.reset({
+      ...baseSeed(),
+      users: { ...baseSeed().users, u1: { ...baseSeed().users.u1, weeklySpent: 995 } },
+    });
+
+    await expect(
+      call("comprarComCarteira", { items: [{ productId: "p1", quantity: 1 }], clientToken: "tok-app-limite" }, "u1")
+    ).rejects.toMatchObject({ code: "functions/invalid-argument" });
+
+    expect(fake.getDoc("users", "u1").walletBalance).toBe(100);
+  });
+});
