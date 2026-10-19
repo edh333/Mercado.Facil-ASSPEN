@@ -5,6 +5,7 @@ import {
   relatorioClientes,
   relatorioProdutos,
   relatorioPresos,
+  relatorioVendasProdutos,
   filtrarVendasPorPeriodo,
 } from '../components/admin/relatoriosSimples';
 
@@ -131,6 +132,17 @@ describe('relatorioProdutos', () => {
     expect(resumo['Estoque (venda)']).toBe('R$ 50,00');
   });
 
+  it('conta produtos sem estoque e em nível baixo', () => {
+    const comMinimo: any[] = [
+      { id: '1', name: 'Refri', stock: 10, costPrice: 2, price: 5 },
+      { id: '2', name: 'Água', stock: 0, costPrice: 1, price: 3 },
+      { id: '3', name: 'Suco', stock: 2, costPrice: 1, price: 4, minStock: 5 },
+    ];
+    const resumo = Object.fromEntries(relatorioProdutos(comMinimo).resumo.map(x => [x.rotulo, x.valor]));
+    expect(resumo['Sem estoque']).toBe('1');
+    expect(resumo['Estoque baixo']).toBe('1');
+  });
+
   it('ordena por nome', () => {
     const r = relatorioProdutos(products);
     expect(r.linhas[0][0]).toBe('Água');
@@ -156,5 +168,91 @@ describe('relatorioPresos', () => {
     expect(r.linhas[0][3]).toBe('R$ 50,00');
     // Familiar sem interno é ignorado
     expect(r.linhas.every(l => l[0] !== 'Sem Interno')).toBe(true);
+  });
+
+  it('destaca quantos internos estão com e sem saldo', () => {
+    const r = relatorioPresos(users);
+    const resumo = Object.fromEntries(r.resumo.map(x => [x.rotulo, x.valor]));
+    expect(resumo['Com saldo']).toBe('1');
+    expect(resumo['Sem saldo']).toBe('1');
+    expect(resumo['Familiares']).toBe('3');
+  });
+});
+
+describe('relatorioVendasProdutos', () => {
+  const orders: any[] = [
+    {
+      id: 'o1',
+      status: 'delivered',
+      total: 13,
+      date: isoHoje(),
+      items: [
+        { productId: 'p1', name: 'Refri', category: 'Bebidas', quantity: 2, priceAtPurchase: 5 },
+        { productId: 'p2', name: 'Água', category: 'Bebidas', quantity: 1, priceAtPurchase: 3 },
+      ],
+    },
+    {
+      id: 'o2',
+      status: 'delivered',
+      total: 10,
+      date: isoHoje(),
+      items: [{ productId: 'p1', name: 'Refri', category: 'Bebidas', quantity: 2, priceAtPurchase: 5 }],
+    },
+    {
+      id: 'o3',
+      status: 'cancelled',
+      total: 99,
+      date: isoHoje(),
+      items: [{ productId: 'p1', name: 'Refri', quantity: 100, priceAtPurchase: 5 }],
+    },
+    {
+      id: 'o4',
+      status: 'pending',
+      total: 99,
+      date: isoHoje(),
+      items: [{ productId: 'p2', name: 'Água', quantity: 50, priceAtPurchase: 3 }],
+    },
+  ];
+
+  it('agrega quantidade e receita por produto e ordena pelo que mais faturou', () => {
+    const r = relatorioVendasProdutos(orders, 'hoje');
+
+    expect(r.linhas).toHaveLength(2);
+    // Refri: 4 unidades x R$ 5 = R$ 20 (2 pedidos) — vem antes da Água
+    expect(r.linhas[0][0]).toBe('Refri');
+    expect(r.linhas[0][2]).toBe('4');
+    expect(r.linhas[0][3]).toBe('2');
+    expect(r.linhas[0][4]).toBe('R$ 5,00'); // preço médio
+    expect(r.linhas[0][5]).toBe('R$ 20,00'); // receita
+    // Água: 1 unidade x R$ 3 = R$ 3
+    expect(r.linhas[1][0]).toBe('Água');
+    expect(r.linhas[1][5]).toBe('R$ 3,00');
+  });
+
+  it('resume produtos distintos, unidades, campeão e receita total', () => {
+    const r = relatorioVendasProdutos(orders, 'hoje');
+    const resumo = Object.fromEntries(r.resumo.map(x => [x.rotulo, x.valor]));
+    expect(resumo['Produtos vendidos']).toBe('2');
+    expect(resumo['Unidades vendidas']).toBe('5');
+    expect(resumo['Mais vendido']).toBe('Refri');
+    expect(resumo['Receita total']).toBe('R$ 23,00');
+  });
+
+  it('mostra a participação de cada produto no faturamento', () => {
+    const r = relatorioVendasProdutos(orders, 'hoje');
+    expect(r.linhas[0][6]).toMatch(/%$/);
+  });
+
+  it('ignora pedidos cancelados e pendentes', () => {
+    const r = relatorioVendasProdutos(orders, 'hoje');
+    const resumo = Object.fromEntries(r.resumo.map(x => [x.rotulo, x.valor]));
+    // 100 unidades do pedido cancelado e 50 do pendente não entram
+    expect(resumo['Unidades vendidas']).toBe('5');
+  });
+
+  it('devolve mensagem de vazio quando não há vendas', () => {
+    const r = relatorioVendasProdutos([], '7');
+    expect(r.linhas).toHaveLength(0);
+    expect(r.vazio).toBeTruthy();
   });
 });

@@ -93,6 +93,7 @@ export function relatorioVendas(orders: Order[], periodo: PeriodoVendas): Relato
 
   let total = 0;
   let totalItens = 0;
+  let descontoTotal = 0;
   const porForma: Record<string, number> = {};
 
   const linhas = vendas.map((o) => {
@@ -101,6 +102,7 @@ export function relatorioVendas(orders: Order[], periodo: PeriodoVendas): Relato
     const valor = Number(o?.total) || 0;
     total += valor;
     totalItens += itens;
+    descontoTotal += Number((o as any)?.discountValue) || 0;
 
     if (Array.isArray(o?.payments) && o.payments.length) {
       o.payments.forEach((p) => {
@@ -145,6 +147,7 @@ export function relatorioVendas(orders: Order[], periodo: PeriodoVendas): Relato
       { rotulo: 'Itens vendidos', valor: String(totalItens) },
       { rotulo: 'Ticket médio', valor: moeda(ticket) },
       { rotulo: 'Total vendido', valor: moeda(total) },
+      ...(descontoTotal > 0 ? [{ rotulo: 'Descontos', valor: moeda(descontoTotal) }] : []),
     ],
     rodape: rodapeFormas ? `Formas de pagamento: ${rodapeFormas}` : undefined,
     vazio: 'Nenhuma venda registrada no período selecionado.',
@@ -236,6 +239,8 @@ export function relatorioProdutos(products: Product[]): RelatorioSimples {
   let unidades = 0;
   let custoTotal = 0;
   let vendaTotal = 0;
+  let semEstoque = 0;
+  let estoqueBaixo = 0;
 
   const linhas = itens.map((p) => {
     const estoque = Number(p?.stock) || 0;
@@ -244,6 +249,9 @@ export function relatorioProdutos(products: Product[]): RelatorioSimples {
     unidades += estoque;
     custoTotal += estoque * custo;
     vendaTotal += estoque * venda;
+    const minStock = Number(p?.minStock) || 0;
+    if (estoque <= 0) semEstoque += 1;
+    else if (minStock > 0 && estoque <= minStock) estoqueBaixo += 1;
     const margem = venda > 0 ? ((venda - custo) / venda) * 100 : 0;
     return [
       String(p?.name || 'Produto'),
@@ -272,6 +280,8 @@ export function relatorioProdutos(products: Product[]): RelatorioSimples {
       { rotulo: 'Unidades', valor: String(unidades) },
       { rotulo: 'Estoque (custo)', valor: moeda(custoTotal) },
       { rotulo: 'Estoque (venda)', valor: moeda(vendaTotal) },
+      { rotulo: 'Sem estoque', valor: String(semEstoque) },
+      { rotulo: 'Estoque baixo', valor: String(estoqueBaixo) },
     ],
     vazio: 'Nenhum produto cadastrado.',
   };
@@ -309,6 +319,7 @@ export function relatorioPresos(users: User[]): RelatorioSimples {
   const grupos = Array.from(mapa.values()).sort((a, b) => b.saldo - a.saldo);
   const total = grupos.reduce((s, g) => s + g.saldo, 0);
   const comSaldo = grupos.filter((g) => g.saldo > 0).length;
+  const totalFamiliares = grupos.reduce((s, g) => s + g.responsaveis.length, 0);
 
   return {
     colunas: [
@@ -321,8 +332,92 @@ export function relatorioPresos(users: User[]): RelatorioSimples {
     resumo: [
       { rotulo: 'Internos', valor: String(grupos.length) },
       { rotulo: 'Com saldo', valor: String(comSaldo) },
+      { rotulo: 'Sem saldo', valor: String(grupos.length - comSaldo) },
       { rotulo: 'Total em saldos', valor: moeda(total) },
+      { rotulo: 'Familiares', valor: String(totalFamiliares) },
     ],
     vazio: 'Nenhum interno com familiar cadastrado.',
+  };
+}
+
+/**
+ * Vendas POR PRODUTO no período — a visão "o que vendeu", complementar ao
+ * relatório de Produtos (que é a visão "o que tem em estoque").
+ *
+ * Cruza os itens de todos os pedidos de receita do período e devolve, para cada
+ * produto: nome, quantidade vendida, em quantos pedidos apareceu, preço médio
+ * praticado, receita e participação no faturamento. Ordenado por receita — o
+ * produto que mais faturou vem primeiro.
+ */
+export function relatorioVendasProdutos(orders: Order[], periodo: PeriodoVendas): RelatorioSimples {
+  interface Acumulado {
+    nome: string;
+    categoria: string;
+    quantidade: number;
+    receita: number;
+    pedidos: number;
+  }
+  const mapa = new Map<string, Acumulado>();
+
+  filtrarVendasPorPeriodo(orders, periodo).forEach((o) => {
+    const jaContado = new Set<string>();
+    (o?.items || []).forEach((i) => {
+      const qtd = Number(i?.quantity) || 0;
+      if (qtd <= 0) return;
+      const nome = String(i?.name || i?.productId || 'Produto');
+      const chave = String(i?.productId || nome);
+      if (!mapa.has(chave)) {
+        mapa.set(chave, {
+          nome,
+          categoria: String(i?.category || '—'),
+          quantidade: 0,
+          receita: 0,
+          pedidos: 0,
+        });
+      }
+      const acc = mapa.get(chave)!;
+      acc.quantidade += qtd;
+      acc.receita += qtd * (Number(i?.priceAtPurchase) || 0);
+      // Conta o produto uma vez por pedido, mesmo que apareça em linhas separadas.
+      if (!jaContado.has(chave)) {
+        acc.pedidos += 1;
+        jaContado.add(chave);
+      }
+    });
+  });
+
+  const produtos = Array.from(mapa.values()).sort(
+    (a, b) => b.receita - a.receita || b.quantidade - a.quantidade || a.nome.localeCompare(b.nome, 'pt-BR')
+  );
+  const receitaTotal = produtos.reduce((s, p) => s + p.receita, 0);
+  const unidades = produtos.reduce((s, p) => s + p.quantidade, 0);
+  const campeao = produtos[0];
+
+  return {
+    colunas: [
+      { rotulo: 'Produto' },
+      { rotulo: 'Categoria' },
+      { rotulo: 'Qtd', align: 'center' },
+      { rotulo: 'Pedidos', align: 'center' },
+      { rotulo: 'Preço médio', align: 'right' },
+      { rotulo: 'Receita', align: 'right' },
+      { rotulo: '% do total', align: 'right' },
+    ],
+    linhas: produtos.map((p) => [
+      p.nome,
+      p.categoria,
+      String(p.quantidade),
+      String(p.pedidos),
+      moeda(p.quantidade ? p.receita / p.quantidade : 0),
+      moeda(p.receita),
+      receitaTotal > 0 ? `${formatarMoeda((p.receita / receitaTotal) * 100)}%` : '0%',
+    ]),
+    resumo: [
+      { rotulo: 'Produtos vendidos', valor: String(produtos.length) },
+      { rotulo: 'Unidades vendidas', valor: String(unidades) },
+      { rotulo: 'Mais vendido', valor: campeao ? campeao.nome : '—' },
+      { rotulo: 'Receita total', valor: moeda(receitaTotal) },
+    ],
+    vazio: 'Nenhum produto vendido no período selecionado.',
   };
 }

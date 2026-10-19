@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ModalShell } from '../ui/ModalShell';
 import {
-  Printer, FileText, ShoppingCart, Wallet, Users, Package, MapPin,
+  Printer, FileText, ShoppingCart, Wallet, Users, Package, MapPin, TrendingUp,
 } from 'lucide-react';
 import { Order, Product, User } from '../../types';
 import { imprimirRelatorioSimplesA4 } from '../../utils/printUtils';
@@ -12,17 +12,19 @@ import {
   relatorioPresos,
   relatorioProdutos,
   relatorioVendas,
+  relatorioVendasProdutos,
   type PeriodoVendas,
   type RelatorioSimples,
 } from './relatoriosSimples';
 
-type ChaveRelatorio = 'vendas' | 'creditos' | 'clientes' | 'produtos' | 'presos';
+type ChaveRelatorio = 'vendas' | 'produtosVendidos' | 'produtos' | 'creditos' | 'clientes' | 'presos';
 
 const ABAS: { chave: ChaveRelatorio; rotulo: string; icone: React.ReactNode }[] = [
   { chave: 'vendas', rotulo: 'Vendas', icone: <ShoppingCart size={15} /> },
+  { chave: 'produtosVendidos', rotulo: 'Vendas por Produto', icone: <TrendingUp size={15} /> },
+  { chave: 'produtos', rotulo: 'Estoque', icone: <Package size={15} /> },
   { chave: 'creditos', rotulo: 'Créditos', icone: <Wallet size={15} /> },
-  { chave: 'clientes', rotulo: 'Clientes', icone: <Users size={15} /> },
-  { chave: 'produtos', rotulo: 'Produtos', icone: <Package size={15} /> },
+  { chave: 'clientes', rotulo: 'Fiado', icone: <Users size={15} /> },
   { chave: 'presos', rotulo: 'Presos e Saldos', icone: <MapPin size={15} /> },
 ];
 
@@ -31,11 +33,15 @@ const PERIODOS: PeriodoVendas[] = ['hoje', '7', '30', 'tudo'];
 // Título canônico do documento impresso (espelha o rótulo da aba).
 const TITULOS: Record<ChaveRelatorio, string> = {
   vendas: 'Relatório de Vendas',
+  produtosVendidos: 'Relatório de Vendas por Produto',
   creditos: 'Relatório de Créditos',
   clientes: 'Relatório de Clientes (Fiado)',
-  produtos: 'Relatório de Produtos',
+  produtos: 'Relatório de Estoque de Produtos',
   presos: 'Relatório de Presos e Saldos',
 };
+
+// Abas que respeitam o filtro de período (as demais são fotos do estado atual).
+const ABAS_COM_PERIODO: ChaveRelatorio[] = ['vendas', 'produtosVendidos'];
 
 interface AdminRelatoriosSimplesModalProps {
   open: boolean;
@@ -73,12 +79,16 @@ export const AdminRelatoriosSimplesModal: React.FC<AdminRelatoriosSimplesModalPr
         return relatorioProdutos(products);
       case 'presos':
         return relatorioPresos(users);
+      case 'produtosVendidos':
+        return relatorioVendasProdutos(orders, periodo);
       default:
         return relatorioVendas(orders, periodo);
     }
   }, [aba, periodo, orders, products, users]);
 
-  const subtitulo = aba === 'vendas'
+  const mostraPeriodo = ABAS_COM_PERIODO.includes(aba);
+
+  const subtitulo = mostraPeriodo
     ? `${ROTULO_PERIODO[periodo]} • emitido em ${new Date().toLocaleDateString('pt-BR')}`
     : `Emitido em ${new Date().toLocaleDateString('pt-BR')}`;
 
@@ -138,8 +148,8 @@ export const AdminRelatoriosSimplesModal: React.FC<AdminRelatoriosSimplesModalPr
         })}
       </div>
 
-      {/* Período (apenas Vendas) */}
-      {aba === 'vendas' && (
+      {/* Período (Vendas e Vendas por Produto) */}
+      {mostraPeriodo && (
         <div className="flex flex-wrap items-center gap-2 mb-4">
           <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Período:</span>
           {PERIODOS.map((p) => (
