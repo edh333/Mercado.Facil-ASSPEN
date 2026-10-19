@@ -524,8 +524,9 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
   };
 
   // ── Desconto: valida a senha conforme a faixa e SÓ ENTÃO aplica ──
-  // ≤20% = senha MESTRA · >20% até 50% = DUPLA senha (login + mestra).
-  // O servidor revalida as mesmas senhas antes de calcular o total.
+  // ≤20% = senha MESTRA · >20% até 50% = senha MESTRA + senha de LOGIN do
+  // administrador que está logado. O servidor revalida as mesmas senhas antes
+  // de calcular o total (validarDuplaSenhaServidor: primária = login, secundária = mestra).
   const confirmarDesconto = async () => {
     const v = parseFloat(String(descPctInput).replace(',', '.'));
     if (!Number.isFinite(v) || v <= 0) {
@@ -537,31 +538,33 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
       return;
     }
     const pct = Math.round(v * 10) / 10;
-    const s1 = descSenha1.trim();
-    const s2 = descSenha2.trim();
+    // Campo 1 = senha mestra · Campo 2 = senha de login do admin logado.
+    const mestra = descSenha1.trim();
+    const loginAdmin = descSenha2.trim();
     if (pct <= 20) {
-      if (!s1) { setDescErro('Informe a senha mestra.'); return; }
-    } else if (!s1 || !s2) {
-      setDescErro('Acima de 20% é necessária a DUPLA senha: senha de entrada (login) + senha mestra.');
+      if (!mestra) { setDescErro('Informe a senha mestra.'); return; }
+    } else if (!mestra || !loginAdmin) {
+      setDescErro('Acima de 20% é necessária a senha mestra + a senha de login do administrador.');
       return;
     }
     setValidandoDesconto(true);
     setDescErro('');
     try {
       if (pct <= 20) {
-        const ok = await validateAnyMasterPassword(s1);
+        const ok = await validateAnyMasterPassword(mestra);
         if (!ok) {
           setDescErro('Senha mestra inválida para autorizar o desconto.');
           return;
         }
       } else {
-        const res = await validateDualMasterPassword(s1, s2);
+        // primária = login do admin logado; secundária = mestra.
+        const res = await validateDualMasterPassword(loginAdmin, mestra);
         if (!res.ok) {
           setDescErro(
             res.motivo === 'secundaria'
-              ? 'Senha mestra incorreta (o segundo campo).'
+              ? 'Senha mestra incorreta (o primeiro campo).'
               : res.motivo === 'primaria'
-                ? 'Senha de entrada (login) incorreta (o primeiro campo).'
+                ? 'Senha de login do administrador incorreta (o segundo campo).'
                 : res.motivo === 'permissao'
                   ? 'Seu perfil não pode autorizar desconto acima de 20% — exclusivo de administradores.'
                   : 'Senhas inválidas para autorizar o desconto.'
@@ -570,7 +573,7 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
         }
       }
       setDescontoPct(pct);
-      setDescontoSenhas(pct <= 20 ? { primaria: s1 } : { primaria: s1, secundaria: s2 });
+      setDescontoSenhas(pct <= 20 ? { primaria: mestra } : { primaria: loginAdmin, secundaria: mestra });
       setDescontoAberto(false);
       showNotification(`Desconto de ${String(pct).replace('.', ',')}% aplicado.`, 'success');
     } catch {
@@ -1562,28 +1565,28 @@ if (pedidoOffline) {
 
                   <p className="text-[11px] font-semibold text-slate-400 mb-3">
                     {exigeDupla
-                      ? 'Acima de 20%: informe a senha de entrada (login) + a senha mestra.'
+                      ? 'Acima de 20%: informe a senha mestra + a senha de login do administrador.'
                       : 'Até 20%: informe a senha mestra.'}
                   </p>
 
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">{exigeDupla ? 'Senha de entrada (login)' : 'Senha mestra'}</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Senha mestra</label>
                   <input
                     type="password"
                     value={descSenha1}
                     onChange={(e) => { setDescSenha1(e.target.value); setDescErro(''); }}
                     onKeyDown={(e) => e.key === 'Enter' && podeConfirmar && !validandoDesconto && confirmarDesconto()}
-                    placeholder={exigeDupla ? 'Digite a senha de login' : 'Digite a senha mestra'}
+                    placeholder="Digite a senha mestra"
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white text-sm font-medium transition-all mb-3"
                   />
                   {exigeDupla && (
                     <>
-                      <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Senha mestra</label>
+                      <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Senha do administrador (login)</label>
                       <input
                         type="password"
                         value={descSenha2}
                         onChange={(e) => { setDescSenha2(e.target.value); setDescErro(''); }}
                         onKeyDown={(e) => e.key === 'Enter' && podeConfirmar && !validandoDesconto && confirmarDesconto()}
-                        placeholder="Digite a senha mestra"
+                        placeholder="Digite a senha do administrador"
                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white text-sm font-medium transition-all mb-3"
                       />
                     </>

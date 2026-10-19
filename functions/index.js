@@ -2571,10 +2571,10 @@ exports.processarVendaAdmin = onCall({
     }
   }
 
-  // DESCONTO no PDV: validado AQUI no servidor (nunca confia só no frontend).
-  // Faixas: até 20% = UMA senha, APENAS a mestra (validarSenhaUnicaServidor);
-  // acima de 20% até 50% = DUPLA senha (senha de entrada/login do operador
-  // logado + senha mestra, validarDuplaSenhaServidor — mesma régua do fiado).
+    // DESCONTO no PDV: validado AQUI no servidor (nunca confia só no frontend).
+    // Faixas: até 20% = UMA senha, APENAS a mestra (validarSenhaUnicaServidor);
+    // acima de 20% até 50% = senha mestra + senha de login do admin logado
+    // (primária = login, secundária = mestra em validarDuplaSenhaServidor).
   // Acima de 50% = proibido. Os erros dizem QUAL campo falhou (motivo).
   // O total é recalculado DENTRO da transação sobre o subtotal de catálogo.
   const descontoPctRaw = request.data?.descontoPct;
@@ -2620,7 +2620,7 @@ exports.processarVendaAdmin = onCall({
       const sPrimariaDesc = String(request.data?.senhaPrimaria || "");
       const sSecundariaDesc = String(request.data?.senhaSecundaria || "");
       if (!sPrimariaDesc || !sSecundariaDesc) {
-        throw new HttpsError("invalid-argument", "Desconto acima de 20% exige a DUPLA senha: senha de entrada (login) + senha mestra.");
+        throw new HttpsError("invalid-argument", "Desconto acima de 20% exige a DUPLA senha: senha mestra + senha de login do administrador.");
       }
       const duplaDesc = await validarDuplaSenhaServidor(caller, sPrimariaDesc, sSecundariaDesc, apiKeyDesconto);
       if (!duplaDesc.ok) {
