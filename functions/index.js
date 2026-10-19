@@ -3202,49 +3202,14 @@ exports.registrarPedidoPix = onCall({
     }
   }
 
-  // DUPLICIDADE DE COMPROVANTE: impede que a MESMA imagem seja usada
-  // em dois pedidos diferentes (reuso de print de tela, WhatsApp, etc.).
-  // Exclui o próprio pedido (replay) e pedidos cancelados/estornados.
-  // FAIL-CLOSED: se a query composta falhar (índice ausente), tenta
-  // fallback sem filtro de status; se falhar de novo, rejeita o pedido.
-  if (paymentProofUrl !== "PENDENTE_UPLOAD_LOCAL_CACHE") {
-    try {
-      const provasUsadas = await db.collection("orders")
-        .where("paymentProofUrl", "==", paymentProofUrl)
-        .where("status", "not-in", ["cancelled", "cancelado", "refunded", "devolvido", "reembolsado", "rejected", "rejeitado"])
-        .limit(1)
-        .get();
-      if (!provasUsadas.empty) {
-        const jaUsado = provasUsadas.docs[0].data();
-        throw new HttpsError("already-exists", `Este comprovante já foi usado no pedido #${jaUsado.id} (${jaUsado.status}). Cada comprovante só pode confirmar uma compra.`);
-      }
-    } catch (e) {
-      if (e instanceof HttpsError) throw e;
-      // Índice composto ausente — fallback: busca sem filtro de status
-      // (aceita falso-positivo de pedidos cancelados como seguro)
-      logger.warn("Query composta falhou, usando fallback sem filtro de status:", e.message);
-      try {
-        const provasUsadas = await db.collection("orders")
-          .where("paymentProofUrl", "==", paymentProofUrl)
-          .limit(5)
-          .get();
-        if (!provasUsadas.empty) {
-          const ativos = provasUsadas.docs.filter(d => {
-            const s = String(d.data().status || "").toLowerCase();
-            return s !== "cancelled" && s !== "cancelado" && s !== "refunded" && s !== "devolvido" && s !== "reembolsado" && s !== "rejected" && s !== "rejeitado";
-          });
-          if (ativos.length > 0) {
-            const jaUsado = ativos[0].data();
-            throw new HttpsError("already-exists", `Este comprovante já foi usado no pedido #${ativos[0].id} (${jaUsado.status}). Cada comprovante só pode confirmar uma compra.`);
-          }
-        }
-      } catch (e2) {
-        if (e2 instanceof HttpsError) throw e2;
-        // Falha total na verificação — rejeita por segurança
-        throw new HttpsError("unavailable", "Não foi possível verificar duplicidade do comprovante. Tente novamente em instantes.");
-      }
-    }
-  }
+  // DUPLICIDADE DE COMPROVANTE: impede que a MESMA imagem seja usada em dois
+  // pedidos diferentes (reuso de print de tela, WhatsApp, etc.).
+  //
+  // A verificação vive DENTRO da transação (logo após o guard de idempotência).
+  // Antes ela rodava aqui fora e tinha dois defeitos: (1) o REENVIO de um
+  // pedido legítimo (timeout de rede) era acusado de "comprovante já usado"
+  // contra o próprio pedido, em vez de devolver o replay; (2) dois envios
+  // simultâneos passavam juntos pela janela entre a checagem e a escrita.
 
  const orderId = (crypto.randomUUID ? crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase() : Math.random().toString(36).slice(2, 14)).toUpperCase();
   const clientToken = lerClientToken(request.data);
@@ -3271,6 +3236,22 @@ exports.registrarPedidoPix = onCall({
           if (e instanceof HttpsError) throw e;
           // Se a query falhar (índice), mantém o fluxo — a dedup por URL
           // ainda atua como proteção secundária.
+        }
+      }
+      // DUPLICIDADE DE COMPROVANTE DENTRO DA TRANSAÇÃO: a checagem por URL
+      // antes daqui tem janela de corrida — dois envios simultâneos com o
+      // mesmo comprovante passavam e viravam dois pedidos. Repetida dentro da
+      // transação (query de igualdade, serializada pelo Firestore), o segundo
+      // enxerga o pedido criado pelo primeiro e recebe "already-exists".
+      if (paymentProofUrl !== "PENDENTE_UPLOAD_LOCAL_CACHE") {
+        const urlSnap = await t.get(db.collection("orders")
+          .where("paymentProofUrl", "==", paymentProofUrl)
+          .limit(5));
+        const INATIVOS = ["cancelled","cancelado","refunded","devolvido","reembolsado","rejected","rejeitado"];
+        const duplicados = urlSnap.docs.filter((d) => !INATIVOS.includes(String(d.data().status || "").toLowerCase()));
+        if (duplicados.length > 0) {
+          const jaUsado = duplicados[0].data();
+          throw new HttpsError("already-exists", `Este comprovante já foi usado no pedido #${jaUsado.id} (${jaUsado.status || "?"}). Cada comprovante só pode confirmar uma compra.`);
         }
       }
       const { resultado: itensComPreco, total } = await prepararItensServidor(t, itens);

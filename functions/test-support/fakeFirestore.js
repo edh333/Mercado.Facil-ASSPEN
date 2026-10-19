@@ -308,12 +308,20 @@ export function createFakeFirestore() {
   };
 
   let authUser = null;
+  // Metadados do Storage falso: caminho -> objeto de metadado | null (inexistente).
+  let storageFiles = {};
 
   return {
     db,
     FieldValue,
     Timestamp: FakeTimestamp,
     FieldPath: { documentId: () => "__name__" },
+    get storageFiles() {
+      return storageFiles;
+    },
+    set storageFiles(v) {
+      storageFiles = v || {};
+    },
     setAuthUser(u) {
       authUser = u;
     },
@@ -325,6 +333,7 @@ export function createFakeFirestore() {
       db._store = new Map();
       db._counter = 0;
       authUser = null;
+      storageFiles = {};
       for (const [coll, docs] of Object.entries(seed)) {
         const m = new Map();
         for (const [id, data] of Object.entries(docs)) m.set(id, clone(data));

@@ -40,7 +40,23 @@ function buildMocks() {
       FieldPath: fake.FieldPath,
     }),
     auth: () => ({ getUser: (uid) => fake.authGetUser(uid) }),
-    storage: () => ({}),
+    // Bucket falso: devolve metadado válido por padrão para qualquer caminho,
+    // permitindo testar comprovantes de PIX. Um teste pode sobrescrever
+    // fake.storageFiles[caminho] (objeto de metadado) ou definir null para
+    // simular arquivo inexistente.
+    storage: () => ({
+      bucket: () => ({
+        file: (caminho) => ({
+          getMetadata: async () => {
+            const files = fake.storageFiles || {};
+            if (Object.prototype.hasOwnProperty.call(files, caminho) && files[caminho] === null) {
+              throw new Error("Object does not exist.");
+            }
+            return [files[caminho] || { size: 262144, contentType: "image/jpeg" }];
+          },
+        }),
+      }),
+    }),
   };
 
   const byRequest = {
