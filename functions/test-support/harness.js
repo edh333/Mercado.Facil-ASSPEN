@@ -55,6 +55,9 @@ function buildMocks() {
             return [files[caminho] || { size: 262144, contentType: "image/jpeg" }];
           },
         }),
+        // Lista de arquivos do bucket (usada por listarBackups). Configure via
+        // fake.storageFileList = [{ name, metadata: { size, updated } }].
+        getFiles: async () => [fake.storageFileList || []],
       }),
     }),
   };

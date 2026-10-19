@@ -310,6 +310,8 @@ export function createFakeFirestore() {
   let authUser = null;
   // Metadados do Storage falso: caminho -> objeto de metadado | null (inexistente).
   let storageFiles = {};
+  // Lista de arquivos devolvida por bucket.getFiles() (ex.: listarBackups).
+  let storageFileList = [];
 
   return {
     db,
@@ -321,6 +323,12 @@ export function createFakeFirestore() {
     },
     set storageFiles(v) {
       storageFiles = v || {};
+    },
+    get storageFileList() {
+      return storageFileList;
+    },
+    set storageFileList(v) {
+      storageFileList = v || [];
     },
     setAuthUser(u) {
       authUser = u;
@@ -334,6 +342,7 @@ export function createFakeFirestore() {
       db._counter = 0;
       authUser = null;
       storageFiles = {};
+      storageFileList = [];
       for (const [coll, docs] of Object.entries(seed)) {
         const m = new Map();
         for (const [id, data] of Object.entries(docs)) m.set(id, clone(data));

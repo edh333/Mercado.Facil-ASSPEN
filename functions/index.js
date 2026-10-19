@@ -1717,13 +1717,19 @@ exports.zerarCarteiras = onCall(async (request) => {
     // Processa cada usuário em transação individual (seguro contra race conditions)
     // Chunk de 300 → 300 transações pequenas, mas atômicas por usuário.
     for (const docSnap of snap.docs) {
+      // `registrado` é ATRIBUÍDO dentro da transação (operação idempotente) e
+      // só entra na lista DEPOIS do commit. Antes o push acontecia dentro do
+      // callback: quando o Firestore reexecutava a transação por contenção, o
+      // mesmo usuário era contado duas vezes — inflando `totalZeradas` e
+      // duplicando a entrada na auditoria.
+      let registrado = null;
       await db.runTransaction(async (t) => {
         const freshSnap = await t.get(docSnap.ref);
         if (!freshSnap.exists) return;
         const fresh = freshSnap.data();
         const saldo = arredondar(Number(fresh.walletBalance || 0));
         if (saldo <= 0) return;
-        antes.push({ id: docSnap.id, nome: fresh.name || "", saldo });
+        registrado = { id: docSnap.id, nome: fresh.name || "", saldo };
         t.update(docSnap.ref, { walletBalance: 0 });
         registrarTransacaoCarteira(t, db.collection("wallet_transactions").doc(), {
           userId: docSnap.id,
@@ -1737,6 +1743,7 @@ exports.zerarCarteiras = onCall(async (request) => {
           payerId: caller.id,
         });
       });
+      if (registrado) antes.push(registrado);
     }
     if (snap.docs.length < 300) break;
     lastDoc = snap.docs[snap.docs.length - 1];
@@ -4134,13 +4141,15 @@ exports.criarClienteFiado = onCall({
 
 /** Zera weeklySpent de todos os usuários uma vez por semana (na 2ª-feira). */
 async function executarResetSemanal() {
-  const now = new Date();
-  const day = now.getDay();
-  const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-  const monday = new Date(now);
-  monday.setDate(diff);
-  monday.setHours(0, 0, 0, 0);
-  const mondayStr = monday.toISOString().split("T")[0];
+  // Segunda-feira da semana como "AAAA-MM-DD", calculada a partir da data
+  // LOCAL do sistema (America/Cuiaba), igual ao resto do arquivo. Antes usava
+  // toISOString() sobre uma data local: o resultado é a data em UTC, que num
+  // fuso a leste podia cair no domingo anterior e gravar a semana errada.
+  const [ano, mes, dia] = dataDiaLocalMT().split("-").map(Number);
+  const ref = new Date(Date.UTC(ano, mes - 1, dia));
+  const dow = ref.getUTCDay(); // 0 = domingo
+  ref.setUTCDate(ref.getUTCDate() - (dow === 0 ? 6 : dow - 1));
+  const mondayStr = ref.toISOString().slice(0, 10);
 
   const settingsRef = db.collection("settings").doc("maintenance");
   const settingsSnap = await settingsRef.get();
@@ -5458,9 +5467,12 @@ exports.executarBackupAgora = onCall({
   return { ok: true, ...r };
 });
 
-/** Admin — lista os backups disponíveis (nome, tamanho, data). */
+/** Admin PRINCIPAL — lista os backups disponíveis (nome, tamanho, data).
+ *  Restrito ao principal porque o mesmo painel dá acesso a download e
+ *  restauração, que também são exclusivos do principal (ver baixarBackup /
+ *  gerarBackupAssinado / restaurarBackup). */
 exports.listarBackups = onCall(async (request) => {
-  await exigirAdmin(request);
+  await exigirAdminPrincipal(request);
   const bucket = admin.storage().bucket(FUNC_BUCKET);
   const [files] = await bucket.getFiles({ prefix: "backups/" });
   const backups = files
