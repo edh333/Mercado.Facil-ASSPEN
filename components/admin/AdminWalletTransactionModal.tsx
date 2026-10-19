@@ -249,14 +249,26 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
     doc.open();
     doc.write(content);
     doc.close();
-    try {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
-    } catch (e) {
-      notifCtx('Falha ao imprimir. Tente novamente ou use outro navegador.', 'error');
-    } finally {
-      setTimeout(() => iframe.remove(), 1000);
-    }
+
+    // NÃO chamar print() de forma síncrona logo após doc.close(): o HTML ainda
+    // não renderizou e a impressão saía em branco. Espera o load do iframe com
+    // um fallback por tempo, disparando UMA única vez.
+    const win = iframe.contentWindow;
+    let jaImprimiu = false;
+    const dispararImpressao = () => {
+      if (jaImprimiu) return;
+      jaImprimiu = true;
+      try {
+        win?.focus();
+        win?.print();
+      } catch {
+        notifCtx('Falha ao imprimir. Tente novamente ou use outro navegador.', 'error');
+      } finally {
+        setTimeout(() => iframe.remove(), 1000);
+      }
+    };
+    win?.addEventListener('load', () => setTimeout(dispararImpressao, 150), { once: true });
+    setTimeout(dispararImpressao, 700);
   };
 
   const handleDownload = async () => {
@@ -464,7 +476,8 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
                             <Activity size={14} className="animate-pulse"/> Atenção: Modo Offline
                         </p>
                         <p className="text-[10px] text-slate-500 mt-1 font-bold">
-                            As validações feitas agora serão salvas localmente e sincronizadas quando a internet voltar. Não feche o aplicativo.
+                            A validação de depósitos move dinheiro no servidor e exige conexão — essa ação
+                            não entra na fila offline. Reconecte para aprovar ou recusar.
                         </p>
                     </div>
                 )}
@@ -472,14 +485,14 @@ export const AdminWalletTransactionModal: React.FC<AdminWalletTransactionModalPr
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <button
                         onClick={() => setConfirmAction('reject')}
-                        disabled={isApproving || isRejecting}
+                        disabled={isApproving || isRejecting || isOffline}
                         className="py-5 bg-red-50 text-red-600 border-2 border-red-200 rounded-3xl font-black text-[11px] uppercase tracking-widest hover:bg-red-100 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50 touch-target"
                       >
                         <XCircle size={20}/> {isRejecting ? 'REJEITANDO...' : 'Recusar Depósito'}
                       </button>
                       <button
                         onClick={() => setConfirmAction('approve')}
-                        disabled={isApproving || isRejecting}
+                        disabled={isApproving || isRejecting || isOffline}
                         className="py-5 bg-brand text-white rounded-3xl font-black text-[11px] uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50 touch-target"
                       >
                         <CheckCircle size={20}/> {isApproving ? 'PROCESSANDO...' : 'Validar e Creditar'}

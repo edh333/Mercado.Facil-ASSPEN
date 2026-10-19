@@ -20,7 +20,7 @@ import {
     MAX_PROOF_BYTES, contentTypeParaArquivo, ehFalhaDeUploadPermanente,
     extensaoDe, mensagemFalhaPermanente,
 } from '../utils/proofUpload';
-import { toDate } from '../utils/dateUtils';
+import { toDate, segundaFeiraLocalMT } from '../utils/dateUtils';
 import { precoEfetivo } from '../utils/money';
 import { ASSPEN_INFO, INITIAL_UNITS } from '../constants';
 import { db, auth, storage, FIREBASE_API_KEY } from '../firebase';
@@ -655,13 +655,9 @@ const docIdLoginRef = useRef<string | null>(null);
     const checkWeeklyReset = async () => {
         if (!currentUser || currentUser.role !== UserRole.ADMIN) return;
         try {
-            const now = new Date();
-            const day = now.getDay();
-            const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-            const monday = new Date(now);
-            monday.setDate(diff);
-            monday.setHours(0, 0, 0, 0);
-            const mondayStr = monday.toISOString().split('T')[0];
+            // Mesma string que o servidor grava (America/Cuiaba): usar toISOString()
+            // aqui dava a data em UTC e o aviso de defasagem disparava sem motivo.
+            const mondayStr = segundaFeiraLocalMT();
 
             const settingsSnap = await getDoc(doc(db, 'settings', 'maintenance'));
             const lastReset = settingsSnap.exists() ? settingsSnap.data()?.lastWeeklyReset : '';

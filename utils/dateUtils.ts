@@ -52,3 +52,27 @@ export function toDate(value: any): Date | null {
 export function toISOString(value: any): string {
   return toDate(value)?.toISOString() ?? "";
 }
+
+/**
+ * Dia LOCAL atual do sistema (America/Cuiaba) como "AAAA-MM-DD".
+ * Espelha o `dataDiaLocalMT()` das Cloud Functions — usar em vez de
+ * `new Date().toISOString().slice(0,10)`, que devolve a data em UTC e, a partir
+ * das ~20h locais, já mostra o dia seguinte.
+ */
+export function diaLocalMT(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Cuiaba' });
+}
+
+/**
+ * Segunda-feira da semana atual (America/Cuiaba) como "AAAA-MM-DD".
+ * O backstop do reset semanal no cliente precisa produzir a MESMA string que o
+ * servidor grava em settings/maintenance.lastWeeklyReset; se divergir (ex.: UTC
+ * vs fuso local), o aviso de defasagem dispara toda vez, sem defasagem real.
+ */
+export function segundaFeiraLocalMT(): string {
+  const [ano, mes, dia] = diaLocalMT().split('-').map(Number);
+  const ref = new Date(Date.UTC(ano, mes - 1, dia));
+  const dow = ref.getUTCDay(); // 0 = domingo
+  ref.setUTCDate(ref.getUTCDate() - (dow === 0 ? 6 : dow - 1));
+  return ref.toISOString().slice(0, 10);
+}

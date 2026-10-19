@@ -214,8 +214,11 @@ export const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({
 
   React.useEffect(() => {
     refreshPontos();
-    refreshBackupsNuvem();
-  }, [refreshBackupsNuvem]);
+    // Backup na nuvem é restrito ao administrador principal (listar, baixar e
+    // restaurar). Só busca a lista quando for principal, para não disparar uma
+    // chamada que seria negada pelo servidor.
+    if (isMaster) refreshBackupsNuvem();
+  }, [refreshBackupsNuvem, isMaster]);
 
   const handleBackupAgora = async () => {
     setBackupExecutando(true);
@@ -1465,6 +1468,16 @@ const handleBaixarBackup = async (nome: string) => {
         {/* ── MANUTENÇÃO ── */}
         {activeSubTab === 'backup' && (
           <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-2xl space-y-6 animate-slideUp">
+            {!isMaster ? (
+              <div className="text-center py-10 space-y-3">
+                <Shield size={28} className="mx-auto text-slate-300" />
+                <p className="text-sm font-black uppercase tracking-widest text-slate-800">Área do administrador principal</p>
+                <p className="text-xs font-semibold text-slate-500 max-w-md mx-auto">
+                  A cópia de segurança do banco (backup, download e restauração) é restrita ao administrador principal.
+                </p>
+              </div>
+            ) : (
+              <>
             <div className="flex flex-wrap items-center justify-between gap-4">
               <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
                 <Database size={20} className="text-blue-600" /> Backup na Nuvem
@@ -1565,6 +1578,8 @@ const handleBaixarBackup = async (nome: string) => {
                 </div>
               )}
             </div>
+              </>
+            )}
           </div>
         )}
 

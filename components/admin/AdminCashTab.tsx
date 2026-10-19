@@ -252,7 +252,10 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
     const mapa: Record<string, { quantidade: number; total: number }> = {};
     vendasHoje.forEach((o: any) => {
       const metodo = String(o?.paymentMethod || '').toUpperCase();
-      const rotulo = metodo === 'CASH' ? 'DINHEIRO' : metodo === 'WALLET' ? 'CARTEIRA' : metodo || 'OUTROS';
+      const rotulo = metodo === 'CASH' ? 'DINHEIRO'
+        : metodo === 'WALLET' ? 'CARTEIRA'
+        : metodo === 'FIADO_30' ? 'FIADO 30 DIAS'
+        : metodo || 'OUTROS';
       mapa[rotulo] = mapa[rotulo] || { quantidade: 0, total: 0 };
       mapa[rotulo].quantidade += 1;
       mapa[rotulo].total += Number(o?.total) || 0;
@@ -274,7 +277,10 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
       totalDia,
       caixa,
       carteiraTotal: soma('CARTEIRA'),
-      fiadoTotal: soma('FIADO'),
+      // Soma TANTO o fiado simples quanto o "a prazo" (30 dias): antes só a
+      // linha 'FIADO' entrava e o valor do FIADO_30 sumia do total do boletim,
+      // fazendo o total do dia não fechar com as formas listadas.
+      fiadoTotal: formas.filter((f) => f.metodo.startsWith('FIADO')).reduce((s, f) => s + f.total, 0),
       emitidoPor: operatorName,
     });
     setShowBoletim(true);
