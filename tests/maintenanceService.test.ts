@@ -85,4 +85,12 @@ describe('maintenanceService', () => {
     expect(pct).toBeGreaterThan(0);
     expect(pct).toBeLessThanOrEqual(100);
   });
+
+  it('guarda diária usa a data LOCAL (America/Cuiaba), não UTC', () => {
+    executarManutencao(s);
+    // Após as 20h locais a data UTC já é "amanhã"; a guarda precisa seguir o
+    // fuso local para a manutenção pesada rodar no máximo 1x por dia.
+    const local = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Cuiaba' });
+    expect(s.getItem('sistema_manutencao_dia')).toBe(local);
+  });
 });

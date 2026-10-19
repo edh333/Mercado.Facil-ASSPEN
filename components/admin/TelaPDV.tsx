@@ -1211,7 +1211,7 @@ if (pedidoOffline) {
           )}
 
           {/* ELEMENTO 3: FIADO — Exige senha do supervisor */}
-          {formaPagamento === 'FIADO' && (
+          {isFiado && (
             <div className="bg-white border border-slate-200/80 rounded-xl p-4 flex flex-col gap-3 w-full mb-4 animate-in fade-in duration-200 shrink-0">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Venda a Fiado — Requer Autorização</span>
               {semClienteCredito ? (

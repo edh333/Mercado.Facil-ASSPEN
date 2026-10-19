@@ -12,6 +12,8 @@
  *  - Operações pesadas rodam no máx. 1x por dia; verificação leve a cada 6h.
  */
 
+import { diaLocalMT } from './dateUtils';
+
 export type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem' | 'key' | 'length'>;
 
 export interface ChecagemSaude {
@@ -38,7 +40,9 @@ const CHAVES_JSON = ['appSettings', 'mf_vendas_offline', 'pdv_suspended_carts', 
 const COTA_ESTIMADA_BYTES = 5 * 1024 * 1024;
 
 function hoje(): string {
-  return new Date().toISOString().slice(0, 10);
+  // Data LOCAL (America/Cuiaba), não UTC: com toISOString() a "guarda diária"
+  // virava o dia às 21h locais e a manutenção pesada podia rodar 2x no mesmo dia.
+  return diaLocalMT();
 }
 
 /** Uso aproximado do localStorage em % da cota típica. */
