@@ -4,7 +4,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Product, User, Order, AppConfig, UserRole, InmateLocation } from '../../types';
 import { filtrarClientesPdv } from '../../utils/pdvSearch';
 import { formatarMoeda, generatePixPayload as generatePix, isAdminRole, mascararCpf } from '../../utils';
-import { parseMoeda, precoEfetivo } from '../../utils/money';
+import { parseMoeda, precoEfetivo, sanitizeMoedaInput } from '../../utils/money';
 import { rotularCliente } from '../../utils/clienteRotulos';
 import { montarPagamentoPdv, arredondarCentavos, MetodoPagamentoPDV, MetodoLancamento } from '../../utils/pdvPayment';
 import { imprimirSilenciosoFiscal, imprimirComPrioridadeFiscal } from '../../utils/printUtils';
@@ -1330,7 +1330,7 @@ if (pedidoOffline) {
                   type="text"
                   inputMode="decimal"
                   value={valorRecebido}
-                  onChange={(e) => setValorRecebido(e.target.value)}
+                  onChange={(e) => setValorRecebido(sanitizeMoedaInput(e.target.value))}
                   placeholder="R$ 0,00"
                   className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white text-sm font-medium transition-all"
                 />

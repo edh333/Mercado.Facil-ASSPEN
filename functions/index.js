@@ -186,6 +186,20 @@ function dataDiaLocalMT() {
   return new Date().toLocaleDateString("en-CA", { timeZone: "America/Cuiaba" });
 }
 
+/** Converte Timestamp do Firestore, objeto {seconds} ou string ISO para ms.
+ *  Sessões antigas gravaram `openedAt` como string ISO — sem este parser elas
+ *  viram new Date(0) e ficam INVISÍVEIS para o estorno (a gaveta não é devolvida). */
+function msDeData(valor) {
+  if (!valor) return 0;
+  if (typeof valor.toDate === "function") return valor.toDate().getTime();
+  if (typeof valor === "string") {
+    const p = Date.parse(valor);
+    return Number.isFinite(p) ? p : 0;
+  }
+  if (typeof valor === "object" && Number.isFinite(valor.seconds)) return valor.seconds * 1000;
+  return 0;
+}
+
 /** Garante que o chamador é admin (role 'admin'/'ADMIN'/'master' no doc users) e está ativo. */
 async function exigirAdmin(context) {
   if (!context || !context.auth || !context.auth.uid) {
@@ -1995,7 +2009,7 @@ exports.sacarSaldoProprio = onCall({
   const cfgTeto = Number(genCfg.limiteSaqueProprioDiario);
   const tetoDia = Number.isFinite(cfgTeto) && cfgTeto >= 0 ? arredondar(cfgTeto) : 1000;
 
-  const hoje = new Date().toISOString().slice(0, 10);
+  const hoje = dataDiaLocalMT();
   let novoSaldoFinal = null;
   let saldoAnterior = null;
   let totalDia = 0;
@@ -2366,10 +2380,10 @@ async function resolverSessaoCaixaDoPedido(pedido) {
   const sessao = snap.docs
 .map((d) => ({ ...d.data(), id: d.id }))
     .find((s) => {
-      const ab = s.openedAt ? (s.openedAt.toDate ? s.openedAt.toDate().getTime() : new Date((s.openedAt.seconds || 0) * 1000).getTime()) : 0;
+      const ab = msDeData(s.openedAt);
       if (!ab || ab > momento) return false;
       if (s.closedAt) {
-        const fe = s.closedAt.toDate ? s.closedAt.toDate().getTime() : new Date((s.closedAt.seconds || 0) * 1000).getTime();
+        const fe = msDeData(s.closedAt);
         if (fe < momento) return false;
       }
       return true;
@@ -3765,6 +3779,10 @@ exports.registrarPagamentoConta = onCall({
   const customerAccountId = String(request.data?.customerAccountId || "").trim();
   const amount = arredondar(Number(request.data?.amount) || 0);
   const note = String(request.data?.note || "").trim().slice(0, 120);
+  // Idempotência: um retry (toque duplo ou timeout de rede) NÃO pode aplicar o
+  // pagamento duas vezes — a dívida seria abatida em dobro e a gaveta receberia
+  // o valor duas vezes, aparecendo como sobra no fechamento de caixa.
+  const clientToken = lerClientToken(request.data);
 
   if (!customerAccountId) throw new HttpsError("invalid-argument", "Cliente de fiado não informado.");
   if (!(amount > 0)) throw new HttpsError("invalid-argument", "Valor do pagamento deve ser maior que zero.");
@@ -3781,6 +3799,19 @@ exports.registrarPagamentoConta = onCall({
   let resultado;
   try {
     resultado = await db.runTransaction(async (t) => {
+      // FASE 1 — reenvio do mesmo clientToken devolve o resultado já aplicado,
+      // sem abater a dívida de novo nem creditar a gaveta uma segunda vez.
+      const reqRef = clientToken ? db.collection("request_guard").doc(`pgto_${clientToken}`) : null;
+      if (reqRef) {
+        const reqSnap = await t.get(reqRef);
+        if (reqSnap.exists) {
+          const r = reqSnap.data();
+          if (r.type === "pagamento_conta" && r.customerAccountId === customerAccountId) {
+            return { ...r.result, replay: true };
+          }
+          throw new Error("Requisição duplicada (token já utilizado).");
+        }
+      }
       const contaSnap = await t.get(clienteRef);
       if (!contaSnap.exists) throw new Error("Conta de fiado não encontrada.");
       const conta = contaSnap.data();
@@ -3844,19 +3875,33 @@ exports.registrarPagamentoConta = onCall({
         t.update(sessaoSnap.ref, payloadPgt);
       }
 
-      return { dividaAnterior: dividaAtual, novoDebito };
+      const resultadoPgto = { dividaAnterior: dividaAtual, novoDebito };
+      // FASE 2 — grava a marca do token DEPOIS de todas as leituras/escritas.
+      if (reqRef) {
+        t.set(reqRef, {
+          type: "pagamento_conta",
+          userId: caller.id,
+          customerAccountId,
+          amount,
+          result: resultadoPgto,
+          createdAt: admin.firestore.Timestamp.now(),
+        });
+      }
+      return resultadoPgto;
     });
   } catch (e) {
     console.error("[registrarPagamentoConta] Falha ao registrar pagamento:", e && e.message, e && e.stack);
     if (e && e.code && String(e.code).startsWith("functions/")) throw e;
     const msg = (e && e.message) || "Falha ao registrar o pagamento. Tente novamente.";
-    if (/n[aã]o encontrad|j[aá] foi paga|valor deve ser maior|excede|limite|bloquead/i.test(msg)) {
+    if (/n[aã]o encontrad|j[aá] foi paga|valor deve ser maior|excede|supera a d.vida|m[áa]ximo o valor devido|limite|bloquead/i.test(msg)) {
       throw new HttpsError("invalid-argument", msg);
     }
     throw new HttpsError("internal", "Falha ao registrar o pagamento. Tente novamente.");
   }
 
-  await registrarAudit(caller.id, "PAGAR_CONTA_FIADO", { clienteId: customerAccountId, amount }, resultado);
+  if (!resultado.replay) {
+    await registrarAudit(caller.id, "PAGAR_CONTA_FIADO", { clienteId: customerAccountId, amount }, resultado);
+  }
 
   return { ok: true, ...resultado };
 });
@@ -5786,7 +5831,10 @@ exports.gerenciarSessaoCaixa = onCall({
           throw new HttpsError("failed-precondition", "Esta sessão de caixa já foi encerrada.");
         }
         expected = Number(sessaoDados.currentBalance || 0);
-        diff = contado - expected;
+        // Arredonda ANTES de comparar: contado - expected acumula resíduo de
+        // ponto flutuante (1e-13) que marcava hasDiscrepancy falso na virada
+        // de centavos. Diferença real de centavo continua sendo sinalizada.
+        diff = arredondar(contado - expected);
         t.update(ref, {
           status: "closed",
           closedAt: AGORA(),
@@ -5794,7 +5842,7 @@ exports.gerenciarSessaoCaixa = onCall({
           expectedBalance: expected,
           cashDifference: diff,
           balanceDiff: diff,
-          hasDiscrepancy: diff !== 0,
+          hasDiscrepancy: Math.abs(diff) >= 0.01,
           closedByName: closedByName,
           closedBy: caller.id,
         });

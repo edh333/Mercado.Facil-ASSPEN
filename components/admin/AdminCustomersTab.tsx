@@ -50,6 +50,10 @@ export function AdminCustomersTab({
   const [payModal, setPayModal] = useState<{ customer: CustomerAccount } | null>(null);
   const [payAmount, setPayAmount] = useState('');
   const [paying, setPaying] = useState(false);
+  // Token de idempotência do recebimento: fixo por INTENÇÃO de pagamento (gerado
+  // ao abrir o modal), para que um toque duplo/reenvio devolva o MESMO token e o
+  // servidor não abata a dívida nem credite a gaveta duas vezes.
+  const [payToken, setPayToken] = useState('');
 
   const exportCSV = () => {
     const debtors = accounts.filter(a => (a.currentDebt || 0) > 0);
@@ -178,7 +182,8 @@ export function AdminCustomersTab({
         payModal!.customer.id,
         parseMoeda(payAmount),
         session?.id,
-        senhaMestra
+        senhaMestra,
+        payToken
       );
       // Pagamento registrado SEM servidor: a dívida abateu, mas o caixa digital
       // não foi creditado (sem sessão de caixa). Isso precisa aparecer para o
@@ -356,7 +361,7 @@ export function AdminCustomersTab({
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <button
-                      onClick={() => { setPayModal({ customer: c }); setPayAmount(''); }}
+                      onClick={() => { setPayModal({ customer: c }); setPayAmount(''); setPayToken(crypto.randomUUID()); }}
                       disabled={!c.currentDebt || c.currentDebt <= 0}
                       className="px-4 py-2.5 bg-brand text-white text-xs font-black rounded-xl hover:bg-brand-dark transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed shadow-sm uppercase tracking-wider"
                     >
