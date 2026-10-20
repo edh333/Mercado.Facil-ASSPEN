@@ -5,7 +5,7 @@ import { CatalogoA4 } from './CatalogoA4';
 import { RelatorioA4 } from './RelatorioA4';
 import { NotaPromissoriaA4 } from './NotaPromissoriaA4';
 import { gerarCupomEntregaRaw, imprimirBobinaFiscal, imprimirHtmlSilencioso, baixarCupomTxt } from '../utils/printUtils';
-import { Printer, Download, X, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
+import { Printer, Download, X, CheckCircle, AlertTriangle, Loader2, WifiOff } from 'lucide-react';
 
 interface PrintData {
     item: {
@@ -24,6 +24,7 @@ export const PrintPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [isFiscalPrinting, setIsFiscalPrinting] = useState(false);
     const [closeCountdown, setCloseCountdown] = useState(0);
+    const [qzStatus, setQzStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
     const rawCupomRef = useRef('');
     const closedRef = useRef(false);
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -36,6 +37,30 @@ export const PrintPage: React.FC = () => {
     const printingRef = useRef(false);
 
     statusRef.current = status;
+    const verificarQz = async () => {
+        try {
+            const w = window as any;
+            if (w.qz && typeof w.qz.websocket && w.qz.websocket.isActive && w.qz.websocket.isActive()) {
+                setQzStatus('connected');
+                return;
+            }
+            setTimeout(() => {
+                try {
+                    const w2 = window as any;
+                    if (w2.qz && w2.qz.websocket && w2.qz.websocket.isActive && w2.qz.websocket.isActive()) {
+                        setQzStatus('connected');
+                    } else {
+                        setQzStatus('disconnected');
+                    }
+                } catch {
+                    setQzStatus('disconnected');
+                }
+            }, 2000);
+        } catch {
+            setQzStatus('disconnected');
+        }
+    };
+
 
     // Carrega (ou RECARREGA) os dados da impressão. Chamado no mount e sempre
     // que a janela do pai publica uma NOVA impressão (evento 'storage') — assim
@@ -136,7 +161,7 @@ export const PrintPage: React.FC = () => {
                             // Tailwind CDN recria as utility classes dos componentes A4 na janela silenciosa.
                             const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
                             <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-                            <script src="https://cdn.tailwindcss.com"><\/script>
+                            <style>*,::after,::before{box-sizing:border-box}body{font-family:Inter,-apple-system,BlinkMacSystemFont,sans-serif;margin:0;background:#fff;color:#000}.text-center{text-align:center}.text-left{text-align:left}.text-right{text-align:right}.font-black{font-weight:900}.font-bold{font-weight:700}.font-semibold{font-weight:600}.font-extrabold{font-weight:800}.font-medium{font-weight:500}.uppercase{text-transform:uppercase}.tracking-tight{letter-spacing:-.01em}.tracking-widest{letter-spacing:.1em}.tracking-\[0\.2em\]{letter-spacing:.2em}.text-xs{font-size:12px}.text-sm{font-size:14px}.text-base{font-size:16px}.text-lg{font-size:18px}.text-xl{font-size:20px}.text-\[8px\]{font-size:8px}.text-\[9px\]{font-size:9px}.text-\[10px\]{font-size:10px}.text-\[11px\]{font-size:11px}.leading-none{line-height:1}.leading-tight{line-height:1.25}.p-2{padding:8px}.p-3{padding:12px}.p-4{padding:16px}.p-6{padding:24px}.p-8{padding:32px}.px-2{padding-left:8px;padding-right:8px}.px-4{padding-left:16px;padding-right:16px}.px-6{padding-left:24px;padding-right:24px}.py-1{padding-top:4px;padding-bottom:4px}.py-2{padding-top:8px;padding-bottom:8px}.py-3{padding-top:12px;padding-bottom:12px}.mb-1{margin-bottom:4px}.mb-2{margin-bottom:8px}.mb-3{margin-bottom:12px}.mb-4{margin-bottom:16px}.mb-6{margin-bottom:24px}.mt-1{margin-top:4px}.mt-2{margin-top:8px}.mt-4{margin-top:16px}.w-full{width:100%}.max-w-full{max-width:100%}.grid{display:grid}.grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}.gap-2{gap:8px}.gap-3{gap:12px}.gap-4{gap:16px}.flex{display:flex}.items-center{align-items:center}.items-start{align-items:flex-start}.justify-between{justify-content:space-between}.justify-center{justify-content:center}.border{border-width:1px}.border-t{border-top-width:1px}.border-b{border-bottom-width:1px}.border-slate-200{border-color:#e2e8f0}.border-slate-300{border-color:#cbd5e1}.bg-white{background:#fff}.bg-slate-50{background:#f8fafc}.bg-slate-100{background:#f1f5f9}.text-slate-400{color:#94a3b8}.text-slate-500{color:#64748b}.text-slate-600{color:#475569}.text-slate-700{color:#334155}.text-slate-900{color:#0f172a}.rounded-lg{border-radius:8px}</style>
                             <style>
                                 @page { size: A4; margin: 8mm; }
                                 * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
@@ -168,6 +193,7 @@ export const PrintPage: React.FC = () => {
     };
 
     useEffect(() => {
+        verificarQz();
         const limpar = carregar();
 
         // A janela do PDV publica a nova impressão via localStorage; o evento
@@ -370,6 +396,12 @@ export const PrintPage: React.FC = () => {
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
+                        {isCupom && (
+                            <span className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border ${qzStatus === 'connected' ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30' : qzStatus === 'checking' ? 'bg-white/10 text-white/60 border-white/20' : 'bg-amber-500/10 text-amber-300 border-amber-500/30'}`}>
+                                {qzStatus === 'connected' ? <CheckCircle size={12} /> : qzStatus === 'checking' ? <Loader2 size={12} className="animate-spin" /> : <WifiOff size={12} />}
+                                QZ Tray: {qzStatus === 'connected' ? 'Conectado' : qzStatus === 'checking' ? 'Verificando...' : 'Desconectado'}
+                            </span>
+                        )}
                         {status === 'fiscal' ? (
                             <span className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/15 text-emerald-300 text-[10px] font-black uppercase tracking-widest border border-emerald-500/30 animate-pulse">
                                 <CheckCircle size={14} /> Impresso na Fiscal
