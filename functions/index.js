@@ -40,32 +40,30 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
+// ──────────────────────────────────────────────
+// APP CHECK — prepared, NOT enabled (ver APP_CHECK.md)
+// ──────────────────────────────────────────────
+// A chave liga/desliga fica INERTE enquanto APP_CHECK_ENFORCE != "true": o
+// cliente (firebase.ts) só inicializa `initializeAppCheck` se
+// VITE_APP_CHECK_SITE_KEY existir. Ordem para ativar (detalhes em APP_CHECK.md):
+//   1. registrar o provedor (reCAPTCHA v3 para web) no console do Firebase;
+//   2. VITE_APP_CHECK_SITE_KEY no .env + deploy do hosting (fase de MONITOR);
+//   3. só então APP_CHECK_ENFORCE=true (functions/.env) + deploy das functions;
+//   4. monitorar logs antes de ativar "Enforce" no console (Firestore/Storage/Auth).
+// CUIDADO — app Electron não roda reCAPTCHA como o navegador: garantir token
+// próprio antes do enforce. E NUNCA ativar em `baixarAppAdmin`: ele responde
+// redirect(302) acessado por navegação, sem header X-Firebase-AppCheck possível.
+const APP_CHECK_ENFORCE = process.env.APP_CHECK_ENFORCE === "true";
+const OPCOES_APP_CHECK = APP_CHECK_ENFORCE ? { enforceAppCheck: true } : {};
+
 // Teto de instâncias por função: protege contra picos de custo (runaway scaling)
 // sem afetar a operação normal — o volume real é baixo (unidades/hora), então o
 // sistema roda em 1 instância e só escala sob demanda até este limite.
-setGlobalOptions({ maxInstances: 20 });
-
-// ──────────────────────────────────────────────
-// APP CHECK — prepared, NOT enabled (see docs)
-// ──────────────────────────────────────────────
-// Nenhum export hoje exige App Check, e o cliente (firebase.ts) ainda NÃO
-// inicializa `initializeAppCheck`. Ligar `enforceAppCheck: true` agora faria
-// toda chamada a esses endpoints ser recusada, porque o SDK não envia token
-// nenhum.
-//
-// A chave liga/desliga abaixo fica inerte até o provedor ser registrado no
-// console do Firebase E o cliente inicializar o App Check. Ordem para ativar:
-//   1. registrar o provedor (reCAPTCHA v3 para web);
-//   2. initializeAppCheck em firebase.ts (e no app Electron, que exige provedor
-//      próprio — Play Integrity é Android);
-//   3. `firebase functions:config`/variável de ambiente APP_CHECK_ENFORCE=true;
-//   4. deploy e monitorar logs antes de considerar os endpoints privados.
-// NUNCA ativar em `baixarAppAdmin`: ele responde com redirect(302) para uma URL
-// assinada do Storage e é acessado por navegação normal do navegador, que não
-// tem como enviar o header X-Firebase-AppCheck. Esse fluxo exige outro desenho
-// (assinar a URL numa callable autenticada e navegar para ela).
-const APP_CHECK_ENFORCE = process.env.APP_CHECK_ENFORCE === "true";
-const OPCOES_APP_CHECK = APP_CHECK_ENFORCE ? { enforceAppCheck: true } : {};
+// enforceAppCheck GLOBAL: com APP_CHECK_ENFORCE=true, TODAS as funções passam a
+// exigir token de App Check — cobre as callables de dinheiro que antes ficavam
+// desprotegidas (só 2 endpoints recebiam OPCOES_APP_CHECK). Inerte enquanto a
+// flag for false. Única exceção: baixarAppAdmin (sobrescreve com false).
+setGlobalOptions({ maxInstances: 20, enforceAppCheck: APP_CHECK_ENFORCE });
 
 // Bucket real do projeto (o padrão "project.appspot.com" foi descontinuado
 // pelo Firebase — o bucket ativo é "{project}.firebasestorage.app").
@@ -4977,6 +4975,9 @@ exports.gerarLinkDownloadAdmin = onCall({
 exports.baixarAppAdmin = onRequest({
   memory: "256MiB",
   timeoutSeconds: 60,
+  // Exceção ao enforceAppCheck global: redirect(302) acessado por navegação
+  // normal, que não consegue enviar o header X-Firebase-AppCheck.
+  enforceAppCheck: false,
 }, async (req, res) => {
   const token = String((req.query && req.query.token) || "");
   const rejeitar = (status, msg) => res.status(status).type("text/plain; charset=utf-8").send(msg);
