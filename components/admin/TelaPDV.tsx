@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { X, Search, Barcode, ShoppingCart, Check, User as UserIcon, Plus, Minus, Package, Wallet, CreditCard, DollarSign, Trash2, LayoutGrid, List, Percent, XCircle } from 'lucide-react';
+import { X, Search, Barcode, ShoppingCart, Check, User as UserIcon, Plus, Minus, Package, Wallet, CreditCard, DollarSign, Trash2, LayoutGrid, List, Percent, XCircle, CalendarClock } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Product, User, Order, AppConfig, UserRole, InmateLocation } from '../../types';
 import { filtrarClientesPdv } from '../../utils/pdvSearch';
@@ -33,6 +33,7 @@ const METODOS: { key: MetodoPagamentoPDV; rotulo: string; icon: any }[] = [
   { key: 'CARD', rotulo: 'Cartão', icon: CreditCard },
   { key: 'WALLET', rotulo: 'Créditos', icon: Wallet },
   { key: 'FIADO', rotulo: 'Fiado', icon: UserIcon },
+  { key: 'FIADO_30', rotulo: 'Fiado 30d', icon: CalendarClock },
   { key: 'MIXED', rotulo: 'Misto', icon: ShoppingCart },
 ];
 
@@ -863,7 +864,7 @@ if (pedidoOffline) {
           {/* Métodos de Pagamento — horizontal abaixo do header PDV Balcão */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-wrap items-center gap-3 w-full mb-4 shrink-0">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500 shrink-0">Pagamento</span>
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 flex-1 min-w-0 min-h-[44px]">
+            <div className="grid grid-cols-3 sm:grid-cols-7 gap-1.5 flex-1 min-w-0 min-h-[44px]">
               {METODOS.map(m => {
                 const Icon = m.icon;
                 const ativo = formaPagamento === m.key;
@@ -1216,7 +1217,7 @@ if (pedidoOffline) {
           {/* ELEMENTO 3: FIADO — Exige senha do supervisor */}
           {isFiado && (
             <div className="bg-white border border-slate-200/80 rounded-xl p-4 flex flex-col gap-3 w-full mb-4 animate-in fade-in duration-200 shrink-0">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Venda a Fiado — Requer Autorização</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{formaPagamento === 'FIADO_30' ? 'Venda a Fiado (30 dias) — Requer Autorização' : 'Venda a Fiado — Requer Autorização'}</span>
               {semClienteCredito ? (
                 <div className="text-xs font-semibold text-slate-500 bg-white rounded-xl p-3 border border-slate-100">
                   Selecione um cliente para vender a fiado
