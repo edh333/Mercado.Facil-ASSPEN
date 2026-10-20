@@ -2035,7 +2035,7 @@ return false;
     const devolucaoAlvara = async (userId: string, motivo?: string, senhaMestra?: string, clientToken?: string) => {
         if (!currentUser || currentUser.role !== UserRole.ADMIN) return;
         try {
-            const res = await fnDevolucaoAlvara({ userId, motivo: motivo || 'Devolução por alvará', senhaMestra, clientToken: clientToken || crypto.randomUUID() });
+            const res = await fnDevolucaoAlvara({ userId, motivo: motivo || 'Devolução por alvará', senhaMestra: senhaMestra || null, clientToken: clientToken || crypto.randomUUID() });
             const data = res.data as any;
             const valorDevolvido = data?.valorDevolvido || 0;
             showNotification(`Devolução de R$ ${formatarMoeda(valorDevolvido)} realizada com sucesso!`, 'success');
@@ -2157,7 +2157,7 @@ return false;
     const withdrawWalletCredit = async (uid: string, amount: number, reason: string, senhaMestra?: string, clientToken?: string) => {
         try {
             if (!currentUser || currentUser.role !== UserRole.ADMIN) throw new Error("Acesso negado.");
-            const res = await fnSacarSaldoAdmin({ userId: uid, valor: amount, motivo: reason, senhaMestra, clientToken: clientToken || crypto.randomUUID() });
+            const res = await fnSacarSaldoAdmin({ userId: uid, valor: amount, motivo: reason, senhaMestra: senhaMestra || null, clientToken: clientToken || crypto.randomUUID() });
             const data = res.data as any;
             if (currentUser.id === uid && data?.novoSaldo !== undefined) {
                 setCreditoCliente(data.novoSaldo);
@@ -3319,7 +3319,7 @@ useEffect(() => {
                 if (!(Number(amount) > 0)) throw new Error("Valor de crédito inválido.");
 
         try {
-            const res = await fnCreditarSaldo({ userId, valor: amount, motivo: `Crédito Adicionado (Admin): ${reason}`, senhaMestra, clientToken: clientToken || crypto.randomUUID() });
+            const res = await fnCreditarSaldo({ userId, valor: amount, motivo: `Crédito Adicionado (Admin): ${reason}`, senhaMestra: senhaMestra || null, clientToken: clientToken || crypto.randomUUID() });
             const data = res.data as any;
             if (currentUser.id === userId && data?.novoSaldo !== undefined) {
                 setCreditoCliente(data.novoSaldo);
