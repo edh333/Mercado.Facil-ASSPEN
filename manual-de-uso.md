@@ -7,12 +7,17 @@ Este guia prático descreve as principais funcionalidades do sistema profissiona
 - **Versão Local (Modo Pendrive):** Use o arquivo executável na pasta `dist-electron`.
 - **Login:** Use o e-mail cadastrado ou o CPF e a senha definida.
 
+### 1.1 Navegação Rápida (Atalhos)
+- **Central de Atalhos (Ctrl+K):** abre um painel de busca que encontra qualquer função, produto, relatório ou conexão. Digite para filtrar e tecle **Enter** para abrir o primeiro resultado. Também disponível pelo ícone de teclado no topo da tela.
+- **Teclas de função (F1–F12):** navegação direta entre as telas (F2 = Venda Direta/PDV, F4 = Relatórios, F5 = Produtos, F11 = Caixa, etc.).
+- **Tecla `?`:** mostra a lista completa de atalhos de teclado (com opção de imprimir).
+
 ## 2. PDV / Venda Direta (NOVO) 🚀
 Permite realizar vendas presenciais para internos que possuam crédito ou pagamento imediato.
 1. Clique no botão **"Venda Direta (PDV)"** no menu lateral.
 2. Busque o cliente (por nome ou CPF do interno/familiar).
 3. Selecione os produtos e quantidades.
-4. Escolha a forma de pagamento (**Saldo da Carteira**, **PIX** ou **Dinheiro**).
+4. Escolha a forma de pagamento (**Saldo da Carteira**, **PIX**, **Dinheiro**, **Fiado** ou **Fiado 30 dias**). Vendas fiadas e descontos acima de 20% exigem autorização (senha mestra; acima de 20% também a senha do admin logado).
 5. Finalize para gerar o cupom de entrega.
 
 ## 3. Gestão de Catálogo e Impressão
