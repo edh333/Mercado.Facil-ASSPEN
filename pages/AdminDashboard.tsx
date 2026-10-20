@@ -17,7 +17,7 @@ import {
   getStatusColor, 
   isMaster as isMasterAdmin 
 } from '../components/admin/adminUtils';
-import { Menu, X, Banknote, Trash2, BarChart3, FileText, AlertTriangle } from 'lucide-react';
+import { Menu, X, Banknote, Trash2, BarChart3, FileText, AlertTriangle, Home, ShoppingCart, Package, Bell, DollarSign, Wallet, Users, UserCheck, MessageSquare, Settings, Wrench, TrendingUp, ClipboardList, Keyboard } from 'lucide-react';
 
 // Import all modular subcomponents
 import { AdminSidebar } from '../components/admin/AdminSidebar';
@@ -25,6 +25,7 @@ import { AdminHomeTab } from '../components/admin/AdminHomeTab';
 import { AdminMaintenanceTab } from '../components/admin/AdminMaintenanceTab';
 import { AdminAuditTab } from '../components/admin/AdminAuditTab';
 import { AdminShortcutsModal } from '../components/admin/AdminShortcutsModal';
+import { AdminCommandPalette, AcaoAtalho } from '../components/admin/AdminCommandPalette';
 import { AdminOrdersTab } from '../components/admin/AdminOrdersTab';
 import { AdminProductsTab } from '../components/admin/AdminProductsTab';
 import { AdminInmatesTab } from '../components/admin/AdminInmatesTab';
@@ -207,6 +208,7 @@ export function AdminDashboard() {
   const [showReportModal, setShowReportModal] = useState(false);
   const [showRelatoriosSimples, setShowRelatoriosSimples] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showUninstallModal, setShowUninstallModal] = useState(false);
 
   // Finance Filters & Expense Form
@@ -338,17 +340,25 @@ const isMaster = isMasterAdmin(currentUser);
 
   // ATALHOS GLOBAIS F1-F12 + '?' — funcionam em qualquer aba do painel.
   // Guardas: nada de atalho com janela aberta, nem digitando em campos.
-  const shortcutsModalOpen = [showSalesModal, showReportModal, showShortcutsModal, showProductModal, showWithdrawalModal, showAuthModal, historyModalCpf, viewingReceipt, selectedOrderDetails, selectedWalletTx, viewingUser, manualCreditTarget, showUninstallModal, showRelatoriosSimples].some(Boolean);
+  // Janelas (modais) que suspendem os atalhos F1-F12. Exclui a própria Central de
+  // Atalhos, para que o Ctrl+K consiga fechá-la.
+  const janelasAbertas = [showSalesModal, showReportModal, showShortcutsModal, showProductModal, showWithdrawalModal, showAuthModal, historyModalCpf, viewingReceipt, selectedOrderDetails, selectedWalletTx, viewingUser, manualCreditTarget, showUninstallModal, showRelatoriosSimples].some(Boolean);
+  const shortcutsModalOpen = janelasAbertas || showCommandPalette;
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
+      // Ctrl+K / Cmd+K abre (ou fecha) a Central de Atalhos, em qualquer lugar,
+      // inclusive com o foco num campo. Não abre por cima de outra janela.
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        if (!janelasAbertas) setShowCommandPalette((v) => !v);
+        return;
+      }
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)) return;
       // Regex exata para F1-F12 (evita falso positivo para tecla 'F' sozinha).
       const isFKey = /^F([1-9]|1[0-2])$/.test(e.key);
       if (!isFKey && !(e.key === '?')) return;
-      if (shortcutsModalOpen) return;
-      e.preventDefault();
       if (shortcutsModalOpen) return;
       e.preventDefault();
       const key = e.key;
@@ -372,7 +382,40 @@ const isMaster = isMasterAdmin(currentUser);
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [shortcutsModalOpen, hasPermission]);
+  }, [shortcutsModalOpen, janelasAbertas, hasPermission]);
+
+  // Ações da Central de Atalhos (Ctrl+K) — botões de acesso rápido agrupados por área.
+  // goToTab já valida permissão; aqui apenas ocultamos o que o usuário não pode ver.
+  const acoesAtalho = useMemo<(AcaoAtalho & { visivel: boolean })[]>(() => {
+    const lista: (AcaoAtalho & { visivel: boolean })[] = [
+      // Operação
+      { id: 'home', grupo: 'Operação', label: 'Painel Geral', icon: <Home size={16} />, key: 'F1', nota: 'Visão geral do dia', visivel: true, run: () => goToTab('home') },
+      { id: 'pdv', grupo: 'Operação', label: 'Nova Venda (PDV)', icon: <ShoppingCart size={16} />, key: 'F2', nota: 'Abrir a venda direta', visivel: hasPermission('sales'), run: () => setShowSalesModal(true) },
+      { id: 'orders', grupo: 'Operação', label: 'Gerenciamento de Pedidos', icon: <ClipboardList size={16} />, key: 'F3', visivel: canAccessTab('orders'), run: () => goToTab('orders') },
+      { id: 'cash', grupo: 'Operação', label: 'Caixa / Gaveta', icon: <Banknote size={16} />, key: 'F11', visivel: canAccessTab('cash'), run: () => goToTab('cash') },
+      // Produtos
+      { id: 'products', grupo: 'Produtos', label: 'Catálogo de Produtos', icon: <Package size={16} />, key: 'F5', visivel: canAccessTab('products'), run: () => goToTab('products') },
+      { id: 'stock_alerts', grupo: 'Produtos', label: 'Alertas de Reposição', icon: <Bell size={16} />, nota: 'Estoque baixo', visivel: canAccessTab('stock_alerts'), run: () => goToTab('stock_alerts') },
+      // Cadastros
+      { id: 'inmates', grupo: 'Cadastros', label: 'Cadastro de Internos', icon: <UserCheck size={16} />, visivel: canAccessTab('inmates'), run: () => goToTab('inmates') },
+      { id: 'users', grupo: 'Cadastros', label: 'Gestão de Familiares', icon: <Users size={16} />, key: 'F8', visivel: canAccessTab('users'), run: () => goToTab('users') },
+      { id: 'messages', grupo: 'Cadastros', label: 'Comunicados & Mensagens', icon: <MessageSquare size={16} />, visivel: canAccessTab('messages'), run: () => goToTab('messages') },
+      // Financeiro
+      { id: 'finance', grupo: 'Financeiro', label: 'Fluxo de Caixa & Despesas', icon: <DollarSign size={16} />, key: 'F6', visivel: canAccessTab('finance'), run: () => goToTab('finance') },
+      { id: 'wallet', grupo: 'Financeiro', label: 'Carteira & Depósitos', icon: <Wallet size={16} />, key: 'F7', visivel: canAccessTab('wallet'), run: () => goToTab('wallet') },
+      { id: 'customers', grupo: 'Financeiro', label: 'Contas a Pagar (Fiado)', icon: <UserCheck size={16} />, key: 'F12', visivel: canAccessTab('customers'), run: () => goToTab('customers') },
+      { id: 'audit', grupo: 'Financeiro', label: 'Auditoria de Anomalias', icon: <AlertTriangle size={16} />, visivel: canAccessTab('audit'), run: () => goToTab('audit') },
+      // Relatórios
+      { id: 'reports', grupo: 'Relatórios', label: 'Relatórios do Sistema', icon: <BarChart3 size={16} />, key: 'F4', visivel: canAccessTab('reports'), run: () => goToTab('reports') },
+      { id: 'relatorios_simples', grupo: 'Relatórios', label: 'Relatórios Rápidos', icon: <FileText size={16} />, nota: 'Vendas e produtos', visivel: canAccessTab('reports'), run: () => setShowRelatoriosSimples(true) },
+      { id: 'bi', grupo: 'Relatórios', label: 'Business Intelligence', icon: <TrendingUp size={16} />, key: 'F9', nota: 'Indicadores avançados', visivel: canAccessTab('bi'), run: () => goToTab('bi') },
+      // Sistema & Conexões
+      { id: 'settings', grupo: 'Sistema & Conexões', label: 'Parâmetros Administrativos', icon: <Settings size={16} />, key: 'F10', visivel: canAccessTab('settings'), run: () => goToTab('settings') },
+      { id: 'maintenance', grupo: 'Sistema & Conexões', label: 'Centro de Manutenção', icon: <Wrench size={16} />, nota: 'Backups e integridade', visivel: canAccessTab('maintenance'), run: () => goToTab('maintenance') },
+      { id: 'atalhos', grupo: 'Sistema & Conexões', label: 'Atalhos de Teclado (F1–F12)', icon: <Keyboard size={16} />, key: '?', nota: 'Guia de teclas', visivel: true, run: () => setShowShortcutsModal(true) },
+    ];
+    return lista.filter((a) => a.visivel);
+  }, [goToTab, canAccessTab, hasPermission, setShowSalesModal, setShowRelatoriosSimples, setShowShortcutsModal]);
 
   // 6. Direct Sale (PDV) Callback Hookup
   const handleConfirmDirectSale = async (
@@ -813,6 +856,7 @@ return (
           actions={
             <>
               {!isStandalone && <span><AppDownloadButton variant="full" label="Baixar App" /></span>}
+              <UiButton variant="ghost" size="sm" icon={<Keyboard size={17} />} onClick={() => setShowCommandPalette(true)} title="Central de Atalhos (Ctrl+K)" aria-label="Abrir central de atalhos" className="w-9 h-9 text-slate-500 border border-slate-200 rounded-lg hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200" />
               <UiButton variant="ghost" size="sm" icon={<Trash2 size={17} />} onClick={() => setShowUninstallModal(true)} title="Desinstalar aplicativo" aria-label="Desinstalar aplicativo" className="w-9 h-9 text-slate-500 border border-slate-200 rounded-lg hover:bg-red-50 hover:text-red-500 hover:border-red-200" />
               <OnlineStatusIndicator />
             </>
@@ -1283,6 +1327,13 @@ return (
           onClose={() => setShowShortcutsModal(false)}
         />
       )}
+
+      {/* Central de Atalhos (Ctrl+K) — paleta de acesso rápido */}
+      <AdminCommandPalette
+        isOpen={showCommandPalette}
+        onClose={() => setShowCommandPalette(false)}
+        acoes={acoesAtalho}
+      />
 
       {/* Uninstall app modal */}
       {showUninstallModal && (

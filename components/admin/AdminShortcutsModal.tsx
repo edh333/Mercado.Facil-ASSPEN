@@ -1,5 +1,5 @@
 import React from 'react';
-import { Printer, Keyboard, Home, ShoppingCart, Package, BarChart3, DollarSign, Wallet, Users, LayoutDashboard, Settings, Banknote, UserCheck, HelpCircle } from 'lucide-react';
+import { Printer, Keyboard, Home, ShoppingCart, Package, BarChart3, DollarSign, Wallet, Users, LayoutDashboard, Settings, Banknote, UserCheck, HelpCircle, Search } from 'lucide-react';
 import { ModalShell } from '../ui/ModalShell';
 
 interface Shortcut {
@@ -10,6 +10,7 @@ interface Shortcut {
 }
 
 const SHORTCUTS: Shortcut[] = [
+  { key: 'Ctrl+K', label: 'Central de Atalhos (busca geral)', icon: <Search size={16}/>, note: 'Encontra funções, produtos, relatórios e conexões' },
   { key: 'F1', label: 'Início / Painel Geral', icon: <Home size={16}/> },
   { key: 'F2', label: 'Nova Venda (PDV)', icon: <ShoppingCart size={16}/>, note: 'Abre a tela de vendas diretamente' },
   { key: 'F3', label: 'Pedidos', icon: <LayoutDashboard size={16}/> },
