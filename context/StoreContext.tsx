@@ -174,7 +174,7 @@ interface StoreContextType {
     resetSystem: (confirm: boolean, senhaMestra?: string) => void;
     resetStock: () => Promise<void>;
     resetFinance: () => Promise<void>;
-    devolucaoAlvara: (userId: string, motivo?: string, senhaMestra?: string) => Promise<{ ok: boolean; novoSaldo: number; valorDevolvido: number; comprovante: any }>;
+    devolucaoAlvara: (userId: string, motivo?: string, senhaMestra?: string, clientToken?: string) => Promise<{ ok: boolean; novoSaldo: number; valorDevolvido: number; comprovante: any }>;
 
     createAdminUser: (userData: Partial<User>) => Promise<void>;
     updateAdminPermissions: (userId: string, permissions: string[]) => Promise<void>;
@@ -195,7 +195,7 @@ interface StoreContextType {
     depositToWallet: (amount: number, proofFile: File) => Promise<void>;
     approveWalletTransaction: (transactionId: string) => Promise<void>;
     rejectWalletTransaction: (transactionId: string) => Promise<void>;
-    withdrawWalletCredit: (userId: string, amount: number, reason: string, senhaMestra?: string) => Promise<void>;
+    withdrawWalletCredit: (userId: string, amount: number, reason: string, senhaMestra?: string, clientToken?: string) => Promise<void>;
     getWalletTransactions: (userId?: string) => Promise<WalletTransaction[]>;
     attachAdminProof: (kind: 'orders' | 'wallet_transactions', docId: string, ownerId: string, file: File) => Promise<string>;
     reenviarComprovante: (kind: 'orders' | 'wallet_transactions', docId: string, file: File) => Promise<string>;
@@ -241,7 +241,7 @@ interface StoreContextType {
     inmatesLimit: number;
     expandUsersLimit: (limite: number) => void;
     importInmatesCsv: (file: File) => Promise<void>;
-    addWalletCreditDirectly: (userId: string, amount: number, reason: string, senhaMestra?: string) => Promise<void>;
+    addWalletCreditDirectly: (userId: string, amount: number, reason: string, senhaMestra?: string, clientToken?: string) => Promise<void>;
     registrarVendaOffline: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30', total: number, payments?: { method: string; amount: number }[], change?: number, customerAccountId?: string, cardBrand?: string, sessaoCaixaId?: string, clientToken?: string, inmateLocation?: InmateLocation) => Promise<Order | null>;
     sincronizarVendasOffline: (incluirErros?: boolean) => Promise<{ ok: boolean; sincronizadas: number; comErro: number; total: number; offline?: boolean }>;
     vendasOfflinePendentes: number;
@@ -2032,10 +2032,10 @@ return false;
         }
     };
 
-    const devolucaoAlvara = async (userId: string, motivo?: string, senhaMestra?: string) => {
+    const devolucaoAlvara = async (userId: string, motivo?: string, senhaMestra?: string, clientToken?: string) => {
         if (!currentUser || currentUser.role !== UserRole.ADMIN) return;
         try {
-            const res = await fnDevolucaoAlvara({ userId, motivo: motivo || 'Devolução por alvará', senhaMestra });
+            const res = await fnDevolucaoAlvara({ userId, motivo: motivo || 'Devolução por alvará', senhaMestra, clientToken: clientToken || crypto.randomUUID() });
             const data = res.data as any;
             const valorDevolvido = data?.valorDevolvido || 0;
             showNotification(`Devolução de R$ ${formatarMoeda(valorDevolvido)} realizada com sucesso!`, 'success');
@@ -2154,10 +2154,10 @@ return false;
         }
     };
 
-    const withdrawWalletCredit = async (uid: string, amount: number, reason: string, senhaMestra?: string) => {
+    const withdrawWalletCredit = async (uid: string, amount: number, reason: string, senhaMestra?: string, clientToken?: string) => {
         try {
             if (!currentUser || currentUser.role !== UserRole.ADMIN) throw new Error("Acesso negado.");
-            const res = await fnSacarSaldoAdmin({ userId: uid, valor: amount, motivo: reason, senhaMestra });
+            const res = await fnSacarSaldoAdmin({ userId: uid, valor: amount, motivo: reason, senhaMestra, clientToken: clientToken || crypto.randomUUID() });
             const data = res.data as any;
             if (currentUser.id === uid && data?.novoSaldo !== undefined) {
                 setCreditoCliente(data.novoSaldo);
@@ -3314,12 +3314,12 @@ useEffect(() => {
             },
             sessaoCaixaAtiva,
             refreshSessaoCaixa,
-            addWalletCreditDirectly: async (userId: string, amount: number, reason: string, senhaMestra?: string) => {
+            addWalletCreditDirectly: async (userId: string, amount: number, reason: string, senhaMestra?: string, clientToken?: string) => {
                 if (!currentUser || currentUser.role !== UserRole.ADMIN) throw new Error("Acesso restrito a administradores.");
                 if (!(Number(amount) > 0)) throw new Error("Valor de crédito inválido.");
 
         try {
-            const res = await fnCreditarSaldo({ userId, valor: amount, motivo: `Crédito Adicionado (Admin): ${reason}`, senhaMestra });
+            const res = await fnCreditarSaldo({ userId, valor: amount, motivo: `Crédito Adicionado (Admin): ${reason}`, senhaMestra, clientToken: clientToken || crypto.randomUUID() });
             const data = res.data as any;
             if (currentUser.id === userId && data?.novoSaldo !== undefined) {
                 setCreditoCliente(data.novoSaldo);

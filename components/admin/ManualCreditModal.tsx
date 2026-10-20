@@ -8,7 +8,7 @@ import { parseMoeda, roundCents, sanitizeMoedaInput } from '../../utils/money';
 interface ManualCreditModalProps {
   user: User | null;
   onClose: () => void;
-  onConfirm: (userId: string, valor: number, motivo: string, senhaMestra?: string) => Promise<void>;
+  onConfirm: (userId: string, valor: number, motivo: string, senhaMestra?: string, clientToken?: string) => Promise<void>;
 }
 
 export const ManualCreditModal: React.FC<ManualCreditModalProps> = ({ user, onClose, onConfirm }) => {
@@ -18,6 +18,10 @@ export const ManualCreditModal: React.FC<ManualCreditModalProps> = ({ user, onCl
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [mostrarSenha, setMostrarSenha] = useState(false);
+  // Token de idempotência: estável por SESSÃO do modal (troca o alvo = novo
+  // token). Reenviar após um erro reusa o MESMO token, então se o 1º crédito
+  // chegou a ser aplicado no servidor ele NÃO é creditado em dobro.
+  const clientTokenRef = React.useRef<string>('');
 
   const QUICK_VALUES = [10, 20, 50, 100];
 
@@ -29,6 +33,7 @@ export const ManualCreditModal: React.FC<ManualCreditModalProps> = ({ user, onCl
       setError('');
       setLoading(false);
       setMostrarSenha(false);
+      clientTokenRef.current = crypto.randomUUID();
     }
   }, [user?.id]);
 
@@ -52,7 +57,8 @@ export const ManualCreditModal: React.FC<ManualCreditModalProps> = ({ user, onCl
     setLoading(true);
     setError('');
     try {
-      await onConfirm(user.id, valor, reason.trim() || 'Crédito inserido manualmente', senhaMestra.trim());
+      const token = clientTokenRef.current || (clientTokenRef.current = crypto.randomUUID());
+      await onConfirm(user.id, valor, reason.trim() || 'Crédito inserido manualmente', senhaMestra.trim(), token);
       setAmount('');
       setReason('');
       setSenhaMestra('');

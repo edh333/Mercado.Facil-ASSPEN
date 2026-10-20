@@ -75,7 +75,8 @@ export const AdminInmatesTab: React.FC<AdminInmatesTabProps> = ({
         const data = await devolucaoAlvara(
           u.id,
           `Devolução por alvará do interno ${inmateParaAlvara?.name || '—'}`,
-          senhaMestra
+          senhaMestra,
+          crypto.randomUUID()
         );
         if (data?.ok) {
           totalDevolvido += Number(data.valorDevolvido || 0);

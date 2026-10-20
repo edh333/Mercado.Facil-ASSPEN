@@ -35,9 +35,12 @@ export function useAlvaraReturn(
   const [alvo, setAlvo] = React.useState<AlvoDevolucao | null>(null);
   const [processando, setProcessando] = React.useState(false);
   const [comprovantes, setComprovantes] = React.useState<ComprovanteAlvara[] | null>(null);
+  // Token de idempotência por devolução (novo a cada alvo; reusado em retry).
+  const tokenRef = React.useRef<string>('');
 
   const solicitar = React.useCallback((t: AlvoDevolucao) => {
     if (!t || Number(t.walletBalance || 0) <= 0) return;
+    tokenRef.current = crypto.randomUUID();
     setAlvo(t);
   }, []);
 
@@ -47,13 +50,16 @@ export function useAlvaraReturn(
     if (Number(t.walletBalance || 0) <= 0) { setAlvo(null); return; }
     setProcessando(true);
     try {
+      const token = tokenRef.current || (tokenRef.current = crypto.randomUUID());
       const data = await devolucaoAlvara(
         t.id,
         `Devolução por alvará — ${t.name || t.cpf || '—'}`,
-        senhaMestra
+        senhaMestra,
+        token
       );
       const comprovante = data?.comprovante;
       if (comprovante) setComprovantes([comprovante as ComprovanteAlvara]);
+      tokenRef.current = '';
     } catch {
       // o contexto já exibiu a notificação de erro desta chamada
     } finally {

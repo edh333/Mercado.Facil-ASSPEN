@@ -448,6 +448,13 @@ const isMaster = isMasterAdmin(currentUser);
   };
 
   const withdrawalProcessingRef = React.useRef(false);
+  // Token de idempotência do modal de saque/estorno: NASCIDO com o modal aberto
+  // e reusado em reenvios (erro mantém o modal) — reabrir para outro alvo gera
+  // token novo. Sem isso, um retry após erro podia mover o dinheiro 2x.
+  const withdrawalTokenRef = React.useRef<string>('');
+  React.useEffect(() => {
+    withdrawalTokenRef.current = showWithdrawalModal ? crypto.randomUUID() : '';
+  }, [showWithdrawalModal]);
 
   const handleWithdrawal = async () => {
     if (!showWithdrawalModal) return;
@@ -468,11 +475,13 @@ const isMaster = isMasterAdmin(currentUser);
     withdrawalProcessingRef.current = true;
     try {
       const targetId = showWithdrawalModal.userId || showWithdrawalModal.id;
+      const token = withdrawalTokenRef.current || (withdrawalTokenRef.current = crypto.randomUUID());
       if (showWithdrawalModal.isRefund) {
-        await addWalletCreditDirectly(targetId, amount, withdrawalReason || 'Estorno administrativo', withdrawalPassword);
+        await addWalletCreditDirectly(targetId, amount, withdrawalReason || 'Estorno administrativo', withdrawalPassword, token);
       } else {
-        await withdrawWalletCredit(targetId, amount, withdrawalReason, withdrawalPassword);
+        await withdrawWalletCredit(targetId, amount, withdrawalReason, withdrawalPassword, token);
       }
+      withdrawalTokenRef.current = '';
       setShowWithdrawalModal(null);
       setWithdrawalAmount('');
       setWithdrawalPassword('');
@@ -1216,8 +1225,8 @@ return (
       <ManualCreditModal
         user={manualCreditTarget}
         onClose={() => setManualCreditTarget(null)}
-        onConfirm={async (userId, valor, motivo, senhaMestra) => {
-          await addWalletCreditDirectly(userId, valor, motivo, senhaMestra);
+        onConfirm={async (userId, valor, motivo, senhaMestra, clientToken) => {
+          await addWalletCreditDirectly(userId, valor, motivo, senhaMestra, clientToken);
           showNotification(`Crédito de R$ ${valor.toFixed(2)} inserido com sucesso!`, 'success');
         }}
       />

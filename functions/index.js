@@ -1639,10 +1639,16 @@ exports.creditarSaldo = onCall({
   await verificarSenhaMestra(request.data?.senhaMestra);
   logger.info(`[creditarSaldo] senha validada — executando operação (${caller.id})`);
 
+  const clientToken = lerClientToken(request.data);
   let novoSaldoFinal = null;
   let saldoAnterior = null;
   let usuarioAlvo = null;
+  let replay = null;
   await db.runTransaction(async (t) => {
+    // Idempotência: um reenvio com o mesmo token não credita de novo.
+    const jaFeito = await verificarIdempotenciaAdmin(t, clientToken, "credito_admin", caller.id);
+    if (jaFeito) { replay = jaFeito; return; }
+
     const uRef = db.collection("users").doc(userId);
     const uSnap = await t.get(uRef);
     if (!uSnap.exists) throw new Error("Usuário não encontrado.");
@@ -1664,7 +1670,12 @@ exports.creditarSaldo = onCall({
       payerName: caller.name || "Administrador",
       payerId: caller.id,
     });
+    marcarIdempotenciaAdmin(t, clientToken, "credito_admin", caller.id, {
+      ok: true,
+      novoSaldo: arredondar(saldoAnterior + valor),
+    });
   });
+  if (replay) return { ...replay, replay: true };
   // Read-after-write: saldo REAL após commit
   const snapAfter = await db.collection("users").doc(userId).get();
   novoSaldoFinal = arredondar(Number(snapAfter.data()?.walletBalance || 0));
@@ -1787,8 +1798,13 @@ exports.devolucaoAlvara = onCall({
   let usuarioAlvo = "";
   let usuarioCpf = "";
   let valorDevolvido = 0;
+  const clientToken = lerClientToken(request.data);
+  let replay = null;
 
   await db.runTransaction(async (t) => {
+    const jaFeito = await verificarIdempotenciaAdmin(t, clientToken, "alvara", caller.id);
+    if (jaFeito) { replay = jaFeito; return; }
+
     const uRef = db.collection("users").doc(userId);
     const uSnap = await t.get(uRef);
     if (!uSnap.exists) throw new HttpsError("not-found", "Usuário não encontrado.");
@@ -1827,7 +1843,29 @@ exports.devolucaoAlvara = onCall({
       payerName: caller.name || "Administrador",
       payerId: caller.id,
     });
+
+    // Idempotência: guarda o comprovante inteiro para que um reenvio com o
+    // mesmo token devolva exatamente o mesmo recibo, sem debitar de novo.
+    const novoSaldoInterno = arredondar(saldoAnterior - valorDevolvido);
+    marcarIdempotenciaAdmin(t, clientToken, "alvara", caller.id, {
+      ok: true,
+      novoSaldo: novoSaldoInterno,
+      valorDevolvido,
+      comprovante: {
+        tipo: "DEVOLUÇÃO POR ALVARÁ",
+        usuarioId: userId,
+        usuarioNome: usuarioAlvo,
+        cpf: usuarioCpf,
+        saldoAnterior,
+        valorDevolvido,
+        novoSaldo: novoSaldoInterno,
+        motivo,
+        operador: caller.name || caller.id,
+        data: new Date().toLocaleString("pt-BR"),
+      },
+    });
   });
+  if (replay) return { ...replay, replay: true };
 
   // Read-after-write: saldo REAL após commit
   const snapAfter = await db.collection("users").doc(userId).get();
@@ -1889,7 +1927,12 @@ exports.sacarSaldoAdmin = onCall({
   let novoSaldoFinal = null;
   let saldoAnterior = null;
   let usuarioAlvo = null;
+  const clientToken = lerClientToken(request.data);
+  let replay = null;
   await db.runTransaction(async (t) => {
+    const jaFeito = await verificarIdempotenciaAdmin(t, clientToken, "saque_admin", caller.id);
+    if (jaFeito) { replay = jaFeito; return; }
+
     const uRef = db.collection("users").doc(userId);
     const uSnap = await t.get(uRef);
     if (!uSnap.exists) throw new Error("Usuário não encontrado.");
@@ -1930,7 +1973,13 @@ exports.sacarSaldoAdmin = onCall({
         t.update(sessaoSnap.ref, payloadSaque);
       }
     }
+
+    marcarIdempotenciaAdmin(t, clientToken, "saque_admin", caller.id, {
+      ok: true,
+      novoSaldo: arredondar(saldoAnterior - valor),
+    });
   });
+  if (replay) return { ...replay, replay: true };
   // Read-after-write: saldo REAL após commit
   const snapAfter = await db.collection("users").doc(userId).get();
   novoSaldoFinal = arredondar(Number(snapAfter.data()?.walletBalance || 0));
@@ -2452,6 +2501,43 @@ function marcarIdempotenciaVenda(t, clientToken, userId, orderId) {
 
 function lerClientToken(data) {
   return sanitizarToken(data?.clientToken);
+}
+
+/**
+ * Idempotência de operações administrativas que movem saldo
+ * (creditarSaldo, sacarSaldoAdmin, devolucaoAlvara).
+ *
+ * Mesmo contrato da venda: grava request_guard/{tipo}_{token} DENTRO da
+ * transação, junto com o efeito financeiro — se a transação commitou, o guard
+ * commitou; se abortou, o guard também. Um reenvio com o MESMO token devolve o
+ * resultado gravado, sem aplicar o efeito duas vezes.
+ *
+ * FASE 1 (leitura) — retorna o resultado do replay (a ser devolvido) ou null.
+ * Um token já usado por OUTRO operador/tipo é conflito explícito.
+ */
+async function verificarIdempotenciaAdmin(t, clientToken, tipo, callerId) {
+  const token = sanitizarToken(clientToken);
+  if (!token) return null;
+  const reqRef = db.collection("request_guard").doc(`${tipo}_${token}`);
+  const reqSnap = await t.get(reqRef);
+  if (!reqSnap.exists) return null;
+  const r = reqSnap.data();
+  if (r.type === tipo && r.callerId === callerId) {
+    return r.result || { ok: true };
+  }
+  throw new HttpsError("already-exists", "Requisição duplicada (token já utilizado).");
+}
+
+/** FASE 2 (escrita) — grava a marca do token apontando para o resultado. */
+function marcarIdempotenciaAdmin(t, clientToken, tipo, callerId, result) {
+  const token = sanitizarToken(clientToken);
+  if (!token) return;
+  t.set(db.collection("request_guard").doc(`${tipo}_${token}`), {
+    type: tipo,
+    callerId,
+    result,
+    createdAt: admin.firestore.Timestamp.now(),
+  });
 }
 
 /**
