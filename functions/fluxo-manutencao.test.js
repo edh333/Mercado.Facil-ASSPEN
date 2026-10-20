@@ -110,4 +110,23 @@ describe("arquivarDadosAntigos (reset semanal server-side)", () => {
     expect(fake.getDoc("settings", "maintenance").lastWeeklyReset).toBe(marco);
     expect(fake.getDoc("users", "u1").weeklySpent).toBe(0);
   });
+
+  it("remove guardas de idempotência com mais de 7 dias e preserva as recentes", async () => {
+    const base = seed();
+    const agora = Date.now();
+    fake.reset({
+      ...base,
+      request_guard: {
+        "venda_antiga": { type: "venda", createdAt: fake.Timestamp.fromDate(new Date(agora - 8 * 24 * 60 * 60 * 1000)) },
+        "credito_admin_recente": { type: "credito_admin", createdAt: fake.Timestamp.fromDate(new Date(agora - 60 * 1000)) },
+      },
+    });
+
+    await call("arquivarDadosAntigos", null, null);
+
+    // A antiga (>7 dias) sai; a recente permanece — a comparação é Timestamp x
+    // Timestamp (antes o cutoff era string ISO e o filtro nunca casava).
+    expect(fake.getDoc("request_guard", "venda_antiga")).toBeUndefined();
+    expect(fake.getDoc("request_guard", "credito_admin_recente")).toBeTruthy();
+  });
 });

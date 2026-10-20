@@ -88,3 +88,29 @@ describe("devolucaoAlvara — idempotência", () => {
     expect(fake.count("wallet_transactions")).toBe(1);
   });
 });
+
+describe("sacarSaldoProprio — idempotência", () => {
+  const sacarProprio = (data = {}) =>
+    call("sacarSaldoProprio", { valor: 25, ...data }, "u1");
+
+  it("o mesmo token não debita duas vezes", async () => {
+    const a = await sacarProprio({ clientToken: "tok-prop-1" });
+    expect(a.novoSaldo).toBe(75);
+
+    const b = await sacarProprio({ clientToken: "tok-prop-1" });
+    expect(b.replay).toBe(true);
+    expect(b.novoSaldo).toBe(75);
+
+    expect(fake.getDoc("users", "u1").walletBalance).toBe(75);
+    expect(fake.count("wallet_transactions")).toBe(1);
+    expect(fake.allDocs("audit_logs").filter((l) => l.acaoTipo === "SAQUE_PROPRIO")).toHaveLength(1);
+  });
+
+  it("token diferente aplica um novo saque", async () => {
+    await sacarProprio({ clientToken: "tok-prop-2a" });
+    const b = await sacarProprio({ clientToken: "tok-prop-2b" });
+    expect(b.novoSaldo).toBe(50);
+    expect(fake.getDoc("users", "u1").walletBalance).toBe(50);
+    expect(fake.count("wallet_transactions")).toBe(2);
+  });
+});

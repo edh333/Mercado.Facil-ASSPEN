@@ -117,11 +117,14 @@ function calcularPartesPagamento(paymentMethod, payments, total, isConsumer) {
 function validarTroco(change, cashPortion) {
   if (change === undefined || change === null) return;
   const troco = Number(change);
-  const dinheiroEntregue = arredondar(Number(cashPortion || 0) + troco);
   if (!Number.isFinite(troco) || troco < 0) {
     throw new Error("Troco inválido (deve ser maior ou igual a zero).");
   }
-  if (troco > dinheiroEntregue) {
+  // O dinheiro efetivamente entregue é (cashPortion + troco). O troco nunca pode
+  // superar o que foi entregue — o que equivale a exigir cashPortion >= 0.
+  // CashPortion negativo só surge de payload adulterado (o PDV envia o líquido).
+  const liquido = arredondar(Number(cashPortion || 0));
+  if (liquido < 0) {
     throw new Error("Troco inválido (deve estar entre 0 e o valor pago em dinheiro).");
   }
 }

@@ -2064,12 +2064,18 @@ exports.sacarSaldoProprio = onCall({
   const tetoDia = Number.isFinite(cfgTeto) && cfgTeto >= 0 ? arredondar(cfgTeto) : 1000;
 
   const hoje = dataDiaLocalMT();
+  const clientToken = lerClientToken(request.data);
   let novoSaldoFinal = null;
   let saldoAnterior = null;
   let totalDia = 0;
   let precisaRevisao = false;
+  let replay = null;
 
   await db.runTransaction(async (t) => {
+    // Idempotência: um reenvio com o mesmo token não debita de novo.
+    const jaFeito = await verificarIdempotenciaAdmin(t, clientToken, "saque_proprio", user.id);
+    if (jaFeito) { replay = jaFeito; return; }
+
     const uRef = db.collection("users").doc(user.id);
     const uSnap = await t.get(uRef);
     if (!uSnap.exists) throw new HttpsError("not-found", "Usuário não encontrado.");
@@ -2110,7 +2116,16 @@ exports.sacarSaldoProprio = onCall({
       autoAprovado: true,
       precisaRevisao,
     });
+    marcarIdempotenciaAdmin(t, clientToken, "saque_proprio", user.id, {
+      ok: true,
+      novoSaldo: novoSaldoFinal,
+      totalDia,
+      limiteDia: tetoDia,
+      precisaRevisao,
+    });
   });
+
+  if (replay) return { ...replay, replay: true };
 
   await registrarAudit(user.id, "SAQUE_PROPRIO", {
     usuarioId: user.id,
@@ -4274,7 +4289,9 @@ exports.arquivarDadosAntigos = onSchedule({
     // Guardas de idempotência mais antigas que 7 dias podem ser apagadas
     // (o dedupe só precisa das recentes).
     try {
-      const cutoffGuard = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const cutoffGuard = admin.firestore.Timestamp.fromDate(
+        new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      );
       const guardas = await db.collection("request_guard")
         .where("createdAt", "<=", cutoffGuard)
         .limit(200)
@@ -6456,6 +6473,7 @@ exports.importXmlProduct = onCall({
     productIds: [...productIdsUpdated, ...productIdsCreated]
   };
 });
+
 
 
 

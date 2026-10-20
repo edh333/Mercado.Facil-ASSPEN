@@ -497,6 +497,9 @@ const [isLoggingOut, setIsLoggingOut] = useState(false);
 
     const logoutTimerRef = useRef<any>(null);
     const unsubscribeRefs = useRef<(() => void)[]>([]);
+// Token de idempotência do saque próprio: guarda o token da última tentativa
+// (valor + token) para reusar em retry do mesmo valor.
+const saqueTokenRef = useRef<{ valor: number; token: string } | null>(null);
 // Doc do usuário descoberto no login (buscarLoginInfo retorna o id): o listener
 // de auth faz getDoc direto no Firestore e pula a callable buscarUsuarioAtual.
 const docIdLoginRef = useRef<string | null>(null);
@@ -700,12 +703,24 @@ const docIdLoginRef = useRef<string | null>(null);
             return false;
         }
 
+        // Token de idempotência: reusa o mesmo token para o mesmo valor (retoque
+        // duplo / retry após timeout não debita duas vezes). Valor novo = token novo.
+        const tokenSaqueRef = saqueTokenRef.current;
+        let clientToken: string;
+        if (tokenSaqueRef && tokenSaqueRef.valor === valor) {
+            clientToken = tokenSaqueRef.token;
+        } else {
+            clientToken = crypto.randomUUID();
+            saqueTokenRef.current = { valor, token: clientToken };
+        }
+
         try {
-            const res = await fnSacarSaldoProprio({ valor });
+            const res = await fnSacarSaldoProprio({ valor, clientToken });
             const data = res.data as any;
             const novoSaldo = data?.novoSaldo !== undefined ? Number(data.novoSaldo) : (currentUser.walletBalance ?? 0);
             setCreditoCliente(novoSaldo);
             setCurrentUser(prev => prev ? ({ ...prev, walletBalance: novoSaldo }) : prev);
+            saqueTokenRef.current = null;
             showNotification(`Saque de R$ ${formatarMoeda(valor)} realizado com sucesso! Saldo: R$ ${formatarMoeda(novoSaldo)}`, 'success');
             return true;
         } catch (error: any) {
