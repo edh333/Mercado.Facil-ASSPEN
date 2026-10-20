@@ -2549,7 +2549,8 @@ exports.processarVendaAdmin = onCall({
 }, async (request) => {
   const caller = await exigirOperadorPdv(request, "sales");
   const targetUserId = String(request.data?.targetUserId || "balcao_anonimo");
-  const paymentMethod = String(request.data?.paymentMethod || "CASH");
+  let paymentMethod = String(request.data?.paymentMethod || "CASH").toUpperCase();
+  if (paymentMethod === "FIADO") paymentMethod = "FIADO";
   const cardBrand = paymentMethod === "CARD"
     ? String(request.data?.cardBrand || "").replace(/[^A-Za-z0-9áéíóúâêôãõçÁÉÍÓÚÂÊÔÃÕÇ ]/g, "").slice(0, 20).trim()
     : "";
@@ -2603,12 +2604,12 @@ exports.processarVendaAdmin = onCall({
   }
 
   const isConsumer = targetUserId === "consumidor_geral" || targetUserId === "balcao_anonimo";
-  const metodosValidos = ["PIX", "WALLET", "CASH", "CARD", "FIADO", "FIADO_30", "MIXED"];
+  const metodosValidos = ["PIX", "WALLET", "CASH", "CARD", "FIADO", "MIXED"];
   if (!metodosValidos.includes(paymentMethod)) {
     throw new HttpsError("invalid-argument", "Forma de pagamento inválida.");
   }
 
-  // Gate de segurança: venda FIADA (FIADO e FIADO_30) exige a DUPLA senha mestra
+  // Gate de segurança: venda FIADA (FIADO e FIADO) exige a DUPLA senha mestra
   // validada AQUI no servidor (primária + secundária). O front já valida, mas
   // revalidar no backend impede que uma sessão autenticada pule a etapa via
   // chamada direta.
@@ -2616,42 +2617,23 @@ exports.processarVendaAdmin = onCall({
   // origemOffline=true + clientToken com prefixo OFFLINE_ eram 100% forjáveis
   // por um cliente autenticado — um operador concedia fiado sem o supervisor.
   // Venda fiada exige conexão: a senha mestra é SEMPRE revalidada aqui.
-  if (request.data?.origemOffline === true && (paymentMethod === "FIADO" || paymentMethod === "FIADO_30")) {
+  if (request.data?.origemOffline === true && paymentMethod === "FIADO") {
     throw new HttpsError(
       "failed-precondition",
       "Venda fiada exige conexão para validar a senha mestra no servidor. Conecte à internet e finalize a venda novamente."
     );
   }
-  if (paymentMethod === "FIADO" || paymentMethod === "FIADO_30") {
+  if (paymentMethod === "FIADO") {
     // Rate limit dedicado por operador (janela de 1 min): contém brute force da
-    // senha mestra. O processarVendaAdmin é a rota de MAIOR frequência para
-    // testar senhas e antes não tinha teto algum — os callables de pré-validação
-    // têm limite de 10/min, mas eram contornáveis chamando esta função direto.
+    // senha mestra.
     verificarRateLimit("vendaSenha:" + caller.id, 10);
-    if (paymentMethod === "FIADO_30") {
-      // FIADO_30 NÃO é venda fiada tradicional em "conta" — é uma venda a prazo
-      // (30 dias) contra o usuário cadastrado. Exige a SENHA MESTRA: o login do
-      // operador NÃO autoriza sozinho (seria auto-aprovação de quem está no terminal).
-      const senhaUnica = String(request.data?.senhaPrimaria || "");
-      if (!senhaUnica) {
-        throw new HttpsError("invalid-argument", "Venda fiada de 30 dias exige a senha mestra do administrador.");
-      }
-      const unica = await validarSenhaUnicaServidor(senhaUnica);
-      if (!unica.ok) {
-        throw new HttpsError("permission-denied", "Senha do supervisor incorreta. Tente novamente.");
-      }
-    } else {
-      // FIADO unificado: o PDV valida a senha mestra (única) antes de finalizar.
-      // O servidor REEVALIDA a MESMA senha aqui (nunca confia só no frontend),
-      // impedindo que uma sessão autenticada pule a autorização do fiado.
-      const senhaUnica = String(request.data?.senhaPrimaria || request.data?.senhaSecundaria || "");
-      if (!senhaUnica) {
-        throw new HttpsError("invalid-argument", "Venda fiada exige a senha mestra do administrador.");
-      }
-      const unica = await validarSenhaUnicaServidor(senhaUnica);
-      if (!unica.ok) {
-        throw new HttpsError("permission-denied", "Senha do supervisor incorreta. Tente novamente.");
-      }
+    const senhaUnica = String(request.data?.senhaPrimaria || request.data?.senhaSecundaria || "");
+    if (!senhaUnica) {
+      throw new HttpsError("invalid-argument", "Venda fiada exige a senha mestra do administrador.");
+    }
+    const unica = await validarSenhaUnicaServidor(senhaUnica);
+    if (!unica.ok) {
+      throw new HttpsError("permission-denied", "Senha do supervisor incorreta. Tente novamente.");
     }
   }
 
@@ -2923,67 +2905,18 @@ exports.processarVendaAdmin = onCall({
       // Grava o INÍCIO da dívida (debtStartedAt) apenas quando o cliente parte de
       // dívida zero — base para o PDV marcar "nota vencida após 30 dias" em Contas
       // a Receber. Mantém a data original enquanto houver débito em aberto.
+      // FIADO unificado: todo fiado vence em 30 dias (debtDueAt), então o painel
+      // Contas a Receber e o alerta de nota vencida usam a mesma data.
       const updateParcial = {
         currentDebt: admin.firestore.FieldValue.increment(total),
         weeklySpent: admin.firestore.FieldValue.increment(total),
+        debtDueAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
       };
       const dividaAntes = Number(userData?.currentDebt || 0);
       if (!(dividaAntes > 0)) {
         updateParcial.debtStartedAt = admin.firestore.Timestamp.now();
       }
       t.update(db.collection("users").doc(targetUserId), updateParcial);
-    }
-
-    // FIADO 30 DIAS: usa usuário cadastrado diretamente com vencimento em 30 dias.
-    // Diferente do FIADO tradicional (que usa customerAccountId como conta separada),
-    // o FIADO_30 usa o próprio targetUserId (usuário selecionado) e registra
-    // debtDueAt = now + 30 dias para controle de vencimento.
-    if (paymentMethod === "FIADO_30") {
-      if (isConsumer) throw new Error("Fiado 30 Dias exige usuário cadastrado.");
-      if (!customerAccountId) throw new Error("Selecione o usuário para o fiado 30 dias.");
-      // Mesma proteção do FIADO: dívida e estorno usam a MESMA referência.
-      if (customerAccountId !== targetUserId) {
-        throw new Error("Inconsistência: o cliente do fiado 30 dias difere do usuário da venda.");
-      }
-      const fiado30UserId = customerAccountId;
-      const fiado30UserSnap = await t.get(db.collection("users").doc(fiado30UserId));
-      if (!fiado30UserSnap.exists) throw new Error("Usuário para fiado 30 dias não encontrado.");
-      const fiado30UserData = { ...fiado30UserSnap.data(), id: fiado30UserSnap.id };
-      clienteFiadoNome = String(fiado30UserData.name || fiado30UserData.nome || "Fiado 30").slice(0, 80);
-      if (String(fiado30UserData.status || "").toLowerCase() === "blocked") {
-        throw new Error("Usuário bloqueado para fiado 30 dias.");
-      }
-      if (!fiado30UserData.allowCredit && !fiado30UserData.autorizacaoExcepcional) {
-        throw new Error("Usuário sem permissão para fiado 30 dias.");
-      }
-      // GAP CORRIGIDO: o FIADO_30 também deve respeitar o creditLimit do usuário
-      // DENTRO da transação — o front filtra usuários elegíveis, mas o teto real
-      // (dívida corrente + venda atual) só é garantido aqui no servidor.
-      const fiado30LimiteSnap = await t.get(db.collection("users").doc(fiado30UserId));
-      const fiado30LimiteDados = fiado30LimiteSnap.exists ? fiado30LimiteSnap.data() : {};
-      // 0 (ou ausente) = SEM fiado 30 — paridade com o FIADO normal.
-      // Só autorizacaoExcepcional ignora o teto.
-      const checagemLimiteFiado30 = fiadoExcedeLimite({
-        creditLimit: fiado30LimiteDados.creditLimit,
-        currentDebt: fiado30LimiteDados.currentDebt,
-        total,
-        autorizacaoExcepcional: fiado30UserData.autorizacaoExcepcional,
-      });
-      if (checagemLimiteFiado30.excede) {
-        throw new Error(`Limite de crédito excedido. O cliente possui apenas R$ ${checagemLimiteFiado30.disponivel.toFixed(2)} de limite disponível.`);
-      }
-      // debtDueAt = agora + 30 dias para controle de vencimento no painel Contas a Receber
-      const debtDueAt = admin.firestore.Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
-      const updateParcial30 = {
-        currentDebt: admin.firestore.FieldValue.increment(total),
-        weeklySpent: admin.firestore.FieldValue.increment(total),
-        debtDueAt,
-      };
-      const dividaAntes = Number(fiado30UserData?.currentDebt || 0);
-      if (!(dividaAntes > 0)) {
-        updateParcial30.debtStartedAt = admin.firestore.Timestamp.now();
-      }
-      t.update(db.collection("users").doc(fiado30UserId), updateParcial30);
     }
 
     debitarEstoque(t, itensComPreco);
@@ -3085,7 +3018,7 @@ exports.processarVendaAdmin = onCall({
       ...(walletBalanceBefore !== undefined ? { walletBalanceBefore } : {}),
       ...(walletBalanceAfter !== undefined ? { walletBalanceAfter } : {}),
       ...(jointWalletSnapshot ? { jointWallet: jointWalletSnapshot } : {}),
-      ...((paymentMethod === "FIADO" || paymentMethod === "FIADO_30") && customerAccountId ? { customerAccountId } : {}),
+      ...((paymentMethod === "FIADO" || paymentMethod === "FIADO") && customerAccountId ? { customerAccountId } : {}),
       ...(inmateLocation ? { inmateLocation } : {}),
       ...(deliveryLocation ? { deliveryLocation } : {}),
     };
@@ -3111,7 +3044,7 @@ exports.processarVendaAdmin = onCall({
     if (e && e.code && String(e.code).startsWith("functions/")) throw e;
     const msg = (e && e.message) || "Falha ao processar a venda. Tente novamente.";
     // Whitelist de erros de negócio já amigáveis (escritos em PT-BR no backend).
-    if (/produto não encontrado|estoque insuficiente|saldo insuficiente|limite semanal|limite de crédito|consumidor final não pode|2º devedor|não confere com o total|nenhuma sessão de caixa|caixa antes|cai?a foi fechada|reabra o caixa|cliente bloqueado|venda fiada exige|fiado exige|usuário de fiado|usuario de fiado|permissão para venda fiada|exige a senha mestra|selecione o usuário|selecione o usuario|fiado 30 dias|cliente de fiado (não )?encontrado|exige cliente cadastrado|pagamento misto sem valores|método inválido|valor inválido|fiado e card não são suportados|carteira|duplicada|troco|senha|desconto|fiado 30|entrada de mercadoria/i.test(msg)) {
+    if (/produto não encontrado|estoque insuficiente|saldo insuficiente|limite semanal|limite de crédito|consumidor final não pode|2º devedor|não confere com o total|nenhuma sessão de caixa|caixa antes|cai?a foi fechada|reabra o caixa|cliente bloqueado|venda fiada exige|fiado exige|usuário de fiado|usuario de fiado|permissão para venda fiada|exige a senha mestra|selecione o usuário|selecione o usuario|fiado 30 dias|cliente de fiado (não )?encontrado|exige cliente cadastrado|pagamento misto sem valores|método inválido|valor inválido|fiado e card não são suportados|carteira|duplicada|troco|senha|desconto|fiado 30|inconsistência|entrada de mercadoria/i.test(msg)) {
       throw new HttpsError("invalid-argument", msg);
     }
     throw new HttpsError("internal", "Falha ao processar a venda. Tente novamente.");
@@ -3690,7 +3623,7 @@ exports.estornarVenda = onCall({
       const uSnap = uRef ? await t.get(uRef) : null;
       const caixaRef = caixaAlvo ? caixaAlvo.ref : null;
       const caixaSnap = caixaRef ? await t.get(caixaRef) : null;
-      const ehFiado = pedido.paymentMethod === "FIADO" || pedido.paymentMethod === "FIADO_30";
+      const ehFiado = pedido.paymentMethod === "FIADO" || pedido.paymentMethod === "FIADO";
       // UNIFICADO: a dívida fiada mora no doc do USUÁRIO (users/<customerAccountId>),
       // então o estorno reverte lá — nada de chunk paralelo customer_accounts.
       const caRef = ehFiado && pedido.customerAccountId
@@ -4481,7 +4414,7 @@ exports.validarSenhaMestra = onCall(async (request) => {
  * Admin │ valida AMBAS as senhas antes de autorizar uma venda fiada:
  *  - primária  = senha de login do admin no Firebase Auth (re-auth via REST)
  *  - secundária= senha mestra / master password (bcrypt em settings/private)
- * Usado como gate no servidor para FIADO e FIADO_30, além da validação no front.
+ * Usado como gate no servidor para FIADO e FIADO, além da validação no front.
  */
 exports.validarDuplaSenhaMestra = onCall(async (request) => {
   const user = await exigirAutenticado(request);
@@ -4564,7 +4497,7 @@ async function validarDuplaSenhaServidor(user, senhaPrimaria, senhaSecundaria, a
 }
 
 /**
- * Valida UMA senha para FIADO_30, FIADO e desconto de até 20%: corresponde à
+ * Valida UMA senha para FIADO, FIADO e desconto de até 20%: corresponde à
  * SENHA MESTRA (bcrypt em settings/private, com migração da legada).
  * A senha de login (primária) NÃO autoriza sozinha — seria auto-aprovação de
  * quem está no terminal; o login só entra na DUPLA do desconto >20%

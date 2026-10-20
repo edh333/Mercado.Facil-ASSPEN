@@ -224,7 +224,7 @@ interface StoreContextType {
     refundOrder: (orderId: string, reason?: string, opts?: { janelaDias?: number; senhaMestra?: string }) => Promise<void>;
     resetCredits: (senhaMestra?: string) => Promise<void>;
     mergeDuplicateProducts: () => Promise<void>;
-    adminDirectSale: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30', total: number, payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30'; amount: number }[], change?: number, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string, fiado30UserId?: string, senhaPrimaria?: string, senhaSecundaria?: string, sessaoCaixaId?: string, descontoPct?: number, inmateLocation?: InmateLocation) => Promise<Order | null>;
+    adminDirectSale: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO', total: number, payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO'; amount: number }[], change?: number, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string, fiado30UserId?: string, senhaPrimaria?: string, senhaSecundaria?: string, sessaoCaixaId?: string, descontoPct?: number, inmateLocation?: InmateLocation) => Promise<Order | null>;
     loadMoreOrders: () => void;
     loadMoreExpenses: () => void;
     ordersLimit: number;
@@ -242,7 +242,7 @@ interface StoreContextType {
     expandUsersLimit: (limite: number) => void;
     importInmatesCsv: (file: File) => Promise<void>;
     addWalletCreditDirectly: (userId: string, amount: number, reason: string, senhaMestra?: string, clientToken?: string) => Promise<void>;
-    registrarVendaOffline: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30', total: number, payments?: { method: string; amount: number }[], change?: number, customerAccountId?: string, cardBrand?: string, sessaoCaixaId?: string, clientToken?: string, inmateLocation?: InmateLocation) => Promise<Order | null>;
+    registrarVendaOffline: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO', total: number, payments?: { method: string; amount: number }[], change?: number, customerAccountId?: string, cardBrand?: string, sessaoCaixaId?: string, clientToken?: string, inmateLocation?: InmateLocation) => Promise<Order | null>;
     sincronizarVendasOffline: (incluirErros?: boolean) => Promise<{ ok: boolean; sincronizadas: number; comErro: number; total: number; offline?: boolean }>;
     vendasOfflinePendentes: number;
     vendasOffline: VendaOffline[];
@@ -2781,7 +2781,7 @@ return false;
     const registrarVendaOffline = useCallback(async (
         targetUserId: string,
         items: any[],
-        paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30',
+        paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO',
         total: number,
         payments?: { method: string; amount: number }[],
         change?: number,
@@ -2796,7 +2796,7 @@ return false;
         }
         // Venda fiada NUNCA entra na fila offline: o servidor rejeita (senha
         // mestra validada lá) — enfileirar só criaria dívida sem o fator de posse.
-        if (paymentMethod === 'FIADO' || paymentMethod === 'FIADO_30') {
+        if (paymentMethod === 'FIADO') {
             throw new Error('Venda fiada não pode ser registrada offline: a senha mestra é validada no servidor. Conecte à internet e finalize novamente.');
         }
         const agora = new Date().toISOString();
@@ -3209,7 +3209,7 @@ useEffect(() => {
                     
                 }
             },
-            adminDirectSale: async (targetUserId, items, paymentMethod, total, payments: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30'; amount: number }[] | undefined, change, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string, _fiado30UserId?: string, senhaPrimaria?: string, senhaSecundaria?: string, sessaoCaixaId?: string, descontoPct?: number, inmateLocation?: InmateLocation) => {
+            adminDirectSale: async (targetUserId, items, paymentMethod, total, payments: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO'; amount: number }[] | undefined, change, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string, _fiado30UserId?: string, senhaPrimaria?: string, senhaSecundaria?: string, sessaoCaixaId?: string, descontoPct?: number, inmateLocation?: InmateLocation) => {
                 if (!currentUser || (currentUser.role !== UserRole.ADMIN && currentUser.role !== UserRole.VENDEDOR)) {
                     throw new Error("Acesso restrito à equipe autorizada.");
                 }
@@ -3257,7 +3257,7 @@ useEffect(() => {
                         sessaoCaixaId: sessaoCaixaId || undefined,
                         descontoPct: Number(descontoPct) > 0 ? Number(descontoPct) : undefined,
                         inmateLocation: inmateLocation || undefined,
-                        apiKey: (paymentMethod === 'FIADO' || paymentMethod === 'FIADO_30' || Number(descontoPct) > 0) ? (FIREBASE_API_KEY || undefined) : undefined
+                        apiKey: (paymentMethod === 'FIADO' || Number(descontoPct) > 0) ? (FIREBASE_API_KEY || undefined) : undefined
                     });
                     const data = res.data as any;
                     const createdOrder = cleanObject(data?.order || null);

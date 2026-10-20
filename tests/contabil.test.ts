@@ -332,10 +332,10 @@ describe('buildExtratoIndividual', () => {
 });
 
 describe('buildFiadoVendas', () => {
-  it('lista apenas FIADO e FIADO_30 dentro do período', () => {
+  it('lista apenas FIADO e FIADO dentro do período', () => {
     const orders = [
       pedido({ id: 'f1', paymentMethod: 'FIADO', date: new Date('2026-01-10T10:00:00'), userName: 'Maria' }),
-      pedido({ id: 'f2', paymentMethod: 'FIADO_30', date: new Date('2026-01-20T10:00:00') }),
+      pedido({ id: 'f2', paymentMethod: 'FIADO', date: new Date('2026-01-20T10:00:00') }),
       pedido({ id: 'pix', paymentMethod: 'PIX', date: new Date('2026-01-11T10:00:00') }),
       pedido({ id: 'velho', paymentMethod: 'FIADO', date: new Date('2025-12-31T10:00:00') }),
     ];
@@ -347,7 +347,7 @@ describe('buildFiadoVendas', () => {
 
   it('ignora pedidos apagados (deleted)', () => {
     const r = buildFiadoVendas(
-      [pedido({ paymentMethod: 'FIADO', deleted: true }), pedido({ paymentMethod: 'FIADO_30', deleted: true })],
+      [pedido({ paymentMethod: 'FIADO', deleted: true }), pedido({ paymentMethod: 'FIADO', deleted: true })],
       RANGE.ini,
       RANGE.fim
     );

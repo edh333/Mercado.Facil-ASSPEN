@@ -20,7 +20,7 @@ interface AdminReportsTabProps {
   settings?: any;
 }
 
-const PAGAMENTOS = ['TODAS', 'PIX', 'CASH', 'CARD', 'WALLET', 'FIADO', 'FIADO_30'];
+  const PAGAMENTOS = ['TODAS', 'PIX', 'CASH', 'CARD', 'WALLET', 'FIADO'];
 
 const getQuickDateRange = (period?: string): { start: Date; end: Date } => {
   const today = new Date();
@@ -311,7 +311,7 @@ export const AdminReportsTab: React.FC<AdminReportsTabProps> = ({
                                             value={reportConfig.paymentFilter || 'TODAS'}
                                             onChange={e => setReportConfig({ ...reportConfig, paymentFilter: e.target.value })}
                                         >
-                                            {PAGAMENTOS.map(p => <option key={p} value={p}>{p === 'TODAS' ? 'Todas' : p === 'CASH' ? 'Dinheiro' : p === 'CARD' ? 'Cartão' : p === 'WALLET' ? 'Carteira' : p === 'FIADO_30' ? 'Fiado 30 dias' : p}</option>)}
+                                            {PAGAMENTOS.map(p => <option key={p} value={p}>{p === 'TODAS' ? 'Todas' : p === 'CASH' ? 'Dinheiro' : p === 'CARD' ? 'Cartão' : p === 'WALLET' ? 'Carteira' : p === 'FIADO' ? 'Fiado (30 dias)' : p}</option>)}
                                         </select>
                                     </div>
                                     <div>

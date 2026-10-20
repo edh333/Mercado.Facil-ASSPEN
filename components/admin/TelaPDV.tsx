@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { X, Search, Barcode, ShoppingCart, Check, User as UserIcon, Plus, Minus, Package, Wallet, CreditCard, DollarSign, Trash2, LayoutGrid, List, Percent, XCircle, CalendarClock } from 'lucide-react';
+import { X, Search, Barcode, ShoppingCart, Check, User as UserIcon, Plus, Minus, Package, Wallet, CreditCard, DollarSign, Trash2, LayoutGrid, List, Percent, XCircle,  } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Product, User, Order, AppConfig, UserRole, InmateLocation } from '../../types';
 import { filtrarClientesPdv } from '../../utils/pdvSearch';
@@ -32,8 +32,7 @@ const METODOS: { key: MetodoPagamentoPDV; rotulo: string; icon: any }[] = [
   { key: 'CASH', rotulo: 'Dinheiro', icon: DollarSign },
   { key: 'CARD', rotulo: 'Cartão', icon: CreditCard },
   { key: 'WALLET', rotulo: 'Créditos', icon: Wallet },
-  { key: 'FIADO', rotulo: 'Fiado', icon: UserIcon },
-  { key: 'FIADO_30', rotulo: 'Fiado 30d', icon: CalendarClock },
+  { key: 'FIADO', rotulo: 'Fiado (30 dias)', icon: UserIcon },
   { key: 'MIXED', rotulo: 'Misto', icon: ShoppingCart },
 ];
 
@@ -584,7 +583,7 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
     }
   };
 
-  const isFiado = formaPagamento === 'FIADO' || formaPagamento === 'FIADO_30';
+  const isFiado = formaPagamento === 'FIADO';
   const temPixNoMisto = formaPagamento === 'MIXED' && parseMoeda(valorMisto.PIX) > 0;
   const temCashNaVenda = formaPagamento === 'CASH' || (formaPagamento === 'MIXED' && parseMoeda(valorMisto.CASH) > 0);
   // Cliente válido = selecionado E não é o consumidor genérico
@@ -640,13 +639,13 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
     const targetId = clienteSelecionado || 'balcao_anonimo';
     let paymentsArray: { method: MetodoLancamento; amount: number }[] | undefined;
     let changeValue: number | undefined;
-    // customerAccountId para FIADO/FIADO_30: SEMPRE o usuário cadastrado do
+    // customerAccountId para FIADO: SEMPRE o usuário cadastrado do
     // estado global do PDV — nada de id local duplicado por método.
-    const customerAccountId = (formaPagamento === 'FIADO' || formaPagamento === 'FIADO_30') ? clienteSelecionado : undefined;
+    const customerAccountId = formaPagamento === 'FIADO' ? clienteSelecionado : undefined;
     // sessaoCaixaId vem da SESSÃO GLOBAL reativa do contexto (abre/fecha em
     // tempo real). Nunca lê variável local/estática que possa nascer vazia.
     const sessaoCaixaId = sessaoCaixaAtiva?.id || null;
-    // FIADO/FIADO_30: a senha validada do supervisor (mestra) é reencaminhada
+    // FIADO/FIADO: a senha validada do supervisor (mestra) é reencaminhada
     // ao servidor, que revalida (nunca confia só no frontend).
     const senhaFiado = (isFiado && senhaSupervisaoOk) ? senhaSupervisor.trim() : undefined;
     // Senhas reencaminhadas ao servidor: desconto tem prioridade sobre o fiado
@@ -712,9 +711,7 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
       // bloqueado, senha recusada) é a mensagem REAL e precisa chegar ao
       // operador — antes qualquer falha de fiado era rotulada como "sem conexão".
       if (isFiado && typeof navigator !== 'undefined' && navigator.onLine === false) {
-        showNotification(formaPagamento === 'FIADO_30'
-          ? 'Fiado 30 Dias requer conexão para validar a senha mestra no servidor.'
-          : 'Venda fiada exige conexão para validar a senha mestra no servidor. Conecte e finalize novamente.', 'error');
+        showNotification('Venda fiada exige conexão para validar a senha mestra no servidor. Conecte e finalize novamente.', 'error');
         return;
       }
       if (descontoPct > 0 && typeof navigator !== 'undefined' && navigator.onLine === false) {
@@ -1217,7 +1214,7 @@ if (pedidoOffline) {
           {/* ELEMENTO 3: FIADO — Exige senha do supervisor */}
           {isFiado && (
             <div className="bg-white border border-slate-200/80 rounded-xl p-4 flex flex-col gap-3 w-full mb-4 animate-in fade-in duration-200 shrink-0">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{formaPagamento === 'FIADO_30' ? 'Venda a Fiado (30 dias) — Requer Autorização' : 'Venda a Fiado — Requer Autorização'}</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{formaPagamento === 'FIADO' ? 'Venda a Fiado (30 dias) — Requer Autorização' : 'Venda a Fiado — Requer Autorização'}</span>
               {semClienteCredito ? (
                 <div className="text-xs font-semibold text-slate-500 bg-white rounded-xl p-3 border border-slate-100">
                   Selecione um cliente para vender a fiado

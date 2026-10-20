@@ -12,7 +12,7 @@ describe('rotuloPagamento', () => {
     expect(rotuloPagamento('CASH')).toBe('Dinheiro');
     expect(rotuloPagamento('CARD')).toBe('Cartão');
     expect(rotuloPagamento('WALLET')).toBe('Carteira');
-    expect(rotuloPagamento('FIADO_30')).toBe('Fiado 30 dias');
+    expect(rotuloPagamento('FIADO')).toBe('Fiado');
     expect(rotuloPagamento('PIX')).toBe('PIX');
   });
 
@@ -32,7 +32,7 @@ describe('rotuloPagamento', () => {
   });
 
   it('é a fonte única: o mapa cobre todas as formas aceitas no PDV', () => {
-    for (const m of ['PIX', 'WALLET', 'CASH', 'CARD', 'MIXED', 'FIADO', 'FIADO_30']) {
+    for (const m of ['PIX', 'WALLET', 'CASH', 'CARD', 'MIXED', 'FIADO', 'FIADO']) {
       expect(PAYMENT_LABELS[m]).toBeTruthy();
     }
   });

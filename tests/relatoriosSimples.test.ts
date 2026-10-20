@@ -148,6 +148,22 @@ describe('relatorioProdutos', () => {
     expect(r.linhas[0][0]).toBe('Água');
     expect(r.linhas[1][0]).toBe('Refri');
   });
+
+  it('mostra o valor de venda atual do produto', () => {
+    const r = relatorioProdutos(products);
+    const colVenda = r.colunas.findIndex(c => c.rotulo === 'Venda atual');
+    expect(colVenda).toBeGreaterThan(-1);
+    expect(r.linhas[1][colVenda]).toBe('R$ 5,00');
+  });
+
+  it('destaca o valor promocional como venda atual', () => {
+    const comPromo: any[] = [
+      { id: '1', name: 'Refri', stock: 5, costPrice: 2, price: 5, promoPrice: 3, onPromo: true },
+    ];
+    const r = relatorioProdutos(comPromo);
+    const colVenda = r.colunas.findIndex(c => c.rotulo === 'Venda atual');
+    expect(r.linhas[0][colVenda]).toMatch(/R\$ 3,00 \(promo\)/);
+  });
 });
 
 describe('relatorioPresos', () => {

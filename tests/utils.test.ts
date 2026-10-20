@@ -282,16 +282,16 @@ describe('montarEscPos (ESC/POS 80mm)', () => {
     expect(cupom).toMatch(/TOTAL PEDIDO:.*R\$ 45,00/);
   });
 
-  it('cupom cru imprime FIADO 30 DIAS (nao DINHEIRO) para venda fiada de 30 dias', () => {
-    // Regressão: FIADO_30 caía no else do ternário de pagamento e o cupom
+  it('cupom cru imprime FIADO (nao DINHEIRO) para venda fiada de 30 dias', () => {
+    // Regressão: FIADO caía no else do ternário de pagamento e o cupom
     // imprimia "DINHEIRO" — mentindo sobre a forma de pagamento da venda.
     const cupom = gerarCupomEntregaRaw({
       id: 'FIADO30',
       items: [{ name: 'ARROZ', quantity: 1, priceAtPurchase: 30 }],
       total: 30,
-      paymentMethod: 'FIADO_30',
+      paymentMethod: 'FIADO',
     }, { institutionName: 'MERCADO FACIL' });
-    expect(cupom).toMatch(/PAGAMENTO:.*FIADO 30 DIAS/);
+    expect(cupom).toMatch(/PAGAMENTO:.*FIADO/);
     expect(cupom).not.toMatch(/PAGAMENTO:.*DINHEIRO/);
   });
 

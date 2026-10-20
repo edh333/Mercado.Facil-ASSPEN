@@ -184,8 +184,8 @@ approvedAt?: string; // Momento em que o admin aprovou (idade do cupom/comprovan
   inmateName?: string; // Snapshot
   inmateCpf?: string; // Snapshot
   operatorName?: string; // Snapshot do operador PDV
-  paymentMethod?: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO' | 'FIADO_30';
-  payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30'; amount: number }[];
+  paymentMethod?: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO';
+  payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO'; amount: number }[];
   change?: number;
   cardBrand?: string;
   walletBalanceBefore?: number;

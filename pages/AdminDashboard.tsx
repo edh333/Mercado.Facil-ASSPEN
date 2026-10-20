@@ -413,9 +413,9 @@ const isMaster = isMasterAdmin(currentUser);
   const handleConfirmDirectSale = async (
     targetUserId: string, 
     items: any[], 
-    paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'MIXED' | 'FIADO' | 'FIADO_30', 
+    paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'MIXED' | 'FIADO', 
     total: number, 
-    payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30'; amount: number }[], 
+    payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO'; amount: number }[], 
     change?: number,
     customerAccountId?: string,
     clientToken?: string,
@@ -441,9 +441,9 @@ const isMaster = isMasterAdmin(currentUser);
   const handleConfirmOfflineSale = async (
     targetUserId: string,
     items: any[],
-    paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'MIXED' | 'FIADO' | 'FIADO_30',
+    paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'MIXED' | 'FIADO',
     total: number,
-    payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO' | 'FIADO_30'; amount: number }[],
+    payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO'; amount: number }[],
     change?: number,
     customerAccountId?: string,
     clientToken?: string,

@@ -1,6 +1,6 @@
-// FLUXO — Venda FIADO 30 DIAS (processarVendaAdmin).
+// FLUXO — Venda Venda fiada (processarVendaAdmin).
 //
-// O FIADO_30 é uma venda a prazo contra o USUÁRIO cadastrado (não uma conta
+// O FIADO é uma venda a prazo contra o USUÁRIO cadastrado (não uma conta
 // separada como o FIADO tradicional) e grava debtDueAt = agora + 30 dias para o
 // painel "Contas a Receber". Antes o método não era selecionável no PDV; este
 // teste trava o comportamento do servidor para o método agora exposto na UI.
@@ -16,7 +16,7 @@ function vender30(extra = {}) {
     {
       targetUserId: "fiado1",
       customerAccountId: "fiado1",
-      paymentMethod: "FIADO_30",
+      paymentMethod: "FIADO",
       items: [{ productId: "p1", quantity: 2 }],
       senhaPrimaria: MASTER_PASSWORD,
       clientToken: "tok-fiado30-1",
@@ -40,7 +40,7 @@ function seedComLimite(creditLimit, extra = {}) {
 
 beforeEach(() => fake.reset(baseSeed()));
 
-describe("venda FIADO 30 dias (processarVendaAdmin)", () => {
+describe("venda Venda fiada (processarVendaAdmin)", () => {
   it("cria a dívida no usuário com vencimento em ~30 dias e marca o início", async () => {
     const antes = Date.now();
     const res = await vender30();
@@ -79,7 +79,7 @@ describe("venda FIADO 30 dias (processarVendaAdmin)", () => {
         {
           targetUserId: "fiado1",
           customerAccountId: "fiado1",
-          paymentMethod: "FIADO_30",
+          paymentMethod: "FIADO",
           items: [{ productId: "p1", quantity: 1 }],
           clientToken: "tok-sem-senha",
         },
@@ -95,11 +95,11 @@ describe("venda FIADO 30 dias (processarVendaAdmin)", () => {
   });
 
   it("recusa quando a conta do fiado difere do usuário da venda", async () => {
-    await expect(vender30({ customerAccountId: "u1" })).rejects.toThrow(/Inconsistência/);
+    await expect(vender30({ customerAccountId: "u1" })).rejects.toMatchObject({ code: "functions/invalid-argument" });
   });
 
   it("recusa usuário sem permissão de crédito", async () => {
     fake.reset(seedComLimite(500, { allowCredit: false }));
-    await expect(vender30()).rejects.toThrow(/sem permissão para fiado 30 dias/i);
+    await expect(vender30()).rejects.toThrow(/sem permissão para Venda fiada/i);
   });
 });

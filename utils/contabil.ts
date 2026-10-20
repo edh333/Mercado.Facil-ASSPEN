@@ -567,14 +567,14 @@ export const buildFiadoVencimentos = (users: any[]) => {
 
 /**
  * 11) VENDAS FIADO NO PERÍODO
- * Lista todas as vendas com paymentMethod FIADO ou FIADO_30 no período.
+ * Lista todas as vendas com paymentMethod FIADO ou FIADO no período.
  */
 export const buildFiadoVendas = (orders: any[], startDate: string, endDate: string) => {
   const vendas = (orders || [])
     .filter(o => {
       const pm = String(o.paymentMethod || '').toUpperCase();
       return !o.deleted &&
-        (pm === 'FIADO' || pm === 'FIADO_30') &&
+        (pm === 'FIADO' || pm === 'FIADO') &&
         inRangeContabil(o.date || o.createdAt, startDate, endDate);
     })
     .sort((a, b) =>

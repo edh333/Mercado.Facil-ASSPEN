@@ -242,10 +242,13 @@ export function relatorioProdutos(products: Product[]): RelatorioSimples {
   let semEstoque = 0;
   let estoqueBaixo = 0;
 
+  // Venda atual = preço efetivo praticado hoje (promocional quando houver),
+  // exatamente o valor que o PDV cobra na hora de vender o produto.
   const linhas = itens.map((p) => {
     const estoque = Number(p?.stock) || 0;
     const custo = Number(p?.costPrice) || 0;
     const venda = precoEfetivo(p);
+    const emPromocao = venda > 0 && venda < (Number(p?.price) || 0);
     unidades += estoque;
     custoTotal += estoque * custo;
     vendaTotal += estoque * venda;
@@ -258,9 +261,9 @@ export function relatorioProdutos(products: Product[]): RelatorioSimples {
       String(p?.category || '—'),
       String(estoque),
       moeda(custo),
-      moeda(venda),
+      emPromocao ? `${moeda(venda)} (promo)` : moeda(venda),
       `${formatarMoeda(margem)}%`,
-      moeda(estoque * custo),
+      moeda(estoque * venda),
     ];
   });
 
@@ -270,9 +273,9 @@ export function relatorioProdutos(products: Product[]): RelatorioSimples {
       { rotulo: 'Categoria' },
       { rotulo: 'Estoque', align: 'center' },
       { rotulo: 'Custo', align: 'right' },
-      { rotulo: 'Venda', align: 'right' },
+      { rotulo: 'Venda atual', align: 'right' },
       { rotulo: 'Margem', align: 'right' },
-      { rotulo: 'Custo em estoque', align: 'right' },
+      { rotulo: 'Venda em estoque', align: 'right' },
     ],
     linhas,
     resumo: [

@@ -106,16 +106,16 @@ describe('CupomEntrega — desconto no cupom', () => {
 });
 
 describe('CupomEntrega — forma de pagamento', () => {
-  it('FIADO_30 aparece como FIADO 30 DIAS, nunca DINHEIRO', () => {
-    // Regressão: FIADO_30 caía no else do ternário e o cupom imprimia DINHEIRO.
+  it('FIADO aparece como FIADO, nunca DINHEIRO', () => {
+    // Regressão: FIADO caía no else do ternário e o cupom imprimia DINHEIRO.
     const pedido = {
       id: 'V4',
       total: 30,
       items: [{ name: 'ARROZ', quantity: 1, priceAtPurchase: 30 }],
-      paymentMethod: 'FIADO_30',
+      paymentMethod: 'FIADO',
     };
     render(<CupomEntrega order={pedido as any} config={cfgAsspen as any} />);
-    expect(screen.getByText('FIADO 30 DIAS')).toBeTruthy();
+    expect(screen.getByText('FIADO')).toBeTruthy();
     expect(screen.queryByText('DINHEIRO')).toBeNull();
   });
 });

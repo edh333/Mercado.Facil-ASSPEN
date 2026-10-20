@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 // Regressão do FIADO 30 DIAS no PDV (components/admin/TelaPDV.tsx).
 //
-// O backend, o cupom e os relatórios já tratavam FIADO_30, mas o método NÃO era
+// O backend, o cupom e os relatórios já tratavam FIADO, mas o método NÃO era
 // selecionável: faltava o botão no grid de pagamento. Estes testes garantem que
-// o operador consegue escolher "Fiado 30d" e que a venda sai marcada como
-// FIADO_30 com o usuário cadastrado como conta do fiado (customerAccountId).
+// o operador consegue escolher "Fiado (30 dias)" e que a venda sai marcada como
+// FIADO com o usuário cadastrado como conta do fiado (customerAccountId).
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup, waitFor } from '@testing-library/react';
@@ -47,7 +47,7 @@ const cliente = {
   currentDebt: 0,
 } as any;
 
-const onConfirm = vi.fn(async (..._args: any[]) => ({ id: 'VENDA_1', userId: 'u1', total: 10, status: 'completed', paymentMethod: 'FIADO_30', items: [] }));
+const onConfirm = vi.fn(async (..._args: any[]) => ({ id: 'VENDA_1', userId: 'u1', total: 10, status: 'completed', paymentMethod: 'FIADO', items: [] }));
 
 function renderPDV() {
   return render(
@@ -78,19 +78,19 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe('PDV — FIADO 30 DIAS é selecionável', () => {
-  it('o grid de pagamento tem o método "Fiado 30d"', () => {
+  it('o grid de pagamento tem o método "Fiado (30 dias)"', () => {
     renderPDV();
-    expect(screen.getByTitle('Fiado 30d')).toBeTruthy();
+    expect(screen.getByTitle('Fiado (30 dias)')).toBeTruthy();
   });
 
-  it('selecionar "Fiado 30d" mostra o painel de autorização rotulado com 30 dias', async () => {
+  it('selecionar "Fiado (30 dias)" mostra o painel de autorização rotulado com 30 dias', async () => {
     const user = userEvent.setup();
     renderPDV();
-    await user.click(screen.getByTitle('Fiado 30d'));
+    await user.click(screen.getByTitle('Fiado (30 dias)'));
     expect(screen.getByText(/Fiado \(30 dias\) — Requer Autorização/i)).toBeTruthy();
   });
 
-  it('finalizar um fiado 30 dias envia paymentMethod FIADO_30 e o cliente como conta', async () => {
+  it('finalizar um fiado 30 dias envia paymentMethod FIADO e o cliente como conta', async () => {
     const user = userEvent.setup();
     renderPDV();
 
@@ -103,7 +103,7 @@ describe('PDV — FIADO 30 DIAS é selecionável', () => {
     await user.click(screen.getByRole('button', { name: /adicionar produto/i }));
 
     // 3) escolhe Fiado 30 dias
-    await user.click(screen.getByTitle('Fiado 30d'));
+    await user.click(screen.getByTitle('Fiado (30 dias)'));
 
     // 4) valida a senha do supervisor (Enter dispara a validação)
     const senha = screen.getByPlaceholderText('Digite a senha de validação');
@@ -116,7 +116,7 @@ describe('PDV — FIADO 30 DIAS é selecionável', () => {
 
     await waitFor(() => expect(onConfirm).toHaveBeenCalledTimes(1));
     const args = onConfirm.mock.calls[0];
-    expect(args[2]).toBe('FIADO_30'); // paymentMethod
+    expect(args[2]).toBe('FIADO'); // paymentMethod
     expect(args[6]).toBe('u1'); // customerAccountId = cliente cadastrado
   });
 });
