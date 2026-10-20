@@ -55,6 +55,7 @@ import { abrirJanelaImpressao } from '../utils/printUtils';
 import { toDate } from '../utils/dateUtils';
 import { usePermissions } from '../hooks/usePermissions';
 import { carregarPedidosDoPeriodo } from '../hooks/useReportData';
+import { construirMapaAtalhos, ehTeclaDeAtalho } from '../utils/adminShortcuts';
 
 const ForbiddenMessage = () => (
   <div className="flex flex-col items-center justify-center py-24 text-center">
@@ -356,29 +357,20 @@ const isMaster = isMasterAdmin(currentUser);
         return;
       }
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)) return;
-      // Regex exata para F1-F12 (evita falso positivo para tecla 'F' sozinha).
-      const isFKey = /^F([1-9]|1[0-2])$/.test(e.key);
-      if (!isFKey && !(e.key === '?')) return;
+      // Reconhece só F1-F12 (regex exata) e a tecla '?'. Mapa em utils/adminShortcuts.
+      if (!ehTeclaDeAtalho(e.key)) return;
       if (shortcutsModalOpen) return;
       e.preventDefault();
       const key = e.key;
       if (key === '?') { setShowShortcutsModal(true); return; }
-      const map: Record<string, () => void> = {
-        F1: () => setActiveTab('home'),
-        F2: () => { if (hasPermission('sales')) setShowSalesModal(true); else showNotification('Permissão negada para Venda Direta (PDV).', 'error'); },
-        F3: () => goToTab('orders'),
-        F4: () => goToTab('reports'),
-        F5: () => goToTab('products'),
-        F6: () => goToTab('finance'),
-        F7: () => goToTab('wallet'),
-        F8: () => goToTab('users'),
-        F9: () => goToTab('bi'),
-        F10: () => goToTab('settings'),
-        F11: () => goToTab('cash'),
-        F12: () => goToTab('customers')
-      };
-      const action = map[key];
-      if (action) action();
+      const mapa = construirMapaAtalhos({
+        irPara: goToTab,
+        irParaInicio: () => setActiveTab('home'),
+        permissao: hasPermission,
+        abrirVenda: () => setShowSalesModal(true),
+        notificar: (mensagem, tipo) => showNotification(mensagem, tipo),
+      });
+      mapa[key]?.();
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
