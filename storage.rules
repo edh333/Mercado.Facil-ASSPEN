@@ -47,19 +47,23 @@ service firebase.storage {
       return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
     }
 
-    // Installer publishing (apps/ folder): besides admin, requires the explicit
-    // 'apps' or 'all' permission. Main admins (admin custom claim) and legacy
-    // admins without a permissions field keep full access. Prevents a restricted
-    // secondary admin from replacing the distributed installer (supply-chain
-    // vector).
+    // Installer publishing (apps/ folder): exige status 'active' E a permissão
+    // explícita 'apps'/'all'. Admins legados SEM campo permissions mantêm acesso
+    // (compatibilidade), mas o claim custom `admin` SOZINHO não basta quando o
+    // doc existe e nega — ele é só um atalho quando não há doc. Antes, o primeiro
+    // branch (`token.admin == true`) liberava a publicação para QUALQUER admin com
+    // claim, permitindo que um admin restrito substituísse o instalador
+    // distribuído a todos os clientes (vetor de supply-chain).
     function isAdminPublicadora() {
       return request.auth != null && (
-        request.auth.token.admin == true ||
         (firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
          dadosUsuario().status == 'active' &&
          (dadosUsuario().role == 'admin' || dadosUsuario().role == 'ADMIN' ||
           dadosUsuario().role == 'master' || dadosUsuario().role == 'MASTER') &&
          (!('permissions' in dadosUsuario()) || dadosUsuario().permissions.hasAny(['apps', 'all'])))
+        // Fallback: sem doc users (ex.: master legado), aceita o claim admin.
+        || (!firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
+            && request.auth.token.admin == true)
       );
     }
 

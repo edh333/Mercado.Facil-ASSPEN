@@ -217,13 +217,24 @@ async function exigirAdmin(context) {
   return u;
 }
 
+/**
+ * FONTE ÚNICA de "administrador principal".
+ * SEGURANÇA: o doc users/{uid} tem auto-update de perfil pelo próprio usuário
+ * (firestore.rules), que inclui o campo `email`. Se o privilégio principal
+ * dependesse de `email`/`id`, QUALQUER admin secundário viraria principal
+ * apenas gravando `email: "admin@mercado.com"` no próprio doc (tomada de
+ * conta: resetaria a senha do principal real e trocaria a senha mestra).
+ * Portanto a decisão usa SOMENTE o campo `mainAdmin` (boolean, bloqueado para
+ * escrita no cliente). Nunca `email` nem `id`.
+ */
+function ehAdminPrincipalDoc(u) {
+  return !!u && u.mainAdmin === true;
+}
+
 /** Garante que o chamador é o ADMINISTRADOR PRINCIPAL (crédito manual e operações sensíveis). */
 async function exigirAdminPrincipal(context) {
   const u = await exigirAdmin(context);
-  const ehPrincipal = u.mainAdmin === true ||
-    u.id === "admin" || u.id === "master" ||
-    (u.email || "").toLowerCase() === "admin@mercado.com";
-  if (!ehPrincipal) {
+  if (!ehAdminPrincipalDoc(u)) {
     throw new HttpsError("permission-denied", "Apenas o administrador principal pode realizar esta operação.");
   }
   return u;
@@ -236,10 +247,7 @@ async function exigirAdminPrincipal(context) {
 async function exigirAdminPermissao(context, permissao) {
   const u = await exigirAdmin(context);
   if (!permissao) return u;
-  const ehPrincipal = u.mainAdmin === true ||
-    u.id === "admin" || u.id === "master" ||
-    (u.email || "").toLowerCase() === "admin@mercado.com";
-  if (ehPrincipal) return u;
+  if (ehAdminPrincipalDoc(u)) return u;
   const perms = u.permissions;
   if (perms === undefined || perms === null) return u;
   if (perms.includes("all") || perms.includes(permissao)) return u;
@@ -279,8 +287,9 @@ async function sincronizarClaimsUsuario(uid, usuario) {
   const statusAtivo = !usuario || !usuario.status || String(usuario.status).toLowerCase() === "active";
   const ehAdmin = ["admin", "master"].includes(role) && statusAtivo;
   const ehVendedor = ["vendedor", "operator"].includes(role) && statusAtivo;
+  const ehPrincipal = !!usuario && usuario.mainAdmin === true && statusAtivo;
   try {
-    await admin.auth().setCustomUserClaims(uid, { admin: ehAdmin, vendedor: ehVendedor });
+    await admin.auth().setCustomUserClaims(uid, { admin: ehAdmin, vendedor: ehVendedor, principal: ehPrincipal });
   } catch (e) {
     logger.warn("[Claims] Falha ao definir claims de " + uid + ":", e.message);
   }
@@ -1203,11 +1212,7 @@ exports.atualizarPermissoesAdmin = onCall(async (request) => {
   const snap = await db.collection("users").doc(userId).get();
   if (!snap.exists) throw new HttpsError("not-found", "Usuário não encontrado.");
   const userData = snap.data();
-  if (
-    userData.mainAdmin === true ||
-    userData.id === "admin" || userData.id === "master" ||
-    String(userData.email || "").toLowerCase() === "admin@mercado.com"
-  ) {
+  if (ehAdminPrincipalDoc(userData)) {
     throw new HttpsError("permission-denied", "Não é possível alterar as permissões do administrador principal.");
   }
   const roleAlvo = String(userData.role || "").toLowerCase();
@@ -1303,9 +1308,7 @@ exports.redefinirSenhaAdmin = onCall(async (request) => {
   const snap = await db.collection("users").doc(userId).get();
   if (!snap.exists) throw new HttpsError("not-found", "Usuário não encontrado.");
   const userData = snap.data();
-  const ehPrincipal = userData.mainAdmin === true ||
-    userData.id === "admin" || userData.id === "master" ||
-    (userData.email || "").toLowerCase() === "admin@mercado.com";
+  const ehPrincipal = ehAdminPrincipalDoc(userData);
   if (ehPrincipal) {
     await exigirAdminPrincipal(request);
   }
@@ -5693,9 +5696,7 @@ const FIELD_ARRAYUNION = admin.firestore.FieldValue.arrayUnion;
 const AGORA = () => admin.firestore.Timestamp.now();
 
 function ehAdminCompleto(u) {
-  return u.mainAdmin === true ||
-    u.id === "admin" || u.id === "master" ||
-    String(u.email || "").toLowerCase() === "admin@mercado.com" ||
+  return ehAdminPrincipalDoc(u) ||
     ["admin", "master"].includes(String(u.role || "").toLowerCase());
 }
 
@@ -6264,7 +6265,7 @@ exports.excluirUsuario = onCall(async (request) => {
   const alvo = snap.data() || {};
   const roleAlvo = String(alvo.role || "").toLowerCase();
   // O admin principal nunca pode ser excluído (nem por outro admin com acesso).
-  if (alvo.mainAdmin === true || roleAlvo === "master" || uid === "admin" || uid === "master") {
+  if (ehAdminPrincipalDoc(alvo) || roleAlvo === "master" || uid === "master") {
     throw new HttpsError("failed-precondition", "O administrador principal não pode ser excluído.");
   }
   await ref.update({ deleted: true, status: "suspended" });

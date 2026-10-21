@@ -36,6 +36,19 @@ service cloud.firestore {
       );
     }
 
+    // Administrador PRINCIPAL. Decisão baseada SOMENTE no campo mainAdmin do
+    // doc users/{uid} (bloqueado para escrita no cliente). NUNCA em email/id —
+    // que eram graváveis pelo próprio usuário e permitiam elevação de conta.
+    // O claim custom `principal` (definido só pelo servidor) é aceito como fonte
+    // adicional e à prova de escrita de cliente.
+    function ehPrincipal() {
+      return isAuthenticated() && (
+        request.auth.token.principal == true ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.mainAdmin == true)
+      );
+    }
+
     // Vendedor / operador de caixa: claim custom `vendedor` (token) com FALLBACK
     // transitório ao doc users/{uid} (mesmo padrão do isAdmin). O vendedor é a
     // "equipe lite": acesso de leitura ao PDV, pedidos, produtos e caixa PRÓPRIO.
@@ -96,7 +109,8 @@ service cloud.firestore {
         // mesma transação do débito.
         !request.resource.data.diff(resource.data).affectedKeys().hasAny([
           'role', 'walletBalance', 'weeklySpent', 'authUid', 'mainAdmin',
-          'isMainAdmin', 'permissions', 'saqueDia', 'creditLimit'
+          'isMainAdmin', 'permissions', 'saqueDia', 'creditLimit',
+          'autorizacaoExcepcional'
           // 'currentDebt' NÃO está na lista acima porque o fallback offline de
           // recebimento de fiado (utils/customerUtils.ts -> abateDivida) precisa
           // abater a dívida quando o backend está inacessível. Em vez de liberar
@@ -129,9 +143,15 @@ service cloud.firestore {
         (userMatch(userId) &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
            'name', 'phone', 'avatarUrl', 'inmateName', 'inmateCpf',
-           'prisonerName', 'prisonerCpf', 'email', 'documentUrl',
+           'prisonerName', 'prisonerCpf', 'documentUrl',
            'showFinanceEntries', 'selectedUnitId'
          ]));
+         // SEGURANÇA: 'email' foi REMOVIDO da whitelist de auto-update. Antes, o
+         // próprio usuário podia gravar email no doc; como exigirAdminPrincipal
+         // tratava 'admin@mercado.com' como principal, QUALQUER admin secundário
+         // virava principal mudando o próprio email (tomada de conta). O email
+         // agora só é definido no signup (criação, via Cloud Function) e o
+         // privilégio principal usa exclusivamente o campo mainAdmin.
       allow delete: if isAdmin();
     }
 
@@ -197,10 +217,27 @@ service cloud.firestore {
     // genérico anularia as restrições abaixo).
     match /settings/general {
       allow read: if isAuthenticated();
+      // SEGURANÇA: campos que desviam DINHEIRO ficam fora da escrita do cliente.
+      // - pixKeys / pixKey: o app do familiar exibe esta chave como destino do
+      //   PIX; um admin secundário podia trocá-la pela própria conta e desviar
+      //   todos os depósitos (o servidor não valida o destino recebido).
+      // - weeklyWalletLimit: lido pelo servidor como teto de gasto; um admin
+      //   podia elevar para bilhões e burlar o limite semanal.
+      // - institutionName/tradeName: aparecem no cupom/recibo (spoofing).
+      // Alterações legítimas passam pelas Cloud Functions (admin SDK, ignora
+      // estas regras) ou por um admin PRINCIPAL autenticado.
       allow update: if isAdmin()
-        && !request.resource.data.keys().hasAny(['secondaryPassword', 'adminPassword']);
+        && !request.resource.data.keys().hasAny(['secondaryPassword', 'adminPassword'])
+        && (ehPrincipal()
+            || !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+                 'pixKeys', 'pixKey', 'weeklyWalletLimit', 'institutionName', 'tradeName'
+               ]));
       allow create: if isAdmin()
-        && !request.resource.data.keys().hasAny(['secondaryPassword', 'adminPassword']);
+        && !request.resource.data.keys().hasAny(['secondaryPassword', 'adminPassword'])
+        && (ehPrincipal()
+            || !request.resource.data.keys().hasAny([
+                 'pixKeys', 'pixKey', 'weeklyWalletLimit', 'institutionName', 'tradeName'
+               ]));
       allow delete: if false;
     }
     match /settings/private {
