@@ -154,16 +154,18 @@ export function relatorioVendas(orders: Order[], periodo: PeriodoVendas): Relato
   };
 }
 
+/**
+ * Saldo dos familiares — versão enxuta: APENAS nome e saldo do dia (o saldo
+ * atual da carteira, que é a foto do dia). Ordenado do maior para o menor saldo.
+ */
 export function relatorioCreditos(users: User[]): RelatorioSimples {
   const familiares = (users || [])
     .filter(ehFamiliar)
     .map((u) => ({
       nome: String(u?.name || u?.nome || 'Familiar'),
-      cpf: u?.cpf || u?.inmateCpf || u?.prisonerCpf || '',
-      interno: String(u?.inmateName || u?.prisonerName || '—'),
       saldo: Number(u?.walletBalance) || 0,
     }))
-    .sort((a, b) => b.saldo - a.saldo);
+    .sort((a, b) => b.saldo - a.saldo || a.nome.localeCompare(b.nome, 'pt-BR'));
 
   const total = familiares.reduce((s, f) => s + f.saldo, 0);
   const comSaldo = familiares.filter((f) => f.saldo > 0).length;
@@ -171,13 +173,11 @@ export function relatorioCreditos(users: User[]): RelatorioSimples {
   return {
     colunas: [
       { rotulo: 'Familiar' },
-      { rotulo: 'CPF', align: 'center' },
-      { rotulo: 'Interno' },
-      { rotulo: 'Saldo', align: 'right' },
+      { rotulo: 'Saldo do dia', align: 'right' },
     ],
-    linhas: familiares.map((f) => [f.nome, mascararCpf(f.cpf), f.interno, moeda(f.saldo)]),
+    linhas: familiares.map((f) => [f.nome, moeda(f.saldo)]),
     resumo: [
-      { rotulo: 'Total em créditos', valor: moeda(total) },
+      { rotulo: 'Total em saldos', valor: moeda(total) },
       { rotulo: 'Com saldo', valor: String(comSaldo) },
       { rotulo: 'Sem saldo', valor: String(familiares.length - comSaldo) },
       { rotulo: 'Familiares', valor: String(familiares.length) },
@@ -290,12 +290,14 @@ export function relatorioProdutos(products: Product[]): RelatorioSimples {
   };
 }
 
+/**
+ * Saldo por interno — versão enxuta: APENAS nome do interno e saldo do dia
+ * (soma dos saldos dos familiares vinculados, foto atual). Maior saldo primeiro.
+ */
 export function relatorioPresos(users: User[]): RelatorioSimples {
   interface Grupo {
     interno: string;
-    cpf: string;
     saldo: number;
-    responsaveis: string[];
   }
   const mapa = new Map<string, Grupo>();
 
@@ -305,121 +307,74 @@ export function relatorioPresos(users: User[]): RelatorioSimples {
     if (!interno && !cpfInterno) return;
     const chave = String(cpfInterno || interno);
     if (!mapa.has(chave)) {
-      mapa.set(chave, { interno: String(interno || 'Interno sem nome'), cpf: String(cpfInterno || ''), saldo: 0, responsaveis: [] });
+      mapa.set(chave, { interno: String(interno || 'Interno sem nome'), saldo: 0 });
     }
     const g = mapa.get(chave)!;
     g.saldo += Number(u?.walletBalance) || 0;
-    const familiar = String(u?.name || u?.nome || 'Familiar');
-    if (!g.responsaveis.includes(familiar)) g.responsaveis.push(familiar);
   });
 
-  const rotuloResponsaveis = (nomes: string[]): string => {
-    if (nomes.length === 0) return '—';
-    if (nomes.length <= 3) return nomes.join(', ');
-    return `${nomes.slice(0, 3).join(', ')} +${nomes.length - 3}`;
-  };
-
-  const grupos = Array.from(mapa.values()).sort((a, b) => b.saldo - a.saldo);
+  const grupos = Array.from(mapa.values()).sort(
+    (a, b) => b.saldo - a.saldo || a.interno.localeCompare(b.interno, 'pt-BR')
+  );
   const total = grupos.reduce((s, g) => s + g.saldo, 0);
   const comSaldo = grupos.filter((g) => g.saldo > 0).length;
-  const totalFamiliares = grupos.reduce((s, g) => s + g.responsaveis.length, 0);
 
   return {
     colunas: [
       { rotulo: 'Interno' },
-      { rotulo: 'CPF Interno', align: 'center' },
-      { rotulo: 'Familiar(is)', align: 'center' },
-      { rotulo: 'Saldo', align: 'right' },
+      { rotulo: 'Saldo do dia', align: 'right' },
     ],
-    linhas: grupos.map((g) => [g.interno, mascararCpf(g.cpf), rotuloResponsaveis(g.responsaveis), moeda(g.saldo)]),
+    linhas: grupos.map((g) => [g.interno, moeda(g.saldo)]),
     resumo: [
       { rotulo: 'Internos', valor: String(grupos.length) },
       { rotulo: 'Com saldo', valor: String(comSaldo) },
       { rotulo: 'Sem saldo', valor: String(grupos.length - comSaldo) },
       { rotulo: 'Total em saldos', valor: moeda(total) },
-      { rotulo: 'Familiares', valor: String(totalFamiliares) },
     ],
     vazio: 'Nenhum interno com familiar cadastrado.',
   };
 }
 
 /**
- * Vendas POR PRODUTO no período — a visão "o que vendeu", complementar ao
- * relatório de Produtos (que é a visão "o que tem em estoque").
- *
- * Cruza os itens de todos os pedidos de receita do período e devolve, para cada
- * produto: nome, quantidade vendida, em quantos pedidos apareceu, preço médio
- * praticado, receita e participação no faturamento. Ordenado por receita — o
- * produto que mais faturou vem primeiro.
+ * Vendas POR PRODUTO no período — versão enxuta: APENAS nome do produto e
+ * valor vendido (receita) no período. Ordenado pelo que mais faturou.
  */
 export function relatorioVendasProdutos(orders: Order[], periodo: PeriodoVendas): RelatorioSimples {
   interface Acumulado {
     nome: string;
-    categoria: string;
-    quantidade: number;
     receita: number;
-    pedidos: number;
   }
   const mapa = new Map<string, Acumulado>();
 
   filtrarVendasPorPeriodo(orders, periodo).forEach((o) => {
-    const jaContado = new Set<string>();
     (o?.items || []).forEach((i) => {
       const qtd = Number(i?.quantity) || 0;
       if (qtd <= 0) return;
       const nome = String(i?.name || i?.productId || 'Produto');
       const chave = String(i?.productId || nome);
       if (!mapa.has(chave)) {
-        mapa.set(chave, {
-          nome,
-          categoria: String(i?.category || '—'),
-          quantidade: 0,
-          receita: 0,
-          pedidos: 0,
-        });
+        mapa.set(chave, { nome, receita: 0 });
       }
-      const acc = mapa.get(chave)!;
-      acc.quantidade += qtd;
-      acc.receita += qtd * (Number(i?.priceAtPurchase) || 0);
-      // Conta o produto uma vez por pedido, mesmo que apareça em linhas separadas.
-      if (!jaContado.has(chave)) {
-        acc.pedidos += 1;
-        jaContado.add(chave);
-      }
+      mapa.get(chave)!.receita += qtd * (Number(i?.priceAtPurchase) || 0);
     });
   });
 
   const produtos = Array.from(mapa.values()).sort(
-    (a, b) => b.receita - a.receita || b.quantidade - a.quantidade || a.nome.localeCompare(b.nome, 'pt-BR')
+    (a, b) => b.receita - a.receita || a.nome.localeCompare(b.nome, 'pt-BR')
   );
   const receitaTotal = produtos.reduce((s, p) => s + p.receita, 0);
-  const unidades = produtos.reduce((s, p) => s + p.quantidade, 0);
   const campeao = produtos[0];
 
   return {
     colunas: [
       { rotulo: 'Produto' },
-      { rotulo: 'Categoria' },
-      { rotulo: 'Qtd', align: 'center' },
-      { rotulo: 'Pedidos', align: 'center' },
-      { rotulo: 'Preço médio', align: 'right' },
-      { rotulo: 'Receita', align: 'right' },
-      { rotulo: '% do total', align: 'right' },
+      { rotulo: 'Valor vendido', align: 'right' },
     ],
-    linhas: produtos.map((p) => [
-      p.nome,
-      p.categoria,
-      String(p.quantidade),
-      String(p.pedidos),
-      moeda(p.quantidade ? p.receita / p.quantidade : 0),
-      moeda(p.receita),
-      receitaTotal > 0 ? `${formatarMoeda((p.receita / receitaTotal) * 100)}%` : '0%',
-    ]),
+    linhas: produtos.map((p) => [p.nome, moeda(p.receita)]),
     resumo: [
       { rotulo: 'Produtos vendidos', valor: String(produtos.length) },
-      { rotulo: 'Unidades vendidas', valor: String(unidades) },
       { rotulo: 'Mais vendido', valor: campeao ? campeao.nome : '—' },
-      { rotulo: 'Receita total', valor: moeda(receitaTotal) },
+      { rotulo: 'Total vendido', valor: moeda(receitaTotal) },
     ],
     vazio: 'Nenhum produto vendido no período selecionado.',
   };

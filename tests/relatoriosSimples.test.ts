@@ -89,14 +89,16 @@ describe('relatorioCreditos', () => {
     const r = relatorioCreditos(users);
     expect(r.linhas).toHaveLength(2);
     const resumo = Object.fromEntries(r.resumo.map(x => [x.rotulo, x.valor]));
-    expect(resumo['Total em créditos']).toBe('R$ 50,00');
+    expect(resumo['Total em saldos']).toBe('R$ 50,00');
     expect(resumo['Com saldo']).toBe('1');
     expect(resumo['Sem saldo']).toBe('1');
   });
 
-  it('mascara o CPF', () => {
+  it('lista apenas nome e saldo do dia, do maior para o menor', () => {
     const r = relatorioCreditos(users);
-    expect(r.linhas[0][1]).toMatch(/\*\*\*/);
+    expect(r.colunas.map(c => c.rotulo)).toEqual(['Familiar', 'Saldo do dia']);
+    expect(r.linhas[0]).toEqual(['Ana', 'R$ 50,00']);
+    expect(r.linhas[1]).toEqual(['Beto', 'R$ 0,00']);
   });
 });
 
@@ -176,12 +178,12 @@ describe('relatorioPresos', () => {
 
   it('agrupa por interno e soma os saldos dos familiares', () => {
     const r = relatorioPresos(users);
+    expect(r.colunas.map(c => c.rotulo)).toEqual(['Interno', 'Saldo do dia']);
     const resumo = Object.fromEntries(r.resumo.map(x => [x.rotulo, x.valor]));
     expect(resumo['Internos']).toBe('2');
     expect(resumo['Total em saldos']).toBe('R$ 50,00');
     // Interno X (saldo 50) vem primeiro
-    expect(r.linhas[0][0]).toBe('Interno X');
-    expect(r.linhas[0][3]).toBe('R$ 50,00');
+    expect(r.linhas[0]).toEqual(['Interno X', 'R$ 50,00']);
     // Familiar sem interno é ignorado
     expect(r.linhas.every(l => l[0] !== 'Sem Interno')).toBe(true);
   });
@@ -191,7 +193,6 @@ describe('relatorioPresos', () => {
     const resumo = Object.fromEntries(r.resumo.map(x => [x.rotulo, x.valor]));
     expect(resumo['Com saldo']).toBe('1');
     expect(resumo['Sem saldo']).toBe('1');
-    expect(resumo['Familiares']).toBe('3');
   });
 });
 
@@ -230,40 +231,30 @@ describe('relatorioVendasProdutos', () => {
     },
   ];
 
-  it('agrega quantidade e receita por produto e ordena pelo que mais faturou', () => {
+  it('lista apenas nome do produto e valor vendido, ordenado pelo que mais faturou', () => {
     const r = relatorioVendasProdutos(orders, 'hoje');
 
+    expect(r.colunas.map(c => c.rotulo)).toEqual(['Produto', 'Valor vendido']);
     expect(r.linhas).toHaveLength(2);
-    // Refri: 4 unidades x R$ 5 = R$ 20 (2 pedidos) — vem antes da Água
-    expect(r.linhas[0][0]).toBe('Refri');
-    expect(r.linhas[0][2]).toBe('4');
-    expect(r.linhas[0][3]).toBe('2');
-    expect(r.linhas[0][4]).toBe('R$ 5,00'); // preço médio
-    expect(r.linhas[0][5]).toBe('R$ 20,00'); // receita
+    // Refri: 4 unidades x R$ 5 = R$ 20 — vem antes da Água
+    expect(r.linhas[0]).toEqual(['Refri', 'R$ 20,00']);
     // Água: 1 unidade x R$ 3 = R$ 3
-    expect(r.linhas[1][0]).toBe('Água');
-    expect(r.linhas[1][5]).toBe('R$ 3,00');
+    expect(r.linhas[1]).toEqual(['Água', 'R$ 3,00']);
   });
 
-  it('resume produtos distintos, unidades, campeão e receita total', () => {
+  it('resume produtos distintos, campeão e total vendido', () => {
     const r = relatorioVendasProdutos(orders, 'hoje');
     const resumo = Object.fromEntries(r.resumo.map(x => [x.rotulo, x.valor]));
     expect(resumo['Produtos vendidos']).toBe('2');
-    expect(resumo['Unidades vendidas']).toBe('5');
     expect(resumo['Mais vendido']).toBe('Refri');
-    expect(resumo['Receita total']).toBe('R$ 23,00');
-  });
-
-  it('mostra a participação de cada produto no faturamento', () => {
-    const r = relatorioVendasProdutos(orders, 'hoje');
-    expect(r.linhas[0][6]).toMatch(/%$/);
+    expect(resumo['Total vendido']).toBe('R$ 23,00');
   });
 
   it('ignora pedidos cancelados e pendentes', () => {
     const r = relatorioVendasProdutos(orders, 'hoje');
     const resumo = Object.fromEntries(r.resumo.map(x => [x.rotulo, x.valor]));
     // 100 unidades do pedido cancelado e 50 do pendente não entram
-    expect(resumo['Unidades vendidas']).toBe('5');
+    expect(resumo['Total vendido']).toBe('R$ 23,00');
   });
 
   it('devolve mensagem de vazio quando não há vendas', () => {
