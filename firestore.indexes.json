@@ -135,6 +135,14 @@
         { "fieldPath": "createdAt", "order": "ASCENDING" },
         { "fieldPath": "deleted", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "allowCredit", "order": "ASCENDING" },
+        { "fieldPath": "name", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

@@ -71,25 +71,32 @@ export async function getCustomerAccounts(): Promise<CustomerAccount[]> {
       orderBy('name', 'asc'),
       limit(1000)
     );
-    snap = await getDocs(q2);
-    snap.docs.forEach(d => {
-      if (ids.has(d.id)) return;
-      const u = d.data() as any;
-      list.push({
-        id: d.id,
-        nome: String(u.name || u.nome || "Fiado").toUpperCase(),
-        cpf: u.cpf || u.inmateCpf || u.prisonerCpf || "",
-        telefone: u.phone || u.telefone || u.inmatePhone || "",
-        creditLimit: Number(u.creditLimit || 0),
-        currentDebt: Number(u.currentDebt || 0),
-        weeklySpent: Number(u.weeklySpent || 0),
-        status: String(u.status || "active").toLowerCase() === "blocked" ? "blocked" : "active",
-        transactions: [],
-        createdAt: u.createdAt || "",
-        debtStartedAt: u.debtStartedAt || "",
-        walletBalance: Number(u.walletBalance || 0)
-      } as CustomerAccount);
-    });
+    try {
+      snap = await getDocs(q2);
+      snap.docs.forEach(d => {
+        if (ids.has(d.id)) return;
+        const u = d.data() as any;
+        list.push({
+          id: d.id,
+          nome: String(u.name || u.nome || "Fiado").toUpperCase(),
+          cpf: u.cpf || u.inmateCpf || u.prisonerCpf || "",
+          telefone: u.phone || u.telefone || u.inmatePhone || "",
+          creditLimit: Number(u.creditLimit || 0),
+          currentDebt: Number(u.currentDebt || 0),
+          weeklySpent: Number(u.weeklySpent || 0),
+          status: String(u.status || "active").toLowerCase() === "blocked" ? "blocked" : "active",
+          transactions: [],
+          createdAt: u.createdAt || "",
+          debtStartedAt: u.debtStartedAt || "",
+          walletBalance: Number(u.walletBalance || 0)
+        } as CustomerAccount);
+      });
+    } catch (e2: any) {
+      // Se o índice de allowCredit+name ainda não estiver provisionado, NÃO
+      // descarta a lista: os devedores (1ª query) já estão carregados e são o
+      // essencial da cobrança. Só registra e segue.
+      console.warn("[getCustomerAccounts] Query de fiado-ativos indisponível (índice?):", e2?.message);
+    }
     return list;
   } catch (e: any) {
     console.error("[getCustomerAccounts]", e.message);
