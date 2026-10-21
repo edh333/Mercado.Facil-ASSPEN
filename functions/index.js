@@ -211,6 +211,9 @@ async function exigirAdmin(context) {
   if (u.status && u.status !== "active") {
     throw new HttpsError("permission-denied", "Conta suspensa ou pendente. Contate o administrador.");
   }
+  // Elimina o plaintext legado da senha mestra também nos caminhos admin
+  // (exigirAutenticado já cobre os demais). Barato após a 1ª chamada (flag).
+  await migrarSenhaMestraLegada();
   return u;
 }
 
