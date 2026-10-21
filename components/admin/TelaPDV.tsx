@@ -1124,10 +1124,14 @@ if (pedidoOffline) {
           </div>
         </div>
 
-        {/* 🛒 BARRA LATERAL DIREITA — Itens no topo, maximizados */}
-        <div className="lg:col-span-4 lg:h-[calc(100vh-120px)] lg:sticky lg:top-24 flex flex-col h-full bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 sm:p-6 w-full">
-          {/* ELEMENTO 1: ITENS DA VENDA — Topo absoluto, altura maximizada */}
-          <div className="flex-1 overflow-y-auto min-h-[250px] max-h-[calc(100vh-320px)] pr-1 flex flex-col gap-2 border-b border-slate-100 mb-4 lg:flex-1 lg:min-h-0 lg:max-h-[calc(100vh-320px)]">
+        {/* 🛒 BARRA LATERAL DIREITA — Itens no topo, altura estável entre formas de pagamento */}
+        {/* A altura da coluna é FIXA (lg + h-full). A lista de itens recebe min-h fixo
+            e flex-1, e a ZONA DE PAGAMENTO (controles + rodapé) vive separada, com
+            rolagem própria. Assim, trocar de forma de pagamento (PIX/CARD/CASH/MIXED/
+            WALLET/FIADO) NÃO redimensiona mais o espaço dos produtos selecionados. */}
+        <div className="lg:col-span-4 lg:h-[calc(100vh-120px)] lg:sticky lg:top-24 flex flex-col h-full bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden w-full">
+          {/* ELEMENTO 1: ITENS DA VENDA — Altura estável (nunca encolhe por método) */}
+          <div className="flex flex-col shrink-0 h-[280px] lg:h-auto lg:shrink lg:flex-[3] lg:min-h-0 overflow-hidden p-4 sm:p-6 pb-2">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3 shrink-0">
               <span className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-2">
                 <ShoppingCart size={14} className="text-emerald-600" /> Itens da Venda
@@ -1135,8 +1139,8 @@ if (pedidoOffline) {
               <span className="text-xs font-bold text-slate-400">{carrinho.length} item(ns)</span>
             </div>
 
-            {/* Lista de itens com rolagem interna */}
-            <div className="flex flex-col gap-2 overflow-y-auto">
+            {/* Lista de itens com rolagem interna (altura estável) */}
+            <div className="flex flex-col gap-2 overflow-y-auto min-h-0 flex-1 pr-1">
               {carrinho.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-14 text-slate-300 gap-2 shrink-0">
                   <ShoppingCart size={40} strokeWidth={1} className="opacity-40" />
@@ -1186,7 +1190,11 @@ if (pedidoOffline) {
             </div>
           </div>
 
-          {/* ELEMENTO 2: CRÉDITOS (WALLET) — Exibe apenas saldo/limite, sem senha */}
+          {/* ELEMENTO 2: ZONA DE PAGAMENTO — controles por método + rodapé.
+              Fica em região própria com rolagem, para não empurrar/encolher a lista
+              de itens quando o método muda. */}
+          <div className="flex flex-col flex-1 min-h-0 lg:flex-[2] lg:min-h-0 overflow-y-auto px-4 sm:px-6 pt-2 pb-4 sm:pb-6">
+          {/* ELEMENTO 2a: CRÉDITOS (WALLET) — Exibe apenas saldo/limite, sem senha */}
           {formaPagamento === 'WALLET' && (
             <div className="bg-white border border-slate-200/80 rounded-xl p-4 flex flex-col gap-3 w-full mb-4 animate-in fade-in duration-200 shrink-0">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Créditos do Cliente</span>
@@ -1268,7 +1276,7 @@ if (pedidoOffline) {
           )}
 
           {/* ELEMENTO 4: TOTALIZADOR E BOTÃO FINALIZAR — Fixo na base do rodapé direito */}
-          <div className="mt-auto pt-2 w-full shrink-0 bg-white border-t border-slate-200/80">
+          <div className="mt-auto pt-2 w-full shrink-0 border-t border-slate-200/80">
             {/* Contexto PIX / CARD / CASH / MIXED — renderizado inline no rodapé quando não WALLET */}
             {formaPagamento === 'PIX' && (
               pixChave() ? (
@@ -1480,6 +1488,7 @@ if (pedidoOffline) {
                 {processando ? 'Processando...' : 'Finalizar Venda'}
               </button>
             </div>
+          </div>
           </div>
         </div>
 
