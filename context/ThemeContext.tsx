@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useLayoutEffect, useState, useCallback } from 'react';
 import { db } from '../firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { THEME_COLORS } from '../constants';
@@ -77,12 +77,12 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const themeData = THEME_COLORS[themeId] || THEME_COLORS[ThemeOption.MODERN_GREEN];
 
   // Primary color
-  const DEFAULT_PRIMARY = '#10b981';
+  const DEFAULT_PRIMARY = '#064e3b';
   const rawPrimary = String(config?.primaryColor || '').trim().toLowerCase();
   const isLegacyGreen = rawPrimary === '#0e7a4d';
   const primaryColor = /^#[0-9a-fA-F]{6}$/.test(rawPrimary) && !isLegacyGreen ? rawPrimary : DEFAULT_PRIMARY;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const root = document.documentElement;
 
     // Toggle .dark class
