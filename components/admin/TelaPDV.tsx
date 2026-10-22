@@ -54,6 +54,7 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
   const [clienteSelecionado, setClienteSelecionado] = useState('');
   const [buscaCliente, setBuscaCliente] = useState('');
   const [mostrarListaClientes, setMostrarListaClientes] = useState(false);
+  const [mostrarDetalhes, setMostrarDetalhes] = useState(false);
   const [codigoProduto, setCodigoProduto] = useState('');
   const [formaPagamento, setFormaPagamento] = useState<MetodoPagamentoPDV>('WALLET');
   const [valorMisto, setValorMisto] = useState({ PIX: '', WALLET: '', CASH: '' });
@@ -914,25 +915,32 @@ if (pedidoOffline) {
                   pagamento e empurravam "Aplicar desconto" e "Finalizar Venda"
                   para fora da tela. */}
               {clienteValido && (
-                <div data-testid="pdv-credito-cliente" className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-2xl font-black leading-relaxed">
+                <div data-testid="pdv-credito-cliente" className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-2xl font-black leading-relaxed cursor-pointer" onClick={() => setMostrarDetalhes(!mostrarDetalhes)}>
                   <span className="text-slate-500">
                     Saldo:{' '}
                     <span className="text-emerald-600">
                       {formatarMoeda(saldoCarteiraCliente)}
                     </span>
                   </span>
-                  <span className="text-slate-500">
-                    Limite fiado: <span className="text-slate-600">{formatarMoeda(limiteFiadoDisponivel)}</span>
-                  </span>
-                  {dividaAtualCliente > 0 && (
-                    <span className="text-slate-500">
-                      Dívida atual: <span className="text-amber-500 font-medium">{formatarMoeda(dividaAtualCliente)}</span>
-                    </span>
-                  )}
-<span className="text-slate-500">
-                      Crédito na semana: <span className="text-slate-500">{formatarMoeda(limiteSemanalDisponivel)}</span>
-                  </span>
                 </div>
+              )}
+                {mostrarDetalhes && (
+                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-slate-500">
+                    <span className="text-slate-400">Limite fiado: </span><span className="text-slate-300">{formatarMoeda(limiteFiadoDisponivel)}</span>
+                    {dividaAtualCliente > 0 && (
+                      <span className="text-slate-300 mx-4">•</span>
+                    )}
+                    {dividaAtualCliente > 0 && (
+                      <span className="text-slate-300">
+                        Dívida atual: {formatarMoeda(dividaAtualCliente)}
+                      </span>
+                    )}
+                    {limiteSemanalDisponivel > 0 && (
+                      <span className="text-slate-300">
+                        Crédito na semana: {formatarMoeda(limiteSemanalDisponivel)}
+                      </span>
+                    )}
+                  </div>
               )}
             </div>
 
