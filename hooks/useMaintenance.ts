@@ -25,12 +25,16 @@ export function isMasterUser(user?: User | null): boolean {
  * - quem desativou / master: mantém acesso e pode reativar
  * - usuários comuns NÃO usam este hook (nunca são bloqueados)
  */
-export function useMaintenance(user?: User | null) {
+export function useMaintenance(user?: User | null, enabled: boolean = true) {
   const [maintenance, setMaintenance] = useState<MaintenanceState | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) {
+    // `enabled=false` (ex.: usuário comum, que nunca é bloqueado por manutenção)
+    // NÃO abre o listener — economiza um stream Firestore e um timer de 8s por
+    // sessão. O hook continua chamado incondicionalmente (regra dos hooks); só a
+    // assinatura é gated. O parâmetro mantém a ordem de hooks intacta.
+    if (!user || !enabled) {
       setMaintenance(null);
       setLoading(false);
       return;
@@ -55,7 +59,7 @@ export function useMaintenance(user?: User | null) {
       }
     );
     return () => { cancelled = true; clearTimeout(safety); unsub(); };
-  }, [user?.id]);
+  }, [user?.id, enabled]);
 
   const inativo = maintenance !== null && maintenance.ativo === false;
   const desativadoPorMim = !!inativo && maintenance?.desativadoPor === user?.id;

@@ -14,7 +14,10 @@ export interface PontoRestauracao {
 }
 
 const BACKUP_KEY = 'sistema_pontos_restauracao';
-const MAX_BACKUPS = 15;
+// 5 (era 15): cada ponto copia TODO o localStorage; 15 cópias amplificavam o
+// storage, estouravam a cota e deixavam o boot do painel admin lento (stringify
+// + setItem gigantes). 5 pontos cobrem rollback recente sem o custo.
+const MAX_BACKUPS = 5;
 
 function lerPontos(): PontoRestauracao[] {
   try {

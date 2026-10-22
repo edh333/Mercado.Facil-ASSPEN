@@ -65,30 +65,47 @@ const PendingScreen: React.FC<{ onLogout: () => void }> = ({ onLogout }) => (
 const MainApp: React.FC = () => {
   const { currentUser, authLoading, logout } = useApp();
 
+  // Ociosidade: adia trabalho LOCAL pesado (backup do localStorage, manutenção
+  // preventiva) para DEPOIS do primeiro frame. Rodá-lo de forma síncrona no
+  // mount bloqueava a thread principal e era boa parte da demora para "abrir o
+  // sistema". Fallback para setTimeout em navegadores sem requestIdleCallback.
+  const agendarOcioso = React.useCallback((fn: () => void) => {
+    const ric = (window as any).requestIdleCallback;
+    if (typeof ric === 'function') {
+      const id = ric(fn, { timeout: 4000 });
+      return () => (window as any).cancelIdleCallback?.(id);
+    }
+    const t = setTimeout(fn, 1200);
+    return () => clearTimeout(t);
+  }, []);
+
   React.useEffect(() => {
-    if (currentUser?.role === UserRole.ADMIN) {
+    if (currentUser?.role !== UserRole.ADMIN) return;
+    return agendarOcioso(() => {
       try {
         verificarBackupAutomatico();
       } catch {
         /* backup automático falhou — ignora */
       }
-    }
-  }, [currentUser]);
+    });
+  }, [currentUser, agendarOcioso]);
 
   // AUTO-MANUTENÇÃO: roda ao abrir (1x/dia o ciclo pesado) e re-verifica a
   // cada 6h enquanto o sistema estiver aberto. Autolimpeza + quarentena de
   // JSON corrompido + diagnóstico de saúde, sem intervenção humana.
   React.useEffect(() => {
     let parar: (() => void) | undefined;
-    try {
-      parar = iniciarManutencaoAutomatica();
-      const r = lerUltimoRelatorio();
-      if (r?.avisos.length) console.warn('[Manutenção] Avisos do sistema:', r.avisos);
-    } catch {
-      /* manutenção nunca deve derrubar o app */
-    }
-    return () => parar?.();
-  }, []);
+    const cancelarOcioso = agendarOcioso(() => {
+      try {
+        parar = iniciarManutencaoAutomatica();
+        const r = lerUltimoRelatorio();
+        if (r?.avisos.length) console.warn('[Manutenção] Avisos do sistema:', r.avisos);
+      } catch {
+        /* manutenção nunca deve derrubar o app */
+      }
+    });
+    return () => { cancelarOcioso(); parar?.(); };
+  }, [agendarOcioso]);
 
 // CRÍTICO — todos os hooks SEMPRE no topo, incondicionais!
 // O erro #310 (Rendered more hooks...) disparava porque `useMaintenance`
@@ -98,7 +115,13 @@ const MainApp: React.FC = () => {
 // hooks e o React abortava com #310 exatamente no useState do
 // useMaintenance. Com os hooks alinhados, QUALQUER re-render tem SEMPRE a
 // mesma sequência — o #310 é impossível de ocorrer aqui.
-  const { maintenance, loading: maintenanceLoading, inativo, podeOperar, reativar } = useMaintenance(currentUser);
+  const { maintenance, loading: maintenanceLoading, inativo, podeOperar, reativar } = useMaintenance(
+    currentUser,
+    // Só a EQUIPE usa manutenção (usuários comuns nunca são bloqueados). Gating
+    // do stream dentro do hook, mantendo a chamada incondicional (regra dos
+    // hooks) — evita abrir um listener Firestore inútil para os familiares.
+    currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.VENDEDOR,
+  );
 
   const urlParams = new URLSearchParams(window.location.search);
   const isPrint =
