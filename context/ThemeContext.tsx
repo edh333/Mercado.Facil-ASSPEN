@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useLayoutEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useLayoutEffect, useState, useCallback } from 'react';
 import { db } from '../firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { THEME_COLORS } from '../constants';
