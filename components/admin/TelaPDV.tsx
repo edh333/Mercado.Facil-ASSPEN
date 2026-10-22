@@ -914,10 +914,10 @@ if (pedidoOffline) {
                   pagamento e empurravam "Aplicar desconto" e "Finalizar Venda"
                   para fora da tela. */}
               {clienteValido && (
-                <div data-testid="pdv-credito-cliente" className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[14px] font-bold leading-relaxed">
+                <div data-testid="pdv-credito-cliente" className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-2xl font-black leading-relaxed">
                   <span className="text-slate-500">
                     Saldo:{' '}
-                    <span className={saldoCarteiraCliente >= totalFinal ? 'text-emerald-600 font-semibold' : 'text-rose-500 font-medium'}>
+                    <span className="text-emerald-600">
                       {formatarMoeda(saldoCarteiraCliente)}
                     </span>
                   </span>
