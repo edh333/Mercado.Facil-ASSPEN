@@ -3,7 +3,7 @@ import {
   Settings, KeyRound, Database, HardDrive, Download, AlertTriangle,
   Trash2, RefreshCw, Smartphone, Palette, Shield, Lock, Save, DollarSign, Check,
   CreditCard, Building, Info, Printer, Wrench, Truck, ShoppingBag, Search, Loader2, Zap, Users,
-  History, RotateCcw, Upload, Archive, Power, CalendarClock, CloudUpload, CloudDownload, FileJson, Receipt, Pencil, Moon, Eye, EyeOff
+  History, RotateCcw, Upload, Archive, Power, CalendarClock, CloudUpload, CloudDownload, FileJson, Receipt, Pencil, Moon, Eye, EyeOff, ShieldCheck, MessageSquare
 } from 'lucide-react';
 import { ModalShell } from '../ui/ModalShell';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -1110,6 +1110,98 @@ const handleBaixarBackup = async (nome: string) => {
                     onBlur={() => commitDraft('welcomeMessage')}
                     placeholder="Mensagem que aparece para novos usuários"
                   />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── CONTROLE DO ADMINISTRADOR PRINCIPAL ──
+            Só o principal vê e altera (as regras bloqueiam escrita de terceiros).
+            O toggle de venda exige senha mestra (handleProtectedAction); a
+            mensagem aos admins é salva pelo fluxo normal de configurações. */}
+        {activeSubTab === 'finance' && isMaster && (
+          <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8 animate-slideUp">
+            <div className="bg-white p-8 rounded-3xl border-2 border-emerald-100 shadow-2xl">
+              <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2 mb-4">
+                <ShieldCheck size={20} className="text-emerald-600" /> Vendas no PDV (Principal)
+              </h3>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <div className="pr-3">
+                    <p className="text-xs font-black uppercase text-slate-900">Botão de venda do PDV</p>
+                    <p className="text-[10px] text-slate-500">
+                      {settings?.saleEnabled === false
+                        ? 'Vendas DESATIVADAS — o botão Finalizar está bloqueado em todos os PDVs.'
+                        : 'Vendas ativadas — o PDV funciona normalmente.'}
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      aria-label="Ativar botão de venda do PDV"
+                      checked={settings?.saleEnabled !== false}
+                      onChange={e => {
+                        const habilitar = e.target.checked;
+                        handleProtectedAction(() => {
+                          updateSettings({ ...settings, saleEnabled: habilitar });
+                          showNotification?.(habilitar ? 'Vendas no PDV ativadas.' : 'Vendas no PDV desativadas.', habilitar ? 'success' : 'warning');
+                        });
+                      }}
+                    />
+                    <div className="w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-brand after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
+                  </label>
+                </div>
+                <p className="text-[10px] text-slate-400 leading-relaxed">
+                  Alterar esta opção exige a senha mestra. Vale para vendas ao vivo e para as vendas
+                  que ainda estão na fila offline.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white p-8 rounded-3xl border-2 border-emerald-100 shadow-2xl">
+              <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2 mb-4">
+                <MessageSquare size={20} className="text-emerald-600" /> Mensagem aos Administradores
+              </h3>
+              <div className="space-y-4">
+                <textarea
+                  className="w-full p-3 bg-white border-2 border-slate-300 rounded-xl font-medium text-sm text-slate-900 h-24 resize-none"
+                  value={draftValue('adminMessage', settings?.adminMessage, '')}
+                  onChange={e => setDraft('adminMessage', e.target.value)}
+                  onBlur={() => {
+                    const raw = fieldDrafts['adminMessage'];
+                    if (raw === undefined || !settings) return;
+                    if ((settings as any).adminMessage === raw) { setFieldDrafts(prev => { const n = { ...prev }; delete n['adminMessage']; return n; }); return; }
+                    // Carimba data/autor para que uma NOVA mensagem reexiba o
+                    // banner mesmo para quem já viu a anterior nesta sessão.
+                    updateSettings({
+                      ...(settings as any),
+                      adminMessage: raw,
+                      adminMessageUpdatedAt: new Date().toISOString(),
+                      adminMessageBy: currentUserId || '',
+                    });
+                    setFieldDrafts(prev => { const n = { ...prev }; delete n['adminMessage']; return n; });
+                  }}
+                  placeholder="Escreva um aviso para os demais administradores. Deixe vazio para remover."
+                  maxLength={500}
+                />
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[10px] text-slate-400 leading-relaxed">
+                    Aparece por 10 segundos ao entrar no sistema para os demais admins, enquanto
+                    não for removida. Gravar em branco desativa o aviso.
+                  </p>
+                  <button
+                    onClick={() => updateSettings({ ...settings, adminMessage: '', adminMessageUpdatedAt: new Date().toISOString(), adminMessageBy: currentUserId || '' })}
+                    disabled={!settings?.adminMessage}
+                    className={`shrink-0 text-[11px] font-bold px-3 py-2 rounded-lg border transition-colors ${
+                      settings?.adminMessage
+                        ? 'border-slate-200 text-slate-600 hover:border-red-300 hover:text-red-600'
+                        : 'border-slate-100 text-slate-300 cursor-not-allowed'
+                    }`}
+                  >
+                    Desativar aviso
+                  </button>
                 </div>
               </div>
             </div>

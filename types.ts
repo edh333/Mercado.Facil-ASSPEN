@@ -311,6 +311,16 @@ export interface AppConfig {
   showUserCredits?: boolean;
   pdvColor?: string;
   autoPrint?: boolean;
+
+  // Chave de venda do PDV (admin principal): desliga o botão "Finalizar Venda".
+  // Default seguro = habilitado (tratado com `!== false`).
+  saleEnabled?: boolean;
+
+  // Aviso do administrador principal para os demais admins. Fica visível por
+  // 10s ao entrar no sistema enquanto não for desativado (gravar '' limpa).
+  adminMessage?: string;
+  adminMessageUpdatedAt?: string;
+  adminMessageBy?: string;
 }
 
 

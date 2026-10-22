@@ -224,19 +224,24 @@ service cloud.firestore {
       // - weeklyWalletLimit: lido pelo servidor como teto de gasto; um admin
       //   podia elevar para bilhões e burlar o limite semanal.
       // - institutionName/tradeName: aparecem no cupom/recibo (spoofing).
+      // - saleEnabled: desliga o botão de venda do PDV (kill switch operacional).
+      // - adminMessage/adminMessage*: aviso global do principal aos demais
+      //   admins; só o principal pode publicar/limpar.
       // Alterações legítimas passam pelas Cloud Functions (admin SDK, ignora
       // estas regras) ou por um admin PRINCIPAL autenticado.
       allow update: if isAdmin()
         && !request.resource.data.keys().hasAny(['secondaryPassword', 'adminPassword'])
         && (ehPrincipal()
             || !request.resource.data.diff(resource.data).affectedKeys().hasAny([
-                 'pixKeys', 'pixKey', 'weeklyWalletLimit', 'institutionName', 'tradeName'
+                 'pixKeys', 'pixKey', 'weeklyWalletLimit', 'institutionName', 'tradeName',
+                 'saleEnabled', 'adminMessage', 'adminMessageUpdatedAt', 'adminMessageBy'
                ]));
       allow create: if isAdmin()
         && !request.resource.data.keys().hasAny(['secondaryPassword', 'adminPassword'])
         && (ehPrincipal()
             || !request.resource.data.keys().hasAny([
-                 'pixKeys', 'pixKey', 'weeklyWalletLimit', 'institutionName', 'tradeName'
+                 'pixKeys', 'pixKey', 'weeklyWalletLimit', 'institutionName', 'tradeName',
+                 'saleEnabled', 'adminMessage', 'adminMessageUpdatedAt', 'adminMessageBy'
                ]));
       allow delete: if false;
     }

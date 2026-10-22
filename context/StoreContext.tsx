@@ -296,6 +296,8 @@ const DEFAULT_CONFIG: AppConfig = {
     receiptFontSize: 12,
     enablePrisonerWallet: true,
     weeklyWalletLimit: 300,
+    saleEnabled: true,
+    adminMessage: '',
     activationDate: new Date().toISOString(),
     activationKey: '',
     activationDaysLeft: 0

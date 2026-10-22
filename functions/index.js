@@ -2569,6 +2569,22 @@ exports.processarVendaAdmin = onCall({
   timeoutSeconds: 120,
 }, async (request) => {
   const caller = await exigirOperadorPdv(request, "sales");
+  // KILL SWITCH DE VENDA (autoridade no SERVIDOR): o admin principal pode
+  // desativar o botão de venda do PDV em settings/general.saleEnabled. Checar
+  // aqui — e não só no front — impede que um cliente com sessão válida chame a
+  // callable diretamente e crie pedidos com as vendas supostamente desligadas.
+  // Default seguro: ausente/undefined ⇒ vendas HABILITADAS (implantações antigas
+  // não param de vender). Vale para vendas ao vivo E para o replay da fila offline.
+  try {
+    const cfgSnap = await db.collection("settings").doc("general").get();
+    if (cfgSnap.exists && cfgSnap.data().saleEnabled === false) {
+      throw new HttpsError("failed-precondition", "As vendas estão temporariamente desativadas pelo administrador.");
+    }
+  } catch (e) {
+    if (e instanceof HttpsError) throw e;
+    // Falha de leitura do config não pode impedir uma venda legítima; segue.
+    console.warn("[processarVendaAdmin] falha ao ler saleEnabled:", e && e.message);
+  }
   const targetUserId = String(request.data?.targetUserId || "balcao_anonimo");
   let paymentMethod = String(request.data?.paymentMethod || "CASH").toUpperCase();
   if (paymentMethod === "FIADO") paymentMethod = "FIADO";

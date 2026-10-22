@@ -46,6 +46,7 @@ import { AdminCashTab } from '../components/admin/AdminCashTab';
 import { AdminDashboardCharts } from '../components/admin/AdminDashboardCharts';
 import { AdminStockAlertsTab } from '../components/admin/AdminStockAlertsTab';
 import { MaintenanceCenter } from '../components/admin/MaintenanceCenter';
+import { AdminMessageBanner } from '../components/admin/AdminMessageBanner';
 import { UpdateBanner } from '../components/admin/UpdateBanner';
 import { AdminMessagesTab } from '../components/admin/AdminMessagesTab';
 import { AdminCustomersTab } from '../components/admin/AdminCustomersTab';
@@ -797,6 +798,10 @@ return (
             mostrar (retorna null, caso normal), o wrapper sem padding some
             junto. Antes sobravam 32px vazios no topo de toda tela. */}
         <OfflineSalesBanner />
+
+        {/* Aviso do administrador principal para os demais admins: aparece 10s
+            ao entrar no sistema e some; persiste enquanto não for desativado. */}
+        <AdminMessageBanner message={(settings as any)?.adminMessage} updatedAt={(settings as any)?.adminMessageUpdatedAt} />
 
         {/* Manutenção: faixa compacta com avisos automáticos + checklist (admin-only) */}
         <MaintenanceCenter
