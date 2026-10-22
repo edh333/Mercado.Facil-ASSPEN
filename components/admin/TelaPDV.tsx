@@ -914,23 +914,23 @@ if (pedidoOffline) {
                   pagamento e empurravam "Aplicar desconto" e "Finalizar Venda"
                   para fora da tela. */}
               {clienteValido && (
-                <div data-testid="pdv-credito-cliente" className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[11px] font-bold leading-tight">
+                <div data-testid="pdv-credito-cliente" className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[14px] font-bold leading-relaxed">
                   <span className="text-slate-500">
                     Saldo:{' '}
-                    <span className={saldoCarteiraCliente >= totalFinal ? 'text-emerald-600' : 'text-rose-500'}>
+                    <span className={saldoCarteiraCliente >= totalFinal ? 'text-emerald-600 font-semibold' : 'text-rose-500 font-medium'}>
                       {formatarMoeda(saldoCarteiraCliente)}
                     </span>
                   </span>
                   <span className="text-slate-500">
-                    Limite fiado: <span className="text-slate-800">{formatarMoeda(limiteFiadoDisponivel)}</span>
+                    Limite fiado: <span className="text-slate-600">{formatarMoeda(limiteFiadoDisponivel)}</span>
                   </span>
                   {dividaAtualCliente > 0 && (
                     <span className="text-slate-500">
-                      Dívida atual: <span className="text-amber-600">{formatarMoeda(dividaAtualCliente)}</span>
+                      Dívida atual: <span className="text-amber-500 font-medium">{formatarMoeda(dividaAtualCliente)}</span>
                     </span>
                   )}
-                  <span className="text-slate-500">
-                    Crédito na semana: <span className="text-slate-800">{formatarMoeda(limiteSemanalDisponivel)}</span>
+<span className="text-slate-500">
+                      Crédito na semana: <span className="text-slate-500">{formatarMoeda(limiteSemanalDisponivel)}</span>
                   </span>
                 </div>
               )}
