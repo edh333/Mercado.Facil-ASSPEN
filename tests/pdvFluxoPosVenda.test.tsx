@@ -86,8 +86,14 @@ async function concluirVendaNaTela(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText(/valor recebido/i), '14');
 
   // 3) finaliza
-  const finalizar = await screen.findByRole('button', { name: /finalizar venda/i });
-  await waitFor(() => expect((finalizar as HTMLButtonElement).disabled).toBe(false));
+  // Re-consulta o botão dentro do waitFor: o PDV re-renderiza a cada tecla e
+  // o React pode RECRIAR o nó do botão — a referência capturada antes ficaria
+  // "desligada" da tela e leria um `disabled` antigo.
+  await waitFor(() => {
+    const botao = screen.getByRole('button', { name: /finalizar venda/i }) as HTMLButtonElement;
+    expect(botao.disabled).toBe(false);
+  }, { timeout: 5000 });
+  const finalizar = screen.getByRole('button', { name: /finalizar venda/i });
   await user.click(finalizar);
 }
 

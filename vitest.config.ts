@@ -10,5 +10,12 @@ export default defineConfig({
     // pós-venda do PDV). Antes o projeto não tinha cobertura de UI alguma.
     include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
     reporters: ['default'],
+    // A suíte de UI renderiza o PDV inteiro (componente pesado) em vários
+    // arquivos. Com o padrão de 5s, em máquina carregada o teste estourava o
+    // tempo mesmo com o comportamento correto — o que gerava falha
+    // intermitente. 15s dá folga para o render sem mascarar erro real (a
+    // asserção continua obrigando o resultado).
+    testTimeout: 15000,
+    hookTimeout: 15000,
   },
 });
