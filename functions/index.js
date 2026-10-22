@@ -4189,6 +4189,66 @@ exports.criarClienteFiado = onCall({
   return { ok: true, userId: ref.id };
 });
 
+/**
+ * EXCLUSÃO DE CLIENTE DE FIADO — soft delete no servidor, com 2º fator.
+ *
+ * Antes: a tela de Clientes chamava deleteDoc() direto no documento do
+ * usuário. Três problemas, todos de dinheiro:
+ *  1) o histórico de compras/fiado sumia junto com o doc (sem trilha);
+ *  2) um cliente com dívida em aberto podia ser apagado — o fiado virava
+ *     "nada a receber" e a perda não aparecia em nenhum relatório;
+ *  3) a exclusão não exigia senha mestra, ao contrário de toda outra
+ *     operação da aba (criar cliente, alterar limite).
+ *
+ * Agora: SOFT delete (o doc continua no banco para conciliação/auditoria),
+ * recusa se houver dívida em aberto, exige 'finance' + senha mestra e grava
+ * audit log. O usuário sai das listas de fiado (allowCredit=false, status
+ * suspenso) e não pode mais ter limite de crédito.
+ */
+exports.excluirClienteFiado = onCall({
+  memory: "512MiB",
+  timeoutSeconds: 60,
+}, async (request) => {
+  const caller = await exigirAdminPermissao(request, "finance");
+  await verificarSenhaMestra(request.data?.senhaMestra);
+  const userId = String(request.data?.userId || "").trim();
+  if (!userId) throw new HttpsError("invalid-argument", "Cliente não informado.");
+
+  verificarRateLimit("excluirClienteFiado:" + caller.id, 20);
+
+  const ref = db.collection("users").doc(userId);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Cliente não encontrado.");
+  const alvo = snap.data() || {};
+  const roleAlvo = String(alvo.role || "").toLowerCase();
+
+  // O admin principal nunca sai (e o "master" também não).
+  if (ehAdminPrincipalDoc(alvo) || roleAlvo === "master" || userId === "master") {
+    throw new HttpsError("failed-precondition", "O administrador principal não pode ser excluído.");
+  }
+
+  // DÍVIDA EM ABERTO: excluir agora faria a perda "sumir" dos relatórios. A
+  // conta só é excluída depois de quitada — o caminho normal é dar baixa
+  // (abaterDividaFiado).
+  const divida = arredondar(Number(alvo.currentDebt) || 0);
+  if (divida > 0) {
+    throw new HttpsError(
+      "failed-precondition",
+      `O cliente tem dívida em aberto de R$ ${divida.toFixed(2)}. Quite o saldo antes de excluir a conta.`
+    );
+  }
+
+  // SOFT delete: histórico preservado; o cliente sai do fiado.
+  await ref.update({ deleted: true, status: "suspended", allowCredit: false });
+  await registrarAudit(
+    caller.id,
+    "EXCLUIR_CLIENTE_FIADO",
+    { usuarioId: userId, nome: alvo.name, cpf: alvo.cpf, creditLimit: alvo.creditLimit },
+    { divida }
+  );
+  return { ok: true, userId };
+});
+
 // ──────────────────────────────────────────────
 // ARQUIVAMENTO (rotina existente)
 // ──────────────────────────────────────────────

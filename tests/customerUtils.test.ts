@@ -53,7 +53,7 @@ vi.mock('firebase/functions', () => ({
   },
 }));
 
-import { addCustomerAccount, updateCustomerAccount } from '../utils/customerUtils';
+import { addCustomerAccount, updateCustomerAccount, deleteCustomerAccount } from '../utils/customerUtils';
 
 describe('customerUtils — criação de cliente de fiado', () => {
   beforeEach(() => {
@@ -166,5 +166,38 @@ describe('customerUtils — edição de cliente de fiado', () => {
 
     expect(callable).not.toHaveBeenCalled();
     expect(updateDoc).not.toHaveBeenCalled();
+  });
+});
+
+describe('customerUtils — exclusão de cliente de fiado', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    callable.mockResolvedValue({ data: { ok: true, userId: 'u1' } });
+  });
+
+  it('exclui pelo SERVIDOR (soft delete + auditoria), nunca com deleteDoc', async () => {
+    await deleteCustomerAccount('u1', 'senha-123');
+
+    expect(callable).toHaveBeenCalledTimes(1);
+    expect(callable.mock.calls[0][0]).toBe('excluirClienteFiado');
+    expect(callable.mock.calls[0][1]).toMatchObject({ userId: 'u1', senhaMestra: 'senha-123' });
+
+    // O hard delete no documento sumia com o histórico de compras do cliente
+    // e permitiria apagar alguém com dívida em aberto.
+    expect(deleteDoc).not.toHaveBeenCalled();
+  });
+
+  it('exige senha mestra: sem ela, nem chega ao servidor', async () => {
+    await expect(deleteCustomerAccount('u1')).rejects.toThrow(/senha mestra/i);
+    expect(callable).not.toHaveBeenCalled();
+  });
+
+  it('propaga a recusa do servidor (dívida em aberto)', async () => {
+    callable.mockRejectedValue({
+      code: 'functions/failed-precondition',
+      message: 'O cliente tem dívida em aberto de R$ 120,00. Quite o saldo antes de excluir a conta.',
+    });
+
+    await expect(deleteCustomerAccount('u1', 'senha-123')).rejects.toThrow(/dívida em aberto/);
   });
 });

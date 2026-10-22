@@ -2,7 +2,6 @@ import { db } from "../firebase";
 import {
   collection,
   updateDoc,
-  deleteDoc,
   doc,
   getDocs,
   getDoc,
@@ -177,12 +176,35 @@ export async function updateCustomerAccount(id: string, data: Partial<CustomerAc
   }
 }
 
-export async function deleteCustomerAccount(id: string): Promise<void> {
+/**
+ * EXCLUI a conta de fiado pelo SERVIDOR (soft delete + auditoria).
+ *
+ * Antes era `deleteDoc()` direto no documento: apagava o histórico de compras
+ * do cliente, permitia excluir alguém com dívida em aberto (o fiado virava
+ * perda invisível) e não exigia senha mestra. Agora o servidor exige
+ * 'finance' + senha mestra, recusa com dívida em aberto e guarda o doc.
+ */
+export async function deleteCustomerAccount(id: string, senhaMestra?: string): Promise<void> {
+  // Validação local ANTES da chamada: sem senha mestra o servidor recusa de
+  // qualquer forma, e o operador precisa saber o que falta.
+  if (!senhaMestra) {
+    throw new Error("Informe a senha mestra para excluir a conta.");
+  }
   try {
-    await deleteDoc(doc(db, COLLECTION, id));
+    const fn = httpsCallable(getFunctions(), 'excluirClienteFiado');
+    const res = await fn({ userId: id, senhaMestra });
+    const resData = res.data as any;
+    if (!resData?.ok) throw new Error("Resposta inválida do servidor.");
   } catch (e: any) {
+    const code = e?.code || '';
+    if (code && code !== 'functions/internal' && code !== 'functions/unavailable') {
+      // HttpsError chega como "(code) mensagem" — tira o prefixo para o
+      // operador ler a recusa de negócio ("dívida em aberto", etc.).
+      const msg = String(e?.message || 'Erro ao excluir usuário de fiado.').replace(/^\(.*?\)\s*/, '');
+      throw new Error(msg);
+    }
     console.error("[deleteCustomerAccount]", e.message);
-    throw new Error("Erro ao excluir usuário de fiado.");
+    throw new Error("Erro ao excluir usuário de fiado. Verifique se as Cloud Functions estão publicadas (npm run deploy:functions).");
   }
 }
 

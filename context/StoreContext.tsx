@@ -1335,10 +1335,16 @@ return false;
             return;
         }
 
-        // Fallback (status não mapeado) — tenta direto, mas loga warning
-        console.warn(`[updateOrderStatus] status não mapeado: ${alvo} — write direto`);
-        try { await updateDoc(doc(db, 'orders', oid), { status }); }
-        catch (e: any) { showNotification("Erro ao atualizar status: " + e.message, "error"); throw e; }
+        // Status NÃO mapeado: NÃO grava. Antes havia um "fallback" que tentava
+        // o write direto — e as regras do Firestore agora só aceitam status
+        // OPERACIONAL (cancelar/estornar é do servidor, com senha mestra). O
+        // fallback viraria um erro de permissão confuso; melhor recusar com
+        // mensagem clara.
+        console.warn(`[updateOrderStatus] status não mapeado: ${alvo} — recusado`);
+        showNotification(
+            'Status de pedido inválido para esta operação. Para cancelar ou estornar, use "Estornar/Reprovar" (exige senha mestra).',
+            'error'
+        );
     };
     const aprovarPedido = async (orderId: string, finalizar: boolean = true) => {
         try {

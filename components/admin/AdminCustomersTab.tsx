@@ -149,12 +149,26 @@ export function AdminCustomersTab({
 
   const handleDelete = async () => {
     if (!contaParaExcluir) return;
+    // Excluir conta de fiado é operação FINANCEIRA: o servidor exige senha
+    // mestra (excluirClienteFiado) e recusa se o cliente tiver dívida em
+    // aberto. Sem a senha, a exclusão nem chega ao servidor.
+    if (onRequestMasterPassword) {
+      onRequestMasterPassword(async (senhaMestra: string) => {
+        await executeDelete(senhaMestra);
+      });
+    } else {
+      await executeDelete();
+    }
+  };
+
+  const executeDelete = async (senhaMestra?: string) => {
+    if (!contaParaExcluir) return;
     setDeleting(true);
     try {
-      await deleteCustomerAccount(contaParaExcluir.id);
+      await deleteCustomerAccount(contaParaExcluir.id, senhaMestra);
       await loadAccounts();
       setContaParaExcluir(null);
-      showNotification('Conta excluída.', 'success');
+      showNotification('Conta excluída (arquivada). O histórico de compras foi preservado.', 'success');
     } catch (e) {
       console.error('Erro ao excluir:', e);
       showNotification('Erro ao excluir a conta: ' + (e instanceof Error ? e.message : 'tente novamente'), 'error');
@@ -563,7 +577,7 @@ export function AdminCustomersTab({
       <ConfirmacaoDestrutiva
         isOpen={contaParaExcluir !== null}
         titulo="Excluir Conta"
-        descricao={`A conta de ${contaParaExcluir?.nome || 'este cliente'} (dívida ${formatarMoeda(contaParaExcluir?.currentDebt || 0)}) será excluída PERMANENTEMENTE. O histórico de caderneta será perdido.`}
+        descricao={`A conta de ${contaParaExcluir?.nome || 'este cliente'} (dívida ${formatarMoeda(contaParaExcluir?.currentDebt || 0)}) será encerrada: ela sai da lista de fiado e o limite de crédito é zerado. O histórico de compras é PRESERVADO para auditoria. Contas com dívida em aberto não podem ser encerradas — quite o saldo antes.`}
         palavraChave="EXCLUIR"
         processando={deleting}
         onConfirm={() => void handleDelete()}

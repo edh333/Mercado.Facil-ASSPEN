@@ -152,7 +152,11 @@ service cloud.firestore {
          // virava principal mudando o próprio email (tomada de conta). O email
          // agora só é definido no signup (criação, via Cloud Function) e o
          // privilégio principal usa exclusivamente o campo mainAdmin.
-      allow delete: if isAdmin();
+      // SEM HARD DELETE: a exclusão de usuário é SOFT e passa pelo servidor
+      // (excluirUsuario / excluirClienteFiado: soft delete + audit log). Um
+      // deleteDoc direto do navegador apagava a ficha, o saldo e todo o
+      // histórico de compras do cliente — sem rastro de auditoria.
+      allow delete: if false;
     }
 
     // ── PEDIDOS ──
@@ -175,13 +179,30 @@ service cloud.firestore {
         isAdmin()
         && request.resource.data.diff(resource.data).affectedKeys()
              .hasOnly(['status', 'printCount', 'deleted'])
+        // Status TERMINAL (cancelado/rejeitado/estornado/devolvido) NUNCA é
+        // gravado pelo cliente: o estorno devolve estoque, carteira, fiado e
+        // gaveta e é auditado no SERVIDOR. No cliente só o status OPERACIONAL
+        // (andamento/entrega) pode ser escrito. A UI (updateOrderStatus) já
+        // recusava os terminais, mas a barreira era SÓ no cliente: bastava um
+        // updateDoc direto pelo console do navegador para marcar um pedido pago
+        // como "cancelled" e zerar o estoque sem devolver nada a ninguem.
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status'])
+          || request.resource.data.status in [
+               'preparing', 'separacao', 'out_for_delivery', 'delivered', 'entregue',
+               'paid', 'pago'
+             ]
+        )
       ) || (
         // Comprovante de pagamento do próprio pedido, somente enquanto pendente.
         userMatch(resource.data.userId)
         && resource.data.status.matches('(?i)^pending$')
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paymentProofUrl', 'proofHash', 'proofSize', 'proofMime'])
       );
-      allow delete: if isAdmin();
+      // SEM HARD DELETE: pedido é arquivado (soft: deleted=true) pelo admin ou
+      // pelo servidor. Apagar o doc sumia com a venda da conciliação e da
+      // auditoria — e a limpeza definitiva é do backend (arquivar/limpar).
+      allow delete: if false;
     }
 
     // ── TRANSAÇÕES DE CARTEIRA ──
@@ -200,9 +221,12 @@ service cloud.firestore {
       allow update: if isAdmin() || (
         userMatch(resource.data.userId)
         && resource.data.status.matches('(?i)^pending$')
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['proofUrl', 'proofHash', 'proofSize', 'proofMime'])
+         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['proofUrl', 'proofHash', 'proofSize', 'proofMime'])
       );
-      allow delete: if isAdmin();
+      // SEM HARD DELETE: movimentação de carteira é dinheiro. Depósito, estorno
+      // e ajuste são do SERVIDOR (com trilha). Apagar a transação do navegador
+      // apagava a dívida do cliente sem o saldo mudar — o dinheiro evaporava.
+      allow delete: if false;
     }
 
     // ── PRODUTOS ──
