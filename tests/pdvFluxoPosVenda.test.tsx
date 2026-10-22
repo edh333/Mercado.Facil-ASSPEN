@@ -77,13 +77,20 @@ function renderPDV(autoPrint: boolean) {
 /** Leva o PDV do estado inicial até a venda concluída. */
 async function concluirVendaNaTela(user: ReturnType<typeof userEvent.setup>) {
   // 1) bipa o produto no carrinho
+  // fireEvent (commit síncrono) em vez de digitar os 13 dígitos: com o teclado
+  // virtual o clique em "Adicionar" pode chegar ANTES do commit do estado
+  // quando a suíte está carregada — o carrinho ficava vazio e o botão
+  // "Finalizar" nascia desabilitado, sem que o PDV estivesse errado.
   const busca = screen.getByPlaceholderText(/bipe o c/i);
-  await user.type(busca, '7891000100103');
+  fireEvent.change(busca, { target: { value: '7891000100103' } });
   await user.click(screen.getByRole('button', { name: /adicionar produto/i }));
+  // o item entrou no carrinho (o botão de remover só existe com item)
+  await waitFor(() => expect(screen.getByRole('button', { name: /remover item/i })).toBeTruthy());
 
-  // 2) paga em dinheiro (exige valor recebido >= total)
-  await user.click(screen.getByTitle('Dinheiro'));
-  await user.type(screen.getByLabelText(/valor recebido/i), '14');
+  // 2) paga em dinheiro (o campo "Valor Recebido" só existe no modo CASH)
+  await user.click(screen.getByRole('button', { name: /^dinheiro$/i }));
+  await waitFor(() => expect(screen.getByLabelText(/valor recebido/i)).toBeTruthy());
+  fireEvent.change(screen.getByLabelText(/valor recebido/i), { target: { value: '14' } });
 
   // 3) finaliza
   // Re-consulta o botão dentro do waitFor: o PDV re-renderiza a cada tecla e
