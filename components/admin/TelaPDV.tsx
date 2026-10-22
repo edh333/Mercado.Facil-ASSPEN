@@ -593,6 +593,10 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
   const limiteSemanalBruto = Number((settings as any)?.weeklyWalletLimit);
   const limiteSemanalConfig = Number.isFinite(limiteSemanalBruto) && limiteSemanalBruto >= 0 ? limiteSemanalBruto : 300;
   const limiteSemanalDisponivel = Math.max(0, limiteSemanalConfig - Number(cliente?.weeklySpent || 0));
+  // Saldo/limite do cliente ficam no CABEÇALHO (logo abaixo do nome) — por isso
+  // são calculados aqui e não dentro dos painéis de pagamento.
+  const dividaAtualCliente = Number((cliente as any)?.currentDebt || 0);
+  const limiteFiadoDisponivel = Math.max(0, Number((cliente as any)?.creditLimit || 0) - dividaAtualCliente);
   
   // Validações por método de pagamento
   const bloqueioCash = temCashNaVenda && !sessaoCaixaAtiva?.id;
@@ -602,6 +606,9 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
   const bloqueioFiado = isFiado && (!clienteValido || !senhaSupervisaoOk);
   const bloqueioWallet = formaPagamento === 'WALLET' && (!clienteValido || saldoCarteiraCliente < totalFinal);
   const bloqueioPix = (formaPagamento === 'PIX' || temPixNoMisto) && !pixConfirmado;
+  // Kill switch do admin principal: `saleEnabled === false` desativa a venda.
+  // Default seguro `!== false` (ausente = habilitado).
+  const bloqueioVendasDesabilitadas = settings?.saleEnabled === false;
 
   const motivoBloqueioCredito = !clienteValido && (formaPagamento === 'WALLET' || isFiado)
     ? 'Selecione um cliente cadastrado para créditos/fiado'
@@ -611,6 +618,7 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
 
   const podeFinalizar = carrinho.length > 0 
     && !processando 
+    && !bloqueioVendasDesabilitadas
     && !motivoBloqueioCredito
     && !bloqueioCash
     && !bloqueioCartao
@@ -622,6 +630,12 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
   const finalizarVenda = async () => {
     if (processando) return;
     if (carrinho.length === 0) return;
+
+    // Defesa em profundidade do kill switch (o servidor também recusa).
+    if (settings?.saleEnabled === false) {
+      showNotification('As vendas estão temporariamente desativadas pelo administrador.', 'error');
+      return;
+    }
 
     if (formaPagamento === 'PIX' && !pixChave()) {
       showNotification('Configure a chave PIX (CNPJ ou chave aleatória) nas Configurações antes de vender no PIX.', 'error');
@@ -895,6 +909,31 @@ if (pedidoOffline) {
                   <span className="font-bold normal-case tracking-normal text-slate-400"> · familiar: {clienteRotulo.responsavel}</span>
                 )}
               </span>
+              {/* Saldo/limite do consumidor: uma linha compacta LOGO ABAIXO do nome.
+                  Antes esses números ocupavam dois cartões grandes na zona de
+                  pagamento e empurravam "Aplicar desconto" e "Finalizar Venda"
+                  para fora da tela. */}
+              {clienteValido && (
+                <div data-testid="pdv-credito-cliente" className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[11px] font-bold leading-tight">
+                  <span className="text-slate-500">
+                    Saldo:{' '}
+                    <span className={saldoCarteiraCliente >= totalFinal ? 'text-emerald-600' : 'text-rose-500'}>
+                      {formatarMoeda(saldoCarteiraCliente)}
+                    </span>
+                  </span>
+                  <span className="text-slate-500">
+                    Limite fiado: <span className="text-slate-800">{formatarMoeda(limiteFiadoDisponivel)}</span>
+                  </span>
+                  {dividaAtualCliente > 0 && (
+                    <span className="text-slate-500">
+                      Dívida atual: <span className="text-amber-600">{formatarMoeda(dividaAtualCliente)}</span>
+                    </span>
+                  )}
+                  <span className="text-slate-500">
+                    Crédito na semana: <span className="text-slate-800">{formatarMoeda(limiteSemanalDisponivel)}</span>
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Campo 1: Busca do Cliente */}
@@ -1194,28 +1233,14 @@ if (pedidoOffline) {
               Fica em região própria com rolagem, para não empurrar/encolher a lista
               de itens quando o método muda. */}
           <div className="flex flex-col flex-1 min-h-0 lg:flex-[2] lg:min-h-0 overflow-y-auto px-4 sm:px-6 pt-2 pb-4 sm:pb-6">
-          {/* ELEMENTO 2a: CRÉDITOS (WALLET) — Exibe apenas saldo/limite, sem senha */}
-          {formaPagamento === 'WALLET' && (
-            <div className="bg-white border border-slate-200/80 rounded-xl p-4 flex flex-col gap-3 w-full mb-4 animate-in fade-in duration-200 shrink-0">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Créditos do Cliente</span>
-              {semClienteCredito ? (
-                <div className="text-xs font-semibold text-slate-500 bg-white rounded-xl p-3 border border-slate-100">
-                  Selecione um cliente para usar créditos
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-white border border-slate-200/80 rounded-xl p-3">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Saldo da Carteira</p>
-                    <p className={`text-lg font-black tracking-tight ${saldoCarteiraCliente >= totalFinal ? 'text-emerald-600' : 'text-red-500'}`}>{formatarMoeda(saldoCarteiraCliente)}</p>
-                    <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Crédito na semana: {formatarMoeda(limiteSemanalDisponivel)}</p>
-                  </div>
-                  <div className="bg-white border border-slate-200/80 rounded-xl p-3">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Limite Fiado</p>
-                    <p className="text-lg font-black tracking-tight text-slate-800">{formatarMoeda(Math.max(0, Number((cliente as any)?.creditLimit || 0) - Number((cliente as any)?.currentDebt || 0)))}</p>
-                    <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Dívida atual: {formatarMoeda(Number((cliente as any)?.currentDebt || 0))}</p>
-                  </div>
-                </div>
-              )}
+          {/* ELEMENTO 2a: AVISO DE CRÉDITO SEM CLIENTE
+              O saldo/limite do cliente aparece no cabeçalho (abaixo do nome), então
+              aqui sobra apenas o aviso quando não há cliente selecionado. */}
+          {formaPagamento === 'WALLET' && semClienteCredito && (
+            <div className="bg-white border border-slate-200/80 rounded-xl p-3 w-full mb-4 animate-in fade-in duration-200 shrink-0">
+              <div className="text-xs font-semibold text-slate-500 bg-white rounded-xl p-3 border border-slate-100">
+                Selecione um cliente para usar créditos
+              </div>
             </div>
           )}
 
@@ -1229,19 +1254,6 @@ if (pedidoOffline) {
                 </div>
               ) : (
                 <>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-white border border-slate-200/80 rounded-xl p-3">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Limite Fiado</p>
-                      <p className="text-lg font-black tracking-tight text-slate-800">{formatarMoeda(Math.max(0, Number((cliente as any)?.creditLimit || 0) - Number((cliente as any)?.currentDebt || 0)))}</p>
-                      <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Dívida atual: {formatarMoeda(Number((cliente as any)?.currentDebt || 0))}</p>
-                    </div>
-                    <div className="bg-white border border-slate-200/80 rounded-xl p-3">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Saldo da Carteira</p>
-                      <p className="text-lg font-black tracking-tight text-slate-800">{formatarMoeda(saldoCarteiraCliente)}</p>
-                      <p className="text-[10px] font-semibold text-slate-400 mt-0.5">Crédito na semana: {formatarMoeda(limiteSemanalDisponivel)}</p>
-                    </div>
-                  </div>
-
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Senha do Interno/Supervisor</label>
                     <div className="flex items-center gap-2">
@@ -1439,6 +1451,11 @@ if (pedidoOffline) {
                 <span className="text-2xl font-black text-slate-900">{formatarMoeda(totalFinal)}</span>
               </div>
               {/* Mensagens de bloqueio específicas por método */}
+              {bloqueioVendasDesabilitadas && (
+                <p className="text-xs text-red-600 text-center font-medium bg-red-50 rounded-xl p-2">
+                  ⚠ Vendas desativadas pelo administrador principal — o botão Finalizar está bloqueado
+                </p>
+              )}
               {bloqueioCash && (
                 <p className="text-xs text-red-600 text-center font-medium bg-red-50 rounded-xl p-2">
                   ⚠ Caixa fechado — abra o caixa no painel administrativo para vender em dinheiro

@@ -43,6 +43,11 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
 
   const status = String(data.status || '').toLowerCase();
   const cancelado = ['cancelled', 'cancelado', 'refunded', 'estornado', 'devolvido', 'reembolsado', 'rejected', 'rejeitado'].includes(status);
+  // Dados do cancelamento/estorno: o comprovante precisa dizer POR QUÊ e QUEM
+  // reverteu a venda (o mesmo que sai na bobina crua).
+  const motivoCancelamento = cancelado ? String(data.cancelReason || data.refundReason || data.reason || '') : '';
+  const quemCancelou = cancelado ? String(data.cancelledBy || data.refundedBy || '') : '';
+  const quandoCancelou = cancelado ? (data.cancelReasonAt || data.refundedAt || data.cancelledAt || '') : '';
   const payments = Array.isArray(data.payments) ? data.payments : [];
   const temPagamentosMistos = payments.length > 0;
   const nomesMetodo: any = { PIX: 'PIX', WALLET: 'CARTEIRA', CASH: 'DINHEIRO', CARD: 'CARTÃO', FIADO: 'FIADO', FIADO_30: 'FIADO 30 DIAS', MIXED: 'MISTO' };
@@ -121,6 +126,30 @@ export const CupomEntrega: React.FC<CupomEntregaProps> = ({
       {cancelado && (
         <div className="border-2 border-black bg-black text-white p-1 mb-2 text-center">
           <span className="font-black uppercase tracking-widest">Cupom Cancelado / Devolvido</span>
+        </div>
+      )}
+
+      {/* MOTIVO / RESPONSÁVEL DO CANCELAMENTO */}
+      {cancelado && (motivoCancelamento || quemCancelou || quandoCancelou) && (
+        <div className="border border-black p-1.5 mb-2 text-[10px] space-y-0.5">
+          {motivoCancelamento && (
+            <div className="flex justify-between gap-2">
+              <span className="font-bold uppercase">MOTIVO:</span>
+              <span className="font-black text-right uppercase">{motivoCancelamento.slice(0, 40)}</span>
+            </div>
+          )}
+          {quemCancelou && (
+            <div className="flex justify-between gap-2">
+              <span className="font-bold uppercase">CANCELADO POR:</span>
+              <span className="font-black text-right uppercase">{quemCancelou.slice(0, 28)}</span>
+            </div>
+          )}
+          {quandoCancelou && (
+            <div className="flex justify-between gap-2">
+              <span className="font-bold uppercase">DATA:</span>
+              <span className="font-black text-right">{formatDate(quandoCancelou)}</span>
+            </div>
+          )}
         </div>
       )}
 

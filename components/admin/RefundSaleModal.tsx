@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, CheckCircle, RefreshCw, RotateCcw, Search, SearchX } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Download, Printer, RefreshCw, RotateCcw, Search, SearchX } from 'lucide-react';
 import { ModalShell } from '../ui/ModalShell';
 import { RefundPasswordPanel } from './RefundPasswordPanel';
 import { Order } from '../../types';
 import { formatarMoeda } from '../../utils';
 import { useApp } from '../../context/StoreContext';
+import { imprimirComprovanteOperacao, DestinoImpressao } from '../../utils/comprovanteOperacao';
 
 /**
  * MODAL ÚNICO DE ESTORNO/CANCELAMENTO (usado no PDV e na aba Ordens):
@@ -60,7 +61,7 @@ export const RefundSaleModal: React.FC<RefundSaleModalProps> = ({
   onClose,
   onAfterSuccess,
 }) => {
-  const { refundOrder, buscarPedidosParaEstorno, validateMasterPassword, masterPasswordStatus, currentUser } = useApp();
+  const { refundOrder, buscarPedidosParaEstorno, validateMasterPassword, masterPasswordStatus, currentUser, settings } = useApp();
 
   const [selected, setSelected] = useState<Order | null>(null);
   const [search, setSearch] = useState('');
@@ -75,6 +76,10 @@ export const RefundSaleModal: React.FC<RefundSaleModalProps> = ({
   // Conta erros de senha DESTA operação: o aviso persiste mesmo após o
   // acerto ("você tinha errado antes") para alertar tentativa indevida.
   const [tentativasErradas, setTentativasErradas] = useState(0);
+  // Impressão do comprovante da operação (fiscal / comum / .txt).
+  const [imprimindo, setImprimindo] = useState(false);
+  const [msgImpressao, setMsgImpressao] = useState<{ ok: boolean; texto: string } | null>(null);
+  const [motivoOperacao, setMotivoOperacao] = useState('');
 
   // PADRÃO SEGURO: exige senha para TODOS, exceto quando a senha mestra ainda
   // não foi configurada e o operador é o admin principal.
@@ -101,6 +106,8 @@ export const RefundSaleModal: React.FC<RefundSaleModalProps> = ({
     setServerResults(null);
     setServerLast('');
     setServerOffline(false);
+    setMsgImpressao(null);
+    setMotivoOperacao('');
     if (initialOrder) {
       // Veio da aba de Pedidos com o pedido já escolhido: se passou da janela,
       // NÃO oferece o painel de senha (o servidor recusaria só depois da senha).
@@ -195,6 +202,7 @@ export const RefundSaleModal: React.FC<RefundSaleModalProps> = ({
         }
       );
       const ehFiado = String(selected.paymentMethod || '').toUpperCase() === 'FIADO';
+      setMotivoOperacao(motivo || 'Devolução administrativa');
       setResultado({
         ok: true,
         message: ehFiado
@@ -220,6 +228,35 @@ export const RefundSaleModal: React.FC<RefundSaleModalProps> = ({
     setServerResults(null);
     setServerLast('');
     setSearch('');
+    setMsgImpressao(null);
+    setMotivoOperacao('');
+  };
+
+  /**
+   * Imprime o comprovante da operação (cancelamento/estorno).
+   * O operador escolhe o destino: bobina fiscal, impressora comum ou .txt.
+   */
+  const imprimirComprovante = async (destino: DestinoImpressao) => {
+    if (!selected || imprimindo) return;
+    setImprimindo(true);
+    setMsgImpressao(null);
+    try {
+      const r = await imprimirComprovanteOperacao(
+        {
+          order: selected,
+          acao: acao === 'cancelar' ? 'cancelar' : 'estorno',
+          motivo: motivoOperacao,
+          operador: String((currentUser as any)?.name || (currentUser as any)?.email || 'ADMIN'),
+          config: settings,
+        },
+        destino
+      );
+      setMsgImpressao({ ok: r.ok, texto: r.mensagem });
+    } catch (e: any) {
+      setMsgImpressao({ ok: false, texto: e?.message || 'Não foi possível imprimir o comprovante.' });
+    } finally {
+      setImprimindo(false);
+    }
   };
 
   const terminou = resultado?.ok === true;
@@ -391,6 +428,52 @@ export const RefundSaleModal: React.FC<RefundSaleModalProps> = ({
               </div>
             </div>
           )}
+
+          {/* COMPROVANTE DA OPERAÇÃO — o operador escolhe onde imprimir. */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Printer size={14} className="text-slate-400" />
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+                Comprovante de {acao === 'cancelar' ? 'cancelamento' : 'estorno'}
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => imprimirComprovante('fiscal')}
+                disabled={imprimindo}
+                className="px-3 py-2.5 rounded-xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-wider transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                <Printer size={13} /> Fiscal
+              </button>
+              <button
+                type="button"
+                onClick={() => imprimirComprovante('comum')}
+                disabled={imprimindo}
+                className="px-3 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[10px] uppercase tracking-wider transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                <Printer size={13} /> Comum
+              </button>
+              <button
+                type="button"
+                onClick={() => imprimirComprovante('arquivo')}
+                disabled={imprimindo}
+                className="px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-[10px] uppercase tracking-wider transition-all active:scale-95 border border-slate-200 disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                <Download size={13} /> .txt
+              </button>
+            </div>
+            {imprimindo && (
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 text-center">
+                Enviando para a impressora…
+              </p>
+            )}
+            {msgImpressao && (
+              <p className={`text-[10px] font-bold uppercase tracking-wider text-center ${msgImpressao.ok ? 'text-emerald-600' : 'text-red-500'}`}>
+                {msgImpressao.texto}
+              </p>
+            )}
+          </div>
         </div>
       )}
     </ModalShell>

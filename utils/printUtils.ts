@@ -583,6 +583,20 @@ export function gerarCupomEntregaRaw(venda: any, config?: any): string {
 
   if (cancelado) {
     cupom += `${centrarTexto('* CUPOM CANCELADO / DEVOLVIDO *', 48)}\n`;
+    // Motivo, responsável e data do cancelamento: sem isso o papel impresso é
+    // um cupom morto (não diz por que a venda foi revertida nem quem reverteu).
+    const motivoCancel = data.cancelReason || data.refundReason || data.reason || '';
+    const quemCancelou = data.cancelledBy || data.refundedBy || '';
+    const quandoCancelou = data.cancelReasonAt || data.refundedAt || data.cancelledAt || '';
+    if (motivoCancel) cupom += formatarLinhaDupla('MOTIVO:', limparLinha(motivoCancel, 32), 48) + '\n';
+    if (quemCancelou) cupom += formatarLinhaDupla('CANCELADO POR:', limparLinha(quemCancelou, 32), 48) + '\n';
+    if (quandoCancelou) {
+      const dCancel = (() => {
+        const d = new Date(quandoCancelou as any);
+        return isNaN(d.getTime()) ? '' : d.toLocaleString('pt-BR');
+      })();
+      if (dCancel) cupom += formatarLinhaDupla('DATA DO CANCELAMENTO:', dCancel, 48) + '\n';
+    }
     cupom += `${divisor}\n`;
   }
 
