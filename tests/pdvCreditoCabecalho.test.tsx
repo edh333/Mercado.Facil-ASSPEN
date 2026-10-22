@@ -87,10 +87,12 @@ describe('PDV — crédito do consumidor no cabeçalho', () => {
     // Saldo R$ 150,00 · limite de fiado 500 - 200 = 300 · crédito da semana 300
     expect(strip.textContent).toContain('Saldo');
     expect(strip.textContent).toContain('150,00');
-    expect(strip.textContent).toContain('Limite fiado');
-    expect(strip.textContent).toContain('300,00');
-    expect(strip.textContent).toContain('Dívida atual');
-    expect(strip.textContent).toContain('200,00');
+    expect(strip.textContent).toContain('Saldo');
+    expect(strip.textContent).toContain('150,00');
+    // Limite fiado, Dívida atual e Crédito na semana ficam ocultos por defeito;
+    // requerem clicar na área de saldo para expandir.
+    expect(strip.textContent).not.toContain('Limite fiado');
+    expect(strip.textContent).not.toContain('Dívida atual');
   });
 
   it('não repete os valores em cartões dentro da zona de pagamento', async () => {
