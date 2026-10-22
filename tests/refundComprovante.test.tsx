@@ -96,4 +96,39 @@ describe('RefundSaleModal — comprovante da operação', () => {
     expect(destino).toBe('fiscal');
     expect(dados.acao).toBe('estorno');
   });
+
+  // O dinheiro do estorno em CASH sai da gaveta. Se o caixa da venda já
+  // estava fechado, o servidor responde com `avisoCaixa` — sem mostrar isso
+  // o operador perde a diferença de caixa sem nenhuma pista.
+  it('avisa quando o estorno em dinheiro saiu de um caixa já fechado', async () => {
+    refundOrder.mockResolvedValueOnce({
+      avisoCaixa: {
+        valor: 50,
+        sessaoId: 's9',
+        mensagem: 'O caixa desta venda já estava fechado: R$ 50,00 saíram da gaveta e não foram abatidos do saldo fechado.',
+      },
+    } as any);
+
+    const user = userEvent.setup();
+    render(<RefundSaleModal isOpen acao="estorno" initialOrder={pedido} onClose={vi.fn()} />);
+    await waitFor(() => expect(screen.getByText(/Confirmar Estorno/i)).toBeTruthy());
+    await user.type(screen.getByPlaceholderText('••••••••'), 'senha123');
+    await user.click(screen.getByRole('button', { name: /confirmar estorno/i }));
+
+    await waitFor(() => expect(screen.getByText(/Atenção ao caixa/i)).toBeTruthy());
+    expect(screen.getByText(/já estava fechado/i)).toBeTruthy();
+  });
+
+  it('sem aviso de caixa quando o estorno não teve pendência', async () => {
+    refundOrder.mockResolvedValueOnce({ avisoCaixa: null } as any);
+
+    const user = userEvent.setup();
+    render(<RefundSaleModal isOpen acao="estorno" initialOrder={pedido} onClose={vi.fn()} />);
+    await waitFor(() => expect(screen.getByText(/Confirmar Estorno/i)).toBeTruthy());
+    await user.type(screen.getByPlaceholderText('••••••••'), 'senha123');
+    await user.click(screen.getByRole('button', { name: /confirmar estorno/i }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /fiscal/i })).toBeTruthy());
+    expect(screen.queryByText(/Atenção ao caixa/i)).toBeNull();
+  });
 });

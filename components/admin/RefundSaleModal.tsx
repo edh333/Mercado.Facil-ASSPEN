@@ -80,6 +80,9 @@ export const RefundSaleModal: React.FC<RefundSaleModalProps> = ({
   const [imprimindo, setImprimindo] = useState(false);
   const [msgImpressao, setMsgImpressao] = useState<{ ok: boolean; texto: string } | null>(null);
   const [motivoOperacao, setMotivoOperacao] = useState('');
+  // Aviso de CAIXA: o estorno em dinheiro saiu da gaveta, mas o caixa da
+  // venda já estava fechado (a diferença fica para o próximo fechamento).
+  const [avisoCaixa, setAvisoCaixa] = useState('');
 
   // PADRÃO SEGURO: exige senha para TODOS, exceto quando a senha mestra ainda
   // não foi configurada e o operador é o admin principal.
@@ -190,7 +193,7 @@ export const RefundSaleModal: React.FC<RefundSaleModalProps> = ({
     }
     setProcessando(true);
     try {
-      await refundOrder(
+      const r: any = await refundOrder(
         selected.id,
         motivo || 'Devolução administrativa',
         {
@@ -211,6 +214,12 @@ export const RefundSaleModal: React.FC<RefundSaleModalProps> = ({
             ? 'Venda cancelada com sucesso. Estoque e valores restaurados.'
             : 'Venda estornada com sucesso. Estoque e valores restaurados.',
       });
+      // Aviso de CAIXA: o dinheiro saiu da gaveta, mas o caixa da venda já
+      // estava fechado — o saldo fechado não muda, então a diferença precisa
+      // ser absorvida na abertura do próximo caixa.
+      if (r?.avisoCaixa?.mensagem) {
+        setAvisoCaixa(String(r.avisoCaixa.mensagem));
+      }
       onAfterSuccess?.(selected, motivo);
     } catch (e: any) {
       // HttpsError do callable pode vir com prefixo "(code)" — remove para exibir limpo
@@ -230,6 +239,7 @@ export const RefundSaleModal: React.FC<RefundSaleModalProps> = ({
     setSearch('');
     setMsgImpressao(null);
     setMotivoOperacao('');
+    setAvisoCaixa('');
   };
 
   /**
@@ -314,6 +324,21 @@ export const RefundSaleModal: React.FC<RefundSaleModalProps> = ({
               </button>
             )}
           </div>
+
+          {/* Diferença de caixa: o estorno em dinheiro saiu da gaveta, mas o
+              caixa da venda já estava fechado. Sem este aviso, a diferença
+              sumia do relatório de fechamento. */}
+          {resultado.ok && avisoCaixa && (
+            <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 flex items-start gap-3">
+              <AlertTriangle size={18} className="text-amber-600 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-black text-[10px] uppercase tracking-wider text-amber-700">
+                  Atenção ao caixa
+                </p>
+                <p className="text-sm text-amber-900 mt-1">{avisoCaixa}</p>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

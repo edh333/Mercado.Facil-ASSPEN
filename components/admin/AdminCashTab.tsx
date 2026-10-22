@@ -143,8 +143,17 @@ export const AdminCashTab: React.FC<AdminCashTabProps> = ({
     }
     setActionLoading(true);
     try {
-      await openCashSession(operatorId, operatorName, valor);
-      showToast('Caixa aberto com sucesso!', 'success');
+      const { pendencias } = await openCashSession(operatorId, operatorName, valor);
+      if (pendencias && pendencias.quantidade > 0) {
+        // Estorno de dinheiro feito depois do fechamento de um caixa anterior:
+        // a diferença não entra no saldo fechado e precisa ser absorvida aqui.
+        showToast(
+          `Caixa aberto. Atenção: ${pendencias.quantidade} estorno(s) de R$ ${pendencias.total.toFixed(2).replace('.', ',')} ficaram pendentes de sessões anteriores — desconte do saldo inicial.`,
+          'error'
+        );
+      } else {
+        showToast('Caixa aberto com sucesso!', 'success');
+      }
       setModal(null);
       setInitialBalance('');
       reload();

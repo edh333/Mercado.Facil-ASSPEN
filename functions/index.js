@@ -3604,6 +3604,11 @@ exports.estornarVenda = onCall({
   // e restaurarBackup.
   await verificarSenhaMestra(request.data?.senhaMestra);
 
+  // Diferença de caixa a ser avisada na tela: preenchida quando o estorno é
+  // em DINHEIRO e a sessão de caixa já estava FECHADA (o dinheiro saiu da
+  // gaveta, mas o saldo fechado não pode ser alterado).
+  let avisoCaixa = null;
+
   try {
     // Resolve a sessão de caixa ANTES da transação (queries não são permitidas dentro dela)
     const preSnap = await db.collection("orders").doc(orderId).get();
@@ -3759,14 +3764,22 @@ exports.estornarVenda = onCall({
         t.update(caRef, updateReversao);
       }
 
-      // Só credita ESTORNO se a sessão estiver ABERTA: creditar em caixa já
-      // fechado corrompe o fechamento (mesma semântica do processarVendaAdmin).
-      if (caixaRef && caixaSnap && caixaSnap.exists &&
-          String(caixaSnap.data().status || "").toLowerCase() === "open") {
-        const parteCash = pedido.paymentMethod === "CASH"
-          ? (Number(pedido.total) || 0)
-          : (pedido.payments || []).filter((p) => p.method === "CASH").reduce((s, p) => s + (Number(p.amount) || 0), 0);
-        if (parteCash > 0) {
+      // ── CAIXA: no estorno em DINHEIRO o dinheiro sai da gaveta ──
+      // Se a sessão está ABERTA, o saldo do caixa é abatido agora (mesma
+      // semântica do processarVendaAdmin). Se a sessão já está FECHADA, o
+      // caixa foi contado: mexer no saldo fechado corromperia o fechamento.
+      //
+      // Antes esse caso sumia em SILÊNCIO: o dinheiro saía da gaveta e
+      // ninguém via a diferença — o fechamento batia e a perda evaporava.
+      // Agora a diferença fica REGISTRADA (pendência no doc da sessão, aviso
+      // na resposta e audit log) e é lembrada na abertura do próximo caixa.
+      const parteCash = pedido.paymentMethod === "CASH"
+        ? (Number(pedido.total) || 0)
+        : (pedido.payments || []).filter((p) => p.method === "CASH").reduce((s, p) => s + (Number(p.amount) || 0), 0);
+      if (parteCash > 0) {
+        const sessaoAberta = !!(caixaRef && caixaSnap && caixaSnap.exists &&
+          String(caixaSnap.data().status || "").toLowerCase() === "open");
+        if (sessaoAberta) {
           const payloadEstorno = {
             currentBalance: admin.firestore.FieldValue.increment(-parteCash),
             supplements: admin.firestore.FieldValue.arrayUnion({
@@ -3779,6 +3792,27 @@ exports.estornarVenda = onCall({
             payloadEstorno.totalEntries = admin.firestore.FieldValue.increment(-parteCash);
           }
           t.update(caixaRef, payloadEstorno);
+        } else {
+          const valorTexto = parteCash.toFixed(2).replace(".", ",");
+          // Pendência no doc da sessão: o próximo caixa do operador vê isso
+          // na abertura e desconta do saldo inicial.
+          if (caixaRef && caixaSnap && caixaSnap.exists && caixaAlvo.colecao === "cash_sessions") {
+            t.update(caixaRef, {
+              pendingAdjustments: admin.firestore.FieldValue.arrayUnion({
+                amount: -parteCash,
+                reason: `Estorno Pedido #${String(orderId).slice(0, 6)}: ${motivo}`,
+                orderId: String(orderId),
+                timestamp: admin.firestore.Timestamp.now(),
+              }),
+            });
+          }
+          avisoCaixa = {
+            valor: arredondar(parteCash),
+            sessaoId: caixaAlvo ? String(caixaAlvo.ref.id || "") : "",
+            mensagem: caixaAlvo
+              ? `O caixa desta venda já estava fechado: R$ ${valorTexto} saíram da gaveta e não foram abatidos do saldo fechado. Registre essa diferença na abertura do próximo caixa.`
+              : `O caixa desta venda não foi encontrado: R$ ${valorTexto} saíram da gaveta e não foram abatidos de nenhum saldo de caixa. Registre essa diferença na abertura do próximo caixa.`,
+          };
         }
       }
 
@@ -3797,9 +3831,9 @@ exports.estornarVenda = onCall({
     throw new HttpsError("internal", "Falha ao estornar o pedido. Tente novamente.");
   }
 
-  await registrarAudit(caller.id, "ESTORNAR_VENDA", { pedidoId: orderId }, { pedidoId: orderId, motivo });
+  await registrarAudit(caller.id, "ESTORNAR_VENDA", { pedidoId: orderId }, { pedidoId: orderId, motivo, ...(avisoCaixa ? { avisoCaixa } : {}) });
 
-return { ok: true };
+  return { ok: true, avisoCaixa: avisoCaixa || null };
 });
 
 // ──────────────────────────────────────────────
@@ -5841,7 +5875,34 @@ exports.gerenciarSessaoCaixa = onCall({
       throw new HttpsError("internal", "Não foi possível abrir o caixa.");
     }
     await registrarAudit(caller.id, "ABRIR_CAIXA", null, { sessaoId: novaSessaoRef.id });
-    return { ok: true, sessaoId: novaSessaoRef.id };
+
+    // PENDÊNCIAS HERDADAS: estornos em dinheiro feitos DEPOIS do fechamento
+    // de uma sessão anterior não puderam ser abatidos do caixa já fechado.
+    // A diferença ficou registrada na sessão; aqui ela é lembrada ao operador
+    // para ele descontar do saldo inicial do novo caixa.
+    let pendenciasCaixa = { total: 0, quantidade: 0 };
+    try {
+      const snapSessoes = await db.collection("cash_sessions")
+        .where("operatorId", "==", operadorId)
+        .limit(200)
+        .get();
+      snapSessoes.docs.forEach((d) => {
+        const s = d.data() || {};
+        if (String(s.status || "").toLowerCase() === "open") return;
+        const lista = Array.isArray(s.pendingAdjustments) ? s.pendingAdjustments : [];
+        lista.forEach((p) => {
+          const v = Number(p && p.amount);
+          if (!Number.isFinite(v) || v === 0) return;
+          pendenciasCaixa.total = arredondar(pendenciasCaixa.total + v);
+          pendenciasCaixa.quantidade += 1;
+        });
+      });
+    } catch (e) {
+      // Falha em ler as pendências NÃO pode impedir a abertura do caixa.
+      logger.warn("[caixa] não foi possível ler pendências de sessões anteriores:", e && e.message);
+    }
+
+    return { ok: true, sessaoId: novaSessaoRef.id, pendenciasCaixa };
   }
 
   if (!sessaoId) throw new HttpsError("invalid-argument", "Informe a sessão de caixa.");

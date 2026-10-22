@@ -67,6 +67,17 @@ function mensagemDe(e: any, fallback: string): string {
 // ──────────────────────────────────────────────
 
 /**
+ * Pendências herdadas de sessões anteriores: estornos em dinheiro feitos
+ * DEPOIS do fechamento de um caixa (a sessão já estava contada) não puderam
+ * ser abatidos do saldo fechado. O servidor registra a diferença e a devolve
+ * aqui para o operador descontar do saldo inicial do novo caixa.
+ */
+export interface PendenciasCaixa {
+  total: number;
+  quantidade: number;
+}
+
+/**
  * Opens a new cash session for the current operator.
  * Throws if there is already an open session for this operator.
  */
@@ -74,7 +85,7 @@ export async function openCashSession(
   operatorId: string,
   operatorName: string,
   initialBalance: number
-): Promise<string> {
+): Promise<{ sessaoId: string; pendencias: PendenciasCaixa }> {
   try {
     const res = await gerenciarSessaoCaixa({
       acao: "open",
@@ -82,9 +93,15 @@ export async function openCashSession(
       operatorId, // mantido para compatibilidade de assinatura; o servidor decide o dono
       operatorName,
     });
-    const data = res.data as { ok?: boolean; sessaoId?: string };
+    const data = res.data as { ok?: boolean; sessaoId?: string; pendenciasCaixa?: PendenciasCaixa };
     if (!data?.sessaoId) throw new Error("Resposta inválida do servidor.");
-    return data.sessaoId;
+    return {
+      sessaoId: data.sessaoId,
+      pendencias: {
+        total: Number(data.pendenciasCaixa?.total || 0),
+        quantidade: Number(data.pendenciasCaixa?.quantidade || 0),
+      },
+    };
   } catch (e: any) {
     throw new Error(mensagemDe(e, "Não foi possível abrir o caixa."));
   }

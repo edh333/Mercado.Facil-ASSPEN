@@ -221,7 +221,7 @@ interface StoreContextType {
     creditoCliente: number;
     realizarSaque: (valor: number) => Promise<boolean>;
     verificarCredito: (valor: number) => boolean;
-    refundOrder: (orderId: string, reason?: string, opts?: { janelaDias?: number; senhaMestra?: string }) => Promise<void>;
+    refundOrder: (orderId: string, reason?: string, opts?: { janelaDias?: number; senhaMestra?: string }) => Promise<{ avisoCaixa?: { valor?: number; sessaoId?: string; mensagem?: string } | null } | void>;
     resetCredits: (senhaMestra?: string) => Promise<void>;
     mergeDuplicateProducts: () => Promise<void>;
     adminDirectSale: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO', total: number, payments?: { method: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'FIADO'; amount: number }[], change?: number, customerAccountId?: string, clientToken?: string, jointWallet?: { secondUserId: string; secondWalletAmount: number }, cardBrand?: string, fiado30UserId?: string, senhaPrimaria?: string, senhaSecundaria?: string, sessaoCaixaId?: string, descontoPct?: number, inmateLocation?: InmateLocation) => Promise<Order | null>;
@@ -1267,18 +1267,24 @@ return false;
         try {
             // Estorno processado NO SERVIDOR (restaura estoque + carteira + status).
             // A senha mestra vai junto para a prova de segundo fator ser
-            // conferida no servidor — validar só na UI não impede chamar a
+            // conferida no servidor - validar só na UI não impede chamar a
             // Function direto.
-            await fnEstornarVenda({
+            const res = await fnEstornarVenda({
                 orderId,
                 motivo: reason,
                 ...(opts?.janelaDias ? { janelaDias: opts.janelaDias } : {}),
                 ...(opts?.senhaMestra ? { senhaMestra: opts.senhaMestra } : {}),
             });
+            // O servidor avisa quando o estorno é em DINHEIRO e o caixa da venda
+            // já estava fechado: o valor saiu da gaveta, mas o saldo fechado
+            // não pode ser alterado. A tela precisa mostrar essa diferença ao
+            // operador.
+            const avisoCaixa = (res?.data as any)?.avisoCaixa || null;
             setOrders(prev => prev.map(o =>
                 o.id === orderId ? { ...o, status: OrderStatus.CANCELLED, refundReason: reason } : o
             ));
             showNotification(`Pedido #${orderId.slice(0,6)} devolvido com sucesso!`, 'success');
+            return { avisoCaixa };
         } catch (e: any) {
             console.error(e);
             // 'internal'/unavailable é resposta genérica do runtime (ex.: functions
