@@ -598,8 +598,9 @@ const [recoveryName, setRecoveryName] = useState('');
                             <button
                                 type="submit"
                                 disabled={isLoading}
-                                className="w-full py-3 rounded-xl font-semibold text-sm transition-colors bg-brand text-white shadow-lg shadow-[var(--primary-color)]/25 cursor-pointer"
+                                className={`w-full py-3.5 rounded-xl font-semibold text-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2 relative overflow-hidden group bg-brand hover:brightness-110 text-white disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer shadow-lg shadow-[var(--primary-color)]/25`}
                             >
+                                <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
                                 {isLoading ? (
                                     <>
                                         <Loader2 className="animate-spin" size={20} />
@@ -607,7 +608,9 @@ const [recoveryName, setRecoveryName] = useState('');
                                     </>
                                 ) : (
                                     <>
-{isAdmin && showFirstAdminSetup ? 'Criar Administrador' : isAdmin ? 'Entrar no Painel' : isRegister ? 'Confirmar Cadastro' : isRecovery ? (recoveryStep === 1 ? 'Prosseguir' : 'Salvar e Voltar') : 'Acessar Sistema'}
+                                        <Sparkles size={18} className="relative z-10" />
+                                        <span className="relative z-10">
+                                            {isAdmin && showFirstAdminSetup ? 'Criar Administrador' : isAdmin ? 'Entrar no Painel' : isRegister ? 'Confirmar Cadastro' : isRecovery ? (recoveryStep === 1 ? 'Prosseguir' : 'Salvar e Voltar') : 'Acessar Sistema'}
                                         </span>
                                     </>
                                 )}
