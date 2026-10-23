@@ -598,7 +598,7 @@ const [recoveryName, setRecoveryName] = useState('');
                             <button
                                 type="submit"
                                 disabled={isLoading}
-                                className="w-full py-3.5 rounded-xl font-semibold text-sm transition-colors bg-brand text-white shadow-lg shadow-[var(--primary-color)]/25 cursor-pointer"
+                                className="w-full py-3 rounded-xl font-semibold text-sm transition-colors bg-brand text-white shadow-lg shadow-[var(--primary-color)]/25 cursor-pointer"
                             >
                                 {isLoading ? (
                                     <>
@@ -607,9 +607,7 @@ const [recoveryName, setRecoveryName] = useState('');
                                     </>
                                 ) : (
                                     <>
-                                        <Sparkles size={18} className="relative z-10" />
-                                        <span className="relative z-10">
-                                            {isAdmin && showFirstAdminSetup ? 'Criar Administrador' : isAdmin ? 'Entrar no Painel' : isRegister ? 'Confirmar Cadastro' : isRecovery ? (recoveryStep === 1 ? 'Prosseguir' : 'Salvar e Voltar') : 'Acessar Sistema'}
+{isAdmin && showFirstAdminSetup ? 'Criar Administrador' : isAdmin ? 'Entrar no Painel' : isRegister ? 'Confirmar Cadastro' : isRecovery ? (recoveryStep === 1 ? 'Prosseguir' : 'Salvar e Voltar') : 'Acessar Sistema'}
                                         </span>
                                     </>
                                 )}
