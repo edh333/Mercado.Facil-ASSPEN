@@ -1570,7 +1570,7 @@ if (pedidoOffline) {
                     </div>
                   </div>
 
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Percentual (%) — máximo 50%</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Percentual (%)</label>
                   <input
                     autoFocus
                     type="text"
@@ -1581,15 +1581,13 @@ if (pedidoOffline) {
                     placeholder="Ex.: 10 ou 25,5"
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white text-sm font-bold transition-all mb-3"
                   />
-                  <p className="text-[11px] font-semibold text-slate-400 mb-3">
-                    {exigeDupla
-                      ? 'Acima de 20%: informe a senha secundária/mestra.'
-                      : 'Até 20%: informe a senha de login do administrador.'}
+                  <p className="text-[11px] text-slate-400 mb-3">
+                    {exigeDupla ? 'Senha secundária/mestra' : 'Senha de login do administrador'}
                   </p>
 
                   {!exigeDupla ? (
                     <>
-                      <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Senha de login do administrador</label>
+                      <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Senha</label>
                       <input
                         type="password"
                         value={descSenha1}
@@ -1601,7 +1599,7 @@ if (pedidoOffline) {
                     </>
                   ) : (
                     <>
-                      <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Senha secundária/mestra</label>
+                      <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Senha</label>
                       <input
                         type="password"
                         value={descSenha2}
