@@ -537,27 +537,23 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
     const senhaLogin = descSenha1.trim();
     const senhaSecundaria = descSenha2.trim();
     if (pct <= 20) {
-      if (!senhaLogin) { setDescErro('Informe a senha de login do administrador.'); return; }
+      if (!senhaLogin) { setDescErro('Informe a senha.'); return; }
     } else {
-      if (!senhaSecundaria) { setDescErro('Informe a senha secundária/mestra para autorizar acima de 20%.'); return; }
+      if (!senhaSecundaria) { setDescErro('Informe a senha.'); return; }
     }
     setValidandoDesconto(true);
     setDescErro('');
     try {
       if (pct <= 20) {
-        const res = await validateDualMasterPassword(senhaLogin, senhaLogin);
-        if (!res.ok) {
-          setDescErro(
-            res.motivo === 'permissao'
-              ? 'Seu perfil não pode autorizar desconto - exclusivo de administradores.'
-              : 'Senha de login do administrador inválida.'
-          );
+        const ok = await validateAnyMasterPassword(senhaLogin);
+        if (!ok) {
+          setDescErro('Senha inválida.');
           return;
         }
       } else {
         const ok = await validateAnyMasterPassword(senhaSecundaria);
         if (!ok) {
-          setDescErro('Senha secundária/mestra inválida para autorizar acima de 20%.');
+          setDescErro('Senha inválida.');
           return;
         }
       }
