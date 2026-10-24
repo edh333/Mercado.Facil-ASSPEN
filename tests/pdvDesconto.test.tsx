@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
 // Regressão do modal de desconto do PDV (components/admin/TelaPDV.tsx).
 //
-// Regra: desconto >20% exige DOIS fatores — senha MESTRA (campo 1) e senha de
-// LOGIN do administrador logado (campo 2). Antes o primeiro campo era o login e
-// o segundo a mestra; o pedido foi deixar a senha do admin como a "segunda".
+// Regra: até 20% = senha de LOGIN do administrador logado (1 senha).
+// Acima de 20% = senha SECUNDÁRIA/MESTRA (1 senha).
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
@@ -43,7 +42,7 @@ function renderPDV() {
 }
 
 const abrirDesconto = () => {
-  // O rótulo "Desconto (até 50%)" é um <span>; o botão que abre o modal é "Aplicar".
+  // O rótulo "Desconto" é um <span>; o botão que abre o modal é "Aplicar".
   fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }));
 };
 
@@ -54,23 +53,21 @@ const digitarPercentual = (valor: string) => {
 afterEach(() => cleanup());
 
 describe('modal de desconto do PDV', () => {
-  it('até 20%: só o campo da senha mestra', () => {
+  it('até 20%: só o campo da senha de login do administrador', () => {
     renderPDV();
     abrirDesconto();
     digitarPercentual('10');
 
-    expect(screen.getByText(/^Senha mestra$/i)).toBeTruthy();
-    expect(screen.queryByText(/Senha do administrador/i)).toBeNull();
+    expect(screen.getAllByText(/Senha de login do administrador/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Senha secundária/i)).toBeNull();
   });
 
-  it('acima de 20%: campo 1 = senha mestra e campo 2 = senha do administrador (login)', () => {
+  it('acima de 20%: senha secundária/mestra', () => {
     renderPDV();
     abrirDesconto();
     digitarPercentual('25');
 
-    expect(screen.getByText(/^Senha mestra$/i)).toBeTruthy();
-    expect(screen.getByText(/Senha do administrador \(login\)/i)).toBeTruthy();
-    // O aviso do modal deixa claro a nova ordem.
-    expect(screen.getByText(/senha mestra \+ a senha de login do administrador/i)).toBeTruthy();
+    expect(screen.getAllByText(/Senha secundária/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/senha secundária\/mestra/i).length).toBeGreaterThan(0);
   });
 });

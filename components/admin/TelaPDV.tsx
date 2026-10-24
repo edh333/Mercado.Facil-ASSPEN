@@ -149,11 +149,11 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
   const [senhaSupervisaoErro, setSenhaSupervisaoErro] = useState('');
   const [validandoSenhaSupervisor, setValidandoSenhaSupervisor] = useState(false);
 
-  // ── Desconto na venda (até 50%; validado no servidor por faixa de senha) ──
+  // ── Desconto na venda (validado no servidor por faixa de senha) ──
   const [descontoAberto, setDescontoAberto] = useState(false);
   const [descontoPct, setDescontoPct] = useState(0);
-  // Senhas autorizadas para o desconto atual: ≤20% = uma (mestra);
-  // >20% = dupla (entrada + mestra). Reencaminhadas ao servidor, que revalida.
+  // Senhas autorizadas para o desconto atual: ≤20% = senha de login do admin logado;
+  // >20% = senha secundária/mestra. Reencaminhadas ao servidor, que revalida.
   const [descontoSenhas, setDescontoSenhas] = useState<{ primaria: string; secundaria?: string } | null>(null);
   const [descPctInput, setDescPctInput] = useState('');
   const [descSenha1, setDescSenha1] = useState('');
@@ -525,56 +525,44 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
   };
 
   // ── Desconto: valida a senha conforme a faixa e SÓ ENTÃO aplica ──
-  // ≤20% = senha MESTRA · >20% até 50% = senha MESTRA + senha de LOGIN do
-  // administrador que está logado. O servidor revalida as mesmas senhas antes
-  // de calcular o total (validarDuplaSenhaServidor: primária = login, secundária = mestra).
+  // ≤20% = senha de LOGIN do admin que está logado
+  // >20% = senha SECUNDÁRIA/MESTRA
   const confirmarDesconto = async () => {
     const v = parseFloat(String(descPctInput).replace(',', '.'));
     if (!Number.isFinite(v) || v <= 0) {
       setDescErro('Informe um percentual maior que zero (ex.: 10 ou 25,5).');
       return;
     }
-    if (v > 50) {
-      setDescErro('Desconto máximo permitido é de 50%.');
-      return;
-    }
     const pct = Math.round(v * 10) / 10;
-    // Campo 1 = senha mestra · Campo 2 = senha de login do admin logado.
-    const mestra = descSenha1.trim();
-    const loginAdmin = descSenha2.trim();
+    const senhaLogin = descSenha1.trim();
+    const senhaSecundaria = descSenha2.trim();
     if (pct <= 20) {
-      if (!mestra) { setDescErro('Informe a senha mestra.'); return; }
-    } else if (!mestra || !loginAdmin) {
-      setDescErro('Acima de 20% é necessária a senha mestra + a senha de login do administrador.');
-      return;
+      if (!senhaLogin) { setDescErro('Informe a senha de login do administrador.'); return; }
+    } else {
+      if (!senhaSecundaria) { setDescErro('Informe a senha secundária/mestra para autorizar acima de 20%.'); return; }
     }
     setValidandoDesconto(true);
     setDescErro('');
     try {
       if (pct <= 20) {
-        const ok = await validateAnyMasterPassword(mestra);
-        if (!ok) {
-          setDescErro('Senha mestra inválida para autorizar o desconto.');
+        const res = await validateDualMasterPassword(senhaLogin, senhaLogin);
+        if (!res.ok) {
+          setDescErro(
+            res.motivo === 'permissao'
+              ? 'Seu perfil não pode autorizar desconto - exclusivo de administradores.'
+              : 'Senha de login do administrador inválida.'
+          );
           return;
         }
       } else {
-        // primária = login do admin logado; secundária = mestra.
-        const res = await validateDualMasterPassword(loginAdmin, mestra);
-        if (!res.ok) {
-          setDescErro(
-            res.motivo === 'secundaria'
-              ? 'Senha mestra incorreta (o primeiro campo).'
-              : res.motivo === 'primaria'
-                ? 'Senha de login do administrador incorreta (o segundo campo).'
-                : res.motivo === 'permissao'
-                  ? 'Seu perfil não pode autorizar desconto acima de 20% — exclusivo de administradores.'
-                  : 'Senhas inválidas para autorizar o desconto.'
-          );
+        const ok = await validateAnyMasterPassword(senhaSecundaria);
+        if (!ok) {
+          setDescErro('Senha secundária/mestra inválida para autorizar acima de 20%.');
           return;
         }
       }
       setDescontoPct(pct);
-      setDescontoSenhas(pct <= 20 ? { primaria: mestra } : { primaria: loginAdmin, secundaria: mestra });
+      setDescontoSenhas(pct <= 20 ? { primaria: senhaLogin } : { primaria: senhaSecundaria });
       setDescontoAberto(false);
       showNotification(`Desconto de ${String(pct).replace('.', ',')}% aplicado.`, 'success');
     } catch {
@@ -1443,7 +1431,7 @@ if (pedidoOffline) {
                 ) : (
                   <>
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                      <Percent size={14} className="text-slate-400" /> Desconto (até 50%)
+                      <Percent size={14} className="text-slate-400" /> Desconto
                     </span>
                     <button
                       onClick={() => { setDescPctInput(''); setDescSenha1(''); setDescSenha2(''); setDescErro(''); setDescontoAberto(true); }}
@@ -1557,13 +1545,13 @@ if (pedidoOffline) {
               const pctDesc = Number.isFinite(v) && v > 0 ? Math.min(Math.round(v * 10) / 10, 50) : 0;
               const valorDesc = pctDesc > 0 ? arredondarCentavos((totalCarrinho * pctDesc) / 100) : 0;
               const totalDesc = arredondarCentavos(totalCarrinho - valorDesc);
-              const excede50 = Number.isFinite(v) && v > 50;
+              // const excede50 = false;
               // Usa o percentual JÁ arredondado (mesma régua de confirmarDesconto,
               // que calcula pct = round(v*10)/10). Com `v > 20` cru, um valor em
               // (20, 20,05] pedia a 2ª senha e depois a descartava (a confirmação
               // trata pct<=20 como senha única) — o operador digitava senha à toa.
               const exigeDupla = pctDesc > 20;
-              const podeConfirmar = pctDesc > 0 && !excede50 && !!descSenha1.trim() && (!exigeDupla || !!descSenha2.trim());
+              const podeConfirmar = pctDesc > 0 && !!(exigeDupla ? descSenha2.trim() : descSenha1.trim());
               return (
                 <>
                   <div className="flex items-center justify-between mb-4">
@@ -1593,32 +1581,33 @@ if (pedidoOffline) {
                     placeholder="Ex.: 10 ou 25,5"
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white text-sm font-bold transition-all mb-3"
                   />
-                  {excede50 && <p className="text-[11px] font-semibold text-red-500 mb-2">Desconto máximo permitido é de 50%.</p>}
-
                   <p className="text-[11px] font-semibold text-slate-400 mb-3">
                     {exigeDupla
-                      ? 'Acima de 20%: informe a senha mestra + a senha de login do administrador.'
-                      : 'Até 20%: informe a senha mestra.'}
+                      ? 'Acima de 20%: informe a senha secundária/mestra.'
+                      : 'Até 20%: informe a senha de login do administrador.'}
                   </p>
 
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Senha mestra</label>
-                  <input
-                    type="password"
-                    value={descSenha1}
-                    onChange={(e) => { setDescSenha1(e.target.value); setDescErro(''); }}
-                    onKeyDown={(e) => e.key === 'Enter' && podeConfirmar && !validandoDesconto && confirmarDesconto()}
-                    placeholder="Digite a senha mestra"
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white text-sm font-medium transition-all mb-3"
-                  />
-                  {exigeDupla && (
+                  {!exigeDupla ? (
                     <>
-                      <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Senha do administrador (login)</label>
+                      <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Senha de login do administrador</label>
+                      <input
+                        type="password"
+                        value={descSenha1}
+                        onChange={(e) => { setDescSenha1(e.target.value); setDescErro(''); }}
+                        onKeyDown={(e) => e.key === 'Enter' && podeConfirmar && !validandoDesconto && confirmarDesconto()}
+                        placeholder="Digite a senha de login"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white text-sm font-medium transition-all mb-3"
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Senha secundária/mestra</label>
                       <input
                         type="password"
                         value={descSenha2}
                         onChange={(e) => { setDescSenha2(e.target.value); setDescErro(''); }}
                         onKeyDown={(e) => e.key === 'Enter' && podeConfirmar && !validandoDesconto && confirmarDesconto()}
-                        placeholder="Digite a senha do administrador"
+                        placeholder="Digite a senha secundária/mestra"
                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white text-sm font-medium transition-all mb-3"
                       />
                     </>
