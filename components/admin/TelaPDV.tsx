@@ -47,7 +47,7 @@ const METODOS: { key: MetodoPagamentoPDV; rotulo: string; icon: any }[] = [
 export const TelaPDV: React.FC<TelaPDVProps> = ({
   isOpen, onClose, users, products, orders = [], onConfirm, onConfirmOffline, setPrintOrder, settings, currentUser,
 }) => {
-  const { showNotification, validateAnyMasterPassword, validateDualMasterPassword, sessaoCaixaAtiva, refreshSessaoCaixa, sendSystemMessage } = useApp();
+  const { showNotification, validateAnyMasterPassword, sessaoCaixaAtiva, refreshSessaoCaixa, sendSystemMessage } = useApp();
 
   // ── Estado do carrinho / venda ──
   const [carrinho, setCarrinho] = useState<any[]>([]);
