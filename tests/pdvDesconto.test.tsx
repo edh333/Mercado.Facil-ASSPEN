@@ -67,7 +67,7 @@ describe('modal de desconto do PDV', () => {
     abrirDesconto();
     digitarPercentual('10');
 
-    expect(screen.getByPlaceholderText('Digite a senha')).toBeTruthy();
+    expect(screen.getByPlaceholderText('Digite a senha do operador')).toBeTruthy();
     expect(screen.queryByText(/senha de login do administrador/i)).toBeNull();
     expect(screen.queryByText(/senha mestra/i)).toBeNull();
   });
@@ -76,7 +76,7 @@ describe('modal de desconto do PDV', () => {
     renderPDV();
     abrirDesconto();
     digitarPercentual('10');
-    fireEvent.change(screen.getByPlaceholderText('Digite a senha'), { target: { value: 'minhaSenha' } });
+    fireEvent.change(screen.getByPlaceholderText('Digite a senha do operador'), { target: { value: 'minhaSenha' } });
     fireEvent.click(screen.getByRole('button', { name: /Autorizar/i }));
 
     await waitFor(() => expect(mocks.validateDiscountPassword).toHaveBeenCalledWith('minhaSenha'));
@@ -88,10 +88,10 @@ describe('modal de desconto do PDV', () => {
     abrirDesconto();
     digitarPercentual('25');
 
-    expect(screen.getByPlaceholderText('Digite a senha de login')).toBeTruthy();
+    expect(screen.getByPlaceholderText('Digite a senha de login do operador')).toBeTruthy();
     expect(screen.getByPlaceholderText('Digite a senha mestra')).toBeTruthy();
 
-    fireEvent.change(screen.getByPlaceholderText('Digite a senha de login'), { target: { value: 'login' } });
+    fireEvent.change(screen.getByPlaceholderText('Digite a senha de login do operador'), { target: { value: 'login' } });
     fireEvent.change(screen.getByPlaceholderText('Digite a senha mestra'), { target: { value: 'mestra' } });
     fireEvent.click(screen.getByRole('button', { name: /Autorizar/i }));
 
@@ -103,7 +103,7 @@ describe('modal de desconto do PDV', () => {
     renderPDV();
     abrirDesconto();
     digitarPercentual('60');
-    fireEvent.change(screen.getByPlaceholderText('Digite a senha de login'), { target: { value: 'login' } });
+    fireEvent.change(screen.getByPlaceholderText('Digite a senha de login do operador'), { target: { value: 'login' } });
     fireEvent.change(screen.getByPlaceholderText('Digite a senha mestra'), { target: { value: 'mestra' } });
     fireEvent.click(screen.getByRole('button', { name: /Autorizar/i }));
 
