@@ -47,7 +47,7 @@ const METODOS: { key: MetodoPagamentoPDV; rotulo: string; icon: any }[] = [
 export const TelaPDV: React.FC<TelaPDVProps> = ({
   isOpen, onClose, users, products, orders = [], onConfirm, onConfirmOffline, setPrintOrder, settings, currentUser,
 }) => {
-  const { showNotification, validateAnyMasterPassword, sessaoCaixaAtiva, refreshSessaoCaixa, sendSystemMessage } = useApp();
+  const { showNotification, validateAnyMasterPassword, validateDiscountPassword, validateDualMasterPassword, sessaoCaixaAtiva, refreshSessaoCaixa, sendSystemMessage } = useApp();
 
   // ── Estado do carrinho / venda ──
   const [carrinho, setCarrinho] = useState<any[]>([]);
@@ -153,7 +153,7 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
   const [descontoAberto, setDescontoAberto] = useState(false);
   const [descontoPct, setDescontoPct] = useState(0);
   // Senhas autorizadas para o desconto atual: ≤20% = senha de login do admin logado;
-  // >20% = senha secundária/mestra. Reencaminhadas ao servidor, que revalida.
+  // >20% = login + mestra. Reencaminhadas ao servidor, que revalida.
   const [descontoSenhas, setDescontoSenhas] = useState<{ primaria: string; secundaria?: string } | null>(null);
   const [descPctInput, setDescPctInput] = useState('');
   const [descSenha1, setDescSenha1] = useState('');
@@ -525,8 +525,8 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
   };
 
   // ── Desconto: valida a senha conforme a faixa e SÓ ENTÃO aplica ──
-  // ≤20% = senha de LOGIN do admin que está logado
-  // >20% = senha SECUNDÁRIA/MESTRA
+  // ≤20% = senha de LOGIN do admin logado (ou a mestra, como fallback).
+  // >20% = senha de LOGIN + senha MESTRA (dupla), revalidadas no servidor.
   const confirmarDesconto = async () => {
     const v = parseFloat(String(descPctInput).replace(',', '.'));
     if (!Number.isFinite(v) || v <= 0) {
@@ -534,31 +534,43 @@ export const TelaPDV: React.FC<TelaPDVProps> = ({
       return;
     }
     const pct = Math.round(v * 10) / 10;
+    if (pct > 50) {
+      setDescErro('Desconto máximo permitido é de 50%.');
+      return;
+    }
     const senhaLogin = descSenha1.trim();
-    const senhaSecundaria = descSenha2.trim();
+    const senhaMestra = descSenha2.trim();
     if (pct <= 20) {
       if (!senhaLogin) { setDescErro('Informe a senha.'); return; }
-    } else {
-      if (!senhaSecundaria) { setDescErro('Informe a senha.'); return; }
+    } else if (!senhaLogin || !senhaMestra) {
+      setDescErro('Acima de 20% informe a senha de login e a senha mestra.');
+      return;
     }
     setValidandoDesconto(true);
     setDescErro('');
     try {
       if (pct <= 20) {
-        const ok = await validateAnyMasterPassword(senhaLogin);
+        const ok = await validateDiscountPassword(senhaLogin);
         if (!ok) {
           setDescErro('Senha inválida.');
           return;
         }
+        setDescontoSenhas({ primaria: senhaLogin });
       } else {
-        const ok = await validateAnyMasterPassword(senhaSecundaria);
-        if (!ok) {
-          setDescErro('Senha inválida.');
+        const res = await validateDualMasterPassword(senhaLogin, senhaMestra);
+        if (!res.ok) {
+          setDescErro(
+            res.motivo === 'permissao'
+              ? 'Seu perfil não pode autorizar desconto acima de 20% — exclusivo de administradores.'
+              : res.motivo === 'secundaria'
+                ? 'Senha mestra incorreta.'
+                : 'Senha de login incorreta.'
+          );
           return;
         }
+        setDescontoSenhas({ primaria: senhaLogin, secundaria: senhaMestra });
       }
       setDescontoPct(pct);
-      setDescontoSenhas(pct <= 20 ? { primaria: senhaLogin } : { primaria: senhaSecundaria });
       setDescontoAberto(false);
       showNotification(`Desconto de ${String(pct).replace('.', ',')}% aplicado.`, 'success');
     } catch {
@@ -1506,7 +1518,7 @@ if (pedidoOffline) {
       {/* Modal de preço dinâmico */}
       {produtoPrecoDinamico && (
         <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4" onMouseDown={() => setProdutoPrecoDinamico(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 p-6 w-full max-w-sm" onMouseDown={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 p-5 sm:p-6 w-full max-w-sm max-h-[calc(100dvh-2rem)] overflow-y-auto custom-scrollbar" onMouseDown={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <span className="text-sm font-black text-slate-700">Preço do item</span>
               <button onClick={() => setProdutoPrecoDinamico(null)} className="text-slate-400 hover:text-red-500"><X size={18} /></button>
@@ -1535,7 +1547,7 @@ if (pedidoOffline) {
       {/* Modal de desconto — senha validada por faixa (≤20% 1 senha · >20% dupla) */}
       {descontoAberto && (
         <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4" onMouseDown={() => setDescontoAberto(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 p-6 w-full max-w-sm" onMouseDown={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 p-5 sm:p-6 w-full max-w-sm max-h-[calc(100dvh-2rem)] overflow-y-auto custom-scrollbar" onMouseDown={(e) => e.stopPropagation()}>
             {(() => {
               const v = parseFloat(String(descPctInput).replace(',', '.'));
               const pctDesc = Number.isFinite(v) && v > 0 ? Math.min(Math.round(v * 10) / 10, 50) : 0;
@@ -1547,7 +1559,9 @@ if (pedidoOffline) {
               // (20, 20,05] pedia a 2ª senha e depois a descartava (a confirmação
               // trata pct<=20 como senha única) — o operador digitava senha à toa.
               const exigeDupla = pctDesc > 20;
-              const podeConfirmar = pctDesc > 0 && !!(exigeDupla ? descSenha2.trim() : descSenha1.trim());
+              const podeConfirmar = pctDesc > 0 && (exigeDupla
+                ? !!descSenha1.trim() && !!descSenha2.trim()
+                : !!descSenha1.trim());
               return (
                 <>
                   <div className="flex items-center justify-between mb-4">
@@ -1577,10 +1591,6 @@ if (pedidoOffline) {
                     placeholder="Ex.: 10 ou 25,5"
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white text-sm font-bold transition-all mb-3"
                   />
-                  <p className="text-[11px] text-slate-400 mb-3">
-                    {exigeDupla ? 'Senha secundária/mestra' : 'Senha de login do administrador'}
-                  </p>
-
                   {!exigeDupla ? (
                     <>
                       <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Senha</label>
@@ -1589,19 +1599,28 @@ if (pedidoOffline) {
                         value={descSenha1}
                         onChange={(e) => { setDescSenha1(e.target.value); setDescErro(''); }}
                         onKeyDown={(e) => e.key === 'Enter' && podeConfirmar && !validandoDesconto && confirmarDesconto()}
-                        placeholder="Digite a senha de login"
+                        placeholder="Digite a senha do operador"
                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white text-sm font-medium transition-all mb-3"
                       />
                     </>
                   ) : (
                     <>
-                      <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Senha</label>
+                      <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Senha de login do operador</label>
+                      <input
+                        type="password"
+                        value={descSenha1}
+                        onChange={(e) => { setDescSenha1(e.target.value); setDescErro(''); }}
+                        onKeyDown={(e) => e.key === 'Enter' && podeConfirmar && !validandoDesconto && confirmarDesconto()}
+                        placeholder="Digite a senha de login do operador"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white text-sm font-medium transition-all mb-2"
+                      />
+                      <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Senha mestra</label>
                       <input
                         type="password"
                         value={descSenha2}
                         onChange={(e) => { setDescSenha2(e.target.value); setDescErro(''); }}
                         onKeyDown={(e) => e.key === 'Enter' && podeConfirmar && !validandoDesconto && confirmarDesconto()}
-                        placeholder="Digite a senha secundária/mestra"
+                        placeholder="Digite a senha mestra"
                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white text-sm font-medium transition-all mb-3"
                       />
                     </>

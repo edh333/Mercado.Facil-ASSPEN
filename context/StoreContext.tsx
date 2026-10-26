@@ -51,6 +51,7 @@ const fnBuscarPedidosParaEstorno = httpsCallable(functions, 'buscarPedidosParaEs
 const fnValidarSenhaMestra = httpsCallable(functions, 'validarSenhaMestra');
 const fnValidarDuplaSenhaMestra = httpsCallable(functions, 'validarDuplaSenhaMestra');
 const fnValidarSenhaMestraUnica = httpsCallable(functions, 'validarSenhaMestraUnica');
+const fnValidarSenhaDesconto = httpsCallable(functions, 'validarSenhaDesconto');
 const fnDefinirSenhaMestra = httpsCallable(functions, 'definirSenhaMestra');
 const fnResetarSistemaTotal = httpsCallable(functions, 'resetarSistemaTotal');
 const fnZerarCarteiras = httpsCallable(functions, 'zerarCarteiras');
@@ -208,6 +209,7 @@ interface StoreContextType {
     validateMasterPassword: (password: string) => Promise<boolean>;
     validateDualMasterPassword: (senhaPrimaria: string, senhaSecundaria: string) => Promise<{ ok: boolean; motivo: string }>;
     validateAnyMasterPassword: (senha: string) => Promise<boolean>;
+    validateDiscountPassword: (senha: string) => Promise<boolean>;
     defineMasterPassword: (password: string) => Promise<boolean>;
     masterPasswordStatus: () => Promise<{ definida: boolean }>;
     updateAdminPassword: (newPassword: string) => Promise<void>;
@@ -2403,6 +2405,16 @@ return false;
         }
     };
 
+    const validateDiscountPassword = async (senha: string) => {
+        try {
+            const res = await fnValidarSenhaDesconto({ senha: senha || '', apiKey: FIREBASE_API_KEY || '' }) as any;
+            return !!res.data?.ok;
+        } catch (e) {
+            console.warn('[validateDiscountPassword]', e);
+            return false;
+        }
+    };
+
     const defineMasterPassword = async (pass: string) => {
         try {
             const res = await fnDefinirSenhaMestra({ senha: pass || '' }) as any;
@@ -3221,7 +3233,7 @@ useEffect(() => {
             processInvoiceImport, importXmlProduct, previewXmlImport, sanitizeCatalog, updateAppConfig, updateSettings: updateAppConfig,
             downloadBackup, backupSystem: downloadBackup, resetSystem, resetStock, resetFinance, resetCredits, devolucaoAlvara, checkPermission, sendSystemMessage, sendMessage, markMessageRead, showNotification, removeNotification,
             depositToWallet, approveWalletTransaction, rejectWalletTransaction, getWalletTransactions, withdrawWalletCredit, attachAdminProof, reenviarComprovante,
-            validateMasterPassword, validateDualMasterPassword, validateAnyMasterPassword, defineMasterPassword, masterPasswordStatus, addPreRegisteredInmate, updatePreRegisteredInmate, deletePreRegisteredInmate, preRegisteredInmates, refundOrder, buscarPedidosParaEstorno, importInmatesCsv, updateAdminPassword,
+            validateMasterPassword, validateDualMasterPassword, validateAnyMasterPassword, validateDiscountPassword, defineMasterPassword, masterPasswordStatus, addPreRegisteredInmate, updatePreRegisteredInmate, deletePreRegisteredInmate, preRegisteredInmates, refundOrder, buscarPedidosParaEstorno, importInmatesCsv, updateAdminPassword,
             isInstallable: !!deferredPrompt, installApp,
             isLoggingOut,
             tryOfflineUnlock, isOfflineUnlocked: offlineUnlocked, logoutOffline,

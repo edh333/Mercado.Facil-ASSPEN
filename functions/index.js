@@ -2675,8 +2675,8 @@ exports.processarVendaAdmin = onCall({
   }
 
     // DESCONTO no PDV: validado AQUI no servidor (nunca confia só no frontend).
-    // Faixas: até 20% = UMA senha, APENAS a mestra (validarSenhaUnicaServidor);
-    // acima de 20% até 50% = senha mestra + senha de login do admin logado
+    // Faixas: até 20% = UMA senha, a de LOGIN do operador logado (ou a mestra,
+    // por compatibilidade); acima de 20% até 50% = senha de login + mestra
     // (primária = login, secundária = mestra em validarDuplaSenhaServidor).
   // Acima de 50% = proibido. Os erros dizem QUAL campo falhou (motivo).
   // O total é recalculado DENTRO da transação sobre o subtotal de catálogo.
@@ -2706,11 +2706,11 @@ exports.processarVendaAdmin = onCall({
     if (descontoPct <= 20) {
       const senhaUnicaDesc = String(request.data?.senhaPrimaria || request.data?.senhaSecundaria || "");
       if (!senhaUnicaDesc) {
-        throw new HttpsError("invalid-argument", "Desconto exige a senha mestra do administrador.");
+        throw new HttpsError("invalid-argument", "Desconto exige a senha de login do operador.");
       }
-      const unicaDesc = await validarSenhaUnicaServidor(senhaUnicaDesc);
+      const unicaDesc = await validarSenhaDescontoServidor(caller, senhaUnicaDesc, apiKeyDesconto);
       if (!unicaDesc.ok) {
-        throw new HttpsError("permission-denied", "Senha mestra incorreta. Tente novamente.");
+        throw new HttpsError("permission-denied", "Senha incorreta. Tente novamente.");
       }
     } else {
       // PARIDADE com o front: o pré-check (callable validarDuplaSenhaMestra) é
@@ -2723,7 +2723,7 @@ exports.processarVendaAdmin = onCall({
       const sPrimariaDesc = String(request.data?.senhaPrimaria || "");
       const sSecundariaDesc = String(request.data?.senhaSecundaria || "");
       if (!sPrimariaDesc || !sSecundariaDesc) {
-        throw new HttpsError("invalid-argument", "Desconto acima de 20% exige a DUPLA senha: senha mestra + senha de login do administrador.");
+        throw new HttpsError("invalid-argument", "Desconto acima de 20% exige a DUPLA senha: senha de login do administrador + senha mestra.");
       }
       const duplaDesc = await validarDuplaSenhaServidor(caller, sPrimariaDesc, sSecundariaDesc, apiKeyDesconto);
       if (!duplaDesc.ok) {
@@ -4672,6 +4672,36 @@ async function validarSenhaUnicaServidor(senhaInformada) {
 }
 
 /**
+ * Valida a senha do desconto de ATÉ 20%: aceita a senha de LOGIN do operador
+ * logado (fonte esperada pelo PDV) e, como compatibilidade, a senha MESTRA.
+ * A senha de login é conferida pelo hash legado ou re-auth REST no Firebase
+ * Auth — nunca é comparada com plaintext. O endpoint e o gate de venda usam
+ * exatamente a mesma regra, então o front e o servidor não divergem.
+ */
+async function validarSenhaDescontoServidor(user, senhaInformada, apiKey) {
+  const senha = String(senhaInformada || "");
+  if (!senha) return { ok: false, motivo: "vazia" };
+
+  // Compatibilidade: a senha mestra continua valendo para o desconto simples.
+  const mestra = await validarSenhaUnicaServidor(senha);
+  if (mestra.ok) return { ok: true, motivo: "" };
+
+  // Senha de login do próprio operador (hash legado bcrypt e/ou REST Auth).
+  let loginOk = false;
+  const hashLegado = await obterHashLegadoDeUsuario(user);
+  if (hashLegado) {
+    try {
+      loginOk = await bcrypt.compare(senha, hashLegado);
+    } catch (e) {
+      logger.warn("[validarSenhaDescontoServidor] Falha ao comparar hash legado:", e.message);
+    }
+  }
+  if (!loginOk) loginOk = await senhaLoginConfere(user, senha, apiKey);
+
+  return { ok: loginOk, motivo: loginOk ? "" : "senha" };
+}
+
+/**
  * Admin │ valida a SENHA MESTRA para autorizar venda fiada/desconto até 20%.
  * Usado no front para conferir antes de finalizar (a senha de login não conta).
  */
@@ -4690,6 +4720,27 @@ exports.validarSenhaMestraUnica = onCall(async (request) => {
   }
   const resultado = await validarSenhaUnicaServidor(senha);
   return { ok: !!resultado.ok, definida: true, motivo: resultado.motivo || "" };
+});
+
+/**
+ * Admin │ valida a senha do desconto de ATÉ 20% no PDV.
+ * Regra (paridade com processarVendaAdmin): senha de LOGIN do operador logado
+ * ou senha mestra. A senha final é revalidada no gate da venda.
+ */
+exports.validarSenhaDesconto = onCall(async (request) => {
+  const user = await exigirAutenticado(request);
+  verificarRateLimit("validarSenhaDesconto:" + user.id, 10);
+  const roleLower = String(user.role || "").toLowerCase();
+  if (!["admin", "master", "vendedor", "operator"].includes(roleLower)) {
+    throw new HttpsError("permission-denied", "Apenas a equipe autorizada pode validar a senha do desconto.");
+  }
+  const senha = String(request.data?.senha || "");
+  if (!senha) {
+    throw new HttpsError("invalid-argument", "Digite a senha do desconto.");
+  }
+  const apiKey = String(request.data?.apiKey || "") || process.env.FIREBASE_API_KEY || "";
+  const resultado = await validarSenhaDescontoServidor(user, senha, apiKey);
+  return { ok: !!resultado.ok, motivo: resultado.motivo || "" };
 });
 
 /** Autenticado ─ hora confiável do servidor (substitui APIs externas de horário). */

@@ -943,23 +943,31 @@ export function abrirJanelaImpressao(
   config?: any
 ): Window | null {
   try {
-    // Payload completo EMBARCADO na URL (?d=base64). No Electron, o main lê este
-    // parâmetro e entrega para a janela /print dedicada — sem depender do
-    // localStorage compartilhado entre "arquivos" file:// (não confiável entre
-    // janelas). No navegador/web o ?d cobre telas frescas; o localStorage
-    // continua servindo de second source (evento 'storage' entre janelas).
+    // Payload completo no localStorage e, quando couber, TAMBÉM embarcado na
+    // URL (?d=base64) — no Electron o main repassa esse parâmetro à janela
+    // /print. Relatórios grandes (centenas de pedidos) estouravam o limite de
+    // URL do Chromium ("URI too long") e a janela nem abria. Acima do teto
+    // seguro o ?d é omitido e a janela usa o localStorage + evento 'storage',
+    // que já era o fallback do PrintPage.
+    const MAX_URL_PAYLOAD = 1800;
     const dadosBrutos = JSON.stringify({ item, config: config || {} }, SERIALIZER_REPLACER);
     const dadosCod = typeof btoa === 'function'
       ? btoa(unescape(encodeURIComponent(dadosBrutos)))
       : encodeURIComponent(basicBase64(dadosBrutos));
-    localStorage.setItem('printItem', JSON.stringify(item, SERIALIZER_REPLACER));
-    localStorage.setItem('appSettings', JSON.stringify(config || {}, SERIALIZER_REPLACER));
+    const salvarLocal = (chave: string, valor: string) => {
+      try { localStorage.setItem(chave, valor); } catch { /* quota/privado: URL cobre */ }
+    };
+    salvarLocal('printItem', JSON.stringify(item, SERIALIZER_REPLACER));
+    salvarLocal('appSettings', JSON.stringify(config || {}, SERIALIZER_REPLACER));
     // Ticket único: garante que a janela /print existente detecte a NOVA
     // impressão (evento 'storage' só dispara quando o valor muda) e se
     // atualize sozinha — sem precisar recarregar/atualizar a janela.
-    localStorage.setItem('printTicket', String(Date.now() + Math.random()));
+    salvarLocal('printTicket', String(Date.now() + Math.random()));
+    const query = dadosCod && encodeURIComponent(dadosCod).length <= MAX_URL_PAYLOAD
+      ? `?d=${encodeURIComponent(dadosCod)}`
+      : '';
     const win = window.open(
-      `/print.html?d=${encodeURIComponent(dadosCod)}`,
+      `/print.html${query}`,
       'janelaImpressao',
       'width=880,height=960,menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes'
     );

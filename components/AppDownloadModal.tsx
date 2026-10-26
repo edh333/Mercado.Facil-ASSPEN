@@ -29,10 +29,12 @@ export const AppDownloadButton: React.FC<{
       <>
         <button
           onClick={() => setOpen(true)}
-          className={`flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-slate-800 to-slate-900 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-slate-900/20 hover:brightness-125 active:scale-95 transition-all whitespace-nowrap ${className}`}
+          title={label || 'Baixar App'}
+          aria-label={label || 'Baixar App'}
+          className={`flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 bg-gradient-to-r from-slate-800 to-slate-900 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-slate-900/20 hover:brightness-125 active:scale-95 transition-all whitespace-nowrap ${className}`}
         >
           <Download size={16} />
-          {label || 'Baixar App'}
+          <span className="hidden sm:inline">{label || 'Baixar App'}</span>
         </button>
         {open && <AppDownloadModal onClose={() => setOpen(false)} />}
       </>
