@@ -957,7 +957,12 @@ export function abrirJanelaImpressao(
     const salvarLocal = (chave: string, valor: string) => {
       try { localStorage.setItem(chave, valor); } catch { /* quota/privado: URL cobre */ }
     };
-    salvarLocal('printItem', JSON.stringify(item, SERIALIZER_REPLACER));
+    // Adiciona timestamp para controle de validade futura
+    const itemComTimestamp = {
+      ...item,
+      _timestamp: new Date().toISOString()
+    };
+    salvarLocal('printItem', JSON.stringify(itemComTimestamp, SERIALIZER_REPLACER));
     salvarLocal('appSettings', JSON.stringify(config || {}, SERIALIZER_REPLACER));
     // Ticket único: garante que a janela /print existente detecte a NOVA
     // impressão (evento 'storage' só dispara quando o valor muda) e se

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode, useRef } from 'react';
-import { User, Product, Order, PrisonUnit, UserRole, CartItem, OrderStatus, AppConfig, Supplier, Expense, AuditLog, InmateLocation, SystemMessage, ThemeOption, Message, Notification, WalletTransaction, toUserRole } from '../types';
+import { User, Product, Order, PrisonUnit, UserRole, CartItem, OrderStatus, AppConfig, Supplier, Expense, AuditLog, InmateLocation, SystemMessage, ThemeOption, Message, Notification, WalletTransaction, toUserRole, BackupData } from '../types';
 import { cleanProductName, normalizeName, stringSimilarity, textToBase64, formatarMoeda } from '../utils';
 import { listarVendasOffline, salvarVendaOffline, removerVendaOffline, marcarErroVendaOffline, marcarAjustadaVendaOffline, descartarVendaOffline, rearmarVendaOffline, podeTentarSync, LIMITE_FILA, VendaOffline } from '../utils/offlineQueue';
 import { verificarInternetReal } from '../utils/netStatus';
@@ -251,7 +251,15 @@ interface StoreContextType {
     vendasOfflineComErro: number;
     vendasOfflineAjustadas: number;
     rearmarVendaOffline: (id: string) => void;
-    descartarVendaOffline: (id: string) => void;
+descartarVendaOffline: (id: string) => void;
+
+    // Backup e Restaurao
+    exportarBackup: () => string;
+    restaurarBackup: (backupStr: string) => {
+      sucesso: boolean;
+      restaurados: string[];
+      erros: string[];
+    };
 
     // Sessão de caixa física ATIVA do operador logado (fonte global reativa).
     // O PDV usa sessaoCaixaAtiva.id no payload CASH — o ID nunca nasce vazio
@@ -368,6 +376,209 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             }
         } catch { /* silencioso */ }
     }, []);
+
+    // Limpeza de comprovantes expirados (30 dias)
+    useEffect(() => {
+        try {
+            const printItemRaw = localStorage.getItem('printItem');
+            if (printItemRaw) {
+                const printItem = JSON.parse(printItemRaw);
+                if (printItem._timestamp) {
+                    const dataExpiracao = new Date(printItem._timestamp);
+                    const agora = new Date();
+                    const diasVigencia = 30;
+                    const diasPassados = (agora.getTime() - dataExpiracao.getTime()) / (1000 * 60 * 60 * 24);
+                    if (diasPassados > diasVigencia) {
+                      localStorage.removeItem('printItem');
+                      console.info('[offlineCleanup] Comprovante expirado removido após 30 dias.');
+                    }
+                }
+            }
+        } catch { /* silencioso */ }
+    }, []);
+
+    // Dashboard de saúde do sistema
+    const VERSION_SISTEMA = '2.5.1';
+    const [saudeSistema, setSaudeSistema] = useState({
+      offlineQueue: 0,
+      storageUsageKB: 0,
+      ultimaSincronizacao: null,
+      versaoAplicativo: VERSION_SISTEMA,
+      status: 'healthy'
+    });
+
+    useEffect(() => {
+        const atualizarSaude = async () => {
+          try {
+            // 1. Contar vendas offline pendentes
+            const { listarVendasOffline } = await import('@/utils/offlineQueue');
+            const vendas = listarVendasOffline();
+            const pending = vendas.filter((v: any) => v.status === 'pending').length;
+            const error = vendas.filter((v: any) => v.status === 'error').length;
+            const ajustada = vendas.filter((v: any) => v.status === 'ajustada').length;
+
+            setSaudeSistema(prev => ({
+              ...prev,
+              offlineQueue: pending + error + ajustada,
+              status:
+                (pending + error + ajustada > 200 ? 'critical' :
+                (pending + error + ajustada > 50 ? 'warning' :
+                'healthy'))
+            }));
+
+            // 2. Tamanho do armazenamento local
+            const storageSize = Math.round(localStorage.length / 1024);
+            setSaudeSistema(prev => ({ ...prev, storageUsageKB: storageSize }));
+
+            // 3. Verificar data de última sincronização
+            const ultimoSync = localStorage.getItem('ultima_sincronizacao');
+            setSaudeSistema(prev => ({ ...prev, ultimaSincronizacao: ultimoSync ? new Date(ultimoSync) : null }));
+
+            // 4. Verificar versão do aplicativo
+            const versaoSalva = localStorage.getItem('sistema_version');
+            if (versaoSalva !== VERSION_SISTEMA) {
+              console.info(`[sistema] Atualização detectada: v${versaoSalva} -> v${VERSION_SISTEMA}`);
+              localStorage.setItem('sistema_version', VERSION_SISTEMA);
+            }
+            setSaudeSistema(prev => ({ ...prev, versaoAplicativo: VERSION_SISTEMA }));
+
+          } catch (err) {
+            console.warn('[saudeSistema] Erro ao atualizar métricas:', err);
+          }
+        };
+
+        // Executar imediatamente
+        atualizarSaude();
+
+        // Atualizar a cada 30 segundos
+        const interval = setInterval(atualizarSaude, 30000);
+
+        return () => clearInterval(interval);
+    }, [VERSION_SISTEMA]);
+
+    // --- BACKUP E RESTAURO ---
+    // Funções para exportar e restaurar dados críticos do sistema
+    // Usadas pelo admin para segurança, migração entre computadores ou recuperação
+    // após falhas. Dados incluem: vendas offline pendentes e configurações básicas.
+    const exportarBackup = (): string => {
+      try {
+        const vendas = listarVendasOffline();
+        const dados: BackupData = {
+          version: VERSION_SISTEMA,
+          exportadoEm: new Date().toISOString(),
+          vendasOffline: vendas.map((v: VendaOffline) => ({
+            id: v.id,
+            targetUserId: v.targetUserId,
+            items: v.items.map((item: any) => ({
+              productId: item.productId,
+              quantity: item.quantity,
+              priceAtPurchase: item.priceAtPurchase || item.price
+            })),
+            paymentMethod: v.paymentMethod,
+            total: v.total,
+            payments: v.payments,
+            change: v.change,
+            sessaoCaixaId: v.sessaoCaixaId,
+            inmateLocation: v.inmateLocation
+          })),
+          configuracoesSistema: {
+            tema: localStorage.getItem('theme') || 'modern_green',
+          },
+          metadados: {
+            ultimaSincronizacao: saudeSistema.ultimaSincronizacao,
+            versaoAplicativo: saudeSistema.versaoAplicativo
+          }
+        };
+
+        return JSON.stringify(dados, null, 2);
+      } catch (err) {
+        console.error('[backup] Erro ao gerar backup:', err);
+        throw err;
+      }
+    };
+
+    const restaurarBackup = (backupStr: string): {
+      sucesso: boolean;
+      restaurados: string[];
+      erros: string[];
+    } => {
+      try {
+        const dados = JSON.parse(backupStr) as BackupData;
+        const restaurados: string[] = [];
+        const erros: string[] = [];
+
+        // 1. Restaurar vendas offline pendentes
+        if (dados.vendasOffline && Array.isArray(dados.vendasOffline)) {
+          dados.vendasOffline.forEach((vendaBackup: any) => {
+            try {
+              // Mapear dados de backup para formato VendaOffline
+              const venda: VendaOffline = {
+                id: vendaBackup.id || 'temp_' + Date.now(),
+                createdAt: vendaBackup.createdAt || new Date().toISOString(),
+                targetUserId: vendaBackup.targetUserId,
+                items: (vendaBackup.items || []).map((item: any) => ({
+                  productId: item.productId,
+                  name: item.name || 'Produto',
+                  price: item.priceAtPurchase || 0,
+                  quantity: item.quantity || 1
+                })),
+                paymentMethod: vendaBackup.paymentMethod || 'CASH',
+                payments: vendaBackup.payments || [],
+                change: vendaBackup.change || 0,
+                cardBrand: vendaBackup.cardBrand,
+                customerAccountId: vendaBackup.customerAccountId,
+                sessaoCaixaId: vendaBackup.sessaoCaixaId,
+                total: vendaBackup.total,
+                inmateLocation: vendaBackup.inmateLocation,
+                status: 'pending',
+                error: undefined,
+                tryCount: 0
+              };
+
+              // Salvar usando a função existente
+              const resultado = salvarVendaOffline(venda);
+              if (resultado) {
+                restaurados.push('venda offline (id: ' + venda.id?.substring(0, 8) + '...)');
+              } else {
+                erros.push('venda offline: falha ao salvar (fila cheia/indisponível)');
+              }
+            } catch (e) {
+              const msg = e instanceof Error ? e.message : 'erro desconhecido';
+              erros.push('venda offline: ' + msg);
+            }
+          });
+        }
+
+        // 2. Atualizar versão do sistema se diferente
+        if (dados.version && dados.version !== VERSION_SISTEMA) {
+          console.info(`[backup] Atualizando de v${dados.version} para v${VERSION_SISTEMA}`);
+          localStorage.setItem('sistema_version', VERSION_SISTEMA);
+        }
+
+        // 3. Restaurar configurações de tema
+        if (dados.configuracoesSistema?.tema) {
+          localStorage.setItem('theme', dados.configuracoesSistema.tema);
+          restaurados.push('configuração de tema');
+        }
+
+        // 4. Atualizar metadados de saúde
+        if (dados.metadados?.ultimaSincronizacao) {
+          localStorage.setItem('ultima_sincronizacao', dados.metadados.ultimaSincronizacao);
+        }
+
+        return {
+          sucesso: erros.length === 0,
+          restaurados,
+          erros
+        };
+      } catch (err) {
+        return {
+          sucesso: false,
+          restaurados: [],
+          erros: ['Falha ao analisar arquivo de backup: ' + (err instanceof Error ? err.message : 'erro desconhecido')]
+        };
+      }
+    };
 
     // PWA install event capture
     useEffect(() => {

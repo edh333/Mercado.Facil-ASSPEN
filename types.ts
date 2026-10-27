@@ -403,3 +403,38 @@ export interface CustomerAccount {
   /** Saldo da carteira (créditos) do usuário — pode coexistir com a dívida de fiado. */
   walletBalance?: number;
 }
+
+/** Dados estruturados para backup/restauração do sistema */
+export interface BackupData {
+  version: string;
+  exportadoEm: string;
+  vendasOffline: Array<{
+    id: string;
+    targetUserId: string;
+    items: Array<{
+      productId: string;
+      quantity: number;
+      priceAtPurchase: number;
+    }>;
+    paymentMethod: string;
+    total: number;
+    payments?: Array<{ method: string; amount: number }>;
+    change: number;
+    clientToken?: string;
+    sessaoCaixaId?: string;
+    inmateLocation?: {
+      ala?: string;
+      cela?: string;
+      raio?: string;
+    };
+    createdAt?: string;
+  }>;
+  configuracoesSistema: {
+    tema?: string;
+    [key: string]: any;
+  };
+  metadados: {
+    ultimaSincronizacao?: string;
+    versaoAplicativo?: string;
+  };
+}
