@@ -247,19 +247,15 @@ interface StoreContextType {
     registrarVendaOffline: (targetUserId: string, items: any[], paymentMethod: 'PIX' | 'WALLET' | 'CASH' | 'CARD' | 'MIXED' | 'FIADO', total: number, payments?: { method: string; amount: number }[], change?: number, customerAccountId?: string, cardBrand?: string, sessaoCaixaId?: string, clientToken?: string, inmateLocation?: InmateLocation) => Promise<Order | null>;
     sincronizarVendasOffline: (incluirErros?: boolean) => Promise<{ ok: boolean; sincronizadas: number; comErro: number; total: number; offline?: boolean }>;
     vendasOfflinePendentes: number;
-    vendasOffline: VendaOffline[];
+vendasOffline: VendaOffline[];
     vendasOfflineComErro: number;
     vendasOfflineAjustadas: number;
     rearmarVendaOffline: (id: string) => void;
-descartarVendaOffline: (id: string) => void;
+    descartarVendaOffline: (id: string) => void;
 
     // Backup e Restaurao
     exportarBackup: () => string;
-    restaurarBackup: (backupStr: string) => {
-      sucesso: boolean;
-      restaurados: string[];
-      erros: string[];
-    };
+    restaurarBackup: (backupStr: string) => { sucesso: boolean; restaurados: string[]; erros: string[] };
 
     // Sessão de caixa física ATIVA do operador logado (fonte global reativa).
     // O PDV usa sessaoCaixaAtiva.id no payload CASH — o ID nunca nasce vazio
@@ -3566,6 +3562,8 @@ useEffect(() => {
             },
             sessaoCaixaAtiva,
             refreshSessaoCaixa,
+            exportarBackup,
+            restaurarBackup,
             addWalletCreditDirectly: async (userId: string, amount: number, reason: string, senhaMestra?: string, clientToken?: string) => {
                 if (!currentUser || currentUser.role !== UserRole.ADMIN) throw new Error("Acesso restrito a administradores.");
                 if (!(Number(amount) > 0)) throw new Error("Valor de crédito inválido.");
